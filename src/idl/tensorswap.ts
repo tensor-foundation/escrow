@@ -3,17 +3,6 @@ export type Tensorswap = {
   "name": "tensorswap",
   "instructions": [
     {
-      "name": "initPool",
-      "accounts": [
-        {
-          "name": "helloWorld",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initTswap",
       "accounts": [
         {
@@ -22,7 +11,12 @@ export type Tensorswap = {
           "isSigner": true
         },
         {
-          "name": "payer",
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
           "isMut": true,
           "isSigner": true
         },
@@ -32,18 +26,176 @@ export type Tensorswap = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "authBump",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "initPool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "creator",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authBump",
+          "type": "u8"
+        },
+        {
+          "name": "poolBump",
+          "type": "u8"
+        },
+        {
+          "name": "rootHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
+    },
+    {
+      "name": "addNft",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "creator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "helloWorld",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authBump",
+          "type": "u8"
+        },
+        {
+          "name": "poolBump",
+          "type": "u8"
+        },
+        {
+          "name": "rootHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        },
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
     {
-      "name": "tensorswap",
+      "name": "tSwap",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "hello",
-            "type": "u64"
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "authBump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "config",
+            "type": {
+              "defined": "TSwapConfig"
+            }
+          },
+          {
+            "name": "feeVault",
+            "type": "publicKey"
           }
         ]
       }
@@ -54,11 +206,209 @@ export type Tensorswap = {
         "kind": "struct",
         "fields": [
           {
-            "name": "hello",
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "poolBump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "tswap",
+            "docs": [
+              "Ownership & belonging"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "creator",
+            "type": "publicKey"
+          },
+          {
+            "name": "collection",
+            "docs": [
+              "Collection stuff"
+            ],
+            "type": {
+              "defined": "Collection"
+            }
+          },
+          {
+            "name": "config",
+            "docs": [
+              "Config"
+            ],
+            "type": {
+              "defined": "PoolConfig"
+            }
+          },
+          {
+            "name": "tradeCount",
+            "docs": [
+              "Accounting & tracking"
+            ],
             "type": "u64"
+          },
+          {
+            "name": "nftsHeld",
+            "type": "u32"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
           }
         ]
       }
+    },
+    {
+      "name": "pooledMint",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "publicKey"
+          },
+          {
+            "name": "nftMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "tokenAccount",
+            "type": "publicKey"
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "TSwapConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feeBps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Collection",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rootHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "verified",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "poolType",
+            "type": {
+              "defined": "PoolType"
+            }
+          },
+          {
+            "name": "curveType",
+            "type": {
+              "defined": "CurveType"
+            }
+          },
+          {
+            "name": "startingPrice",
+            "type": "u64"
+          },
+          {
+            "name": "delta",
+            "type": "u64"
+          },
+          {
+            "name": "honorRoyalties",
+            "type": "bool"
+          },
+          {
+            "name": "feeBps",
+            "docs": [
+              "Trade pools only"
+            ],
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "feeVault",
+            "type": {
+              "option": "publicKey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Token"
+          },
+          {
+            "name": "NFT"
+          },
+          {
+            "name": "Trade"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CurveType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Linear"
+          },
+          {
+            "name": "Exponential"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidProof",
+      "msg": "invalid merkle proof, token not whitelisted"
+    },
+    {
+      "code": 6001,
+      "name": "PoolNotVerified",
+      "msg": "pool not verified -- currently only verified pools supported"
     }
   ]
 };
@@ -68,17 +418,6 @@ export const IDL: Tensorswap = {
   "name": "tensorswap",
   "instructions": [
     {
-      "name": "initPool",
-      "accounts": [
-        {
-          "name": "helloWorld",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initTswap",
       "accounts": [
         {
@@ -87,7 +426,12 @@ export const IDL: Tensorswap = {
           "isSigner": true
         },
         {
-          "name": "payer",
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
           "isMut": true,
           "isSigner": true
         },
@@ -97,18 +441,176 @@ export const IDL: Tensorswap = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "authBump",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "initPool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "creator",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authBump",
+          "type": "u8"
+        },
+        {
+          "name": "poolBump",
+          "type": "u8"
+        },
+        {
+          "name": "rootHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
+    },
+    {
+      "name": "addNft",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "creator",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "helloWorld",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "authBump",
+          "type": "u8"
+        },
+        {
+          "name": "poolBump",
+          "type": "u8"
+        },
+        {
+          "name": "rootHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        },
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
     {
-      "name": "tensorswap",
+      "name": "tSwap",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "hello",
-            "type": "u64"
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "authBump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "config",
+            "type": {
+              "defined": "TSwapConfig"
+            }
+          },
+          {
+            "name": "feeVault",
+            "type": "publicKey"
           }
         ]
       }
@@ -119,11 +621,209 @@ export const IDL: Tensorswap = {
         "kind": "struct",
         "fields": [
           {
-            "name": "hello",
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "poolBump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "tswap",
+            "docs": [
+              "Ownership & belonging"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "creator",
+            "type": "publicKey"
+          },
+          {
+            "name": "collection",
+            "docs": [
+              "Collection stuff"
+            ],
+            "type": {
+              "defined": "Collection"
+            }
+          },
+          {
+            "name": "config",
+            "docs": [
+              "Config"
+            ],
+            "type": {
+              "defined": "PoolConfig"
+            }
+          },
+          {
+            "name": "tradeCount",
+            "docs": [
+              "Accounting & tracking"
+            ],
             "type": "u64"
+          },
+          {
+            "name": "nftsHeld",
+            "type": "u32"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
           }
         ]
       }
+    },
+    {
+      "name": "pooledMint",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "publicKey"
+          },
+          {
+            "name": "nftMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "tokenAccount",
+            "type": "publicKey"
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "TSwapConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feeBps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Collection",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "rootHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "verified",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "poolType",
+            "type": {
+              "defined": "PoolType"
+            }
+          },
+          {
+            "name": "curveType",
+            "type": {
+              "defined": "CurveType"
+            }
+          },
+          {
+            "name": "startingPrice",
+            "type": "u64"
+          },
+          {
+            "name": "delta",
+            "type": "u64"
+          },
+          {
+            "name": "honorRoyalties",
+            "type": "bool"
+          },
+          {
+            "name": "feeBps",
+            "docs": [
+              "Trade pools only"
+            ],
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "feeVault",
+            "type": {
+              "option": "publicKey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Token"
+          },
+          {
+            "name": "NFT"
+          },
+          {
+            "name": "Trade"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CurveType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Linear"
+          },
+          {
+            "name": "Exponential"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidProof",
+      "msg": "invalid merkle proof, token not whitelisted"
+    },
+    {
+      "code": 6001,
+      "name": "PoolNotVerified",
+      "msg": "pool not verified -- currently only verified pools supported"
     }
   ]
 };

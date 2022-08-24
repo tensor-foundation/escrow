@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use crate::*;
 use std::fmt::Debug;
-use std::sync::Arc;
+use vipers::throw_err;
 
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 1;
@@ -62,8 +62,11 @@ impl Collection {
             verified: false,
         }
     }
-    pub fn get_hash(&self) -> &[u8; 32] {
-        &self.root_hash
+    pub fn get_hash(&self) -> Result<&[u8; 32]> {
+        if !self.verified {
+            throw_err!(PoolNotVerified);
+        }
+        Ok(&self.root_hash)
     }
     // todo not possible in v1
     // pub fn set_new_hash(&mut self, new_hash: [u8; 32]) {
@@ -80,18 +83,20 @@ pub struct PoolConfig {
     pub pool_type: PoolType,
     // todo later can be made into a dyn Trait
     pub curve_type: CurveType,
-    pub starting_price: u64,
-    pub delta: u64,
+    pub starting_price: u64, //lamports
+    pub delta: u64,          //lamports pr bps
+
     pub honor_royalties: bool,
 
     /// Trade pools only
-    pub fee: Option<u16>,
+    pub fee_bps: Option<u16>,
     pub fee_vault: Option<Pubkey>,
 }
 
 #[account]
 pub struct Pool {
     pub version: u8,
+    pub pool_bump: [u8; 1],
 
     /// Ownership & belonging
     pub tswap: Pubkey,

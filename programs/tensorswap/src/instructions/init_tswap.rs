@@ -7,7 +7,7 @@ pub struct InitTSwap<'info> {
     #[account(init, payer = owner, space = 8 + std::mem::size_of::<TSwap>())]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    /// CHECK: macro verifies pda derived correctly
+    /// CHECK: via seed derivation macro below
     #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
     pub authority: UncheckedAccount<'info>,
 
@@ -24,7 +24,7 @@ impl<'info> Validate<'info> for InitTSwap<'info> {
 
 #[access_control(ctx.accounts.validate())]
 pub fn handler(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
-    let mut tswap = &mut ctx.accounts.tswap;
+    let tswap = &mut ctx.accounts.tswap;
 
     tswap.version = CURRENT_TSWAP_VERSION;
     tswap.authority = ctx.accounts.authority.key();
