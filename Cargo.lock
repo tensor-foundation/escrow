@@ -1286,6 +1286,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tensor_whitelist"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "vipers",
+]
+
+[[package]]
 name = "tensorswap"
 version = "0.1.0"
 dependencies = [

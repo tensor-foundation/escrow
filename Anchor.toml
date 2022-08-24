@@ -2,13 +2,15 @@
 seeds = false
 skip-lint = false
 [programs.localnet]
-tensorswap = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+tensorswap = "EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA"
+tensor_whitelist = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
+#todo change this
 wallet = "/Users/ilmoi/.config/solana/id.json"
 
 [scripts]

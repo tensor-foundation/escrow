@@ -1,65 +1,21 @@
 import * as anchor from "@project-serum/anchor";
-import { CurveType, PoolConfig, PoolType, TSwapSDK } from "../src";
 import {
-  Keypair,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  Signer,
-  Transaction,
-  TransactionInstruction,
-} from "@solana/web3.js";
+  CurveType,
+  PoolConfig,
+  PoolType,
+  TensorSwapSDK,
+} from "../src/tensorswap";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { waitMS } from "@tensor-hq/tensor-common/dist/util";
-import { buildTx } from "@tensor-hq/tensor-common/dist/solana_contrib";
 import BN from "bn.js";
 import chai, { expect } from "chai";
-import { MerkleTree } from "merkletreejs";
-import keccak256 from "keccak256";
 import chaiAsPromised from "chai-as-promised";
+import { buildAndSendTx, generateTreeOfSize } from "./shared";
 
 chai.use(chaiAsPromised);
 
 const provider = anchor.AnchorProvider.env();
-const sdk = new TSwapSDK({ provider });
-
-const buildAndSendTx = async (
-  ixs: TransactionInstruction[],
-  extraSigners?: Signer[]
-): Promise<string> => {
-  const { tx } = await buildTx({
-    connections: [provider.connection],
-    instructions: ixs,
-    additionalSigners: extraSigners,
-    feePayer: provider.publicKey,
-  });
-  await provider.wallet.signTransaction(tx);
-  return await provider.connection.sendRawTransaction(tx.serialize());
-};
-
-const generateTreeOfSize = (size: number, targetMint: PublicKey) => {
-  const leaves = [targetMint.toBuffer()];
-
-  for (let i = 0; i < size; i++) {
-    let u = anchor.web3.Keypair.generate();
-    leaves.push(u.publicKey.toBuffer());
-    // if (i % 1000 === 0) {
-    //   console.log(i);
-    // }
-  }
-
-  console.log(`there are ${leaves.length} leaves`);
-
-  const tree = new MerkleTree(leaves, keccak256, {
-    sortPairs: true,
-    hashLeaves: true,
-  });
-
-  const leaf = keccak256(targetMint.toBuffer());
-  const proof = tree.getProof(leaf);
-  const validProof: Buffer[] = proof.map((p) => p.data);
-  console.log(`proof is ${validProof.length} long`);
-
-  return { tree, root: tree.getRoot().toJSON().data, proof: validProof };
-};
+const sdk = new TensorSwapSDK({ provider });
 
 describe("tensorswap", () => {
   const whitelistedMint = new PublicKey(
@@ -95,7 +51,7 @@ describe("tensorswap", () => {
     const {
       tx: { ixs, extraSigners },
     } = await sdk.initTSwap(provider.publicKey, tSwap);
-    await buildAndSendTx(ixs, extraSigners);
+    await buildAndSendTx(provider, ixs, extraSigners);
     await waitMS(2000);
 
     //pool
@@ -109,7 +65,7 @@ describe("tensorswap", () => {
       root
     );
     pool = poolPda;
-    await buildAndSendTx(poolIxs, [creator]);
+    await buildAndSendTx(provider, poolIxs, [creator]);
     await waitMS(2000);
   });
 
@@ -135,7 +91,7 @@ describe("tensorswap", () => {
       proof,
       whitelistedMint
     );
-    await buildAndSendTx(goodIxs);
+    await buildAndSendTx(provider, goodIxs);
     console.log("done, works!");
 
     const {
@@ -149,6 +105,6 @@ describe("tensorswap", () => {
       NOTwhitelistedMint //<-- (!)
     );
 
-    await expect(buildAndSendTx(badIxs)).to.be.rejectedWith("0x1770");
+    await expect(buildAndSendTx(provider, badIxs)).to.be.rejectedWith("0x1770");
   });
 });

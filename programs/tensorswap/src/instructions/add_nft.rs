@@ -41,7 +41,7 @@ pub fn handler(ctx: Context<AddNft>, proof: Vec<[u8; 32]>) -> Result<()> {
     // todo ideally move into validate
     let leaf = anchor_lang::solana_program::keccak::hash(ctx.accounts.nft_mint.key().as_ref());
     require!(
-        merkle_proof::verify(proof, *ctx.accounts.pool.collection.get_hash()?, leaf.0),
+        merkle_proof::verify_proof(proof, *ctx.accounts.pool.collection.get_hash()?, leaf.0),
         InvalidProof
     );
 

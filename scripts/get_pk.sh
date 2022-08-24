@@ -1,1 +1,1 @@
-solana-keygen pubkey ./target/deploy/tensorswap-keypair.json
+solana-keygen pubkey ./target/deploy/$1-keypair.json

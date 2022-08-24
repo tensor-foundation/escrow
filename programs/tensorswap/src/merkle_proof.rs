@@ -1,5 +1,5 @@
-// todo need eyes on this
-pub fn verify(proof: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
+// https://github.com/solventprotocol/solvent-program/blob/b6bd00ae7ca7ceb1d3f1e640eddec22d11d9642b/programs/solvent-protocol/src/common.rs#L131
+pub fn verify_proof(proof: Vec<[u8; 32]>, root: [u8; 32], leaf: [u8; 32]) -> bool {
     let mut computed_hash = leaf;
     for proof_element in proof.into_iter() {
         if computed_hash <= proof_element {

@@ -9,7 +9,7 @@ pub use instructions::*;
 pub use merkle_proof::*;
 pub use state::*;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA");
 
 #[program]
 pub mod tensorswap {

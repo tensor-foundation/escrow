@@ -35,7 +35,7 @@ export const findPoolPDA = async ({
   );
 };
 
-export const findAuthPDA = async ({
+export const findSwapAuthPDA = async ({
   program,
   tSwap,
 }: {

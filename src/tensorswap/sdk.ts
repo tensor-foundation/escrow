@@ -2,7 +2,7 @@ import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
 import { IDL, Tensorswap } from "./idl/tensorswap";
 import { TENSORSWAP_ADDR } from "./constants";
-import { findAuthPDA, findPoolPDA } from "./pda";
+import { findSwapAuthPDA, findPoolPDA } from "./pda";
 import { BN } from "@project-serum/anchor";
 
 export const PoolType = {
@@ -46,7 +46,7 @@ export interface PoolConfig {
 }
 
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
-export class TSwapSDK {
+export class TensorSwapSDK {
   program: Program<Tensorswap>;
 
   //can build ixs without provider, but need provider for
@@ -83,7 +83,7 @@ export class TSwapSDK {
     const usedTSwap = tSwap ?? Keypair.generate();
     const extraSigners = [usedTSwap];
 
-    const [authPda, authPdaBump] = await findAuthPDA({
+    const [authPda, authPdaBump] = await findSwapAuthPDA({
       tSwap: usedTSwap.publicKey,
     });
 
@@ -114,7 +114,7 @@ export class TSwapSDK {
     config: PoolConfig,
     rootHash: number[]
   ) {
-    const [authPda, authPdaBump] = await findAuthPDA({
+    const [authPda, authPdaBump] = await findSwapAuthPDA({
       tSwap,
     });
 
@@ -156,7 +156,7 @@ export class TSwapSDK {
     proof: Buffer[],
     nftMint: PublicKey
   ) {
-    const [authPda, authPdaBump] = await findAuthPDA({
+    const [authPda, authPdaBump] = await findSwapAuthPDA({
       tSwap,
     });
 
