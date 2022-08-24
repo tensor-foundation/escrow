@@ -63,9 +63,10 @@ impl Collection {
         }
     }
     pub fn get_hash(&self) -> Result<&[u8; 32]> {
-        if !self.verified {
-            throw_err!(PoolNotVerified);
-        }
+        // todo enable when ready
+        // if !self.verified {
+        //     throw_err!(PoolNotVerified);
+        // }
         Ok(&self.root_hash)
     }
     // todo not possible in v1

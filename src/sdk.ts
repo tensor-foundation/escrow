@@ -147,4 +147,46 @@ export class TSwapSDK {
       poolPdaBump,
     };
   }
+
+  async addNft(
+    tSwap: PublicKey,
+    creator: PublicKey,
+    config: PoolConfig,
+    rootHash: number[],
+    proof: Buffer[],
+    nftMint: PublicKey
+  ) {
+    const [authPda, authPdaBump] = await findAuthPDA({
+      tSwap,
+    });
+
+    const [poolPda, poolPdaBump] = await findPoolPDA({
+      tSwap,
+      creator,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      curveType: poolTypeU8(config.poolType),
+      poolType: curveTypeU8(config.curveType),
+      hash: rootHash,
+    });
+
+    const ix = await this.program.methods
+      .addNft(authPdaBump, poolPdaBump, rootHash, config as any, proof)
+      .accounts({
+        tswap: tSwap,
+        pool: poolPda,
+        authority: authPda,
+        creator,
+        nftMint,
+      })
+      .instruction();
+
+    return {
+      tx: { ixs: [ix], extraSigners: [] },
+      authPda,
+      authPdaBump,
+      poolPda,
+      poolPdaBump,
+    };
+  }
 }

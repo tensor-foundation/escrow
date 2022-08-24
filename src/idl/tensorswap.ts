@@ -115,11 +115,6 @@ export type Tensorswap = {
           "name": "nftMint",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "helloWorld",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -529,11 +524,6 @@ export const IDL: Tensorswap = {
         {
           "name": "nftMint",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "helloWorld",
-          "isMut": true,
           "isSigner": false
         }
       ],

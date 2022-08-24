@@ -25,11 +25,9 @@ pub struct AddNft<'info> {
     /// CHECK: via has_one on pool
     pub creator: UncheckedAccount<'info>,
 
-    pub nft_mint: Box<Account<'info, Mint>>,
-
-    /// CHECK:
-    #[account(mut)]
-    pub hello_world: UncheckedAccount<'info>,
+    /// CHECK: temp
+    pub nft_mint: UncheckedAccount<'info>,
+    // pub nft_mint: Box<Account<'info, Mint>>,
 }
 
 impl<'info> Validate<'info> for AddNft<'info> {
@@ -41,9 +39,9 @@ impl<'info> Validate<'info> for AddNft<'info> {
 #[access_control(ctx.accounts.validate())]
 pub fn handler(ctx: Context<AddNft>, proof: Vec<[u8; 32]>) -> Result<()> {
     // todo ideally move into validate
-    let node = anchor_lang::solana_program::keccak::hash(ctx.accounts.nft_mint.key().as_ref());
+    let leaf = anchor_lang::solana_program::keccak::hash(ctx.accounts.nft_mint.key().as_ref());
     require!(
-        merkle_proof::verify(proof, *ctx.accounts.pool.collection.get_hash()?, node.0),
+        merkle_proof::verify(proof, *ctx.accounts.pool.collection.get_hash()?, leaf.0),
         InvalidProof
     );
 
