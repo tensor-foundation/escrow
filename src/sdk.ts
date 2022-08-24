@@ -3,6 +3,7 @@ import { Coder, Program, Provider } from "@project-serum/anchor";
 import { IDL, Tensorswap } from "./idl/tensorswap";
 import { TSwapAddr } from "./constants";
 
+//decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TSwapSDK {
   program: Program<Tensorswap>;
 

@@ -8,6 +8,13 @@ pub struct InitPool<'info> {
     pub hello_world: UncheckedAccount<'info>,
 }
 
+impl<'info> Validate<'info> for InitPool<'info> {
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[access_control(ctx.accounts.validate())]
 pub fn handler(ctx: Context<InitPool>) -> Result<()> {
     Ok(())
 }

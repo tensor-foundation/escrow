@@ -15,11 +15,11 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 pub mod tensorswap {
     use super::*;
 
-    pub fn init_pool(ctx: Context<InitPool>) -> Result<()> {
-        instructions::init_pool::handler(ctx)
+    pub fn init_tswap(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
+        instructions::init_tswap::handler(ctx, auth_bump)
     }
 
-    pub fn init_tswap(ctx: Context<InitTSwap>) -> Result<()> {
-        instructions::init_tswap::handler(ctx)
+    pub fn init_pool(ctx: Context<InitPool>) -> Result<()> {
+        instructions::init_pool::handler(ctx)
     }
 }

@@ -1,16 +1,39 @@
 use crate::*;
+use std::str::FromStr;
 
 #[derive(Accounts)]
+#[instruction(auth_bump: u8)]
 pub struct InitTSwap<'info> {
-    #[account(init, payer = payer, space = 8 + std::mem::size_of::<Tensorswap>())]
-    pub tswap: Account<'info, Tensorswap>,
+    #[account(init, payer = owner, space = 8 + std::mem::size_of::<TSwap>())]
+    pub tswap: Account<'info, TSwap>,
+
+    /// CHECK: macro verifies pda derived correctly
+    #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
+    pub authority: UncheckedAccount<'info>,
+
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<InitTSwap>) -> Result<()> {
-    ctx.accounts.tswap.hello = 123;
+impl<'info> Validate<'info> for InitTSwap<'info> {
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[access_control(ctx.accounts.validate())]
+pub fn handler(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
+    let mut tswap = &mut ctx.accounts.tswap;
+
+    tswap.version = CURRENT_TSWAP_VERSION;
+    tswap.authority = ctx.accounts.authority.key();
+    tswap.auth_bump = [auth_bump];
+    tswap.owner = ctx.accounts.owner.key();
+    tswap.config = TSwapConfig {
+        fee_bps: TSWAP_FEE_BPS,
+    };
+    tswap.fee_vault = Pubkey::from_str(TSWAP_FEE_VAULT).unwrap();
 
     Ok(())
 }
