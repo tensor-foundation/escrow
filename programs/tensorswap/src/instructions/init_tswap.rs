@@ -5,7 +5,7 @@ use std::str::FromStr;
 #[instruction(auth_bump: u8)]
 pub struct InitTSwap<'info> {
     #[account(init, payer = owner, space = 8 + std::mem::size_of::<TSwap>())]
-    pub tswap: Account<'info, TSwap>,
+    pub tswap: Box<Account<'info, TSwap>>,
 
     /// CHECK: macro verifies pda derived correctly
     #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]

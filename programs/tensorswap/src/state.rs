@@ -33,17 +33,19 @@ pub struct TSwap {
 
 // --------------------------------------- pool
 
+#[repr(u8)]
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 pub enum PoolType {
-    Token, //buys NFTs
-    NFT,   //sells NFTs
-    Trade, //both buys & sells
+    Token = 0, //buys NFTs
+    NFT = 1,   //sells NFTs
+    Trade = 2, //both buys & sells
 }
 
+#[repr(u8)]
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 pub enum CurveType {
-    Linear,
-    Exponential,
+    Linear = 0,
+    Exponential = 1,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
@@ -54,16 +56,37 @@ pub struct Collection {
 }
 
 impl Collection {
+    pub fn new(root_hash: [u8; 32]) -> Self {
+        Self {
+            root_hash,
+            verified: false,
+        }
+    }
     pub fn get_hash(&self) -> &[u8; 32] {
         &self.root_hash
     }
-    pub fn set_new_hash(&mut self, new_hash: [u8; 32]) {
-        self.root_hash = new_hash;
-        self.verified = false;
-    }
+    // todo not possible in v1
+    // pub fn set_new_hash(&mut self, new_hash: [u8; 32]) {
+    //     self.root_hash = new_hash;
+    //     self.verified = false;
+    // }
     pub fn verify_hash(&mut self) {
         self.verified = true;
     }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+pub struct PoolConfig {
+    pub pool_type: PoolType,
+    // todo later can be made into a dyn Trait
+    pub curve_type: CurveType,
+    pub starting_price: u64,
+    pub delta: u64,
+    pub honor_royalties: bool,
+
+    /// Trade pools only
+    pub fee: Option<u16>,
+    pub fee_vault: Option<Pubkey>,
 }
 
 #[account]
@@ -78,14 +101,7 @@ pub struct Pool {
     pub collection: Collection,
 
     /// Config
-    pub pool_type: PoolType,
-    // todo later can be made into a dyn Trait
-    pub curve_type: CurveType,
-    pub delta: u64,
-    pub fee: u16,
-    pub fee_vault: Pubkey,
-    pub spot_price: u64,
-    pub honor_royalties: bool,
+    pub config: PoolConfig,
 
     /// Accounting & tracking
     pub trade_count: u64,
