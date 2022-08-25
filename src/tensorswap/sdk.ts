@@ -114,10 +114,6 @@ export class TensorSwapSDK {
     whitelist: PublicKey,
     config: PoolConfig
   ) {
-    const [authPda, authPdaBump] = await findSwapAuthPDA({
-      tSwap,
-    });
-
     const [poolPda, poolPdaBump] = await findPoolPDA({
       tSwap,
       creator,
@@ -129,11 +125,10 @@ export class TensorSwapSDK {
     });
 
     const ix = await this.program.methods
-      .initPool(authPdaBump, poolPdaBump, config as any)
+      .initPool(poolPdaBump, config as any)
       .accounts({
         tswap: tSwap,
         pool: poolPda,
-        authority: authPda,
         whitelist,
         creator,
         systemProgram: SystemProgram.programId,
@@ -142,14 +137,12 @@ export class TensorSwapSDK {
 
     return {
       tx: { ixs: [ix], extraSigners: [] },
-      authPda,
-      authPdaBump,
       poolPda,
       poolPdaBump,
     };
   }
 
-  async addNft(
+  async depositNft(
     tSwap: PublicKey,
     creator: PublicKey,
     whitelist: PublicKey,
@@ -172,7 +165,7 @@ export class TensorSwapSDK {
     });
 
     const ix = await this.program.methods
-      .addNft(authPdaBump, poolPdaBump, config as any, proof)
+      .depositNft(authPdaBump, poolPdaBump, config as any, proof)
       .accounts({
         tswap: tSwap,
         pool: poolPda,

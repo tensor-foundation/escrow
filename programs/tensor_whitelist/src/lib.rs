@@ -25,7 +25,7 @@ pub mod tensor_whitelist {
         Ok(())
     }
 
-    pub fn init_update_wl(
+    pub fn init_update_whitelist(
         ctx: Context<InitUpdateWhitelist>,
         _bump_auth: u8,
         uuid: [u8; 32],
@@ -35,10 +35,8 @@ pub mod tensor_whitelist {
         let whitelist = &mut ctx.accounts.whitelist;
 
         whitelist.version = CURRENT_WHITELIST_VERSION;
-
         //todo temp feature since for now we're keeping WL permissioned
         whitelist.verified = true;
-
         // set uuid (won't change after initialization)
         whitelist.uuid = uuid;
 
@@ -48,6 +46,7 @@ pub mod tensor_whitelist {
                 whitelist.root_hash = root_hash;
             }
             None => {
+                msg!("root hash is {:?}", whitelist.root_hash);
                 if whitelist.root_hash == [0; 32] {
                     throw_err!(MissingRootHash);
                 }
@@ -72,8 +71,8 @@ pub mod tensor_whitelist {
 
 #[derive(Accounts)]
 pub struct InitUpdateAuthority<'info> {
-    #[account(init_if_needed, payer = owner, seeds = [], bump, space = 8 + WhitelistAuthority::SIZE)]
-    pub whitelist_authority: Box<Account<'info, WhitelistAuthority>>,
+    #[account(init_if_needed, payer = owner, seeds = [], bump, space = 8 + Authority::SIZE)]
+    pub whitelist_authority: Box<Account<'info, Authority>>,
 
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -83,13 +82,13 @@ pub struct InitUpdateAuthority<'info> {
 #[derive(Accounts)]
 #[instruction(bump_auth: u8, uuid: [u8; 32])]
 pub struct InitUpdateWhitelist<'info> {
-    #[account(init_if_needed, payer = owner, seeds = [&uuid], bump, space = 8 + CollectionWhitelist::SIZE)]
-    pub whitelist: Box<Account<'info, CollectionWhitelist>>,
+    #[account(init_if_needed, payer = owner, seeds = [&uuid], bump, space = 8 + Whitelist::SIZE)]
+    pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// there can only be 1 whitelist authority (due to seeds),
     /// and we're checking that 1)the correct owner is present on it, and 2)is a signer
     #[account(seeds = [], bump = bump_auth, has_one=owner)]
-    pub whitelist_authority: Box<Account<'info, WhitelistAuthority>>,
+    pub whitelist_authority: Box<Account<'info, Authority>>,
 
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -97,17 +96,17 @@ pub struct InitUpdateWhitelist<'info> {
 }
 
 #[account]
-pub struct WhitelistAuthority {
+pub struct Authority {
     //naive - todo move to current/pending authority later
     pub owner: Pubkey,
 }
 
-impl WhitelistAuthority {
+impl Authority {
     pub const SIZE: usize = 32;
 }
 
 #[account]
-pub struct CollectionWhitelist {
+pub struct Whitelist {
     pub version: u8,
     pub verified: bool,
     pub root_hash: [u8; 32],
@@ -115,7 +114,7 @@ pub struct CollectionWhitelist {
     pub name: [u8; 32],
 }
 
-impl CollectionWhitelist {
+impl Whitelist {
     pub const SIZE: usize = 1 + 1 + (32 * 3);
 }
 

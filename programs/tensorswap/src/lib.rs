@@ -19,12 +19,7 @@ pub mod tensorswap {
         instructions::init_tswap::handler(ctx, auth_bump)
     }
 
-    pub fn init_pool(
-        ctx: Context<InitPool>,
-        _auth_bump: u8,
-        pool_bump: u8,
-        config: PoolConfig,
-    ) -> Result<()> {
+    pub fn init_pool(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Result<()> {
         instructions::init_pool::handler(ctx, pool_bump, config)
     }
 

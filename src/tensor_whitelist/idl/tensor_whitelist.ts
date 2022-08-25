@@ -29,7 +29,7 @@ export type TensorWhitelist = {
       ]
     },
     {
-      "name": "initUpdateWl",
+      "name": "initUpdateWhitelist",
       "accounts": [
         {
           "name": "whitelist",
@@ -97,7 +97,7 @@ export type TensorWhitelist = {
   ],
   "accounts": [
     {
-      "name": "whitelistAuthority",
+      "name": "authority",
       "type": {
         "kind": "struct",
         "fields": [
@@ -109,7 +109,7 @@ export type TensorWhitelist = {
       }
     },
     {
-      "name": "collectionWhitelist",
+      "name": "whitelist",
       "type": {
         "kind": "struct",
         "fields": [
@@ -202,7 +202,7 @@ export const IDL: TensorWhitelist = {
       ]
     },
     {
-      "name": "initUpdateWl",
+      "name": "initUpdateWhitelist",
       "accounts": [
         {
           "name": "whitelist",
@@ -270,7 +270,7 @@ export const IDL: TensorWhitelist = {
   ],
   "accounts": [
     {
-      "name": "whitelistAuthority",
+      "name": "authority",
       "type": {
         "kind": "struct",
         "fields": [
@@ -282,7 +282,7 @@ export const IDL: TensorWhitelist = {
       }
     },
     {
-      "name": "collectionWhitelist",
+      "name": "whitelist",
       "type": {
         "kind": "struct",
         "fields": [

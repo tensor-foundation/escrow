@@ -5,7 +5,7 @@ export const findWhitelistAuthPDA = ({ program }: { program?: PublicKey }) => {
   return PublicKey.findProgramAddress([], program ?? TENSOR_WHITELIST_ADDR);
 };
 
-export const findCollectionWhitelistPDA = ({
+export const findWhitelistPDA = ({
   program,
   uuid,
 }: {

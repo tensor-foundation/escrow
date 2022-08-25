@@ -1,15 +1,17 @@
 use crate::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use tensor_whitelist::{self, CollectionWhitelist};
+use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction(auth_bump: u8, pool_bump: u8, config: PoolConfig)]
 pub struct DepositNft<'info> {
+    /// Needed for pool seeds derivation
     #[account(has_one = authority)]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    /// CHECK: via seed derivation macro below
+    /// Needed to be set as authority on token escrows
+    /// CHECK: via seed derivation macro below / via has one_one above.
     #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
     pub authority: UncheckedAccount<'info>,
 
@@ -24,15 +26,19 @@ pub struct DepositNft<'info> {
     ], bump = pool_bump, has_one = creator, has_one = tswap, has_one = whitelist)]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// CHECK: ensure this is listed on the pool using has_one
-    pub whitelist: Box<Account<'info, CollectionWhitelist>>,
+    /// Needed for pool seeds derivation, also checked via has_one on pool
+    pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// CHECK: via has_one on pool
     pub creator: UncheckedAccount<'info>,
 
     pub nft_mint: Box<Account<'info, Mint>>,
+
+    /// Implicitly checked via transfer. Will fail if wrong account
+    #[account(mut)]
     pub nft_source: Box<Account<'info, TokenAccount>>,
 
+    /// Implicitly checked via transfer. Will fail if wrong account
     #[account(init_if_needed, payer=owner, seeds=[
         b"escrow".as_ref(),
         nft_mint.key().as_ref(),

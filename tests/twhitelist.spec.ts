@@ -21,7 +21,7 @@ describe("tensor_whitelist", () => {
     await buildAndSendTx(provider, ixs);
     await waitMS(2000);
 
-    let authAcc = await sdk.fetchWhitelistAuthority(authPda);
+    let authAcc = await sdk.fetchAuthority(authPda);
     expect(authAcc.owner.toBase58()).to.eq(provider.publicKey.toBase58());
 
     //update (good)
@@ -32,7 +32,7 @@ describe("tensor_whitelist", () => {
     await buildAndSendTx(provider, updateGood);
     await waitMS(2000);
 
-    authAcc = await sdk.fetchWhitelistAuthority(authPda);
+    authAcc = await sdk.fetchAuthority(authPda);
     expect(authAcc.owner.toBase58()).to.eq(tempAuth.publicKey.toBase58());
 
     //update (bad - provider no longer current owner, should fail)
@@ -50,11 +50,11 @@ describe("tensor_whitelist", () => {
     await buildAndSendTx(provider, updateGood2, [tempAuth]);
     await waitMS(2000);
 
-    authAcc = await sdk.fetchWhitelistAuthority(authPda);
+    authAcc = await sdk.fetchAuthority(authPda);
     expect(authAcc.owner.toBase58()).to.eq(provider.publicKey.toBase58());
   });
 
-  it("inits/updates whitelist", async () => {
+  it.only("inits/updates whitelist", async () => {
     //init authority
     const {
       tx: { ixs },
@@ -102,7 +102,7 @@ describe("tensor_whitelist", () => {
     await buildAndSendTx(provider, initWlGood);
     await waitMS(2000);
 
-    let wlAcc = await sdk.fetchCollectionWhitelist(whitelistPda);
+    let wlAcc = await sdk.fetchWhitelist(whitelistPda);
     expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid);
     expect(removeNullBytes(String.fromCharCode(...wlAcc.name))).to.eq(name);
     expect(wlAcc.rootHash).to.deep.eq(root);
@@ -127,7 +127,7 @@ describe("tensor_whitelist", () => {
     await buildAndSendTx(provider, initWlGood2);
     await waitMS(2000);
 
-    wlAcc = await sdk.fetchCollectionWhitelist(whitelistPda2);
+    wlAcc = await sdk.fetchWhitelist(whitelistPda2);
     expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid2);
     expect(removeNullBytes(String.fromCharCode(...wlAcc.name))).to.eq(name2);
     expect(wlAcc.rootHash).to.deep.eq(root2);

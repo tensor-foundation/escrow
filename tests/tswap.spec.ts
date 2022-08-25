@@ -15,11 +15,14 @@ import { buildAndSendTx, generateTreeOfSize } from "./shared";
 
 chai.use(chaiAsPromised);
 
+//(!) KEEP THIS IMPORT. It ensures ordering of tests (WL -> swap), otherwise both will fail
+import "./twhitelist.spec";
+
 const provider = anchor.AnchorProvider.env();
 const sdk = new TensorSwapSDK({ provider });
 const wlSdk = new TensorWhitelistSDK({ provider });
 
-describe.only("tensorswap", () => {
+describe("tensorswap", () => {
   const whitelistedMint = new PublicKey(
     "27f3pdgwC9sCR7RUxZxxaE57cACCcoJGb6Nu4fhEiKh6"
   );
@@ -50,15 +53,8 @@ describe.only("tensorswap", () => {
       LAMPORTS_PER_SOL
     );
 
-    //init wl authority
-    const {
-      tx: { ixs: wlAuthIxs },
-    } = await wlSdk.initUpdateAuthority(provider.publicKey, provider.publicKey);
-    await buildAndSendTx(provider, wlAuthIxs);
-    await waitMS(2000);
-
-    //init wl pda
-    const uuid = "0001c1a567594e34aeebccf4b49e73f8";
+    //init wl for current test
+    const uuid = "0001c1a567594e34aeebccf4b49e3333";
     const name = "hello_world";
     const {
       tx: { ixs: wlIxs },
@@ -106,29 +102,28 @@ describe.only("tensorswap", () => {
     expect(poolAcc.creator.toBase58()).to.eq(creator.publicKey.toBase58());
 
     //nft
-    const {
-      tx: { ixs: goodIxs },
-    } = await sdk.addNft(
-      tSwap.publicKey,
-      creator.publicKey,
-      whitelist,
-      poolConfig,
-      proof,
-      whitelistedMint
-    );
-    await buildAndSendTx(provider, goodIxs);
-
-    const {
-      tx: { ixs: badIxs },
-    } = await sdk.addNft(
-      tSwap.publicKey,
-      creator.publicKey,
-      whitelist,
-      poolConfig,
-      proof,
-      NOTwhitelistedMint //<-- (!)
-    );
-
-    await expect(buildAndSendTx(provider, badIxs)).to.be.rejectedWith("0x1770");
+    // const {
+    //   tx: { ixs: goodIxs },
+    // } = await sdk.depositNft(
+    //   tSwap.publicKey,
+    //   creator.publicKey,
+    //   whitelist,
+    //   poolConfig,
+    //   proof,
+    //   whitelistedMint
+    // );
+    // await buildAndSendTx(provider, goodIxs);
+    //
+    // const {
+    //   tx: { ixs: badIxs },
+    // } = await sdk.depositNft(
+    //   tSwap.publicKey,
+    //   creator.publicKey,
+    //   whitelist,
+    //   poolConfig,
+    //   proof,
+    //   NOTwhitelistedMint //<-- (!)
+    // );
+    // await expect(buildAndSendTx(provider, badIxs)).to.be.rejectedWith("0x1770");
   });
 });

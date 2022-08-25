@@ -91,7 +91,8 @@ pub struct Pool {
 }
 
 impl Pool {
-    // todo
+    // todo rust is being fucking painful - not wasting time fighting the complier rn
+    //  https://stackoverflow.com/questions/73481281/rust-returns-a-value-referencing-data-owned-by-the-current-function
     // pub fn pool_seeds(&self) -> [&[u8]; 7] {
     //     [
     //         self.tswap.as_ref(),

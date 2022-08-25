@@ -1,8 +1,8 @@
 import { IDL, TensorWhitelist } from "./idl/tensor_whitelist";
-import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
 import { TENSOR_WHITELIST_ADDR } from "./constants";
-import { findCollectionWhitelistPDA, findWhitelistAuthPDA } from "./pda";
+import { findWhitelistAuthPDA, findWhitelistPDA } from "./pda";
 
 export class TensorWhitelistSDK {
   program: Program<TensorWhitelist>;
@@ -23,12 +23,12 @@ export class TensorWhitelistSDK {
 
   // --------------------------------------- fetchers
 
-  async fetchWhitelistAuthority(authority: PublicKey) {
-    return this.program.account.whitelistAuthority.fetch(authority);
+  async fetchAuthority(authority: PublicKey) {
+    return this.program.account.authority.fetch(authority);
   }
 
-  async fetchCollectionWhitelist(whitelist: PublicKey) {
-    return this.program.account.collectionWhitelist.fetch(whitelist);
+  async fetchWhitelist(whitelist: PublicKey) {
+    return this.program.account.whitelist.fetch(whitelist);
   }
 
   // --------------------------------------- finders
@@ -59,12 +59,12 @@ export class TensorWhitelistSDK {
     name: number[] | null = null
   ) {
     const [authPda, authPdaBump] = await findWhitelistAuthPDA({});
-    const [whitelistPda, whitelistPdaBump] = await findCollectionWhitelistPDA({
+    const [whitelistPda, whitelistPdaBump] = await findWhitelistPDA({
       uuid,
     });
 
     const ix = await this.program.methods
-      .initUpdateWl(authPdaBump, uuid, rootHash, name)
+      .initUpdateWhitelist(authPdaBump, uuid, rootHash, name)
       .accounts({
         whitelist: whitelistPda,
         whitelistAuthority: authPda,

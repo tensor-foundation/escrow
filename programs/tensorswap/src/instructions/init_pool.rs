@@ -1,17 +1,13 @@
 use crate::*;
 use std::str::FromStr;
-use tensor_whitelist::{self, CollectionWhitelist};
+use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(auth_bump: u8, pool_bump: u8, config: PoolConfig)]
+#[instruction(pool_bump: u8, config: PoolConfig)]
 pub struct InitPool<'info> {
-    #[account(has_one = authority)]
+    /// Needed for pool seeds derivation
     pub tswap: Box<Account<'info, TSwap>>,
-
-    /// CHECK: via seed derivation macro below
-    #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
-    pub authority: UncheckedAccount<'info>,
 
     #[account(init, payer = creator, seeds = [
         tswap.key().as_ref(),
@@ -24,8 +20,10 @@ pub struct InitPool<'info> {
     ], bump, space = 8 + std::mem::size_of::<Pool>())]
     pub pool: Box<Account<'info, Pool>>,
 
-    pub whitelist: Box<Account<'info, CollectionWhitelist>>,
+    /// Needed for pool seeds derivation / will be stored inside pool
+    pub whitelist: Box<Account<'info, Whitelist>>,
 
+    /// Needed for pool seeds derivation / paying fr stuff
     #[account(mut)]
     pub creator: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -42,17 +40,22 @@ pub fn handler(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Res
     // todo make sure config passed in fee/fee vault only allowed for trade pools
     let whitelist = &ctx.accounts.whitelist;
 
-    //verify the pda seeds using the uuid stored inside the struct + hardcoded program id
-    // todo is this actually enough of a safeguard? DISCUSS.
-    let (derived_whitelist, _bump) = Pubkey::find_program_address(
-        &[&whitelist.uuid],
-        &Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap(),
-    );
+    let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
+
+    //we have to make sure the passed whitelist PDA is not malicious. Checks:
+    //1/3: make sure it's owned by the hardcoded WL program
+    if *whitelist.to_account_info().owner != hardcoded_whitelist_prog {
+        throw_err!(BadWhitelist);
+    }
+
+    //2/3: make sure uuid + WL prog address -> correct seeds
+    let (derived_whitelist, _bump) =
+        Pubkey::find_program_address(&[&whitelist.uuid], &hardcoded_whitelist_prog);
     if derived_whitelist != whitelist.key() {
         throw_err!(BadWhitelist);
     }
 
-    // todo currently only verified collections allowed
+    //3/3: make sure whitelist is verified (todo might rethink for v2)
     if !whitelist.verified {
         throw_err!(WhitelistNotVerified);
     }

@@ -39,12 +39,10 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
         },
         {
           "name": "pool",
@@ -54,12 +52,18 @@ export type Tensorswap = {
         {
           "name": "whitelist",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation / will be stored inside pool"
+          ]
         },
         {
           "name": "creator",
           "isMut": true,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "Needed for pool seeds derivation / paying fr stuff"
+          ]
         },
         {
           "name": "systemProgram",
@@ -68,10 +72,6 @@ export type Tensorswap = {
         }
       ],
       "args": [
-        {
-          "name": "authBump",
-          "type": "u8"
-        },
         {
           "name": "poolBump",
           "type": "u8"
@@ -90,12 +90,18 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
         },
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed to be set as authority on token escrows"
+          ]
         },
         {
           "name": "pool",
@@ -105,7 +111,10 @@ export type Tensorswap = {
         {
           "name": "whitelist",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation, also checked via has_one on pool"
+          ]
         },
         {
           "name": "creator",
@@ -119,13 +128,19 @@ export type Tensorswap = {
         },
         {
           "name": "nftSource",
-          "isMut": false,
-          "isSigner": false
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
         },
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
         },
         {
           "name": "nftReceipt",
@@ -478,12 +493,10 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
         },
         {
           "name": "pool",
@@ -493,12 +506,18 @@ export const IDL: Tensorswap = {
         {
           "name": "whitelist",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation / will be stored inside pool"
+          ]
         },
         {
           "name": "creator",
           "isMut": true,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "Needed for pool seeds derivation / paying fr stuff"
+          ]
         },
         {
           "name": "systemProgram",
@@ -507,10 +526,6 @@ export const IDL: Tensorswap = {
         }
       ],
       "args": [
-        {
-          "name": "authBump",
-          "type": "u8"
-        },
         {
           "name": "poolBump",
           "type": "u8"
@@ -529,12 +544,18 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
         },
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed to be set as authority on token escrows"
+          ]
         },
         {
           "name": "pool",
@@ -544,7 +565,10 @@ export const IDL: Tensorswap = {
         {
           "name": "whitelist",
           "isMut": false,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation, also checked via has_one on pool"
+          ]
         },
         {
           "name": "creator",
@@ -558,13 +582,19 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "nftSource",
-          "isMut": false,
-          "isSigner": false
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
         },
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
         },
         {
           "name": "nftReceipt",
