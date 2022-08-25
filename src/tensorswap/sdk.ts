@@ -1,9 +1,20 @@
-import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
 import { IDL, Tensorswap } from "./idl/tensorswap";
 import { TENSORSWAP_ADDR } from "./constants";
-import { findSwapAuthPDA, findPoolPDA } from "./pda";
+import {
+  findSwapAuthPDA,
+  findPoolPDA,
+  findNftEscrowPDA,
+  findNftDepositReceiptPDA,
+} from "./pda";
 import { BN } from "@project-serum/anchor";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 export const PoolType = {
   Token: { token: {} },
@@ -74,6 +85,10 @@ export class TensorSwapSDK {
     return this.program.account.pool.fetch(pool);
   }
 
+  async fetchReceipt(receipt: PublicKey) {
+    return this.program.account.nftDepositReceipt.fetch(receipt);
+  }
+
   // --------------------------------------- finders
 
   // --------------------------------------- tswap methods
@@ -142,13 +157,16 @@ export class TensorSwapSDK {
     };
   }
 
+  // main signature: owner
   async depositNft(
     tSwap: PublicKey,
     creator: PublicKey,
     whitelist: PublicKey,
+    nftMint: PublicKey,
+    nftSource: PublicKey,
+    owner: PublicKey,
     config: PoolConfig,
-    proof: Buffer[],
-    nftMint: PublicKey
+    proof: Buffer[]
   ) {
     const [authPda, authPdaBump] = await findSwapAuthPDA({
       tSwap,
@@ -164,6 +182,11 @@ export class TensorSwapSDK {
       poolType: curveTypeU8(config.curveType),
     });
 
+    const [escrowPda, escrowPdaBump] = await findNftEscrowPDA({ nftMint });
+    const [receiptPda, receiptPdaBump] = await findNftDepositReceiptPDA({
+      nftMint,
+    });
+
     const ix = await this.program.methods
       .depositNft(authPdaBump, poolPdaBump, config as any, proof)
       .accounts({
@@ -173,6 +196,13 @@ export class TensorSwapSDK {
         whitelist,
         creator,
         nftMint,
+        nftSource,
+        nftEscrow: escrowPda,
+        nftReceipt: receiptPda,
+        owner,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+        tokenProgram: TOKEN_PROGRAM_ID,
       })
       .instruction();
 
@@ -182,6 +212,10 @@ export class TensorSwapSDK {
       authPdaBump,
       poolPda,
       poolPdaBump,
+      escrowPda,
+      escrowPdaBump,
+      receiptPda,
+      receiptPdaBump,
     };
   }
 }

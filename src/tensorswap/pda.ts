@@ -47,3 +47,29 @@ export const findSwapAuthPDA = async ({
     program ?? TENSORSWAP_ADDR
   );
 };
+
+export const findNftEscrowPDA = async ({
+  program,
+  nftMint,
+}: {
+  program?: PublicKey;
+  nftMint: PublicKey;
+}) => {
+  return PublicKey.findProgramAddress(
+    [Buffer.from("escrow"), nftMint.toBytes()],
+    program ?? TENSORSWAP_ADDR
+  );
+};
+
+export const findNftDepositReceiptPDA = async ({
+  program,
+  nftMint,
+}: {
+  program?: PublicKey;
+  nftMint: PublicKey;
+}) => {
+  return PublicKey.findProgramAddress(
+    [Buffer.from("receipt"), nftMint.toBytes()],
+    program ?? TENSORSWAP_ADDR
+  );
+};

@@ -48,7 +48,7 @@ pub struct DepositNft<'info> {
     #[account(init, payer=owner, seeds=[
         b"receipt".as_ref(),
         nft_mint.key().as_ref(),
-    ], bump, space=std::mem::size_of::<NftDepositReceipt>())]
+    ], bump, space = 8 + std::mem::size_of::<NftDepositReceipt>())]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
     #[account(mut)]
