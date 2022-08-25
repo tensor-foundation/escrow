@@ -48,6 +48,7 @@ pub mod tensor_whitelist {
                 whitelist.root_hash = root_hash;
             }
             None => {
+                msg!("whitelist root hash is {:?}", whitelist.root_hash);
                 if whitelist.root_hash == [0; 32] {
                     throw_err!(MissingRootHash);
                 }

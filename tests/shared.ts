@@ -45,3 +45,10 @@ export const generateTreeOfSize = (size: number, targetMint: PublicKey) => {
 
   return { tree, root: tree.getRoot().toJSON().data, proof: validProof };
 };
+
+export const removeNullBytes = (str: string) => {
+  return str
+    .split("")
+    .filter((char) => char.codePointAt(0))
+    .join("");
+};
