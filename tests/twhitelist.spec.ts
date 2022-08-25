@@ -54,7 +54,7 @@ describe("tensor_whitelist", () => {
     expect(authAcc.owner.toBase58()).to.eq(provider.publicKey.toBase58());
   });
 
-  it.only("inits/updates whitelist", async () => {
+  it("inits/updates whitelist", async () => {
     //init authority
     const {
       tx: { ixs },

@@ -23,17 +23,15 @@ pub mod tensorswap {
         ctx: Context<InitPool>,
         _auth_bump: u8,
         pool_bump: u8,
-        root_hash: [u8; 32],
         config: PoolConfig,
     ) -> Result<()> {
-        instructions::init_pool::handler(ctx, pool_bump, root_hash, config)
+        instructions::init_pool::handler(ctx, pool_bump, config)
     }
 
     pub fn add_nft(
         ctx: Context<AddNft>,
         _auth_bump: u8,
         _pool_bump: u8,
-        _root_hash: [u8; 32],
         _config: PoolConfig,
         proof: Vec<[u8; 32]>,
     ) -> Result<()> {
@@ -45,7 +43,8 @@ pub mod tensorswap {
 pub enum ErrorCode {
     #[msg("invalid merkle proof, token not whitelisted")]
     InvalidProof,
-
-    #[msg("pool not verified -- currently only verified pools supported")]
-    PoolNotVerified,
+    #[msg("whitelist not verified -- currently only verified pools supported")]
+    WhitelistNotVerified,
+    #[msg("whitelist pda address doesn't match")]
+    BadWhitelist,
 }

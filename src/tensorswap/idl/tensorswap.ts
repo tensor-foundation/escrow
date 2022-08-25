@@ -52,6 +52,11 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "creator",
           "isMut": true,
           "isSigner": true
@@ -70,15 +75,6 @@ export type Tensorswap = {
         {
           "name": "poolBump",
           "type": "u8"
-        },
-        {
-          "name": "rootHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
         },
         {
           "name": "config",
@@ -107,6 +103,11 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "creator",
           "isMut": false,
           "isSigner": false
@@ -125,15 +126,6 @@ export type Tensorswap = {
         {
           "name": "poolBump",
           "type": "u8"
-        },
-        {
-          "name": "rootHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
         },
         {
           "name": "config",
@@ -225,13 +217,11 @@ export type Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "collection",
+            "name": "whitelist",
             "docs": [
               "Collection stuff"
             ],
-            "type": {
-              "defined": "Collection"
-            }
+            "type": "publicKey"
           },
           {
             "name": "config",
@@ -290,27 +280,6 @@ export type Tensorswap = {
           {
             "name": "feeBps",
             "type": "u16"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Collection",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "rootHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "verified",
-            "type": "bool"
           }
         ]
       }
@@ -402,8 +371,13 @@ export type Tensorswap = {
     },
     {
       "code": 6001,
-      "name": "PoolNotVerified",
-      "msg": "pool not verified -- currently only verified pools supported"
+      "name": "WhitelistNotVerified",
+      "msg": "whitelist not verified -- currently only verified pools supported"
+    },
+    {
+      "code": 6002,
+      "name": "BadWhitelist",
+      "msg": "whitelist pda address doesn't match"
     }
   ]
 };
@@ -462,6 +436,11 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "creator",
           "isMut": true,
           "isSigner": true
@@ -480,15 +459,6 @@ export const IDL: Tensorswap = {
         {
           "name": "poolBump",
           "type": "u8"
-        },
-        {
-          "name": "rootHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
         },
         {
           "name": "config",
@@ -517,6 +487,11 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "creator",
           "isMut": false,
           "isSigner": false
@@ -535,15 +510,6 @@ export const IDL: Tensorswap = {
         {
           "name": "poolBump",
           "type": "u8"
-        },
-        {
-          "name": "rootHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
         },
         {
           "name": "config",
@@ -635,13 +601,11 @@ export const IDL: Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "collection",
+            "name": "whitelist",
             "docs": [
               "Collection stuff"
             ],
-            "type": {
-              "defined": "Collection"
-            }
+            "type": "publicKey"
           },
           {
             "name": "config",
@@ -700,27 +664,6 @@ export const IDL: Tensorswap = {
           {
             "name": "feeBps",
             "type": "u16"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Collection",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "rootHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "verified",
-            "type": "bool"
           }
         ]
       }
@@ -812,8 +755,13 @@ export const IDL: Tensorswap = {
     },
     {
       "code": 6001,
-      "name": "PoolNotVerified",
-      "msg": "pool not verified -- currently only verified pools supported"
+      "name": "WhitelistNotVerified",
+      "msg": "whitelist not verified -- currently only verified pools supported"
+    },
+    {
+      "code": 6002,
+      "name": "BadWhitelist",
+      "msg": "whitelist pda address doesn't match"
     }
   ]
 };

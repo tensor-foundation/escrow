@@ -4,7 +4,8 @@ import {
   PoolConfig,
   PoolType,
   TensorSwapSDK,
-} from "../src/tensorswap";
+  TensorWhitelistSDK,
+} from "../src";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { waitMS } from "@tensor-hq/tensor-common/dist/util";
 import BN from "bn.js";
@@ -16,8 +17,9 @@ chai.use(chaiAsPromised);
 
 const provider = anchor.AnchorProvider.env();
 const sdk = new TensorSwapSDK({ provider });
+const wlSdk = new TensorWhitelistSDK({ provider });
 
-describe("tensorswap", () => {
+describe.only("tensorswap", () => {
   const whitelistedMint = new PublicKey(
     "27f3pdgwC9sCR7RUxZxxaE57cACCcoJGb6Nu4fhEiKh6"
   );
@@ -38,6 +40,7 @@ describe("tensorswap", () => {
   let tSwap: Keypair;
   let pool: PublicKey;
   let creator: Keypair;
+  let whitelist: PublicKey;
 
   beforeEach("configure accs", async () => {
     tSwap = Keypair.generate();
@@ -46,6 +49,28 @@ describe("tensorswap", () => {
       creator.publicKey,
       LAMPORTS_PER_SOL
     );
+
+    //init wl authority
+    const {
+      tx: { ixs: wlAuthIxs },
+    } = await wlSdk.initUpdateAuthority(provider.publicKey, provider.publicKey);
+    await buildAndSendTx(provider, wlAuthIxs);
+    await waitMS(2000);
+
+    //init wl pda
+    const uuid = "0001c1a567594e34aeebccf4b49e73f8";
+    const name = "hello_world";
+    const {
+      tx: { ixs: wlIxs },
+      whitelistPda,
+    } = await wlSdk.initUpdateWhitelist(
+      provider.publicKey,
+      Buffer.from(uuid).toJSON().data,
+      root,
+      Buffer.from(name.padEnd(32, "\0")).toJSON().data
+    );
+    whitelist = whitelistPda;
+    await buildAndSendTx(provider, wlIxs);
 
     //tSwap
     const {
@@ -61,8 +86,8 @@ describe("tensorswap", () => {
     } = await sdk.initPool(
       tSwap.publicKey,
       creator.publicKey,
-      poolConfig,
-      root
+      whitelist,
+      poolConfig
     );
     pool = poolPda;
     await buildAndSendTx(provider, poolIxs, [creator]);
@@ -86,21 +111,20 @@ describe("tensorswap", () => {
     } = await sdk.addNft(
       tSwap.publicKey,
       creator.publicKey,
+      whitelist,
       poolConfig,
-      root,
       proof,
       whitelistedMint
     );
     await buildAndSendTx(provider, goodIxs);
-    console.log("done, works!");
 
     const {
       tx: { ixs: badIxs },
     } = await sdk.addNft(
       tSwap.publicKey,
       creator.publicKey,
+      whitelist,
       poolConfig,
-      root,
       proof,
       NOTwhitelistedMint //<-- (!)
     );

@@ -111,8 +111,8 @@ export class TensorSwapSDK {
   async initPool(
     tSwap: PublicKey,
     creator: PublicKey,
-    config: PoolConfig,
-    rootHash: number[]
+    whitelist: PublicKey,
+    config: PoolConfig
   ) {
     const [authPda, authPdaBump] = await findSwapAuthPDA({
       tSwap,
@@ -121,19 +121,20 @@ export class TensorSwapSDK {
     const [poolPda, poolPdaBump] = await findPoolPDA({
       tSwap,
       creator,
+      whitelist,
       delta: config.delta,
       startingPrice: config.startingPrice,
       curveType: poolTypeU8(config.poolType),
       poolType: curveTypeU8(config.curveType),
-      hash: rootHash,
     });
 
     const ix = await this.program.methods
-      .initPool(authPdaBump, poolPdaBump, rootHash, config as any)
+      .initPool(authPdaBump, poolPdaBump, config as any)
       .accounts({
         tswap: tSwap,
         pool: poolPda,
         authority: authPda,
+        whitelist,
         creator,
         systemProgram: SystemProgram.programId,
       })
@@ -151,8 +152,8 @@ export class TensorSwapSDK {
   async addNft(
     tSwap: PublicKey,
     creator: PublicKey,
+    whitelist: PublicKey,
     config: PoolConfig,
-    rootHash: number[],
     proof: Buffer[],
     nftMint: PublicKey
   ) {
@@ -163,19 +164,20 @@ export class TensorSwapSDK {
     const [poolPda, poolPdaBump] = await findPoolPDA({
       tSwap,
       creator,
+      whitelist,
       delta: config.delta,
       startingPrice: config.startingPrice,
       curveType: poolTypeU8(config.poolType),
       poolType: curveTypeU8(config.curveType),
-      hash: rootHash,
     });
 
     const ix = await this.program.methods
-      .addNft(authPdaBump, poolPdaBump, rootHash, config as any, proof)
+      .addNft(authPdaBump, poolPdaBump, config as any, proof)
       .accounts({
         tswap: tSwap,
         pool: poolPda,
         authority: authPda,
+        whitelist,
         creator,
         nftMint,
       })

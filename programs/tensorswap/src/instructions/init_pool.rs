@@ -1,7 +1,10 @@
 use crate::*;
+use std::str::FromStr;
+use tensor_whitelist::{self, CollectionWhitelist};
+use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(auth_bump: u8, pool_bump: u8, root_hash: [u8; 32], config: PoolConfig)]
+#[instruction(auth_bump: u8, pool_bump: u8, config: PoolConfig)]
 pub struct InitPool<'info> {
     #[account(has_one = authority)]
     pub tswap: Box<Account<'info, TSwap>>,
@@ -13,13 +16,15 @@ pub struct InitPool<'info> {
     #[account(init, payer = creator, seeds = [
         tswap.key().as_ref(),
         creator.key().as_ref(),
-        &root_hash,
+        whitelist.key().as_ref(),
         &[config.pool_type as u8],
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
     ], bump, space = 8 + std::mem::size_of::<Pool>())]
     pub pool: Box<Account<'info, Pool>>,
+
+    pub whitelist: Box<Account<'info, CollectionWhitelist>>,
 
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -33,13 +38,24 @@ impl<'info> Validate<'info> for InitPool<'info> {
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(
-    ctx: Context<InitPool>,
-    pool_bump: u8,
-    root_hash: [u8; 32],
-    config: PoolConfig,
-) -> Result<()> {
+pub fn handler(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Result<()> {
     // todo make sure config passed in fee/fee vault only allowed for trade pools
+    let whitelist = &ctx.accounts.whitelist;
+
+    //verify the pda seeds using the uuid stored inside the struct + hardcoded program id
+    // todo is this actually enough of a safeguard? DISCUSS.
+    let (derived_whitelist, _bump) = Pubkey::find_program_address(
+        &[&whitelist.uuid],
+        &Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap(),
+    );
+    if derived_whitelist != whitelist.key() {
+        throw_err!(BadWhitelist);
+    }
+
+    // todo currently only verified collections allowed
+    if !whitelist.verified {
+        throw_err!(WhitelistNotVerified);
+    }
 
     let pool = &mut ctx.accounts.pool;
 
@@ -47,7 +63,7 @@ pub fn handler(
     pool.pool_bump = [pool_bump];
     pool.tswap = ctx.accounts.tswap.key();
     pool.creator = ctx.accounts.creator.key();
-    pool.collection = Collection::new(root_hash);
+    pool.whitelist = ctx.accounts.whitelist.key();
     pool.config = config;
     pool.trade_count = 0;
     pool.nfts_held = 0;

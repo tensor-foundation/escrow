@@ -1,6 +1,5 @@
 use crate::*;
 use std::fmt::Debug;
-use vipers::throw_err;
 
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 1;
@@ -8,6 +7,8 @@ pub const CURRENT_POOL_VERSION: u8 = 1;
 // todo currently hardcoding, not to waste time passing in
 pub const TSWAP_FEE_VAULT: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
 pub const TSWAP_FEE_BPS: u16 = 5000;
+
+pub const TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
 
 // --------------------------------------- tswap
 
@@ -49,37 +50,6 @@ pub enum CurveType {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
-pub struct Collection {
-    // intentionally NOT public
-    root_hash: [u8; 32],
-    verified: bool,
-}
-
-impl Collection {
-    pub fn new(root_hash: [u8; 32]) -> Self {
-        Self {
-            root_hash,
-            verified: false,
-        }
-    }
-    pub fn get_hash(&self) -> Result<&[u8; 32]> {
-        // todo enable when ready
-        // if !self.verified {
-        //     throw_err!(PoolNotVerified);
-        // }
-        Ok(&self.root_hash)
-    }
-    // todo not possible in v1
-    // pub fn set_new_hash(&mut self, new_hash: [u8; 32]) {
-    //     self.root_hash = new_hash;
-    //     self.verified = false;
-    // }
-    pub fn verify_hash(&mut self) {
-        self.verified = true;
-    }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 pub struct PoolConfig {
     pub pool_type: PoolType,
     // todo later can be made into a dyn Trait
@@ -104,7 +74,7 @@ pub struct Pool {
     pub creator: Pubkey,
 
     /// Collection stuff
-    pub collection: Collection,
+    pub whitelist: Pubkey,
 
     /// Config
     pub config: PoolConfig,

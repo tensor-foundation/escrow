@@ -6,7 +6,7 @@ export const findPoolPDA = async ({
   program,
   tSwap,
   creator,
-  hash,
+  whitelist,
   poolType,
   curveType,
   startingPrice,
@@ -15,7 +15,7 @@ export const findPoolPDA = async ({
   program?: PublicKey;
   tSwap: PublicKey;
   creator: PublicKey;
-  hash: number[];
+  whitelist: PublicKey;
   poolType: number;
   curveType: number;
   startingPrice: BN;
@@ -25,7 +25,7 @@ export const findPoolPDA = async ({
     [
       tSwap.toBytes(),
       creator.toBytes(),
-      Buffer.from(hash),
+      whitelist.toBytes(),
       Buffer.from([poolType]),
       Buffer.from([curveType]),
       startingPrice.toBuffer("le", 8),
