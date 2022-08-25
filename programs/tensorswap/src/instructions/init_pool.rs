@@ -29,13 +29,43 @@ pub struct InitPool<'info> {
     pub system_program: Program<'info, System>,
 }
 
+impl<'info> InitPool<'info> {
+    fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
+        //user fees can only be collected on Trade pools
+        //can't check fee_pct coz FE has to set it to 0 rather than null to avoid certain errors
+        if config.pool_type != PoolType::Trade && config.mm_fee_vault.is_some() {
+            throw_err!(WrongPoolType);
+        }
+
+        //if it is indeed a Trade pool, ensure fees are correctly configured
+        if config.pool_type != PoolType::Trade {
+            if config.mm_fee_vault.is_none() || config.mm_fee_bps.is_none() {
+                throw_err!(MissingFees);
+            }
+            if config.mm_fee_bps.unwrap() > MAX_MM_FEES_BPS {
+                throw_err!(FeesTooHigh);
+            }
+        }
+
+        //for exponential pool delta can't be above 99.99% and has to fit into a u16
+        if config.curve_type == CurveType::Exponential {
+            let u16delta = try_or_err!(u16::try_from(config.delta), ArithmeticError);
+            if u16delta > MAX_DELTA_BPS {
+                throw_err!(DeltaTooLarge);
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl<'info> Validate<'info> for InitPool<'info> {
     fn validate(&self) -> Result<()> {
         Ok(())
     }
 }
 
-#[access_control(ctx.accounts.validate())]
+#[access_control(ctx.accounts.validate_pool_type(config); ctx.accounts.validate())]
 pub fn handler(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Result<()> {
     // todo make sure config passed in fee/fee vault only allowed for trade pools
     let whitelist = &ctx.accounts.whitelist;
@@ -68,7 +98,8 @@ pub fn handler(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Res
     pool.creator = ctx.accounts.creator.key();
     pool.whitelist = ctx.accounts.whitelist.key();
     pool.config = config;
-    pool.trade_count = 0;
+    pool.current_price = config.starting_price;
+    pool.pool_bought_times = 0;
     pool.nfts_held = 0;
     pool.is_active = false;
 

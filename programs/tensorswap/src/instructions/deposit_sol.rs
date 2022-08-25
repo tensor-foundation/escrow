@@ -1,12 +1,11 @@
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
-use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(auth_bump: u8, pool_bump: u8, config: PoolConfig)]
+#[instruction(pool_bump: u8, config: PoolConfig)]
 pub struct DepositSol<'info> {
     /// Needed for pool seeds derivation
     pub tswap: Box<Account<'info, TSwap>>,
@@ -39,7 +38,7 @@ pub struct DepositSol<'info> {
 }
 
 impl<'info> DepositSol<'info> {
-    fn transfer_fee(&self, lamports: u64) -> Result<()> {
+    fn transfer_lamports(&self, lamports: u64) -> Result<()> {
         invoke(
             &system_instruction::transfer(self.owner.key, self.sol_escrow.key, lamports),
             &[
@@ -64,22 +63,8 @@ impl<'info> Validate<'info> for DepositSol<'info> {
 
 #[access_control(ctx.accounts.validate())]
 pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
-    let pool = &ctx.accounts.pool;
-
     // do the transfer
-    ctx.accounts.transfer_fee(lamports)?;
-
-    //update tswap
-    let tswap = &mut ctx.accounts.tswap;
-    match pool.config.pool_type {
-        PoolType::Token => {
-            tswap.active_token_pools = unwrap_int!(tswap.active_nft_pools.checked_add(1))
-        }
-        PoolType::Trade => {
-            tswap.active_trade_pools = unwrap_int!(tswap.active_trade_pools.checked_add(1))
-        }
-        PoolType::NFT => unreachable!(),
-    }
+    ctx.accounts.transfer_lamports(lamports)?;
 
     //update pool
     let pool = &mut ctx.accounts.pool;

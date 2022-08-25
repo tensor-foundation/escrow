@@ -100,26 +100,15 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
             pool.whitelist.as_ref(),
             &[pool.config.pool_type as u8],
             &[pool.config.curve_type as u8],
-            &pool.config.current_price.to_le_bytes(),
+            &pool.config.starting_price.to_le_bytes(),
             &pool.config.delta.to_le_bytes(),
         ]]),
         1,
     )?;
 
-    //update tswap
-    let tswap = &mut ctx.accounts.tswap;
-    match pool.config.pool_type {
-        PoolType::NFT => {
-            tswap.active_nft_pools = unwrap_int!(tswap.active_nft_pools.checked_add(1))
-        }
-        PoolType::Trade => {
-            tswap.active_trade_pools = unwrap_int!(tswap.active_trade_pools.checked_add(1))
-        }
-        PoolType::Token => unreachable!(),
-    }
-
     //update pool
     let pool = &mut ctx.accounts.pool;
+    pool.nfts_held = unwrap_int!(pool.nfts_held.checked_add(1));
     pool.set_active();
 
     //create nft receipt

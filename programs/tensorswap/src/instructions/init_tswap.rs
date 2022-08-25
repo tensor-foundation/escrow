@@ -34,9 +34,6 @@ pub fn handler(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
         fee_bps: TSWAP_FEE_BPS,
     };
     tswap.fee_vault = Pubkey::from_str(TSWAP_FEE_VAULT).unwrap();
-    tswap.active_trade_pools = 0;
-    tswap.active_nft_pools = 0;
-    tswap.active_token_pools = 0;
 
     Ok(())
 }
