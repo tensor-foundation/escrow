@@ -28,14 +28,14 @@ pub mod tensorswap {
         instructions::init_pool::handler(ctx, pool_bump, config)
     }
 
-    pub fn add_nft(
-        ctx: Context<AddNft>,
+    pub fn deposit_nft(
+        ctx: Context<DepositNft>,
         _auth_bump: u8,
         _pool_bump: u8,
         _config: PoolConfig,
         proof: Vec<[u8; 32]>,
     ) -> Result<()> {
-        instructions::add_nft::handler(ctx, proof)
+        instructions::deposit_nft::handler(ctx, proof)
     }
 }
 
@@ -47,4 +47,6 @@ pub enum ErrorCode {
     WhitelistNotVerified,
     #[msg("whitelist pda address doesn't match")]
     BadWhitelist,
+    #[msg("operation not permitted on this pool type")]
+    WrongPoolType,
 }

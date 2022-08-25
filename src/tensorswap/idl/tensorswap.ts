@@ -85,7 +85,7 @@ export type Tensorswap = {
       ]
     },
     {
-      "name": "addNft",
+      "name": "depositNft",
       "accounts": [
         {
           "name": "tswap",
@@ -114,6 +114,41 @@ export type Tensorswap = {
         },
         {
           "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftSource",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "nftReceipt",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -183,6 +218,21 @@ export type Tensorswap = {
           {
             "name": "feeVault",
             "type": "publicKey"
+          },
+          {
+            "name": "activeNftPools",
+            "docs": [
+              "Accounting"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "activeTokenPools",
+            "type": "u64"
+          },
+          {
+            "name": "activeTradePools",
+            "type": "u64"
           }
         ]
       }
@@ -235,7 +285,7 @@ export type Tensorswap = {
           {
             "name": "tradeCount",
             "docs": [
-              "Accounting & tracking"
+              "Accounting"
             ],
             "type": "u64"
           },
@@ -251,7 +301,7 @@ export type Tensorswap = {
       }
     },
     {
-      "name": "pooledMint",
+      "name": "nftDepositReceipt",
       "type": {
         "kind": "struct",
         "fields": [
@@ -264,7 +314,7 @@ export type Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "tokenAccount",
+            "name": "nftEscrow",
             "type": "publicKey"
           }
         ]
@@ -378,6 +428,11 @@ export type Tensorswap = {
       "code": 6002,
       "name": "BadWhitelist",
       "msg": "whitelist pda address doesn't match"
+    },
+    {
+      "code": 6003,
+      "name": "WrongPoolType",
+      "msg": "operation not permitted on this pool type"
     }
   ]
 };
@@ -469,7 +524,7 @@ export const IDL: Tensorswap = {
       ]
     },
     {
-      "name": "addNft",
+      "name": "depositNft",
       "accounts": [
         {
           "name": "tswap",
@@ -498,6 +553,41 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftSource",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "nftReceipt",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -567,6 +657,21 @@ export const IDL: Tensorswap = {
           {
             "name": "feeVault",
             "type": "publicKey"
+          },
+          {
+            "name": "activeNftPools",
+            "docs": [
+              "Accounting"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "activeTokenPools",
+            "type": "u64"
+          },
+          {
+            "name": "activeTradePools",
+            "type": "u64"
           }
         ]
       }
@@ -619,7 +724,7 @@ export const IDL: Tensorswap = {
           {
             "name": "tradeCount",
             "docs": [
-              "Accounting & tracking"
+              "Accounting"
             ],
             "type": "u64"
           },
@@ -635,7 +740,7 @@ export const IDL: Tensorswap = {
       }
     },
     {
-      "name": "pooledMint",
+      "name": "nftDepositReceipt",
       "type": {
         "kind": "struct",
         "fields": [
@@ -648,7 +753,7 @@ export const IDL: Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "tokenAccount",
+            "name": "nftEscrow",
             "type": "publicKey"
           }
         ]
@@ -762,6 +867,11 @@ export const IDL: Tensorswap = {
       "code": 6002,
       "name": "BadWhitelist",
       "msg": "whitelist pda address doesn't match"
+    },
+    {
+      "code": 6003,
+      "name": "WrongPoolType",
+      "msg": "operation not permitted on this pool type"
     }
   ]
 };

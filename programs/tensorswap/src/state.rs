@@ -30,12 +30,17 @@ pub struct TSwap {
     pub config: TSwapConfig,
     // todo for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
+
+    /// Accounting
+    pub active_nft_pools: u64,
+    pub active_token_pools: u64,
+    pub active_trade_pools: u64,
 }
 
 // --------------------------------------- pool
 
 #[repr(u8)]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq)]
 pub enum PoolType {
     Token = 0, //buys NFTs
     NFT = 1,   //sells NFTs
@@ -79,18 +84,32 @@ pub struct Pool {
     /// Config
     pub config: PoolConfig,
 
-    /// Accounting & tracking
+    /// Accounting
     pub trade_count: u64,
     pub nfts_held: u32,
     pub is_active: bool,
 }
 
+impl Pool {
+    // todo
+    // pub fn pool_seeds(&self) -> [&[u8]; 7] {
+    //     [
+    //         self.tswap.as_ref(),
+    //         self.creator.as_ref(),
+    //         self.whitelist.as_ref(),
+    //         &[self.config.pool_type as u8],
+    //         &[self.config.curve_type as u8],
+    //         &self.config.starting_price.to_le_bytes(),
+    //         &self.config.delta.to_le_bytes(),
+    //     ]
+    // }
+}
+
 // --------------------------------------- mint
 
 #[account]
-pub struct PooledMint {
+pub struct NftDepositReceipt {
     pub pool: Pubkey,
     pub nft_mint: Pubkey,
-    // todo is this even needed?
-    pub token_account: Pubkey,
+    pub nft_escrow: Pubkey,
 }
