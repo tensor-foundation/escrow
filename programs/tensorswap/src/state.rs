@@ -1,5 +1,6 @@
-use crate::*;
 use std::fmt::Debug;
+
+use crate::*;
 
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 1;
@@ -60,6 +61,7 @@ pub struct PoolConfig {
     // todo later can be made into a dyn Trait
     pub curve_type: CurveType,
     pub starting_price: u64, //lamports
+    pub current_price: u64,  //lamports
     pub delta: u64,          //lamports pr bps
 
     pub honor_royalties: bool,
@@ -87,6 +89,7 @@ pub struct Pool {
     /// Accounting
     pub trade_count: u64,
     pub nfts_held: u32,
+    pub sol_funding: u64, //total deposits - total withdrawals - any spent sol
     pub is_active: bool,
 }
 
@@ -104,9 +107,17 @@ impl Pool {
     //         &self.config.delta.to_le_bytes(),
     //     ]
     // }
+
+    pub fn set_active(&mut self) {
+        if self.nfts_held > 0 || self.sol_funding > self.config.current_price {
+            self.is_active = true;
+        } else {
+            self.is_active = false;
+        }
+    }
 }
 
-// --------------------------------------- mint
+// --------------------------------------- receipts
 
 #[account]
 pub struct NftDepositReceipt {

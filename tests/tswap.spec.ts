@@ -41,7 +41,6 @@ describe("tensorswap", () => {
   let tSwap: Keypair;
   let pool: PublicKey;
 
-  let creator: Keypair;
   let traderA: Keypair;
   let traderB: Keypair;
   let whitelist: PublicKey;
@@ -59,7 +58,6 @@ describe("tensorswap", () => {
   before("inits necessary accs", async () => {
     //keypairs
     tSwap = Keypair.generate();
-    creator = await createFundedWallet(provider);
     traderA = await createFundedWallet(provider);
     traderB = await createFundedWallet(provider);
     await waitMS(1000);
@@ -104,16 +102,16 @@ describe("tensorswap", () => {
       poolPda,
     } = await sdk.initPool(
       tSwap.publicKey,
-      creator.publicKey,
+      traderA.publicKey,
       whitelist,
       poolConfig
     );
     pool = poolPda;
-    await buildAndSendTx(provider, poolIxs, [creator]);
+    await buildAndSendTx(provider, poolIxs, [traderA]);
     await waitMS(1000);
 
     const poolAcc = await sdk.fetchPool(pool);
-    expect(poolAcc.creator.toBase58()).to.eq(creator.publicKey.toBase58());
+    expect(poolAcc.creator.toBase58()).to.eq(traderA.publicKey.toBase58());
   });
 
   it("deposits nft", async () => {
@@ -122,7 +120,6 @@ describe("tensorswap", () => {
       tx: { ixs: badIxs },
     } = await sdk.depositNft(
       tSwap.publicKey,
-      creator.publicKey,
       whitelist,
       NOTwhitelistedNftMint,
       NOTwhitelistedNftAta,
@@ -141,7 +138,6 @@ describe("tensorswap", () => {
       escrowPda,
     } = await sdk.depositNft(
       tSwap.publicKey,
-      creator.publicKey,
       whitelist,
       whitelistedNftMint,
       whitelistedNftAta,

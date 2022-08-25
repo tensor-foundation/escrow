@@ -17,20 +17,17 @@ pub struct DepositNft<'info> {
 
     #[account(seeds = [
         tswap.key().as_ref(),
-        creator.key().as_ref(),
+        owner.key().as_ref(),
         whitelist.key().as_ref(),
         &[config.pool_type as u8],
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool_bump, has_one = creator, has_one = tswap, has_one = whitelist)]
+    ], bump = pool_bump, has_one = tswap, has_one = whitelist)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
-
-    /// CHECK: via has_one on pool
-    pub creator: UncheckedAccount<'info>,
 
     pub nft_mint: Box<Account<'info, Mint>>,
 
@@ -40,17 +37,18 @@ pub struct DepositNft<'info> {
 
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(init_if_needed, payer=owner, seeds=[
-        b"escrow".as_ref(),
+        b"nft_escrow".as_ref(),
         nft_mint.key().as_ref(),
     ], bump, token::mint = nft_mint, token::authority = authority )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
     #[account(init, payer=owner, seeds=[
-        b"receipt".as_ref(),
+        b"nft_receipt".as_ref(),
         nft_mint.key().as_ref(),
     ], bump, space = 8 + std::mem::size_of::<NftDepositReceipt>())]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
+    /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub owner: Signer<'info>,
     pub token_program: Program<'info, Token>,
@@ -102,7 +100,7 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
             pool.whitelist.as_ref(),
             &[pool.config.pool_type as u8],
             &[pool.config.curve_type as u8],
-            &pool.config.starting_price.to_le_bytes(),
+            &pool.config.current_price.to_le_bytes(),
             &pool.config.delta.to_le_bytes(),
         ]]),
         1,
@@ -122,10 +120,7 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
 
     //update pool
     let pool = &mut ctx.accounts.pool;
-    pool.nfts_held = unwrap_int!(pool.nfts_held.checked_add(1));
-    if pool.nfts_held > 0 {
-        pool.is_active = true;
-    }
+    pool.set_active();
 
     //create nft receipt
     let receipt = &mut ctx.accounts.nft_receipt;

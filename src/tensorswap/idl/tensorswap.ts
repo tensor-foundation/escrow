@@ -117,11 +117,6 @@ export type Tensorswap = {
           ]
         },
         {
-          "name": "creator",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "nftMint",
           "isMut": false,
           "isSigner": false
@@ -150,7 +145,10 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "Tied to the pool because used to verify pool seeds"
+          ]
         },
         {
           "name": "tokenProgram",
@@ -309,6 +307,10 @@ export type Tensorswap = {
             "type": "u32"
           },
           {
+            "name": "solFunding",
+            "type": "u64"
+          },
+          {
             "name": "isActive",
             "type": "bool"
           }
@@ -368,6 +370,10 @@ export type Tensorswap = {
           },
           {
             "name": "startingPrice",
+            "type": "u64"
+          },
+          {
+            "name": "currentPrice",
             "type": "u64"
           },
           {
@@ -571,11 +577,6 @@ export const IDL: Tensorswap = {
           ]
         },
         {
-          "name": "creator",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "nftMint",
           "isMut": false,
           "isSigner": false
@@ -604,7 +605,10 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "Tied to the pool because used to verify pool seeds"
+          ]
         },
         {
           "name": "tokenProgram",
@@ -763,6 +767,10 @@ export const IDL: Tensorswap = {
             "type": "u32"
           },
           {
+            "name": "solFunding",
+            "type": "u64"
+          },
+          {
             "name": "isActive",
             "type": "bool"
           }
@@ -822,6 +830,10 @@ export const IDL: Tensorswap = {
           },
           {
             "name": "startingPrice",
+            "type": "u64"
+          },
+          {
+            "name": "currentPrice",
             "type": "u64"
           },
           {

@@ -160,7 +160,6 @@ export class TensorSwapSDK {
   // main signature: owner
   async depositNft(
     tSwap: PublicKey,
-    creator: PublicKey,
     whitelist: PublicKey,
     nftMint: PublicKey,
     nftSource: PublicKey,
@@ -174,7 +173,7 @@ export class TensorSwapSDK {
 
     const [poolPda, poolPdaBump] = await findPoolPDA({
       tSwap,
-      creator,
+      creator: owner,
       whitelist,
       delta: config.delta,
       startingPrice: config.startingPrice,
@@ -194,7 +193,6 @@ export class TensorSwapSDK {
         pool: poolPda,
         authority: authPda,
         whitelist,
-        creator,
         nftMint,
         nftSource,
         nftEscrow: escrowPda,
