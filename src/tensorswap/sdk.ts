@@ -262,7 +262,6 @@ export class TensorSwapSDK {
         buyer,
         feeVault: tSwapAcc.feeVault,
         systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
     );

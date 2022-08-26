@@ -298,7 +298,7 @@ export type Tensorswap = {
         },
         {
           "name": "nftBuyerAcc",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false,
           "docs": [
             "Implicitly checked via transfer. Will fail if wrong account"
@@ -319,7 +319,7 @@ export type Tensorswap = {
         },
         {
           "name": "seller",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -337,11 +337,6 @@ export type Tensorswap = {
         },
         {
           "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -984,7 +979,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "nftBuyerAcc",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false,
           "docs": [
             "Implicitly checked via transfer. Will fail if wrong account"
@@ -1005,7 +1000,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "seller",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1023,11 +1018,6 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
           "isMut": false,
           "isSigner": false
         }

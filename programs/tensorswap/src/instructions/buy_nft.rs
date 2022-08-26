@@ -6,7 +6,6 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
-// todo clean up muts
 #[derive(Accounts)]
 #[instruction(auth_bump: u8, pool_bump: u8, receipt_bump: u8, escrow_bump: u8, config: PoolConfig)]
 pub struct BuyNft<'info> {
@@ -40,7 +39,6 @@ pub struct BuyNft<'info> {
     pub nft_mint: Box<Account<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(mut)]
     pub nft_buyer_acc: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
@@ -57,15 +55,14 @@ pub struct BuyNft<'info> {
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
     /// CHECK: used to derive pool seeds
+    #[account(mut)]
     pub seller: UncheckedAccount<'info>,
 
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub buyer: Signer<'info>,
-    //todo need the below?
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
     //
     // Optional accounts: only for Trade pool
     // Optional account 1: mm_fee_vault
