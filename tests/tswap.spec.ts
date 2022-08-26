@@ -1,5 +1,5 @@
 import { CurveType, PoolConfig, PoolType, TSWAP_FEE_ACC } from "../src";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -21,13 +21,14 @@ import { getAccount } from "@solana/spl-token";
 
 chai.use(chaiAsPromised);
 
+const TSWAP_FEE = 0.005;
+
 describe("tensorswap", () => {
   const poolConfig: PoolConfig = {
     poolType: PoolType.NFT,
-    //todo changing this to Linear breaks the tests, need to see what's going on with seeds
-    curveType: CurveType.Exponential,
-    startingPrice: new BN(1),
-    delta: new BN(1),
+    curveType: CurveType.Linear,
+    startingPrice: new BN(LAMPORTS_PER_SOL),
+    delta: new BN(1234),
     honorRoyalties: true,
     mmFeeBps: 0,
     mmFeeVault: null,
@@ -214,16 +215,15 @@ describe("tensorswap", () => {
 
     //paid tswap fees
     const feeAcc = await TEST_PROVIDER.connection.getAccountInfo(TSWAP_FEE_ACC);
-    console.log(feeAcc);
-    expect(feeAcc?.lamports).to.be.gt(0);
+    expect(feeAcc?.lamports).to.be.gte(LAMPORTS_PER_SOL * TSWAP_FEE);
+    expect(feeAcc?.lamports).to.be.lt(LAMPORTS_PER_SOL * 2 * TSWAP_FEE); //rent
 
-    //paid the seller
+    //paid full amount to seller
     const endingSellerLamports = (
       await TEST_PROVIDER.connection.getAccountInfo(traderA.publicKey)
     )?.lamports;
     const diff = endingSellerLamports! - startingSellerLamports!;
-    console.log(diff);
-    expect(diff).to.be.gt(0);
+    expect(diff).to.be.eq(LAMPORTS_PER_SOL * (1 - TSWAP_FEE));
 
     const poolAcc = await swapSdk.fetchPool(pool);
     expect(poolAcc.nftsHeld).to.eq(0);

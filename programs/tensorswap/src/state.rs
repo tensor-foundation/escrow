@@ -8,7 +8,7 @@ pub const CURRENT_POOL_VERSION: u8 = 1;
 
 // todo currently hardcoding, not to waste time passing in
 pub const TSWAP_FEE_VAULT: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
-pub const TSWAP_FEE_BPS: u16 = 5000;
+pub const TSWAP_FEE_BPS: u16 = 50; //0.5%
 
 pub const TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
 

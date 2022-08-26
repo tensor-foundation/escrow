@@ -26,8 +26,10 @@ export const findPoolPDA = async ({
       tSwap.toBytes(),
       creator.toBytes(),
       whitelist.toBytes(),
-      Buffer.from([poolType]),
-      Buffer.from([curveType]),
+      //u8s, hence 1 byte each
+      new BN(poolType).toBuffer("le", 1),
+      new BN(curveType).toBuffer("le", 1),
+      //u64s, hence 8 bytes each
       startingPrice.toBuffer("le", 8),
       delta.toBuffer("le", 8),
     ],

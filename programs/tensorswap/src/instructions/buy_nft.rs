@@ -65,6 +65,7 @@ pub struct BuyNft<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     //
+    //todo write tests
     // Optional accounts: only for Trade pool
     // Optional account 1: mm_fee_vault
     // Optional account 2: sol_escrow
@@ -122,27 +123,20 @@ pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
     proof: Vec<[u8; 32]>,
 ) -> Result<()> {
-    // transfer nft to buyer
-    token::transfer(
-        ctx.accounts
-            .transfer_ctx()
-            .with_signer(&[&ctx.accounts.tswap.sign()]),
-        1,
-    )?;
-
     let pool = &ctx.accounts.pool;
 
     let current_price = pool.current_price()?;
-    let left_for_seller = current_price;
+    let mut left_for_seller = current_price;
 
     //transfer fee to Tensorswap
     let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
-    unwrap_int!(left_for_seller.checked_sub(tswap_fee));
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
     ctx.accounts
         .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
 
     let remaining_accs = &mut ctx.remaining_accounts.iter();
 
+    //todo write tests
     //transfer fee to market maker
     if pool.config.pool_type == PoolType::Trade {
         let passed_mm_fee_vault = next_account_info(remaining_accs)?;
@@ -151,7 +145,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
         }
 
         let mm_fee = pool.calc_mm_fee(current_price)?;
-        unwrap_int!(left_for_seller.checked_sub(mm_fee));
+        left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
 
         ctx.accounts
             .transfer_lamports(&passed_mm_fee_vault, mm_fee)?;
@@ -173,6 +167,14 @@ pub fn handler<'a, 'b, 'c, 'info>(
     };
     ctx.accounts
         .transfer_lamports(&destination, left_for_seller)?;
+
+    // transfer nft to buyer
+    token::transfer(
+        ctx.accounts
+            .transfer_ctx()
+            .with_signer(&[&ctx.accounts.tswap.sign()]),
+        1,
+    )?;
 
     //update pool
     let pool = &mut ctx.accounts.pool;

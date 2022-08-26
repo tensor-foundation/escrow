@@ -134,8 +134,8 @@ export class TensorSwapSDK {
       whitelist,
       delta: config.delta,
       startingPrice: config.startingPrice,
-      curveType: poolTypeU8(config.poolType),
-      poolType: curveTypeU8(config.curveType),
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
     });
 
     const builder = this.program.methods
@@ -176,8 +176,8 @@ export class TensorSwapSDK {
       whitelist,
       delta: config.delta,
       startingPrice: config.startingPrice,
-      curveType: poolTypeU8(config.poolType),
-      poolType: curveTypeU8(config.curveType),
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
     });
 
     const [escrowPda, escrowPdaBump] = await findNftEscrowPDA({ nftMint });
@@ -237,8 +237,8 @@ export class TensorSwapSDK {
       whitelist,
       delta: config.delta,
       startingPrice: config.startingPrice,
-      curveType: poolTypeU8(config.poolType),
-      poolType: curveTypeU8(config.curveType),
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
     });
 
     const [escrowPda, escrowPdaBump] = await findNftEscrowPDA({ nftMint });
@@ -247,24 +247,6 @@ export class TensorSwapSDK {
     });
 
     const tSwapAcc = await this.fetchTSwap(tSwap);
-
-    console.log(
-      stringifyPKsAndBNs({
-        tswap: tSwap,
-        pool: poolPda,
-        authority: authPda,
-        whitelist,
-        nftMint,
-        nftBuyerAcc,
-        nftEscrow: escrowPda,
-        nftReceipt: receiptPda,
-        seller,
-        buyer,
-        feeVault: tSwapAcc.feeVault,
-        systemProgram: SystemProgram.programId,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-    );
 
     const builder = this.program.methods
       .buyNft(
