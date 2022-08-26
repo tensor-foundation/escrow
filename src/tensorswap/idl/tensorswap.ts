@@ -297,7 +297,7 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
-          "name": "nftDest",
+          "name": "nftBuyerAcc",
           "isMut": false,
           "isSigner": false,
           "docs": [
@@ -462,30 +462,37 @@ export type Tensorswap = {
           {
             "name": "config",
             "docs": [
-              "Config"
+              "Config & calc"
             ],
             "type": {
               "defined": "PoolConfig"
             }
           },
           {
-            "name": "tradeCount",
+            "name": "poolNftPurchaseCount",
             "docs": [
               "Accounting"
             ],
-            "type": "u64"
+            "type": "u32"
+          },
+          {
+            "name": "poolNftSaleCount",
+            "type": "u32"
           },
           {
             "name": "nftsHeld",
             "type": "u32"
           },
           {
-            "name": "solFunding",
-            "type": "u64"
-          },
-          {
             "name": "isActive",
             "type": "bool"
+          },
+          {
+            "name": "solFunding",
+            "docs": [
+              "Trade / Token pools only"
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -546,10 +553,6 @@ export type Tensorswap = {
             "type": "u64"
           },
           {
-            "name": "currentPrice",
-            "type": "u64"
-          },
-          {
             "name": "delta",
             "type": "u64"
           },
@@ -558,7 +561,7 @@ export type Tensorswap = {
             "type": "bool"
           },
           {
-            "name": "feeBps",
+            "name": "mmFeeBps",
             "docs": [
               "Trade pools only"
             ],
@@ -567,7 +570,7 @@ export type Tensorswap = {
             }
           },
           {
-            "name": "feeVault",
+            "name": "mmFeeVault",
             "type": {
               "option": "publicKey"
             }
@@ -605,6 +608,20 @@ export type Tensorswap = {
           }
         ]
       }
+    },
+    {
+      "name": "Direction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Up"
+          },
+          {
+            "name": "Down"
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -621,12 +638,42 @@ export type Tensorswap = {
     {
       "code": 6002,
       "name": "BadWhitelist",
-      "msg": "whitelist pda address doesn't match"
+      "msg": "unexpected whitelist address"
     },
     {
       "code": 6003,
       "name": "WrongPoolType",
       "msg": "operation not permitted on this pool type"
+    },
+    {
+      "code": 6004,
+      "name": "BadFeeAccount",
+      "msg": "fee account doesn't match that stored on pool"
+    },
+    {
+      "code": 6005,
+      "name": "BadEscrowAccount",
+      "msg": "escrow account doesn't match that stored on pool"
+    },
+    {
+      "code": 6006,
+      "name": "MissingFees",
+      "msg": "when setting up a Trade pool, must provide fee bps & fee vault"
+    },
+    {
+      "code": 6007,
+      "name": "FeesTooHigh",
+      "msg": "fees entered above allowed threshold"
+    },
+    {
+      "code": 6008,
+      "name": "DeltaTooLarge",
+      "msg": "delta too large"
+    },
+    {
+      "code": 6009,
+      "name": "ArithmeticError",
+      "msg": "arithmetic error"
     }
   ]
 };
@@ -930,7 +977,7 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
-          "name": "nftDest",
+          "name": "nftBuyerAcc",
           "isMut": false,
           "isSigner": false,
           "docs": [
@@ -1095,30 +1142,37 @@ export const IDL: Tensorswap = {
           {
             "name": "config",
             "docs": [
-              "Config"
+              "Config & calc"
             ],
             "type": {
               "defined": "PoolConfig"
             }
           },
           {
-            "name": "tradeCount",
+            "name": "poolNftPurchaseCount",
             "docs": [
               "Accounting"
             ],
-            "type": "u64"
+            "type": "u32"
+          },
+          {
+            "name": "poolNftSaleCount",
+            "type": "u32"
           },
           {
             "name": "nftsHeld",
             "type": "u32"
           },
           {
-            "name": "solFunding",
-            "type": "u64"
-          },
-          {
             "name": "isActive",
             "type": "bool"
+          },
+          {
+            "name": "solFunding",
+            "docs": [
+              "Trade / Token pools only"
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -1179,10 +1233,6 @@ export const IDL: Tensorswap = {
             "type": "u64"
           },
           {
-            "name": "currentPrice",
-            "type": "u64"
-          },
-          {
             "name": "delta",
             "type": "u64"
           },
@@ -1191,7 +1241,7 @@ export const IDL: Tensorswap = {
             "type": "bool"
           },
           {
-            "name": "feeBps",
+            "name": "mmFeeBps",
             "docs": [
               "Trade pools only"
             ],
@@ -1200,7 +1250,7 @@ export const IDL: Tensorswap = {
             }
           },
           {
-            "name": "feeVault",
+            "name": "mmFeeVault",
             "type": {
               "option": "publicKey"
             }
@@ -1238,6 +1288,20 @@ export const IDL: Tensorswap = {
           }
         ]
       }
+    },
+    {
+      "name": "Direction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Up"
+          },
+          {
+            "name": "Down"
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -1254,12 +1318,42 @@ export const IDL: Tensorswap = {
     {
       "code": 6002,
       "name": "BadWhitelist",
-      "msg": "whitelist pda address doesn't match"
+      "msg": "unexpected whitelist address"
     },
     {
       "code": 6003,
       "name": "WrongPoolType",
       "msg": "operation not permitted on this pool type"
+    },
+    {
+      "code": 6004,
+      "name": "BadFeeAccount",
+      "msg": "fee account doesn't match that stored on pool"
+    },
+    {
+      "code": 6005,
+      "name": "BadEscrowAccount",
+      "msg": "escrow account doesn't match that stored on pool"
+    },
+    {
+      "code": 6006,
+      "name": "MissingFees",
+      "msg": "when setting up a Trade pool, must provide fee bps & fee vault"
+    },
+    {
+      "code": 6007,
+      "name": "FeesTooHigh",
+      "msg": "fees entered above allowed threshold"
+    },
+    {
+      "code": 6008,
+      "name": "DeltaTooLarge",
+      "msg": "delta too large"
+    },
+    {
+      "code": 6009,
+      "name": "ArithmeticError",
+      "msg": "arithmetic error"
     }
   ]
 };

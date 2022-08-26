@@ -52,8 +52,8 @@ export interface PoolConfig {
   startingPrice: BN;
   delta: BN;
   honorRoyalties: boolean;
-  feeBps: number; //set to 0 if not present, for some reason setting to null causes anchor to crash
-  feeVault: PublicKey | null;
+  mmFeeBps: number; //set to 0 if not present, for some reason setting to null causes anchor to crash
+  mmFeeVault: PublicKey | null;
 }
 
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
@@ -140,7 +140,7 @@ export class TensorSwapSDK {
     });
 
     const ix = await this.program.methods
-      .initPool(poolPdaBump, config as any)
+      .initPool(poolPdaBump, config)
       .accounts({
         tswap: tSwap,
         pool: poolPda,

@@ -69,7 +69,7 @@ pub struct PoolConfig {
     pub mm_fee_bps: Option<u16>,
     pub mm_fee_vault: Option<Pubkey>,
 }
-
+// #[proc_macros::assert_size(176)]
 #[account]
 pub struct Pool {
     pub version: u8,
@@ -93,10 +93,16 @@ pub struct Pool {
 
     /// Trade / Token pools only
     pub sol_funding: u64, //total deposits - total withdrawals - any spent sol
-    pub sol_escrow: Option<Pubkey>,
+                          // pub sol_escrow: Option<Pubkey>,
 }
 
 impl Pool {
+    // todo to work on
+    // pub fn SIZE() -> usize {
+    //     //bools + u8s + u16s + u32s + u64s + pk
+    //     (2 * 1) + (4 * 1) + 2 + (3 * 4) + (3 * 8) + (4 * 32)
+    // }
+
     // todo rust is being fucking painful - not wasting time fighting the complier rn
     //  https://stackoverflow.com/questions/73481281/rust-returns-a-value-referencing-data-owned-by-the-current-function
     // pub fn pool_seeds(&self) -> [&[u8]; 7] {
@@ -179,7 +185,7 @@ impl Pool {
                 //  is there a better way than looping?
                 Direction::Up => {
                     let mut result = self.config.starting_price;
-                    for n in 1..=times {
+                    for _n in 1..=times {
                         result = unwrap_checked!({
                             result
                                 .checked_mul(
@@ -194,7 +200,7 @@ impl Pool {
                 //same but / instead of *
                 Direction::Down => {
                     let mut result = self.config.starting_price;
-                    for n in 1..=times {
+                    for _n in 1..=times {
                         result = unwrap_checked!({
                             result.checked_mul(HUNDRED_PCT_BPS as u64)?.checked_div(
                                 (HUNDRED_PCT_BPS as u64).checked_add(self.config.delta as u64)?,
@@ -274,7 +280,7 @@ mod tests {
                 nfts_held: 0,
                 is_active: false,
                 sol_funding: 0,
-                sol_escrow: None,
+                // sol_escrow: None,
             }
         }
     }
