@@ -15,6 +15,7 @@ import {
 } from "./pda";
 import { BN } from "@project-serum/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { stringifyPKsAndBNs } from "../../tests/shared";
 
 export const PoolType = {
   Token: { token: {} },
@@ -198,6 +199,97 @@ export class TensorSwapSDK {
         nftEscrow: escrowPda,
         nftReceipt: receiptPda,
         owner,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .instruction();
+
+    return {
+      tx: { ixs: [ix], extraSigners: [] },
+      authPda,
+      authPdaBump,
+      poolPda,
+      poolPdaBump,
+      escrowPda,
+      escrowPdaBump,
+      receiptPda,
+      receiptPdaBump,
+    };
+  }
+
+  //main signature: buyer
+  async buyNft(
+    tSwap: PublicKey,
+    whitelist: PublicKey,
+    nftMint: PublicKey,
+    nftBuyerAcc: PublicKey,
+    seller: PublicKey,
+    buyer: PublicKey,
+    config: PoolConfig,
+    proof: Buffer[]
+  ) {
+    const [authPda, authPdaBump] = await findSwapAuthPDA({
+      tSwap,
+    });
+
+    const [poolPda, poolPdaBump] = await findPoolPDA({
+      tSwap,
+      creator: seller,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      curveType: poolTypeU8(config.poolType),
+      poolType: curveTypeU8(config.curveType),
+    });
+
+    const [escrowPda, escrowPdaBump] = await findNftEscrowPDA({ nftMint });
+    const [receiptPda, receiptPdaBump] = await findNftDepositReceiptPDA({
+      nftMint,
+    });
+
+    const tSwapAcc = await this.fetchTSwap(tSwap);
+
+    console.log(
+      stringifyPKsAndBNs({
+        tswap: tSwap,
+        pool: poolPda,
+        authority: authPda,
+        whitelist,
+        nftMint,
+        nftBuyerAcc,
+        nftEscrow: escrowPda,
+        nftReceipt: receiptPda,
+        seller,
+        buyer,
+        feeVault: tSwapAcc.feeVault,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+    );
+
+    const ix = await this.program.methods
+      .buyNft(
+        authPdaBump,
+        poolPdaBump,
+        receiptPdaBump,
+        escrowPdaBump,
+        config as any,
+        proof
+      )
+      .accounts({
+        tswap: tSwap,
+        pool: poolPda,
+        authority: authPda,
+        whitelist,
+        nftMint,
+        nftBuyerAcc,
+        nftEscrow: escrowPda,
+        nftReceipt: receiptPda,
+        seller,
+        buyer,
+        feeVault: tSwapAcc.feeVault,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
         tokenProgram: TOKEN_PROGRAM_ID,

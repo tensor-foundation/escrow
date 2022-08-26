@@ -35,7 +35,5 @@ pub fn handler(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
     };
     tswap.fee_vault = Pubkey::from_str(TSWAP_FEE_VAULT).unwrap();
 
-    msg!("pool size is, {}", std::mem::size_of::<Pool>());
-
     Ok(())
 }

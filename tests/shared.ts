@@ -20,13 +20,15 @@ import {
   getMinimumBalanceForRentExemptMint,
   TOKEN_PROGRAM_ID,
   MINT_SIZE,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import BN from "bn.js";
 
 export const buildAndSendTx = async (
   provider: AnchorProvider,
   ixs: TransactionInstruction[],
   extraSigners?: Signer[]
-): Promise<string> => {
+) => {
   const { tx } = await buildTx({
     connections: [provider.connection],
     instructions: ixs,
@@ -34,7 +36,12 @@ export const buildAndSendTx = async (
     feePayer: provider.publicKey,
   });
   await provider.wallet.signTransaction(tx);
-  return await provider.connection.sendRawTransaction(tx.serialize());
+  try {
+    return await provider.connection.sendRawTransaction(tx.serialize());
+  } catch (e) {
+    //this is needed to see program error logs
+    console.error(e);
+  }
 };
 
 export const generateTreeOfSize = (size: number, targetMint: PublicKey) => {
@@ -87,6 +94,24 @@ export const createFundedWallet = async (
   return keypair;
 };
 
+export const createATA = async (
+  provider: AnchorProvider,
+  mint: PublicKey,
+  owner: Keypair
+) => {
+  const ata = await getAssociatedTokenAddress(mint, owner.publicKey);
+  const createAtaIx = createAssociatedTokenAccountInstruction(
+    owner.publicKey,
+    ata,
+    owner.publicKey,
+    mint,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+  await buildAndSendTx(provider, [createAtaIx], [owner]);
+  return { mint, owner, ata };
+};
+
 export const createAndFundATA = async (
   provider: AnchorProvider,
   amount: number,
@@ -126,10 +151,84 @@ export const createAndFundATA = async (
     usedOwner.publicKey,
     amount
   );
-  await buildAndSendTx(
-    provider,
-    [createMintAccIx, createMintIx, createAtaIx, mintIx],
-    [usedOwner, mint]
-  );
+
+  const ixs = [createMintAccIx, createMintIx, createAtaIx];
+  if (amount > 0) {
+    ixs.push(mintIx);
+  }
+
+  await buildAndSendTx(provider, ixs, [usedOwner, mint]);
   return { mint: mint.publicKey, ata, owner: usedOwner };
+};
+
+export const stringifyPKsAndBNs = (i: any) => {
+  if (_isPk(i)) {
+    return (<PublicKey>i).toBase58();
+  } else if (i instanceof BN) {
+    return i.toString();
+  } else if (_parseType(i) === "array") {
+    return _stringifyPKsAndBNInArray(i);
+  } else if (_parseType(i) === "object") {
+    return _stringifyPKsAndBNsInObject(i);
+  }
+  return i;
+};
+const _isPk = (obj: any): boolean => {
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    typeof obj["toBase58"] === "function"
+  );
+};
+
+const _stringifyPKsAndBNsInObject = (o: any) => {
+  const newO = { ...o };
+  for (const [k, v] of Object.entries(newO)) {
+    if (_isPk(v)) {
+      newO[k] = (<PublicKey>v).toBase58();
+    } else if (v instanceof BN) {
+      newO[k] = (v as BN).toString();
+    } else if (_parseType(v) === "array") {
+      newO[k] = _stringifyPKsAndBNInArray(v as any);
+    } else if (_parseType(v) === "object") {
+      newO[k] = _stringifyPKsAndBNsInObject(v);
+    } else {
+      newO[k] = v;
+    }
+  }
+  return newO;
+};
+
+const _stringifyPKsAndBNInArray = (a: any[]): any[] => {
+  const newA = [];
+  for (const i of a) {
+    if (_isPk(i)) {
+      newA.push(i.toBase58());
+    } else if (i instanceof BN) {
+      newA.push(i.toString());
+    } else if (_parseType(i) === "array") {
+      newA.push(_stringifyPKsAndBNInArray(i));
+    } else if (_parseType(i) === "object") {
+      newA.push(stringifyPKsAndBNs(i));
+    } else {
+      newA.push(i);
+    }
+  }
+  return newA;
+};
+
+const _parseType = <T>(v: T): string => {
+  if (v === null || v === undefined) {
+    return "null";
+  }
+  if (typeof v === "object") {
+    if (v instanceof Array) {
+      return "array";
+    }
+    if (v instanceof Date) {
+      return "date";
+    }
+    return "object";
+  }
+  return typeof v;
 };

@@ -6,6 +6,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
+// todo clean up muts
 #[derive(Accounts)]
 #[instruction(auth_bump: u8, pool_bump: u8, receipt_bump: u8, escrow_bump: u8, config: PoolConfig)]
 pub struct BuyNft<'info> {
@@ -14,6 +15,7 @@ pub struct BuyNft<'info> {
     pub tswap: Box<Account<'info, TSwap>>,
 
     /// CHECK: checked above via has_one
+    #[account(mut)]
     pub fee_vault: UncheckedAccount<'info>,
 
     /// Needed to be set as authority on token escrows
@@ -21,7 +23,7 @@ pub struct BuyNft<'info> {
     #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
     pub authority: UncheckedAccount<'info>,
 
-    #[account(seeds = [
+    #[account(mut, seeds = [
         tswap.key().as_ref(),
         seller.key().as_ref(),
         whitelist.key().as_ref(),
@@ -38,6 +40,7 @@ pub struct BuyNft<'info> {
     pub nft_mint: Box<Account<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
+    #[account(mut)]
     pub nft_buyer_acc: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
@@ -59,6 +62,7 @@ pub struct BuyNft<'info> {
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub buyer: Signer<'info>,
+    //todo need the below?
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
