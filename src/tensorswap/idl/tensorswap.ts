@@ -493,6 +493,12 @@ export type Tensorswap = {
               "Trade / Token pools only"
             ],
             "type": "u64"
+          },
+          {
+            "name": "solEscrow",
+            "type": {
+              "option": "publicKey"
+            }
           }
         ]
       }
@@ -1173,6 +1179,12 @@ export const IDL: Tensorswap = {
               "Trade / Token pools only"
             ],
             "type": "u64"
+          },
+          {
+            "name": "solEscrow",
+            "type": {
+              "option": "publicKey"
+            }
           }
         ]
       }

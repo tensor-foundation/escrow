@@ -4,7 +4,7 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(config: PoolConfig)]
+#[instruction(pool_bump: u8, config: PoolConfig)]
 pub struct InitPool<'info> {
     /// Needed for pool seeds derivation
     pub tswap: Box<Account<'info, TSwap>>,
@@ -30,6 +30,7 @@ pub struct InitPool<'info> {
 }
 
 impl<'info> InitPool<'info> {
+    // todo write tests for all these conditions
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
         //user fees can only be collected on Trade pools
         //can't check fee_pct coz FE has to set it to 0 rather than null to avoid certain errors
@@ -38,7 +39,7 @@ impl<'info> InitPool<'info> {
         }
 
         //if it is indeed a Trade pool, ensure fees are correctly configured
-        if config.pool_type != PoolType::Trade {
+        if config.pool_type == PoolType::Trade {
             if config.mm_fee_vault.is_none() || config.mm_fee_bps.is_none() {
                 throw_err!(MissingFees);
             }
@@ -102,16 +103,16 @@ pub fn handler(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Res
     pool.pool_nft_purchase_count = 0;
     pool.nfts_held = 0;
     pool.is_active = false;
-    // pool.sol_escrow = match config.pool_type {
-    //     PoolType::NFT => None,
-    //     _ => {
-    //         let (sol_escrow, _bump) = Pubkey::find_program_address(
-    //             &["sol_escrow".as_ref(), pool.key().as_ref()],
-    //             ctx.program_id,
-    //         );
-    //         Some(sol_escrow)
-    //     }
-    // };
+    pool.sol_escrow = match config.pool_type {
+        PoolType::NFT => None,
+        _ => {
+            let (sol_escrow, _bump) = Pubkey::find_program_address(
+                &["sol_escrow".as_ref(), pool.key().as_ref()],
+                ctx.program_id,
+            );
+            Some(sol_escrow)
+        }
+    };
 
     Ok(())
 }

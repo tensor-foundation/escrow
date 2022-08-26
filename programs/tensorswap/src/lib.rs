@@ -58,23 +58,23 @@ pub mod tensorswap {
 #[error_code]
 pub enum ErrorCode {
     #[msg("invalid merkle proof, token not whitelisted")]
-    InvalidProof,
+    InvalidProof = 0,
     #[msg("whitelist not verified -- currently only verified pools supported")]
-    WhitelistNotVerified,
+    WhitelistNotVerified = 1,
     #[msg("unexpected whitelist address")]
-    BadWhitelist,
+    BadWhitelist = 2,
     #[msg("operation not permitted on this pool type")]
-    WrongPoolType,
+    WrongPoolType = 3,
     #[msg("fee account doesn't match that stored on pool")]
-    BadFeeAccount,
+    BadFeeAccount = 4,
     #[msg("escrow account doesn't match that stored on pool")]
-    BadEscrowAccount,
+    BadEscrowAccount = 5,
     #[msg("when setting up a Trade pool, must provide fee bps & fee vault")]
-    MissingFees,
+    MissingFees = 6,
     #[msg("fees entered above allowed threshold")]
-    FeesTooHigh,
+    FeesTooHigh = 7,
     #[msg("delta too large")]
-    DeltaTooLarge,
+    DeltaTooLarge = 8,
     #[msg("arithmetic error")]
-    ArithmeticError,
+    ArithmeticError = 9,
 }

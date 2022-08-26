@@ -162,21 +162,21 @@ pub fn handler<'a, 'b, 'c, 'info>(
     }
 
     //transfer remainder to either user or the pool (if Trade pool)
-    // let destination = match pool.config.pool_type {
-    //     //send money direct to user
-    //     PoolType::NFT => ctx.accounts.seller.to_account_info(),
-    //     //send money to the pool
-    //     PoolType::Trade => {
-    //         let passed_sol_escrow = next_account_info(remaining_accs)?;
-    //         if *passed_sol_escrow.key != pool.sol_escrow.unwrap() {
-    //             throw_err!(BadEscrowAccount);
-    //         }
-    //         passed_sol_escrow.clone()
-    //     }
-    //     PoolType::Token => unreachable!(),
-    // };
-    // ctx.accounts
-    //     .transfer_lamports(&destination, left_for_seller)?;
+    let destination = match pool.config.pool_type {
+        //send money direct to user
+        PoolType::NFT => ctx.accounts.seller.to_account_info(),
+        //send money to the pool
+        PoolType::Trade => {
+            let passed_sol_escrow = next_account_info(remaining_accs)?;
+            if *passed_sol_escrow.key != pool.sol_escrow.unwrap() {
+                throw_err!(BadEscrowAccount);
+            }
+            passed_sol_escrow.clone()
+        }
+        PoolType::Token => unreachable!(),
+    };
+    ctx.accounts
+        .transfer_lamports(&destination, left_for_seller)?;
 
     //update pool
     let pool = &mut ctx.accounts.pool;

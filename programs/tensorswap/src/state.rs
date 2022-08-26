@@ -93,7 +93,7 @@ pub struct Pool {
 
     /// Trade / Token pools only
     pub sol_funding: u64, //total deposits - total withdrawals - any spent sol
-                          // pub sol_escrow: Option<Pubkey>,
+    pub sol_escrow: Option<Pubkey>,
 }
 
 impl Pool {

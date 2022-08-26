@@ -114,43 +114,43 @@ describe("tensorswap", () => {
     expect(poolAcc.creator.toBase58()).to.eq(traderA.publicKey.toBase58());
   });
 
-  // it("deposits nft", async () => {
-  //   //bad
-  //   const {
-  //     tx: { ixs: badIxs },
-  //   } = await sdk.depositNft(
-  //     tSwap.publicKey,
-  //     whitelist,
-  //     NOTwhitelistedNftMint,
-  //     NOTwhitelistedNftAta,
-  //     traderA.publicKey,
-  //     poolConfig,
-  //     proof
-  //   );
-  //   await expect(
-  //     buildAndSendTx(provider, badIxs, [traderA])
-  //   ).to.be.rejectedWith("0x1770");
-  //
-  //   //good
-  //   const {
-  //     tx: { ixs: goodIxs },
-  //     receiptPda,
-  //     escrowPda,
-  //   } = await sdk.depositNft(
-  //     tSwap.publicKey,
-  //     whitelist,
-  //     whitelistedNftMint,
-  //     whitelistedNftAta,
-  //     traderA.publicKey,
-  //     poolConfig,
-  //     proof
-  //   );
-  //   await buildAndSendTx(provider, goodIxs, [traderA]);
-  //   await waitMS(1000);
-  //
-  //   const receipt = await sdk.fetchReceipt(receiptPda);
-  //   expect(receipt.pool.toBase58()).to.eq(pool.toBase58());
-  //   expect(receipt.nftMint.toBase58()).to.eq(whitelistedNftMint.toBase58());
-  //   expect(receipt.nftEscrow.toBase58()).to.eq(escrowPda.toBase58());
-  // });
+  it("deposits nft", async () => {
+    //bad
+    const {
+      tx: { ixs: badIxs },
+    } = await sdk.depositNft(
+      tSwap.publicKey,
+      whitelist,
+      NOTwhitelistedNftMint,
+      NOTwhitelistedNftAta,
+      traderA.publicKey,
+      poolConfig,
+      proof
+    );
+    await expect(
+      buildAndSendTx(provider, badIxs, [traderA])
+    ).to.be.rejectedWith("0x1770");
+
+    //good
+    const {
+      tx: { ixs: goodIxs },
+      receiptPda,
+      escrowPda,
+    } = await sdk.depositNft(
+      tSwap.publicKey,
+      whitelist,
+      whitelistedNftMint,
+      whitelistedNftAta,
+      traderA.publicKey,
+      poolConfig,
+      proof
+    );
+    await buildAndSendTx(provider, goodIxs, [traderA]);
+    await waitMS(1000);
+
+    const receipt = await sdk.fetchReceipt(receiptPda);
+    expect(receipt.pool.toBase58()).to.eq(pool.toBase58());
+    expect(receipt.nftMint.toBase58()).to.eq(whitelistedNftMint.toBase58());
+    expect(receipt.nftEscrow.toBase58()).to.eq(escrowPda.toBase58());
+  });
 });

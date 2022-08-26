@@ -140,7 +140,7 @@ export class TensorSwapSDK {
     });
 
     const ix = await this.program.methods
-      .initPool(poolPdaBump, config)
+      .initPool(poolPdaBump, config as any)
       .accounts({
         tswap: tSwap,
         pool: poolPda,
