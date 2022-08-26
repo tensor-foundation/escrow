@@ -65,8 +65,10 @@ pub enum ErrorCode {
     BadWhitelist,
     #[msg("operation not permitted on this pool type")]
     WrongPoolType,
-    #[msg("fee account doesn't match that stored in pool")]
+    #[msg("fee account doesn't match that stored on pool")]
     BadFeeAccount,
+    #[msg("escrow account doesn't match that stored on pool")]
+    BadEscrowAccount,
     #[msg("when setting up a Trade pool, must provide fee bps & fee vault")]
     MissingFees,
     #[msg("fees entered above allowed threshold")]

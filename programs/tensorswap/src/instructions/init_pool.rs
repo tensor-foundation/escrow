@@ -98,10 +98,20 @@ pub fn handler(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Res
     pool.creator = ctx.accounts.creator.key();
     pool.whitelist = ctx.accounts.whitelist.key();
     pool.config = config;
-    pool.current_price = config.starting_price;
-    pool.pool_bought_times = 0;
+    pool.pool_nft_sale_count = 0;
+    pool.pool_nft_purchase_count = 0;
     pool.nfts_held = 0;
     pool.is_active = false;
+    pool.sol_escrow = match config.pool_type {
+        PoolType::NFT => None,
+        _ => {
+            let (sol_escrow, _bump) = Pubkey::find_program_address(
+                &["sol_escrow".as_ref(), pool.key().as_ref()],
+                ctx.program_id,
+            );
+            Some(sol_escrow)
+        }
+    };
 
     Ok(())
 }

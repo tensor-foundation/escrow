@@ -68,8 +68,9 @@ pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
 
     //update pool
     let pool = &mut ctx.accounts.pool;
+    let current_price = pool.current_price()?;
     pool.sol_funding = unwrap_int!(pool.sol_funding.checked_add(lamports));
-    pool.set_active();
+    pool.set_active(current_price);
 
     Ok(())
 }

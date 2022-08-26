@@ -1,3 +1,4 @@
+//! User buying an NFT from the pool / pool selling an NFT to the user
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
@@ -62,7 +63,9 @@ pub struct BuyNft<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     //
-    // Optional account: mm_fee_vault, only passed in if it's a Trade pool
+    // Optional accounts: only for Trade pool
+    // Optional account 1: mm_fee_vault
+    // Optional account 2: sol_escrow
 }
 
 impl<'info> BuyNft<'info> {
@@ -110,6 +113,8 @@ impl<'info> Validate<'info> for BuyNft<'info> {
     }
 }
 
+//todo need to see how many of these can fit into a single tx,
+//todo need to think about sneding price / max price
 #[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
@@ -131,23 +136,25 @@ pub fn handler<'a, 'b, 'c, 'info>(
         1,
     )?;
 
-    let left_for_seller = pool.current_price;
+    let current_price = pool.current_price()?;
+    let left_for_seller = current_price;
 
     //transfer fee to Tensorswap
-    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps)?;
+    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
     unwrap_int!(left_for_seller.checked_sub(tswap_fee));
     ctx.accounts
         .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
 
+    let remaining_accs = &mut ctx.remaining_accounts.iter();
+
     //transfer fee to market maker
     if pool.config.pool_type == PoolType::Trade {
-        let remaining_accs = &mut ctx.remaining_accounts.iter();
         let passed_mm_fee_vault = next_account_info(remaining_accs)?;
         if *passed_mm_fee_vault.key != pool.config.mm_fee_vault.unwrap() {
             throw_err!(BadFeeAccount);
         }
 
-        let mm_fee = pool.calc_mm_fee()?;
+        let mm_fee = pool.calc_mm_fee(current_price)?;
         unwrap_int!(left_for_seller.checked_sub(mm_fee));
 
         ctx.accounts
@@ -155,19 +162,27 @@ pub fn handler<'a, 'b, 'c, 'info>(
     }
 
     //transfer remainder to either user or the pool (if Trade pool)
+    let destination = match pool.config.pool_type {
+        //send money direct to user
+        PoolType::NFT => ctx.accounts.seller.to_account_info(),
+        //send money to the pool
+        PoolType::Trade => {
+            let passed_sol_escrow = next_account_info(remaining_accs)?;
+            if *passed_sol_escrow.key != pool.sol_escrow.unwrap() {
+                throw_err!(BadEscrowAccount);
+            }
+            passed_sol_escrow.clone()
+        }
+        PoolType::Token => unreachable!(),
+    };
     ctx.accounts
-        .transfer_lamports(&ctx.accounts.seller.to_account_info(), left_for_seller)?;
-
-    //todo what did we decide re sending in a price?
+        .transfer_lamports(&destination, left_for_seller)?;
 
     //update pool
     let pool = &mut ctx.accounts.pool;
-    match pool.config.pool_type {
-        PoolType::Trade => pool.adjust_current_price(Some(Direction::Up))?,
-        _ => pool.adjust_current_price(None)?,
-    }
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_sub(1));
-    pool.set_active();
+    pool.pool_nft_sale_count = unwrap_int!(pool.pool_nft_sale_count.checked_add(1));
+    pool.set_active(current_price);
 
     Ok(())
 }

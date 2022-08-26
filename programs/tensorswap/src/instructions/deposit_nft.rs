@@ -108,8 +108,9 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
 
     //update pool
     let pool = &mut ctx.accounts.pool;
+    let current_price = pool.current_price()?;
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_add(1));
-    pool.set_active();
+    pool.set_active(current_price);
 
     //create nft receipt
     let receipt = &mut ctx.accounts.nft_receipt;
