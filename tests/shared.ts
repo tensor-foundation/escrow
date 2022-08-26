@@ -42,7 +42,7 @@ export const buildAndSendTx = async (
     await provider.sendAndConfirm(tx, extraSigners);
   } catch (e) {
     //this is needed to see program error logs
-    console.error("❌❌❌ FAILED TO SEND TX, FULL ERROR: ❌❌❌");
+    console.error("❌ FAILED TO SEND TX, FULL ERROR: ❌");
     console.error(e);
     throw e;
   }

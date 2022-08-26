@@ -39,6 +39,7 @@ pub struct BuyNft<'info> {
     pub nft_mint: Box<Account<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
+    #[account(mut)]
     pub nft_buyer_acc: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
@@ -115,27 +116,21 @@ impl<'info> Validate<'info> for BuyNft<'info> {
 }
 
 //todo need to see how many of these can fit into a single tx,
-//todo need to think about sneding price / max price
+//todo need to think about sending price / max price
 #[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
     proof: Vec<[u8; 32]>,
 ) -> Result<()> {
-    let pool = &ctx.accounts.pool;
-
     // transfer nft to buyer
-    // token::transfer(
-    //     ctx.accounts.transfer_ctx().with_signer(&[&[
-    //         pool.tswap.as_ref(),
-    //         pool.creator.as_ref(),
-    //         pool.whitelist.as_ref(),
-    //         &[pool.config.pool_type as u8],
-    //         &[pool.config.curve_type as u8],
-    //         &pool.config.starting_price.to_le_bytes(),
-    //         &pool.config.delta.to_le_bytes(),
-    //     ]]),
-    //     1,
-    // )?;
+    token::transfer(
+        ctx.accounts
+            .transfer_ctx()
+            .with_signer(&[&ctx.accounts.tswap.sign()]),
+        1,
+    )?;
+
+    let pool = &ctx.accounts.pool;
 
     let current_price = pool.current_price()?;
     let left_for_seller = current_price;

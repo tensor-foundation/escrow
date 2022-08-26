@@ -1,7 +1,7 @@
 {
   "scripts": {
     "build": "anchor build && ./scripts/cp_idl.sh",
-    "test": "rm -rf .anchor && yarn build && anchor test --skip-build",
+    "test": "./scripts/full_test.sh",
     "fast-test": "anchor test --skip-build",
     "pub": "rm -rf ./dist && tsc && npm version patch --force && npm publish --access public",
     "upgrade:tswap": "yarn upgrade @tensor/tensorswap-ts --latest --check-files",

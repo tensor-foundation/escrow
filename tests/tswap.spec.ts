@@ -1,4 +1,4 @@
-import { CurveType, PoolConfig, PoolType } from "../src";
+import { CurveType, PoolConfig, PoolType, TSWAP_FEE_ACC } from "../src";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import chai, { expect } from "chai";
@@ -17,6 +17,7 @@ import {
 //(!) KEEP THIS IMPORT. It ensures ordering of tests (WL -> swap), otherwise both will fail
 import "./twhitelist.spec";
 import { MerkleTree } from "merkletreejs";
+import { getAccount } from "@solana/spl-token";
 
 chai.use(chaiAsPromised);
 
@@ -162,6 +163,19 @@ describe("tensorswap", () => {
     );
     await buildAndSendTx(TEST_PROVIDER, goodIxs, [traderA]);
 
+    //NFT moved from trader to escrow
+    const traderAcc = await getAccount(
+      TEST_PROVIDER.connection,
+      whitelistedNftAtaTraderA
+    );
+    expect(traderAcc.amount.toString()).to.eq("0");
+    const escrowAcc = await getAccount(TEST_PROVIDER.connection, escrowPda);
+    expect(escrowAcc.amount.toString()).to.eq("1");
+
+    const poolAcc = await swapSdk.fetchPool(pool);
+    expect(poolAcc.nftsHeld).to.eq(1);
+    expect(poolAcc.isActive).to.be.true;
+
     const receipt = await swapSdk.fetchReceipt(receiptPda);
     expect(receipt.pool.toBase58()).to.eq(pool.toBase58());
     expect(receipt.nftMint.toBase58()).to.eq(whitelistedNftMint.toBase58());
@@ -169,9 +183,14 @@ describe("tensorswap", () => {
   });
 
   it("buys nft", async () => {
+    const startingSellerLamports = (
+      await TEST_PROVIDER.connection.getAccountInfo(traderA.publicKey)
+    )?.lamports;
+
     const {
       tx: { ixs },
       receiptPda,
+      escrowPda,
     } = await swapSdk.buyNft(
       tSwap.publicKey,
       whitelist,
@@ -184,9 +203,34 @@ describe("tensorswap", () => {
     );
     await buildAndSendTx(TEST_PROVIDER, ixs, [traderB]);
 
-    // const receipt = await sdk.fetchReceipt(receiptPda);
-    // expect(receipt).to.undefined;
+    //NFT moved from escrow to trader
+    const traderAcc = await getAccount(
+      TEST_PROVIDER.connection,
+      whitelistedNftAtaTraderB
+    );
+    expect(traderAcc.amount.toString()).to.eq("1");
+    const escrowAcc = await getAccount(TEST_PROVIDER.connection, escrowPda);
+    expect(escrowAcc.amount.toString()).to.eq("0");
 
-    //todo check fee accs
+    //paid tswap fees
+    const feeAcc = await TEST_PROVIDER.connection.getAccountInfo(TSWAP_FEE_ACC);
+    console.log(feeAcc);
+    expect(feeAcc?.lamports).to.be.gt(0);
+
+    //paid the seller
+    const endingSellerLamports = (
+      await TEST_PROVIDER.connection.getAccountInfo(traderA.publicKey)
+    )?.lamports;
+    const diff = endingSellerLamports! - startingSellerLamports!;
+    console.log(diff);
+    expect(diff).to.be.gt(0);
+
+    const poolAcc = await swapSdk.fetchPool(pool);
+    expect(poolAcc.nftsHeld).to.eq(0);
+    expect(poolAcc.poolNftSaleCount).to.eq(1);
+    expect(poolAcc.isActive).to.be.false;
+
+    //receipt should have gotten closed
+    await expect(swapSdk.fetchReceipt(receiptPda)).to.be.rejected;
   });
 });

@@ -29,6 +29,7 @@ pub struct TSwap {
 
     //signs off on everything program related
     pub authority: Pubkey,
+    pub auth_seed: Pubkey,
     pub auth_bump: [u8; 1],
     // todo for v1 keeping it super naive - just a pk we control
     pub owner: Pubkey,
@@ -36,6 +37,12 @@ pub struct TSwap {
     pub config: TSwapConfig,
     // todo for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
+}
+
+impl TSwap {
+    pub fn sign(&self) -> [&[u8]; 2] {
+        [self.auth_seed.as_ref(), &self.auth_bump]
+    }
 }
 
 // --------------------------------------- pool

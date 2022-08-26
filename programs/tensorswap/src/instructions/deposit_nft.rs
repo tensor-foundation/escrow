@@ -90,8 +90,6 @@ impl<'info> Validate<'info> for DepositNft<'info> {
 
 #[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
 pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
-    let pool = &ctx.accounts.pool;
-
     // do the transfer
     token::transfer(ctx.accounts.transfer_ctx(), 1)?;
 

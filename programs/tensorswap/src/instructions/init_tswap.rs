@@ -28,6 +28,7 @@ pub fn handler(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
 
     tswap.version = CURRENT_TSWAP_VERSION;
     tswap.authority = ctx.accounts.authority.key();
+    tswap.auth_seed = tswap.key();
     tswap.auth_bump = [auth_bump];
     tswap.owner = ctx.accounts.owner.key();
     tswap.config = TSwapConfig {
