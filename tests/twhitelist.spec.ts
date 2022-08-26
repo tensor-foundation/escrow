@@ -1,63 +1,72 @@
-import * as anchor from "@project-serum/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { waitMS } from "@tensor-hq/tensor-common/dist/util";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { buildAndSendTx, generateTreeOfSize, removeNullBytes } from "./shared";
-import { TensorWhitelistSDK } from "../src";
+import {
+  buildAndSendTx,
+  generateTreeOfSize,
+  removeNullBytes,
+  TEST_PROVIDER,
+  wlSdk,
+} from "./shared";
 
 chai.use(chaiAsPromised);
-
-const provider = anchor.AnchorProvider.env();
-const sdk = new TensorWhitelistSDK({ provider });
 
 describe("tensor_whitelist", () => {
   let authPda: PublicKey;
 
-  before(async () => {
+  it("inits authority", async () => {
     //init
     const {
       tx: { ixs },
       authPda: authPda_,
-    } = await sdk.initUpdateAuthority(provider.publicKey, provider.publicKey);
+    } = await wlSdk.initUpdateAuthority(
+      TEST_PROVIDER.publicKey,
+      TEST_PROVIDER.publicKey
+    );
     authPda = authPda_;
-    await buildAndSendTx(provider, ixs);
+    await buildAndSendTx(TEST_PROVIDER, ixs);
+
+    let authAcc = await wlSdk.fetchAuthority(authPda);
+    expect(authAcc.owner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());
   });
 
-  it.skip("inits/updates authority", async () => {
-    //verify initial state
-    await waitMS(1000);
-    let authAcc = await sdk.fetchAuthority(authPda);
-    expect(authAcc.owner.toBase58()).to.eq(provider.publicKey.toBase58());
-
+  it.skip("updates authority", async () => {
     //update (good)
     const tempAuth = Keypair.generate();
     const {
       tx: { ixs: updateGood },
-    } = await sdk.initUpdateAuthority(provider.publicKey, tempAuth.publicKey);
-    await buildAndSendTx(provider, updateGood);
-    await waitMS(1000);
+    } = await wlSdk.initUpdateAuthority(
+      TEST_PROVIDER.publicKey,
+      tempAuth.publicKey
+    );
+    await buildAndSendTx(TEST_PROVIDER, updateGood);
 
-    authAcc = await sdk.fetchAuthority(authPda);
+    let authAcc = await wlSdk.fetchAuthority(authPda);
+    authAcc = await wlSdk.fetchAuthority(authPda);
     expect(authAcc.owner.toBase58()).to.eq(tempAuth.publicKey.toBase58());
 
     //update (bad - provider no longer current owner, should fail)
     const {
       tx: { ixs: updateBad },
-    } = await sdk.initUpdateAuthority(provider.publicKey, provider.publicKey);
-    await expect(buildAndSendTx(provider, updateBad)).to.be.rejectedWith(
+    } = await wlSdk.initUpdateAuthority(
+      TEST_PROVIDER.publicKey,
+      TEST_PROVIDER.publicKey
+    );
+    await expect(buildAndSendTx(TEST_PROVIDER, updateBad)).to.be.rejectedWith(
       "0x1770"
     );
 
     //update (good again - transfer back)
     const {
       tx: { ixs: updateGood2 },
-    } = await sdk.initUpdateAuthority(tempAuth.publicKey, provider.publicKey);
-    await buildAndSendTx(provider, updateGood2, [tempAuth]);
-    await waitMS(1000);
+    } = await wlSdk.initUpdateAuthority(
+      tempAuth.publicKey,
+      TEST_PROVIDER.publicKey
+    );
+    await buildAndSendTx(TEST_PROVIDER, updateGood2, [tempAuth]);
 
-    authAcc = await sdk.fetchAuthority(authPda);
-    expect(authAcc.owner.toBase58()).to.eq(provider.publicKey.toBase58());
+    authAcc = await wlSdk.fetchAuthority(authPda);
+    expect(authAcc.owner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());
   });
 
   it.skip("inits/updates whitelist", async () => {
@@ -69,22 +78,22 @@ describe("tensor_whitelist", () => {
 
     const {
       tx: { ixs: initWlBad },
-    } = await sdk.initUpdateWhitelist(
-      provider.publicKey,
+    } = await wlSdk.initUpdateWhitelist(
+      TEST_PROVIDER.publicKey,
       Buffer.from(uuid).toJSON().data
     );
-    await expect(buildAndSendTx(provider, initWlBad)).to.be.rejectedWith(
+    await expect(buildAndSendTx(TEST_PROVIDER, initWlBad)).to.be.rejectedWith(
       "0x1771"
     );
 
     const {
       tx: { ixs: initWlBad2 },
-    } = await sdk.initUpdateWhitelist(
-      provider.publicKey,
+    } = await wlSdk.initUpdateWhitelist(
+      TEST_PROVIDER.publicKey,
       Buffer.from(uuid).toJSON().data,
       root
     );
-    await expect(buildAndSendTx(provider, initWlBad2)).to.be.rejectedWith(
+    await expect(buildAndSendTx(TEST_PROVIDER, initWlBad2)).to.be.rejectedWith(
       "0x1772"
     );
 
@@ -92,16 +101,15 @@ describe("tensor_whitelist", () => {
     const {
       tx: { ixs: initWlGood },
       whitelistPda,
-    } = await sdk.initUpdateWhitelist(
-      provider.publicKey,
+    } = await wlSdk.initUpdateWhitelist(
+      TEST_PROVIDER.publicKey,
       Buffer.from(uuid).toJSON().data,
       root,
       Buffer.from(name.padEnd(32, "\0")).toJSON().data
     );
-    await buildAndSendTx(provider, initWlGood);
-    await waitMS(1000);
+    await buildAndSendTx(TEST_PROVIDER, initWlGood);
 
-    let wlAcc = await sdk.fetchWhitelist(whitelistPda);
+    let wlAcc = await wlSdk.fetchWhitelist(whitelistPda);
     expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid);
     expect(removeNullBytes(String.fromCharCode(...wlAcc.name))).to.eq(name);
     expect(wlAcc.rootHash).to.deep.eq(root);
@@ -117,16 +125,15 @@ describe("tensor_whitelist", () => {
     const {
       tx: { ixs: initWlGood2 },
       whitelistPda: whitelistPda2,
-    } = await sdk.initUpdateWhitelist(
-      provider.publicKey,
+    } = await wlSdk.initUpdateWhitelist(
+      TEST_PROVIDER.publicKey,
       Buffer.from(uuid2).toJSON().data,
       root2,
       Buffer.from(name2.padEnd(32, "\0")).toJSON().data
     );
-    await buildAndSendTx(provider, initWlGood2);
-    await waitMS(1000);
+    await buildAndSendTx(TEST_PROVIDER, initWlGood2);
 
-    wlAcc = await sdk.fetchWhitelist(whitelistPda2);
+    wlAcc = await wlSdk.fetchWhitelist(whitelistPda2);
     expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid2);
     expect(removeNullBytes(String.fromCharCode(...wlAcc.name))).to.eq(name2);
     expect(wlAcc.rootHash).to.deep.eq(root2);

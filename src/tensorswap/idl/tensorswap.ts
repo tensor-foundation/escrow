@@ -105,7 +105,7 @@ export type Tensorswap = {
         },
         {
           "name": "pool",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -207,7 +207,7 @@ export type Tensorswap = {
         },
         {
           "name": "pool",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -791,7 +791,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "pool",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -893,7 +893,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "pool",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {

@@ -23,6 +23,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import BN from "bn.js";
+import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
 
 export const buildAndSendTx = async (
   provider: AnchorProvider,
@@ -37,10 +38,13 @@ export const buildAndSendTx = async (
   });
   await provider.wallet.signTransaction(tx);
   try {
-    return await provider.connection.sendRawTransaction(tx.serialize());
+    //(!) SUPER IMPORTANT TO USE THIS METHOD AND NOT sendRawTransaction()
+    await provider.sendAndConfirm(tx, extraSigners);
   } catch (e) {
     //this is needed to see program error logs
+    console.error("❌❌❌ FAILED TO SEND TX, FULL ERROR: ❌❌❌");
     console.error(e);
+    throw e;
   }
 };
 
@@ -232,3 +236,8 @@ const _parseType = <T>(v: T): string => {
   }
   return typeof v;
 };
+
+//(!) provider used across all tests
+export const TEST_PROVIDER = anchor.AnchorProvider.local();
+export const swapSdk = new TensorSwapSDK({ provider: TEST_PROVIDER });
+export const wlSdk = new TensorWhitelistSDK({ provider: TEST_PROVIDER });

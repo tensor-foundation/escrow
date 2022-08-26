@@ -1,5 +1,5 @@
 import { IDL, TensorWhitelist } from "./idl/tensor_whitelist";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { Commitment, PublicKey, SystemProgram } from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
 import { TENSOR_WHITELIST_ADDR } from "./constants";
 import { findWhitelistAuthPDA, findWhitelistPDA } from "./pda";
@@ -23,12 +23,12 @@ export class TensorWhitelistSDK {
 
   // --------------------------------------- fetchers
 
-  async fetchAuthority(authority: PublicKey) {
-    return this.program.account.authority.fetch(authority);
+  async fetchAuthority(authority: PublicKey, commitment?: Commitment) {
+    return this.program.account.authority.fetch(authority, commitment);
   }
 
-  async fetchWhitelist(whitelist: PublicKey) {
-    return this.program.account.whitelist.fetch(whitelist);
+  async fetchWhitelist(whitelist: PublicKey, commitment?: Commitment) {
+    return this.program.account.whitelist.fetch(whitelist, commitment);
   }
 
   // --------------------------------------- finders
@@ -39,16 +39,20 @@ export class TensorWhitelistSDK {
   async initUpdateAuthority(owner: PublicKey, newOwner: PublicKey) {
     const [authPda, authPdaBump] = await findWhitelistAuthPDA({});
 
-    const ix = await this.program.methods
+    const builder = this.program.methods
       .initUpdateAuthority(newOwner)
       .accounts({
         whitelistAuthority: authPda,
         owner,
         systemProgram: SystemProgram.programId,
-      })
-      .instruction();
+      });
 
-    return { tx: { ixs: [ix], extraSigners: [] }, authPda, authPdaBump };
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      authPda,
+      authPdaBump,
+    };
   }
 
   //main signature: owner
@@ -63,18 +67,18 @@ export class TensorWhitelistSDK {
       uuid,
     });
 
-    const ix = await this.program.methods
+    const builder = this.program.methods
       .initUpdateWhitelist(authPdaBump, uuid, rootHash, name)
       .accounts({
         whitelist: whitelistPda,
         whitelistAuthority: authPda,
         owner,
         systemProgram: SystemProgram.programId,
-      })
-      .instruction();
+      });
 
     return {
-      tx: { ixs: [ix], extraSigners: [] },
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
       authPda,
       authPdaBump,
       whitelistPda,

@@ -15,7 +15,7 @@ pub struct DepositNft<'info> {
     #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
     pub authority: UncheckedAccount<'info>,
 
-    #[account(seeds = [
+    #[account(mut, seeds = [
         tswap.key().as_ref(),
         owner.key().as_ref(),
         whitelist.key().as_ref(),
@@ -93,18 +93,7 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
     // do the transfer
-    token::transfer(
-        ctx.accounts.transfer_ctx().with_signer(&[&[
-            pool.tswap.as_ref(),
-            pool.creator.as_ref(),
-            pool.whitelist.as_ref(),
-            &[pool.config.pool_type as u8],
-            &[pool.config.curve_type as u8],
-            &pool.config.starting_price.to_le_bytes(),
-            &pool.config.delta.to_le_bytes(),
-        ]]),
-        1,
-    )?;
+    token::transfer(ctx.accounts.transfer_ctx(), 1)?;
 
     //update pool
     let pool = &mut ctx.accounts.pool;

@@ -127,18 +127,18 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let pool = &ctx.accounts.pool;
 
     // transfer nft to buyer
-    token::transfer(
-        ctx.accounts.transfer_ctx().with_signer(&[&[
-            pool.tswap.as_ref(),
-            pool.creator.as_ref(),
-            pool.whitelist.as_ref(),
-            &[pool.config.pool_type as u8],
-            &[pool.config.curve_type as u8],
-            &pool.config.starting_price.to_le_bytes(),
-            &pool.config.delta.to_le_bytes(),
-        ]]),
-        1,
-    )?;
+    // token::transfer(
+    //     ctx.accounts.transfer_ctx().with_signer(&[&[
+    //         pool.tswap.as_ref(),
+    //         pool.creator.as_ref(),
+    //         pool.whitelist.as_ref(),
+    //         &[pool.config.pool_type as u8],
+    //         &[pool.config.curve_type as u8],
+    //         &pool.config.starting_price.to_le_bytes(),
+    //         &pool.config.delta.to_le_bytes(),
+    //     ]]),
+    //     1,
+    // )?;
 
     let current_price = pool.current_price()?;
     let left_for_seller = current_price;

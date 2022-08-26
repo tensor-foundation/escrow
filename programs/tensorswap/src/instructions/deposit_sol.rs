@@ -10,7 +10,7 @@ pub struct DepositSol<'info> {
     /// Needed for pool seeds derivation
     pub tswap: Box<Account<'info, TSwap>>,
 
-    #[account(seeds = [
+    #[account(mut, seeds = [
         tswap.key().as_ref(),
         owner.key().as_ref(),
         whitelist.key().as_ref(),

@@ -1,19 +1,19 @@
 import {
+  Commitment,
   Keypair,
   PublicKey,
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
-import { Coder, Program, Provider } from "@project-serum/anchor";
+import { AnchorProvider, BN, Coder, Program } from "@project-serum/anchor";
 import { IDL, Tensorswap } from "./idl/tensorswap";
 import { TENSORSWAP_ADDR } from "./constants";
 import {
-  findSwapAuthPDA,
-  findPoolPDA,
-  findNftEscrowPDA,
   findNftDepositReceiptPDA,
+  findNftEscrowPDA,
+  findPoolPDA,
+  findSwapAuthPDA,
 } from "./pda";
-import { BN } from "@project-serum/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { stringifyPKsAndBNs } from "../../tests/shared";
 
@@ -70,7 +70,7 @@ export class TensorSwapSDK {
   }: {
     idl?: any; //todo better typing
     addr?: PublicKey;
-    provider?: Provider;
+    provider?: AnchorProvider;
     coder?: Coder;
   }) {
     this.program = new Program<Tensorswap>(idl, addr, provider, coder);
@@ -78,16 +78,16 @@ export class TensorSwapSDK {
 
   // --------------------------------------- fetchers
 
-  async fetchTSwap(tswap: PublicKey) {
-    return this.program.account.tSwap.fetch(tswap);
+  async fetchTSwap(tswap: PublicKey, commitment?: Commitment) {
+    return this.program.account.tSwap.fetch(tswap, commitment);
   }
 
-  async fetchPool(pool: PublicKey) {
-    return this.program.account.pool.fetch(pool);
+  async fetchPool(pool: PublicKey, commitment?: Commitment) {
+    return this.program.account.pool.fetch(pool, commitment);
   }
 
-  async fetchReceipt(receipt: PublicKey) {
-    return this.program.account.nftDepositReceipt.fetch(receipt);
+  async fetchReceipt(receipt: PublicKey, commitment?: Commitment) {
+    return this.program.account.nftDepositReceipt.fetch(receipt, commitment);
   }
 
   // --------------------------------------- finders
@@ -103,18 +103,16 @@ export class TensorSwapSDK {
       tSwap: usedTSwap.publicKey,
     });
 
-    const ix = await this.program.methods
-      .initTswap(authPdaBump)
-      .accounts({
-        tswap: usedTSwap.publicKey,
-        authority: authPda,
-        owner,
-        systemProgram: SystemProgram.programId,
-      })
-      .instruction();
+    const builder = this.program.methods.initTswap(authPdaBump).accounts({
+      tswap: usedTSwap.publicKey,
+      authority: authPda,
+      owner,
+      systemProgram: SystemProgram.programId,
+    });
 
     return {
-      tx: { ixs: [ix], extraSigners },
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners },
       tSwap: usedTSwap,
       authPda,
       authPdaBump,
@@ -140,7 +138,7 @@ export class TensorSwapSDK {
       poolType: curveTypeU8(config.curveType),
     });
 
-    const ix = await this.program.methods
+    const builder = this.program.methods
       .initPool(poolPdaBump, config as any)
       .accounts({
         tswap: tSwap,
@@ -148,11 +146,11 @@ export class TensorSwapSDK {
         whitelist,
         creator,
         systemProgram: SystemProgram.programId,
-      })
-      .instruction();
+      });
 
     return {
-      tx: { ixs: [ix], extraSigners: [] },
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
       poolPda,
       poolPdaBump,
     };
@@ -187,7 +185,7 @@ export class TensorSwapSDK {
       nftMint,
     });
 
-    const ix = await this.program.methods
+    const builder = this.program.methods
       .depositNft(authPdaBump, poolPdaBump, config as any, proof)
       .accounts({
         tswap: tSwap,
@@ -202,11 +200,11 @@ export class TensorSwapSDK {
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .instruction();
+      });
 
     return {
-      tx: { ixs: [ix], extraSigners: [] },
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
       authPda,
       authPdaBump,
       poolPda,
@@ -269,7 +267,7 @@ export class TensorSwapSDK {
       })
     );
 
-    const ix = await this.program.methods
+    const builder = this.program.methods
       .buyNft(
         authPdaBump,
         poolPdaBump,
@@ -293,11 +291,11 @@ export class TensorSwapSDK {
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
         tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .instruction();
+      });
 
     return {
-      tx: { ixs: [ix], extraSigners: [] },
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
       authPda,
       authPdaBump,
       poolPda,

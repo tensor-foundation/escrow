@@ -280,7 +280,7 @@ mod tests {
                 nfts_held: 0,
                 is_active: false,
                 sol_funding: 0,
-                // sol_escrow: None,
+                sol_escrow: None,
             }
         }
     }
