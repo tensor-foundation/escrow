@@ -16,6 +16,9 @@ pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
 pub const HUNDRED_PCT_BPS: u16 = 10000;
 pub const MAX_DELTA_BPS: u16 = 9999; //99%
 
+//how many ticks is the spread between a buy and sell for a trade pool
+pub const SPREAD_TICKS: u8 = 1;
+
 // --------------------------------------- tswap
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
@@ -252,6 +255,7 @@ pub struct NftDepositReceipt {
     pub nft_escrow: Pubkey,
 }
 
+// todo since we're allowing the pool to go infinitely each direction, think through security / ux of limits
 #[cfg(test)]
 mod tests {
     use super::*;

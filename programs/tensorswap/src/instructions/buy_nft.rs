@@ -106,11 +106,20 @@ impl<'info> BuyNft<'info> {
     }
 }
 
+// todo write tests
 impl<'info> Validate<'info> for BuyNft<'info> {
     fn validate(&self) -> Result<()> {
         //can't buy an NFT from a token pool
         if self.pool.config.pool_type == PoolType::Token {
             throw_err!(WrongPoolType);
+        }
+        //can't buy an NFT that's associated with a different pool
+        if self.pool.key() != self.nft_receipt.pool {
+            throw_err!(WrongPool);
+        }
+        //can't buy from pool if not active
+        if self.pool.is_active {
+            throw_err!(PoolNotActive);
         }
         Ok(())
     }

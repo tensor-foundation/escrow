@@ -77,4 +77,8 @@ pub enum ErrorCode {
     DeltaTooLarge = 8,
     #[msg("arithmetic error")]
     ArithmeticError = 9,
+    #[msg("this nft doesnt belong to this pool")]
+    WrongPool = 10,
+    #[msg("this pool is not active for chosen action")]
+    PoolNotActive = 11,
 }

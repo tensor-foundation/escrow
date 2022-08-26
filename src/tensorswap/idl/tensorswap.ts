@@ -679,6 +679,11 @@ export type Tensorswap = {
       "code": 6009,
       "name": "ArithmeticError",
       "msg": "arithmetic error"
+    },
+    {
+      "code": 6010,
+      "name": "WrongPool",
+      "msg": "this nft doesnt belong to this pool"
     }
   ]
 };
@@ -1364,6 +1369,11 @@ export const IDL: Tensorswap = {
       "code": 6009,
       "name": "ArithmeticError",
       "msg": "arithmetic error"
+    },
+    {
+      "code": 6010,
+      "name": "WrongPool",
+      "msg": "this nft doesnt belong to this pool"
     }
   ]
 };
