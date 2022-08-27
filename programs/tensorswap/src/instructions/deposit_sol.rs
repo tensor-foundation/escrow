@@ -5,7 +5,7 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(pool_bump: u8, config: PoolConfig)]
+#[instruction( config: PoolConfig)]
 pub struct DepositSol<'info> {
     /// Needed for pool seeds derivation
     pub tswap: Box<Account<'info, TSwap>>,
@@ -18,7 +18,7 @@ pub struct DepositSol<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool_bump, has_one = tswap, has_one = whitelist)]
+    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = owner)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -68,9 +68,7 @@ pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
 
     //update pool
     let pool = &mut ctx.accounts.pool;
-    let current_price = pool.current_price()?;
     pool.sol_funding = unwrap_int!(pool.sol_funding.checked_add(lamports));
-    pool.set_active(current_price);
 
     Ok(())
 }

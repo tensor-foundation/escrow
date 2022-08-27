@@ -1,4 +1,5 @@
 import {
+  ConfirmOptions,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
@@ -9,7 +10,7 @@ import {
 } from "@solana/web3.js";
 import { buildTx } from "@tensor-hq/tensor-common/dist/solana_contrib";
 import * as anchor from "@project-serum/anchor";
-import { AnchorProvider } from "@project-serum/anchor";
+import { AccountClient, AnchorProvider } from "@project-serum/anchor";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
 import {
@@ -24,11 +25,15 @@ import {
 } from "@solana/spl-token";
 import BN from "bn.js";
 import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
+import { expect } from "chai";
+
+export const waitMS = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export const buildAndSendTx = async (
   provider: AnchorProvider,
   ixs: TransactionInstruction[],
-  extraSigners?: Signer[]
+  extraSigners?: Signer[],
+  opts?: ConfirmOptions
 ) => {
   const { tx } = await buildTx({
     connections: [provider.connection],
@@ -39,7 +44,7 @@ export const buildAndSendTx = async (
   await provider.wallet.signTransaction(tx);
   try {
     //(!) SUPER IMPORTANT TO USE THIS METHOD AND NOT sendRawTransaction()
-    await provider.sendAndConfirm(tx, extraSigners);
+    return await provider.sendAndConfirm(tx, extraSigners, opts);
   } catch (e) {
     //this is needed to see program error logs
     console.error("❌ FAILED TO SEND TX, FULL ERROR: ❌");
@@ -182,6 +187,16 @@ export const stringifyPKsAndBNs = (i: any) => {
   }
   return i;
 };
+
+export const getAccountRent = (
+  provider: AnchorProvider,
+  acct: AccountClient
+) => {
+  return provider.connection.getMinimumBalanceForRentExemption(acct.size);
+};
+
+//#region Helper fns.
+
 const _isPk = (obj: any): boolean => {
   return (
     typeof obj === "object" &&
@@ -242,7 +257,29 @@ const _parseType = <T>(v: T): string => {
   return typeof v;
 };
 
+// #endregion
+
 //(!) provider used across all tests
 export const TEST_PROVIDER = anchor.AnchorProvider.local();
 export const swapSdk = new TensorSwapSDK({ provider: TEST_PROVIDER });
 export const wlSdk = new TensorWhitelistSDK({ provider: TEST_PROVIDER });
+
+//#region Shared test functions.
+
+export const testInitWLAuthority = async () => {
+  const {
+    tx: { ixs },
+    authPda,
+  } = await wlSdk.initUpdateAuthority(
+    TEST_PROVIDER.publicKey,
+    TEST_PROVIDER.publicKey
+  );
+  await buildAndSendTx(TEST_PROVIDER, ixs);
+
+  let authAcc = await wlSdk.fetchAuthority(authPda);
+  expect(authAcc.owner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());
+
+  return authPda;
+};
+
+//#endregion

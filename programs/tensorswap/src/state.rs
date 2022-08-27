@@ -29,23 +29,14 @@ pub struct TSwapConfig {
 #[account]
 pub struct TSwap {
     pub version: u8,
+    pub bump: u8,
 
-    //signs off on everything program related
-    pub authority: Pubkey,
-    pub auth_seed: Pubkey,
-    pub auth_bump: [u8; 1],
     // todo for v1 keeping it super naive - just a pk we control
     pub owner: Pubkey,
 
     pub config: TSwapConfig,
     // todo for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
-}
-
-impl TSwap {
-    pub fn sign(&self) -> [&[u8]; 2] {
-        [self.auth_seed.as_ref(), &self.auth_bump]
-    }
 }
 
 // --------------------------------------- pool
@@ -83,11 +74,11 @@ pub struct PoolConfig {
 #[account]
 pub struct Pool {
     pub version: u8,
-    pub pool_bump: [u8; 1],
+    pub bump: u8,
 
     /// Ownership & belonging
     pub tswap: Pubkey,
-    pub creator: Pubkey,
+    pub owner: Pubkey,
 
     /// Collection stuff
     pub whitelist: Pubkey,
@@ -99,11 +90,12 @@ pub struct Pool {
     pub pool_nft_purchase_count: u32, //how many times the pool BOUGHT an nft
     pub pool_nft_sale_count: u32, //how many times the pool SOLD an nft
     pub nfts_held: u32,
-    pub is_active: bool,
 
     /// Trade / Token pools only
+    /// We technically could read funding as balance of sol_escrow (- rent)
+    /// but kind of annoying so let's keep this for now.
     pub sol_funding: u64, //total deposits - total withdrawals - any spent sol
-    pub sol_escrow: Option<Pubkey>,
+    pub sol_escrow: Pubkey, //Token/NFT = owner, Trade = PDA
 }
 
 impl Pool {
@@ -126,15 +118,6 @@ impl Pool {
     //         &self.config.delta.to_le_bytes(),
     //     ]
     // }
-
-    pub fn set_active(&mut self, current_price: u64) -> bool {
-        if self.nfts_held > 0 || self.sol_funding > current_price {
-            self.is_active = true;
-        } else {
-            self.is_active = false;
-        }
-        self.is_active
-    }
 
     pub fn calc_mm_fee(&self, current_price: u64) -> Result<u64> {
         if self.config.pool_type != PoolType::Trade {
@@ -250,9 +233,19 @@ pub enum Direction {
 
 #[account]
 pub struct NftDepositReceipt {
+    pub bump: u8,
     pub pool: Pubkey,
     pub nft_mint: Pubkey,
     pub nft_escrow: Pubkey,
+}
+
+#[account]
+pub struct SolEscrow {
+    pub bump: u8,
+}
+
+impl SolEscrow {
+    pub const SIZE: usize = 1;
 }
 
 // todo since we're allowing the pool to go infinitely each direction, think through security / ux of limits
@@ -273,9 +266,9 @@ mod tests {
         ) -> Self {
             Self {
                 version: 1,
-                pool_bump: [1],
+                bump: 1,
                 tswap: Pubkey::default(),
-                creator: Pubkey::default(),
+                owner: Pubkey::default(),
                 whitelist: Pubkey::default(),
                 config: PoolConfig {
                     pool_type,
@@ -289,9 +282,8 @@ mod tests {
                 pool_nft_purchase_count,
                 pool_nft_sale_count,
                 nfts_held: 0,
-                is_active: false,
                 sol_funding: 0,
-                sol_escrow: None,
+                sol_escrow: Pubkey::default(),
             }
         }
     }

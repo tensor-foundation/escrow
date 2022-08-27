@@ -7,20 +7,15 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(auth_bump: u8, pool_bump: u8, receipt_bump: u8, escrow_bump: u8, config: PoolConfig)]
+#[instruction(config: PoolConfig)]
 pub struct BuyNft<'info> {
     /// Needed for pool seeds derivation
-    #[account(has_one = authority, has_one = fee_vault)]
+    #[account(seeds = [], bump = tswap.bump, has_one = fee_vault)]
     pub tswap: Box<Account<'info, TSwap>>,
 
     /// CHECK: checked above via has_one
     #[account(mut)]
     pub fee_vault: UncheckedAccount<'info>,
-
-    /// Needed to be set as authority on token escrows
-    /// CHECK: via seed derivation macro below / via has one_one above.
-    #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
-    pub authority: UncheckedAccount<'info>,
 
     #[account(mut, seeds = [
         tswap.key().as_ref(),
@@ -30,7 +25,7 @@ pub struct BuyNft<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool_bump, has_one = tswap, has_one = whitelist)]
+    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = sol_escrow)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -47,14 +42,20 @@ pub struct BuyNft<'info> {
     #[account(mut, seeds=[
         b"nft_escrow".as_ref(),
         nft_mint.key().as_ref(),
-    ], bump = escrow_bump)]
+    ], bump)]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
     #[account(mut, seeds=[
         b"nft_receipt".as_ref(),
         nft_mint.key().as_ref(),
-    ], bump = receipt_bump, close = fee_vault)]
+    ], bump = nft_receipt.bump, close = fee_vault)]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
+
+    #[account(mut, seeds=[
+        b"sol_escrow".as_ref(),
+        pool.key().as_ref(),
+    ], bump = sol_escrow.bump)]
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// CHECK: used to derive pool seeds
     #[account(mut)]
@@ -63,6 +64,7 @@ pub struct BuyNft<'info> {
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub buyer: Signer<'info>,
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     //
@@ -89,7 +91,7 @@ impl<'info> BuyNft<'info> {
             Transfer {
                 from: self.nft_escrow.to_account_info(),
                 to: self.nft_buyer_acc.to_account_info(),
-                authority: self.authority.to_account_info(),
+                authority: self.tswap.to_account_info(),
             },
         )
     }
@@ -118,10 +120,6 @@ impl<'info> Validate<'info> for BuyNft<'info> {
         if self.pool.key() != self.nft_receipt.pool {
             throw_err!(WrongPool);
         }
-        //can't buy from pool if not active
-        // if self.pool.is_active {
-        //     throw_err!(PoolNotActive);
-        // }
         Ok(())
     }
 }
@@ -166,13 +164,14 @@ pub fn handler<'a, 'b, 'c, 'info>(
         //send money direct to user
         PoolType::NFT => ctx.accounts.seller.to_account_info(),
         //send money to the pool
-        PoolType::Trade => {
-            let passed_sol_escrow = next_account_info(remaining_accs)?;
-            if *passed_sol_escrow.key != pool.sol_escrow.unwrap() {
-                throw_err!(BadEscrowAccount);
-            }
-            passed_sol_escrow.clone()
-        }
+        PoolType::Trade => ctx.accounts.sol_escrow.to_account_info(),
+        // PoolType::Trade => {
+        // let passed_sol_escrow = next_account_info(remaining_accs)?;
+        // if *passed_sol_escrow.key != pool.sol_escrow.unwrap() {
+        //     throw_err!(BadEscrowAccount);
+        // }
+        // passed_sol_escrow.clone()
+        // }
         PoolType::Token => unreachable!(),
     };
     ctx.accounts
@@ -182,15 +181,14 @@ pub fn handler<'a, 'b, 'c, 'info>(
     token::transfer(
         ctx.accounts
             .transfer_ctx()
-            .with_signer(&[&ctx.accounts.tswap.sign()]),
+            .with_signer(&[&[&[ctx.accounts.tswap.bump]]]),
         1,
     )?;
 
-    //update pool
+    //update pool accounting
     let pool = &mut ctx.accounts.pool;
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_sub(1));
     pool.pool_nft_sale_count = unwrap_int!(pool.pool_nft_sale_count.checked_add(1));
-    pool.set_active(current_price);
 
     Ok(())
 }

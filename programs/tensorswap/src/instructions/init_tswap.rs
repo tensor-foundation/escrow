@@ -2,14 +2,9 @@ use crate::*;
 use std::str::FromStr;
 
 #[derive(Accounts)]
-#[instruction(auth_bump: u8)]
 pub struct InitTSwap<'info> {
-    #[account(init, payer = owner, space = 8 + std::mem::size_of::<TSwap>())]
+    #[account(init, seeds = [], bump, payer = owner, space = 8 + std::mem::size_of::<TSwap>())]
     pub tswap: Box<Account<'info, TSwap>>,
-
-    /// CHECK: via seed derivation macro below
-    #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
-    pub authority: UncheckedAccount<'info>,
 
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -23,13 +18,11 @@ impl<'info> Validate<'info> for InitTSwap<'info> {
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
+pub fn handler(ctx: Context<InitTSwap>) -> Result<()> {
     let tswap = &mut ctx.accounts.tswap;
 
     tswap.version = CURRENT_TSWAP_VERSION;
-    tswap.authority = ctx.accounts.authority.key();
-    tswap.auth_seed = tswap.key();
-    tswap.auth_bump = [auth_bump];
+    tswap.bump = *ctx.bumps.get("tswap").unwrap();
     tswap.owner = ctx.accounts.owner.key();
     tswap.config = TSwapConfig {
         fee_bps: TSWAP_FEE_BPS,

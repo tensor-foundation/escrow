@@ -14,8 +14,10 @@ import {
   createATA,
   createFundedWallet,
   generateTreeOfSize,
+  getAccountRent,
   stringifyPKsAndBNs,
   swapSdk,
+  testInitWLAuthority,
   TEST_PROVIDER,
   wlSdk,
 } from "./shared";
@@ -46,7 +48,7 @@ describe("tensorswap", () => {
     mmFeeVault: null,
   };
 
-  let tSwap: Keypair;
+  let tswap: PublicKey;
   let pool: PublicKey;
 
   let traderA: Keypair;
@@ -64,9 +66,10 @@ describe("tensorswap", () => {
   let root: number[];
   let proof: Buffer[];
 
-  it("inits necessary accs", async () => {
+  before(async () => {
+    //#region WL + mints + traders.
+
     //keypairs
-    tSwap = Keypair.generate();
     traderA = await createFundedWallet(TEST_PROVIDER);
     traderB = await createFundedWallet(TEST_PROVIDER);
 
@@ -81,30 +84,32 @@ describe("tensorswap", () => {
       traderB
     ));
 
+    // WL authority
+    await testInitWLAuthority();
+
     //whitelist
     ({
       tree,
       root,
       proofs: [{ proof }],
     } = generateTreeOfSize(100, [whitelistedNftMint]));
-    const uuid = "0001c1a567594e34aeebccf4b49e3333"; //todo make random
+    const uuid = wlSdk.genWhitelistUUID();
     const name = "hello_world";
     const {
       tx: { ixs: wlIxs },
       whitelistPda,
-    } = await wlSdk.initUpdateWhitelist(
-      TEST_PROVIDER.publicKey,
-      Buffer.from(uuid).toJSON().data,
-      root,
-      Buffer.from(name.padEnd(32, "\0")).toJSON().data
-    );
+    } = await wlSdk.initUpdateWhitelist({
+      owner: TEST_PROVIDER.publicKey,
+      uuid: Buffer.from(uuid).toJSON().data,
+      rootHash: root,
+      name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
+    });
     whitelist = whitelistPda;
     await buildAndSendTx(TEST_PROVIDER, wlIxs);
 
     console.log(
       "debug accs",
       stringifyPKsAndBNs({
-        tSwap: tSwap.publicKey,
         pool,
         traderA: traderA.publicKey,
         traderB: traderB.publicKey,
@@ -116,16 +121,20 @@ describe("tensorswap", () => {
         NOTwhitelistedNftAta,
       })
     );
-  });
 
-  it("inits swap/pool", async () => {
+    //#endregion
+
+    //#region Initialize swap + pool
+
     //swap
     const {
-      tx: { ixs, extraSigners },
-    } = await swapSdk.initTSwap(TEST_PROVIDER.publicKey, tSwap);
-    await buildAndSendTx(TEST_PROVIDER, ixs, extraSigners);
+      tx: { ixs },
+      tswapPda,
+    } = await swapSdk.initTSwap(TEST_PROVIDER.publicKey);
+    tswap = tswapPda;
+    await buildAndSendTx(TEST_PROVIDER, ixs);
 
-    const swapAcc = await swapSdk.fetchTSwap(tSwap.publicKey);
+    const swapAcc = await swapSdk.fetchTSwap(tswap);
     expect(swapAcc.owner.toBase58()).to.be.eq(
       TEST_PROVIDER.publicKey.toBase58()
     );
@@ -134,35 +143,16 @@ describe("tensorswap", () => {
     const {
       tx: { ixs: poolIxs },
       poolPda,
-    } = await swapSdk.initPool(
-      tSwap.publicKey,
-      traderA.publicKey,
-      whitelist,
-      poolConfig
-    );
+    } = await swapSdk.initPool(traderA.publicKey, whitelist, poolConfig);
     pool = poolPda;
     await buildAndSendTx(TEST_PROVIDER, poolIxs, [traderA]);
 
-    const poolAcc = await swapSdk.fetchPool(pool);
-    expect(poolAcc.creator.toBase58()).to.eq(traderA.publicKey.toBase58());
-  });
+    let poolAcc = await swapSdk.fetchPool(pool);
+    expect(poolAcc.owner.toBase58()).to.eq(traderA.publicKey.toBase58());
 
-  it.skip("deposits nft", async () => {
-    //bad
-    const {
-      tx: { ixs: badIxs },
-    } = await swapSdk.depositNft(
-      tSwap.publicKey,
-      whitelist,
-      NOTwhitelistedNftMint,
-      NOTwhitelistedNftAta,
-      traderA.publicKey,
-      poolConfig,
-      proof
-    );
-    await expect(
-      buildAndSendTx(TEST_PROVIDER, badIxs, [traderA])
-    ).to.be.rejectedWith("0x1770");
+    //#endregion
+
+    //#region Deposit NFT.
 
     //good
     const {
@@ -170,7 +160,6 @@ describe("tensorswap", () => {
       receiptPda,
       escrowPda,
     } = await swapSdk.depositNft(
-      tSwap.publicKey,
       whitelist,
       whitelistedNftMint,
       whitelistedNftAtaTraderA,
@@ -188,18 +177,35 @@ describe("tensorswap", () => {
     expect(traderAcc.amount.toString()).to.eq("0");
     const escrowAcc = await getAccount(TEST_PROVIDER.connection, escrowPda);
     expect(escrowAcc.amount.toString()).to.eq("1");
-
-    const poolAcc = await swapSdk.fetchPool(pool);
+    poolAcc = await swapSdk.fetchPool(pool);
     expect(poolAcc.nftsHeld).to.eq(1);
-    expect(poolAcc.isActive).to.be.true;
 
     const receipt = await swapSdk.fetchReceipt(receiptPda);
     expect(receipt.pool.toBase58()).to.eq(pool.toBase58());
     expect(receipt.nftMint.toBase58()).to.eq(whitelistedNftMint.toBase58());
     expect(receipt.nftEscrow.toBase58()).to.eq(escrowPda.toBase58());
+
+    //#endregion
   });
 
-  it.skip("buys nft", async () => {
+  it("deposit non-WL nft", async () => {
+    //bad
+    const {
+      tx: { ixs: badIxs },
+    } = await swapSdk.depositNft(
+      whitelist,
+      NOTwhitelistedNftMint,
+      NOTwhitelistedNftAta,
+      traderA.publicKey,
+      poolConfig,
+      proof
+    );
+    await expect(
+      buildAndSendTx(TEST_PROVIDER, badIxs, [traderA])
+    ).to.be.rejectedWith("0x1770");
+  });
+
+  it("buys nft", async () => {
     const startingSellerLamports = (
       await TEST_PROVIDER.connection.getAccountInfo(traderA.publicKey)
     )?.lamports;
@@ -208,8 +214,8 @@ describe("tensorswap", () => {
       tx: { ixs },
       receiptPda,
       escrowPda,
+      solEscrowPda,
     } = await swapSdk.buyNft(
-      tSwap.publicKey,
       whitelist,
       whitelistedNftMint,
       whitelistedNftAtaTraderB,
@@ -241,10 +247,17 @@ describe("tensorswap", () => {
     const diff = endingSellerLamports! - startingSellerLamports!;
     expect(diff).to.be.eq(LAMPORTS_PER_SOL * (1 - TSWAP_FEE));
 
+    // Sol escrow should not have anything (goes to seller)
+    const solEscrowAcc = await TEST_PROVIDER.connection.getAccountInfo(
+      solEscrowPda
+    );
+    expect(solEscrowAcc?.lamports).to.be.eq(
+      await getAccountRent(TEST_PROVIDER, swapSdk.program.account.solEscrow)
+    );
+
     const poolAcc = await swapSdk.fetchPool(pool);
     expect(poolAcc.nftsHeld).to.eq(0);
     expect(poolAcc.poolNftSaleCount).to.eq(1);
-    expect(poolAcc.isActive).to.be.false;
 
     //receipt should have gotten closed
     await expect(swapSdk.fetchReceipt(receiptPda)).to.be.rejected;
@@ -278,17 +291,17 @@ describe("tensorswap", () => {
       100,
       nfts.map((nft) => nft.mint)
     );
-    const uuid = "0001c1a567594e34aeebccf4b49e1234"; //todo make random
+    const uuid = wlSdk.genWhitelistUUID(); //todo make random
     const name = "hello_world";
     const {
       tx: { ixs: wlIxs },
       whitelistPda,
-    } = await wlSdk.initUpdateWhitelist(
-      TEST_PROVIDER.publicKey,
-      Buffer.from(uuid).toJSON().data,
-      root,
-      Buffer.from(name.padEnd(32, "\0")).toJSON().data
-    );
+    } = await wlSdk.initUpdateWhitelist({
+      owner: TEST_PROVIDER.publicKey,
+      uuid: Buffer.from(uuid).toJSON().data,
+      rootHash: root,
+      name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
+    });
     await buildAndSendTx(TEST_PROVIDER, wlIxs);
 
     const poolConfig2: PoolConfig = {
@@ -302,19 +315,13 @@ describe("tensorswap", () => {
     };
     const {
       tx: { ixs: poolIxs },
-    } = await swapSdk.initPool(
-      tSwap.publicKey,
-      traderA.publicKey,
-      whitelistPda,
-      poolConfig2
-    );
+    } = await swapSdk.initPool(traderA.publicKey, whitelistPda, poolConfig2);
     await buildAndSendTx(TEST_PROVIDER, poolIxs, [traderA]);
 
     for (const nft of nfts) {
       const {
         tx: { ixs: depositIxs },
       } = await swapSdk.depositNft(
-        tSwap.publicKey,
         whitelistPda,
         nft.mint,
         nft.ataA,
@@ -327,7 +334,6 @@ describe("tensorswap", () => {
       const {
         tx: { ixs: buyIxs },
       } = await swapSdk.buyNft(
-        tSwap.publicKey,
         whitelistPda,
         nft.mint,
         nft.ataB,
