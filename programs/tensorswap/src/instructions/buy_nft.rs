@@ -36,6 +36,7 @@ pub struct BuyNft<'info> {
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
+    // todo we can get rid of this to save accounts - simply take it from buyer_acc
     pub nft_mint: Box<Account<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
@@ -118,9 +119,9 @@ impl<'info> Validate<'info> for BuyNft<'info> {
             throw_err!(WrongPool);
         }
         //can't buy from pool if not active
-        if self.pool.is_active {
-            throw_err!(PoolNotActive);
-        }
+        // if self.pool.is_active {
+        //     throw_err!(PoolNotActive);
+        // }
         Ok(())
     }
 }

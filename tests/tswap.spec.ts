@@ -1,5 +1,10 @@
 import { CurveType, PoolConfig, PoolType, TSWAP_FEE_ACC } from "../src";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import {
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -18,6 +23,13 @@ import {
 import "./twhitelist.spec";
 import { MerkleTree } from "merkletreejs";
 import { getAccount } from "@solana/spl-token";
+import {
+  PendingTransaction,
+  SolanaAugmentedProvider,
+  Provider,
+  TransactionEnvelope,
+  SolanaProvider,
+} from "@saberhq/solana-contrib";
 
 chai.use(chaiAsPromised);
 
@@ -70,7 +82,11 @@ describe("tensorswap", () => {
     ));
 
     //whitelist
-    ({ tree, root, proof } = generateTreeOfSize(100, whitelistedNftMint));
+    ({
+      tree,
+      root,
+      proofs: [{ proof }],
+    } = generateTreeOfSize(100, [whitelistedNftMint]));
     const uuid = "0001c1a567594e34aeebccf4b49e3333"; //todo make random
     const name = "hello_world";
     const {
@@ -131,7 +147,7 @@ describe("tensorswap", () => {
     expect(poolAcc.creator.toBase58()).to.eq(traderA.publicKey.toBase58());
   });
 
-  it("deposits nft", async () => {
+  it.skip("deposits nft", async () => {
     //bad
     const {
       tx: { ixs: badIxs },
@@ -183,7 +199,7 @@ describe("tensorswap", () => {
     expect(receipt.nftEscrow.toBase58()).to.eq(escrowPda.toBase58());
   });
 
-  it("buys nft", async () => {
+  it.skip("buys nft", async () => {
     const startingSellerLamports = (
       await TEST_PROVIDER.connection.getAccountInfo(traderA.publicKey)
     )?.lamports;
@@ -232,5 +248,129 @@ describe("tensorswap", () => {
 
     //receipt should have gotten closed
     await expect(swapSdk.fetchReceipt(receiptPda)).to.be.rejected;
+  });
+
+  it("deposits/buys multiple", async () => {
+    //todo once optimize the ix, try increasing
+    const MAX_IXS = 1;
+
+    //prepare multiple nfts
+    const nfts: {
+      mint: PublicKey;
+      ataA: PublicKey;
+      ataB: PublicKey;
+      depositIxs?: TransactionInstruction[];
+      buyIxs?: TransactionInstruction[];
+    }[] = [];
+
+    for (let i = 0; i < MAX_IXS; i++) {
+      const { mint, ata: ataA } = await createAndFundATA(
+        TEST_PROVIDER,
+        1,
+        traderA
+      );
+      const { ata: ataB } = await createATA(TEST_PROVIDER, mint, traderB);
+      nfts.push({ mint, ataA, ataB });
+    }
+
+    //prepare tree & pool
+    const { tree, root, proofs } = generateTreeOfSize(
+      100,
+      nfts.map((nft) => nft.mint)
+    );
+    const uuid = "0001c1a567594e34aeebccf4b49e1234"; //todo make random
+    const name = "hello_world";
+    const {
+      tx: { ixs: wlIxs },
+      whitelistPda,
+    } = await wlSdk.initUpdateWhitelist(
+      TEST_PROVIDER.publicKey,
+      Buffer.from(uuid).toJSON().data,
+      root,
+      Buffer.from(name.padEnd(32, "\0")).toJSON().data
+    );
+    await buildAndSendTx(TEST_PROVIDER, wlIxs);
+
+    const poolConfig2: PoolConfig = {
+      poolType: PoolType.NFT,
+      curveType: CurveType.Linear,
+      startingPrice: new BN(LAMPORTS_PER_SOL),
+      delta: new BN(LAMPORTS_PER_SOL / 10),
+      honorRoyalties: true,
+      mmFeeBps: 0,
+      mmFeeVault: null,
+    };
+    const {
+      tx: { ixs: poolIxs },
+    } = await swapSdk.initPool(
+      tSwap.publicKey,
+      traderA.publicKey,
+      whitelistPda,
+      poolConfig2
+    );
+    await buildAndSendTx(TEST_PROVIDER, poolIxs, [traderA]);
+
+    for (const nft of nfts) {
+      const {
+        tx: { ixs: depositIxs },
+      } = await swapSdk.depositNft(
+        tSwap.publicKey,
+        whitelistPda,
+        nft.mint,
+        nft.ataA,
+        traderA.publicKey,
+        poolConfig2,
+        proofs.find((p) => p.mint === nft.mint)!.proof
+      );
+      nft.depositIxs = depositIxs;
+
+      const {
+        tx: { ixs: buyIxs },
+      } = await swapSdk.buyNft(
+        tSwap.publicKey,
+        whitelistPda,
+        nft.mint,
+        nft.ataB,
+        traderA.publicKey,
+        traderB.publicKey,
+        poolConfig2,
+        proofs.find((p) => p.mint === nft.mint)!.proof
+      );
+      nft.buyIxs = buyIxs;
+    }
+
+    // amazing table for debugging
+    // const tx = new TransactionEnvelope(
+    //   new SolanaAugmentedProvider(
+    //     SolanaProvider.init({
+    //       connection: TEST_PROVIDER.connection,
+    //       wallet: TEST_PROVIDER.wallet,
+    //       opts: TEST_PROVIDER.opts,
+    //     })
+    //   ),
+    //   nfts.map((n) => n.ixs).flat() as TransactionInstruction[],
+    //   [traderA]
+    // );
+    // await tx.simulateTable().catch(console.log);
+
+    //deposit
+    await buildAndSendTx(
+      TEST_PROVIDER,
+      nfts.map((n) => n.depositIxs).flat() as TransactionInstruction[],
+      [traderA]
+    );
+
+    //buy
+    await buildAndSendTx(
+      TEST_PROVIDER,
+      nfts.map((n) => n.buyIxs).flat() as TransactionInstruction[],
+      [traderB]
+    );
+
+    //check one of the accounts
+    const traderAccA = await getAccount(TEST_PROVIDER.connection, nfts[0].ataA);
+    expect(traderAccA.amount.toString()).to.eq("0");
+    const traderAccB = await getAccount(TEST_PROVIDER.connection, nfts[0].ataB);
+    expect(traderAccB.amount.toString()).to.eq("1");
   });
 });

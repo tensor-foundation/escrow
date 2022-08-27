@@ -48,8 +48,8 @@ export const buildAndSendTx = async (
   }
 };
 
-export const generateTreeOfSize = (size: number, targetMint: PublicKey) => {
-  const leaves = [targetMint.toBuffer()];
+export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
+  const leaves = targetMints.map((m) => m.toBuffer());
 
   for (let i = 0; i < size; i++) {
     let u = anchor.web3.Keypair.generate();
@@ -66,12 +66,17 @@ export const generateTreeOfSize = (size: number, targetMint: PublicKey) => {
     hashLeaves: true,
   });
 
-  const leaf = keccak256(targetMint.toBuffer());
-  const proof = tree.getProof(leaf);
-  const validProof: Buffer[] = proof.map((p) => p.data);
-  console.log(`proof is ${validProof.length} long`);
+  const proofs: { mint: PublicKey; proof: Buffer[] }[] = targetMints.map(
+    (targetMint) => {
+      const leaf = keccak256(targetMint.toBuffer());
+      const proof = tree.getProof(leaf);
+      const validProof: Buffer[] = proof.map((p) => p.data);
+      console.log(`proof is ${validProof.length} long`);
+      return { mint: targetMint, proof: validProof };
+    }
+  );
 
-  return { tree, root: tree.getRoot().toJSON().data, proof: validProof };
+  return { tree, root: tree.getRoot().toJSON().data, proofs };
 };
 
 export const removeNullBytes = (str: string) => {
