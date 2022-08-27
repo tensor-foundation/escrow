@@ -74,7 +74,7 @@ describe("tensor_whitelist", () => {
     const uuid = "0001c1a567594e34aeebccf4b49e73f8";
     const name = "hello_world";
     expect(uuid.length).to.eq(32);
-    const { root } = generateTreeOfSize(100, Keypair.generate().publicKey);
+    const { root } = generateTreeOfSize(100, [Keypair.generate().publicKey]);
 
     const {
       tx: { ixs: initWlBad },
@@ -117,10 +117,9 @@ describe("tensor_whitelist", () => {
     //update ok
     const uuid2 = "0001c1a567594e34aeebccf4b49e2222";
     const name2 = "hello_world2222";
-    const { root: root2 } = generateTreeOfSize(
-      100,
-      Keypair.generate().publicKey
-    );
+    const { root: root2 } = generateTreeOfSize(100, [
+      Keypair.generate().publicKey,
+    ]);
 
     const {
       tx: { ixs: initWlGood2 },

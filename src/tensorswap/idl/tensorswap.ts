@@ -684,6 +684,11 @@ export type Tensorswap = {
       "code": 6010,
       "name": "WrongPool",
       "msg": "this nft doesnt belong to this pool"
+    },
+    {
+      "code": 6011,
+      "name": "PoolNotActive",
+      "msg": "this pool is not active for chosen action"
     }
   ]
 };
@@ -1374,6 +1379,11 @@ export const IDL: Tensorswap = {
       "code": 6010,
       "name": "WrongPool",
       "msg": "this nft doesnt belong to this pool"
+    },
+    {
+      "code": 6011,
+      "name": "PoolNotActive",
+      "msg": "this pool is not active for chosen action"
     }
   ]
 };
