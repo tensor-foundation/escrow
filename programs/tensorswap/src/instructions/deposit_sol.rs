@@ -18,17 +18,19 @@ pub struct DepositSol<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = owner, has_one = sol_escrow)]
+    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
+    has_one = owner, has_one = sol_escrow)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
+    /// CHECK: has_one escrow in pool
     #[account(mut, seeds=[
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump = sol_escrow.bump)]
-    pub sol_escrow: Account<'info, SolEscrow>,
+    ], bump = pool.sol_escrow_bump[0])]
+    pub sol_escrow: UncheckedAccount<'info>,
 
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]

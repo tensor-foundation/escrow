@@ -22,7 +22,7 @@ pub fn handler(ctx: Context<InitTSwap>) -> Result<()> {
     let tswap = &mut ctx.accounts.tswap;
 
     tswap.version = CURRENT_TSWAP_VERSION;
-    tswap.bump = *ctx.bumps.get("tswap").unwrap();
+    tswap.bump = [unwrap_bump!(ctx, "tswap")];
     tswap.owner = ctx.accounts.owner.key();
     tswap.config = TSwapConfig {
         fee_bps: TSWAP_FEE_BPS,

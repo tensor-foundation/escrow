@@ -7,7 +7,7 @@ use vipers::throw_err;
 #[instruction( config: PoolConfig)]
 pub struct InitPool<'info> {
     /// Needed for pool seeds derivation
-    #[account(seeds = [], bump = tswap.bump)]
+    #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
     #[account(init, payer = owner, seeds = [
@@ -21,12 +21,13 @@ pub struct InitPool<'info> {
     ], bump, space = 8 + std::mem::size_of::<Pool>())]
     pub pool: Box<Account<'info, Pool>>,
 
+    /// CHECK: has_one escrow in pool
     // todo only init on deposit + buying?
     #[account(init, payer = owner, seeds = [
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump, space = 8 + SolEscrow::SIZE)]
-    pub sol_escrow: Box<Account<'info, SolEscrow>>,
+    ], bump, space = 0)]
+    pub sol_escrow: UncheckedAccount<'info>,
 
     /// Needed for pool seeds derivation / will be stored inside pool
     pub whitelist: Box<Account<'info, Whitelist>>,
@@ -102,7 +103,8 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
 
     pool.version = CURRENT_POOL_VERSION;
-    pool.bump = *ctx.bumps.get("pool").unwrap();
+    pool.bump = [unwrap_bump!(ctx, "pool")];
+    pool.sol_escrow_bump = [unwrap_bump!(ctx, "sol_escrow")];
     pool.tswap = ctx.accounts.tswap.key();
     pool.owner = ctx.accounts.owner.key();
     pool.whitelist = ctx.accounts.whitelist.key();
@@ -110,9 +112,6 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
     pool.pool_nft_sale_count = 0;
     pool.pool_nft_purchase_count = 0;
     pool.nfts_held = 0;
-
-    let escrow = &mut ctx.accounts.sol_escrow;
-    escrow.bump = *ctx.bumps.get("sol_escrow").unwrap();
     pool.sol_escrow = ctx.accounts.sol_escrow.key();
     // pool.sol_escrow = match config.pool_type {
     //     PoolType::Token | PoolType::NFT => pool.owner,

@@ -378,7 +378,7 @@ export type Tensorswap = {
         },
         {
           "name": "nftReceipt",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -445,7 +445,12 @@ export type Tensorswap = {
           },
           {
             "name": "bump",
-            "type": "u8"
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
           },
           {
             "name": "owner",
@@ -475,7 +480,21 @@ export type Tensorswap = {
           },
           {
             "name": "bump",
-            "type": "u8"
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "solEscrowBump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
           },
           {
             "name": "tswap",
@@ -555,18 +574,6 @@ export type Tensorswap = {
           {
             "name": "nftEscrow",
             "type": "publicKey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "solEscrow",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "bump",
-            "type": "u8"
           }
         ]
       }
@@ -678,7 +685,7 @@ export type Tensorswap = {
       }
     },
     {
-      "name": "TradeSide",
+      "name": "TradeAction",
       "type": {
         "kind": "enum",
         "variants": [
@@ -1131,7 +1138,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "nftReceipt",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -1198,7 +1205,12 @@ export const IDL: Tensorswap = {
           },
           {
             "name": "bump",
-            "type": "u8"
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
           },
           {
             "name": "owner",
@@ -1228,7 +1240,21 @@ export const IDL: Tensorswap = {
           },
           {
             "name": "bump",
-            "type": "u8"
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "solEscrowBump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
           },
           {
             "name": "tswap",
@@ -1308,18 +1334,6 @@ export const IDL: Tensorswap = {
           {
             "name": "nftEscrow",
             "type": "publicKey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "solEscrow",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "bump",
-            "type": "u8"
           }
         ]
       }
@@ -1431,7 +1445,7 @@ export const IDL: Tensorswap = {
       }
     },
     {
-      "name": "TradeSide",
+      "name": "TradeAction",
       "type": {
         "kind": "enum",
         "variants": [

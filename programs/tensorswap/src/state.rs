@@ -1,7 +1,6 @@
 use spl_math::precise_number::PreciseNumber;
 use std::fmt::Debug;
 use vipers::throw_err;
-use vipers::VipersError::IntegerOverflow;
 
 use crate::*;
 
@@ -31,7 +30,7 @@ pub struct TSwapConfig {
 #[account]
 pub struct TSwap {
     pub version: u8,
-    pub bump: u8,
+    pub bump: [u8; 1],
 
     // todo for v1 keeping it super naive - just a pk we control
     pub owner: Pubkey,
@@ -39,6 +38,12 @@ pub struct TSwap {
     pub config: TSwapConfig,
     // todo for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
+}
+
+impl TSwap {
+    pub fn seeds(&self) -> [&[u8]; 1] {
+        [&self.bump]
+    }
 }
 
 // --------------------------------------- pool
@@ -77,7 +82,8 @@ pub struct PoolConfig {
 #[account]
 pub struct Pool {
     pub version: u8,
-    pub bump: u8,
+    pub bump: [u8; 1],
+    pub sol_escrow_bump: [u8; 1],
 
     /// Ownership & belonging
     pub tswap: Pubkey,
@@ -146,14 +152,14 @@ impl Pool {
         Ok(fee)
     }
 
-    pub fn current_price(&self, side: TradeSide) -> Result<u64> {
+    pub fn current_price(&self, side: TradeAction) -> Result<u64> {
         match (self.config.pool_type, side) {
             //Token pool = buys nfts = each sell into the pool LOWERS the price
-            (PoolType::Token, TradeSide::Sell) => {
+            (PoolType::Token, TradeAction::Sell) => {
                 self.shift_price_by_delta(Direction::Down, self.pool_nft_purchase_count)
             }
             //NFT pool = sells nfts = each buy from the pool INCREASES the price
-            (PoolType::NFT, TradeSide::Buy) => {
+            (PoolType::NFT, TradeAction::Buy) => {
                 self.shift_price_by_delta(Direction::Up, self.pool_nft_sale_count)
             }
             //if sales > purchases, Trade pool acts as an NFT pool
@@ -161,8 +167,8 @@ impl Pool {
                 // The price of selling into a trade pool is 1 tick lower.
                 // We simulate this by increasing the purchase count by 1.
                 let offset = match side {
-                    TradeSide::Buy => 0,
-                    TradeSide::Sell => SPREAD_TICKS,
+                    TradeAction::Buy => 0,
+                    TradeAction::Sell => SPREAD_TICKS,
                 };
                 let mod_purchase_count =
                     unwrap_int!(self.pool_nft_purchase_count.checked_add(offset as u32));
@@ -191,17 +197,16 @@ impl Pool {
             CurveType::Exponential => {
                 let hundred_pct = unwrap_int!(PreciseNumber::new(HUNDRED_PCT_BPS.into()));
 
-                let base =
-                    PreciseNumber::new(self.config.starting_price.into()).ok_or(IntegerOverflow)?;
-                let factor = PreciseNumber::new(
-                    unwrap_int!((HUNDRED_PCT_BPS as u64).checked_add(self.config.delta.into()))
-                        .into(),
-                )
-                .ok_or(IntegerOverflow)?
-                .checked_div(&hundred_pct)
-                .ok_or(IntegerOverflow)?
-                .checked_pow(times.into())
-                .ok_or(IntegerOverflow)?;
+                let base = unwrap_int!(PreciseNumber::new(self.config.starting_price.into()));
+                let factor = unwrap_checked!({
+                    PreciseNumber::new(
+                        (HUNDRED_PCT_BPS as u64)
+                            .checked_add(self.config.delta.into())?
+                            .into(),
+                    )?
+                    .checked_div(&hundred_pct)?
+                    .checked_pow(times.into())
+                });
 
                 let result = match direction {
                     // price * (1 + delta)^trade_count
@@ -210,13 +215,7 @@ impl Pool {
                     Direction::Down => base.checked_div(&factor),
                 };
 
-                u64::try_from(
-                    result
-                        .ok_or(IntegerOverflow)?
-                        .to_imprecise()
-                        .ok_or(IntegerOverflow)?,
-                )
-                .map_err(|_| IntegerOverflow)?
+                unwrap_int!(u64::try_from(unwrap_checked!({ result?.to_imprecise() })).ok())
             }
             CurveType::Linear => match direction {
                 Direction::Up => {
@@ -237,60 +236,6 @@ impl Pool {
         };
         Ok(current_price)
     }
-
-    // todo think through edge cases at boundaries together
-    // pub fn shift_price_by_delta(&self, direction: Direction, times: u32) -> Result<u64> {
-    //     let current_price = match self.config.curve_type {
-    //         CurveType::Exponential => match direction {
-    //             // price * (1 + delta)^trade_count
-    //             // todo this won't work: price * (10000 + delta)^trade_count / 10000^trade_count
-    //             //  is there a better way than looping?
-    //             Direction::Up => {
-    //                 let mut result = self.config.starting_price;
-    //                 for _n in 1..=times {
-    //                     result = unwrap_checked!({
-    //                         result
-    //                             .checked_mul(
-    //                                 (HUNDRED_PCT_BPS as u64)
-    //                                     .checked_add(self.config.delta as u64)?,
-    //                             )?
-    //                             .checked_div(HUNDRED_PCT_BPS as u64)
-    //                     });
-    //                 }
-    //                 result
-    //             }
-    //             //same but / instead of *
-    //             Direction::Down => {
-    //                 let mut result = self.config.starting_price;
-    //                 for _n in 1..=times {
-    //                     result = unwrap_checked!({
-    //                         result.checked_mul(HUNDRED_PCT_BPS as u64)?.checked_div(
-    //                             (HUNDRED_PCT_BPS as u64).checked_add(self.config.delta as u64)?,
-    //                         )
-    //                     });
-    //                 }
-    //                 result
-    //             }
-    //         },
-    //         CurveType::Linear => match direction {
-    //             Direction::Up => {
-    //                 unwrap_checked!({
-    //                     self.config
-    //                         .starting_price
-    //                         .checked_add((self.config.delta as u64).checked_mul(times as u64)?)
-    //                 })
-    //             }
-    //             Direction::Down => {
-    //                 unwrap_checked!({
-    //                     self.config
-    //                         .starting_price
-    //                         .checked_sub((self.config.delta as u64).checked_mul(times as u64)?)
-    //                 })
-    //             }
-    //         },
-    //     };
-    //     Ok(current_price)
-    // }
 }
 
 pub enum Direction {
@@ -298,9 +243,9 @@ pub enum Direction {
     Down,
 }
 
-pub enum TradeSide {
-    Buy,
-    Sell,
+pub enum TradeAction {
+    Buy,  // Buying from the pool.
+    Sell, // Selling into the pool.
 }
 
 // --------------------------------------- receipts
@@ -311,15 +256,6 @@ pub struct NftDepositReceipt {
     pub pool: Pubkey,
     pub nft_mint: Pubkey,
     pub nft_escrow: Pubkey,
-}
-
-#[account]
-pub struct SolEscrow {
-    pub bump: u8,
-}
-
-impl SolEscrow {
-    pub const SIZE: usize = 1;
 }
 
 // todo since we're allowing the pool to go infinitely each direction, think through security / ux of limits
@@ -340,7 +276,8 @@ mod tests {
         ) -> Self {
             Self {
                 version: 1,
-                bump: 1,
+                bump: [1],
+                sol_escrow_bump: [1],
                 tswap: Pubkey::default(),
                 owner: Pubkey::default(),
                 whitelist: Pubkey::default(),
@@ -444,32 +381,38 @@ mod tests {
             0,
             None,
         );
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(
+            p.current_price(TradeAction::Sell).unwrap(),
+            LAMPORTS_PER_SOL
+        );
 
         //should have no effect
         p.pool_nft_sale_count += 999999;
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(
+            p.current_price(TradeAction::Sell).unwrap(),
+            LAMPORTS_PER_SOL
+        );
 
         p.pool_nft_purchase_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL - delta
         );
         p.pool_nft_purchase_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL - delta * 3
         );
         //pool can pay 0
         p.pool_nft_purchase_count += 7;
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL - delta * 10
         );
     }
 
     #[test]
-    #[should_panic(expected = "Integer overflow")]
+    #[should_panic(expected = "IntegerOverflow")]
     fn test_linear_token_pool_panic_overflow() {
         let delta = LAMPORTS_PER_SOL / 10;
         let p = Pool::new(
@@ -481,7 +424,7 @@ mod tests {
             0,
             None,
         );
-        p.current_price(TradeSide::Sell).unwrap();
+        p.current_price(TradeAction::Sell).unwrap();
     }
 
     #[test]
@@ -497,7 +440,7 @@ mod tests {
             0,
             None,
         );
-        p.current_price(TradeSide::Buy).unwrap();
+        p.current_price(TradeAction::Buy).unwrap();
     }
 
     // nft
@@ -514,32 +457,32 @@ mod tests {
             0,
             None,
         );
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
 
         //should have no effect
         p.pool_nft_purchase_count += 999999;
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
 
         p.pool_nft_sale_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL + delta
         );
         p.pool_nft_sale_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL + delta * 3
         );
         //go much higher
         p.pool_nft_sale_count += 9999996;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL + delta * 9999999
         );
     }
 
     #[test]
-    #[should_panic(expected = "Integer overflow")]
+    #[should_panic(expected = "IntegerOverflow")]
     fn test_linear_nft_pool_panic_overflow() {
         let delta = LAMPORTS_PER_SOL / 10 * 100;
         let p = Pool::new(
@@ -551,7 +494,7 @@ mod tests {
             u32::MAX - 1, //get this to overflow
             None,
         );
-        p.current_price(TradeSide::Buy).unwrap();
+        p.current_price(TradeAction::Buy).unwrap();
     }
 
     #[test]
@@ -567,7 +510,7 @@ mod tests {
             0,
             None,
         );
-        p.current_price(TradeSide::Sell).unwrap();
+        p.current_price(TradeAction::Sell).unwrap();
     }
 
     // trade
@@ -584,80 +527,83 @@ mod tests {
             0,
             None,
         );
-        // NB: sell prices are always 1 delta lower than buy prices.
+        // NB: selling into the pool is always 1 delta lower than buying.
 
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL - delta
         );
 
         //pool's a buyer -> price goes down
         p.pool_nft_purchase_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL - delta
         );
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL - delta * 2
         );
 
         p.pool_nft_purchase_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL - delta * 3
         );
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL - delta * 4
         );
         //pool can pay 0
         p.pool_nft_purchase_count += 7;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL - delta * 10
         );
         // Sell price will overflow.
 
         //pool's neutral
         p.pool_nft_sale_count = 10;
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL - delta
         );
 
         //pool's a seller -> price goes up
         p.pool_nft_sale_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL + delta
         );
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(
+            p.current_price(TradeAction::Sell).unwrap(),
+            LAMPORTS_PER_SOL
+        );
         p.pool_nft_sale_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL + delta * 3
         );
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL + delta * 2
         );
         //go much higher
         p.pool_nft_sale_count += 9999996;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL + delta * 9999999
         );
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL + delta * 9999998
         );
     }
 
     #[test]
-    #[should_panic(expected = "Integer overflow")]
+    #[should_panic(expected = "IntegerOverflow")]
     fn test_linear_trade_pool_panic_lower() {
         let delta = LAMPORTS_PER_SOL / 10;
         let p = Pool::new(
@@ -669,11 +615,11 @@ mod tests {
             0,
             None,
         );
-        p.current_price(TradeSide::Buy).unwrap();
+        p.current_price(TradeAction::Buy).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Integer overflow")]
+    #[should_panic(expected = "IntegerOverflow")]
     fn test_linear_trade_pool_panic_sell_side_lower() {
         let delta = LAMPORTS_PER_SOL / 10;
         let p = Pool::new(
@@ -685,11 +631,11 @@ mod tests {
             0,
             None,
         );
-        p.current_price(TradeSide::Sell).unwrap();
+        p.current_price(TradeAction::Sell).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Integer overflow")]
+    #[should_panic(expected = "IntegerOverflow")]
     fn test_linear_trade_pool_panic_upper() {
         let delta = LAMPORTS_PER_SOL * 10_000_000_000;
         let p = Pool::new(
@@ -701,7 +647,7 @@ mod tests {
             1, //just enough to overflow
             None,
         );
-        p.current_price(TradeSide::Buy).unwrap();
+        p.current_price(TradeAction::Buy).unwrap();
     }
 
     #[test]
@@ -709,7 +655,7 @@ mod tests {
         let delta = LAMPORTS_PER_SOL * 10_000_000_000;
         let p = Pool::new(PoolType::Trade, CurveType::Linear, delta, delta, 0, 1, None);
         // This shouldn't oveflow for sell side (1 tick lower).
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), delta);
+        assert_eq!(p.current_price(TradeAction::Sell).unwrap(), delta);
     }
 
     // --------------------------------------- exponential
@@ -742,32 +688,38 @@ mod tests {
             0,
             None,
         );
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(
+            p.current_price(TradeAction::Sell).unwrap(),
+            LAMPORTS_PER_SOL
+        );
 
         //should have no effect
         p.pool_nft_sale_count += 999999;
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(
+            p.current_price(TradeAction::Sell).unwrap(),
+            LAMPORTS_PER_SOL
+        );
 
         p.pool_nft_purchase_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL * MAX_BPS / 11000
         );
 
         p.pool_nft_purchase_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             calc_price_frac(LAMPORTS_PER_SOL, MAX_BPS, 13310)
         );
 
         p.pool_nft_purchase_count += 7;
         // This one has very small rounding error (within 1 bps).
-        assert!((p.current_price(TradeSide::Sell).unwrap()) > LAMPORTS_PER_SOL * MAX_BPS / 25938);
-        assert!((p.current_price(TradeSide::Sell).unwrap()) < LAMPORTS_PER_SOL * MAX_BPS / 25937);
+        assert!((p.current_price(TradeAction::Sell).unwrap()) > LAMPORTS_PER_SOL * MAX_BPS / 25938);
+        assert!((p.current_price(TradeAction::Sell).unwrap()) < LAMPORTS_PER_SOL * MAX_BPS / 25937);
 
         p.pool_nft_purchase_count += 90;
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             calc_price_frac(LAMPORTS_PER_SOL, MAX_BPS, 137806123)
         );
     }
@@ -786,38 +738,42 @@ mod tests {
             0,
             None,
         );
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
 
         //should have no effect
         p.pool_nft_purchase_count += 999999;
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
 
         p.pool_nft_sale_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL * 11000 / MAX_BPS
         );
 
         p.pool_nft_sale_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL * 13310 / MAX_BPS
         );
 
         p.pool_nft_sale_count += 7;
         // This one has very small rounding error (within 1 bps).
-        assert!(p.current_price(TradeSide::Buy).unwrap() > LAMPORTS_PER_SOL * 25937 / MAX_BPS);
-        assert!(p.current_price(TradeSide::Buy).unwrap() < LAMPORTS_PER_SOL * 25938 / MAX_BPS);
+        assert!(p.current_price(TradeAction::Buy).unwrap() > LAMPORTS_PER_SOL * 25937 / MAX_BPS);
+        assert!(p.current_price(TradeAction::Buy).unwrap() < LAMPORTS_PER_SOL * 25938 / MAX_BPS);
 
         p.pool_nft_sale_count += 90;
         // This one has very small rounding error (within 1 bps).
-        assert!(p.current_price(TradeSide::Buy).unwrap() > LAMPORTS_PER_SOL * 137806123 / MAX_BPS);
-        assert!(p.current_price(TradeSide::Buy).unwrap() < LAMPORTS_PER_SOL * 137806124 / MAX_BPS);
+        assert!(
+            p.current_price(TradeAction::Buy).unwrap() > LAMPORTS_PER_SOL * 137806123 / MAX_BPS
+        );
+        assert!(
+            p.current_price(TradeAction::Buy).unwrap() < LAMPORTS_PER_SOL * 137806124 / MAX_BPS
+        );
     }
 
     // todo fix
     #[test]
-    #[should_panic(expected = "Integer overflow")]
+    #[should_panic(expected = "IntegerOverflow")]
     fn test_expo_nft_pool_panic() {
         let delta = 1000;
         let p = Pool::new(
@@ -829,7 +785,7 @@ mod tests {
             u32::MAX - 1, // this will overflow
             None,
         );
-        p.current_price(TradeSide::Buy).unwrap();
+        p.current_price(TradeAction::Buy).unwrap();
     }
 
     // trade
@@ -846,60 +802,63 @@ mod tests {
             0,
             None,
         );
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL * MAX_BPS / 11000
         );
 
         //pool's a buyer -> price goes down
         p.pool_nft_purchase_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL * MAX_BPS / 11000
         );
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             calc_price_frac(LAMPORTS_PER_SOL, MAX_BPS, 12100)
         );
         p.pool_nft_purchase_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             calc_price_frac(LAMPORTS_PER_SOL, MAX_BPS, 13310)
         );
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL * MAX_BPS / 14641
         );
 
         //pool's neutral
         p.pool_nft_sale_count = 3;
-        assert_eq!(p.current_price(TradeSide::Buy).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(p.current_price(TradeAction::Buy).unwrap(), LAMPORTS_PER_SOL);
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL * MAX_BPS / 11000
         );
 
         //pool's a seller -> price goes up
         p.pool_nft_sale_count += 1;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL * 11000 / MAX_BPS
         );
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), LAMPORTS_PER_SOL);
+        assert_eq!(
+            p.current_price(TradeAction::Sell).unwrap(),
+            LAMPORTS_PER_SOL
+        );
         p.pool_nft_sale_count += 2;
         assert_eq!(
-            p.current_price(TradeSide::Buy).unwrap(),
+            p.current_price(TradeAction::Buy).unwrap(),
             LAMPORTS_PER_SOL * 13310 / MAX_BPS
         );
         assert_eq!(
-            p.current_price(TradeSide::Sell).unwrap(),
+            p.current_price(TradeAction::Sell).unwrap(),
             LAMPORTS_PER_SOL * 12100 / MAX_BPS
         );
     }
 
     #[test]
-    #[should_panic(expected = "Integer overflow")]
+    #[should_panic(expected = "IntegerOverflow")]
     fn test_expo_trade_pool_panic_upper() {
         let delta = 1000;
         let p = Pool::new(
@@ -911,7 +870,7 @@ mod tests {
             1,
             None,
         );
-        p.current_price(TradeSide::Buy).unwrap();
+        p.current_price(TradeAction::Buy).unwrap();
     }
 
     #[test]
@@ -927,6 +886,6 @@ mod tests {
             None,
         );
         // 1 tick lower, should not panic.
-        assert_eq!(p.current_price(TradeSide::Sell).unwrap(), u64::MAX - 1);
+        assert_eq!(p.current_price(TradeAction::Sell).unwrap(), u64::MAX - 1);
     }
 }

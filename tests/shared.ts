@@ -29,12 +29,20 @@ import { expect } from "chai";
 
 export const waitMS = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-export const buildAndSendTx = async (
-  provider: AnchorProvider,
-  ixs: TransactionInstruction[],
-  extraSigners?: Signer[],
-  opts?: ConfirmOptions
-) => {
+export const buildAndSendTx = async ({
+  provider,
+  ixs,
+  extraSigners,
+  opts,
+  debug,
+}: {
+  provider: AnchorProvider;
+  ixs: TransactionInstruction[];
+  extraSigners?: Signer[];
+  opts?: ConfirmOptions;
+  // Prints out transaction (w/ logs) to stdout
+  debug?: boolean;
+}) => {
   const { tx } = await buildTx({
     connections: [provider.connection],
     instructions: ixs,
@@ -43,8 +51,17 @@ export const buildAndSendTx = async (
   });
   await provider.wallet.signTransaction(tx);
   try {
+    if (debug) opts = { ...opts, commitment: "confirmed" };
     //(!) SUPER IMPORTANT TO USE THIS METHOD AND NOT sendRawTransaction()
-    return await provider.sendAndConfirm(tx, extraSigners, opts);
+    const sig = await provider.sendAndConfirm(tx, extraSigners, opts);
+    if (debug) {
+      console.log(
+        await provider.connection.getTransaction(sig, {
+          commitment: "confirmed",
+        })
+      );
+    }
+    return sig;
   } catch (e) {
     //this is needed to see program error logs
     console.error("❌ FAILED TO SEND TX, FULL ERROR: ❌");
@@ -104,7 +121,7 @@ export const createFundedWallet = async (
       lamports: (sol ?? 10) * LAMPORTS_PER_SOL,
     })
   );
-  await buildAndSendTx(provider, tx.instructions);
+  await buildAndSendTx({ provider, ixs: tx.instructions });
   return keypair;
 };
 
@@ -122,7 +139,7 @@ export const createATA = async (
     TOKEN_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   );
-  await buildAndSendTx(provider, [createAtaIx], [owner]);
+  await buildAndSendTx({ provider, ixs: [createAtaIx], extraSigners: [owner] });
   return { mint, owner, ata };
 };
 
@@ -171,7 +188,7 @@ export const createAndFundATA = async (
     ixs.push(mintIx);
   }
 
-  await buildAndSendTx(provider, ixs, [usedOwner, mint]);
+  await buildAndSendTx({ provider, ixs, extraSigners: [usedOwner, mint] });
   return { mint: mint.publicKey, ata, owner: usedOwner };
 };
 
@@ -188,11 +205,34 @@ export const stringifyPKsAndBNs = (i: any) => {
   return i;
 };
 
-export const getAccountRent = (
-  provider: AnchorProvider,
-  acct: AccountClient
-) => {
-  return provider.connection.getMinimumBalanceForRentExemption(acct.size);
+export const getAccountRent = (acct: AccountClient) => {
+  return TEST_PROVIDER.connection.getMinimumBalanceForRentExemption(acct.size);
+};
+
+export const getLamports = async (acct: PublicKey) => {
+  return (await TEST_PROVIDER.connection.getAccountInfo(acct))?.lamports;
+};
+
+// This passes the account's lamports before the provided `callback` function is called.
+// Useful for doing before/after lamports diffing.
+export const withLamports = async <
+  Accounts extends Record<string, PublicKey>,
+  R
+>(
+  accts: Accounts,
+  callback: (results: {
+    [k in keyof Accounts]: number | undefined;
+  }) => Promise<R>
+): Promise<R> => {
+  const results = Object.fromEntries(
+    await Promise.all(
+      Object.entries(accts).map(async ([k, key]) => [
+        k,
+        await getLamports(key as PublicKey),
+      ])
+    )
+  );
+  return await callback(results);
 };
 
 //#region Helper fns.
@@ -274,7 +314,7 @@ export const testInitWLAuthority = async () => {
     TEST_PROVIDER.publicKey,
     TEST_PROVIDER.publicKey
   );
-  await buildAndSendTx(TEST_PROVIDER, ixs);
+  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
 
   let authAcc = await wlSdk.fetchAuthority(authPda);
   expect(authAcc.owner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());

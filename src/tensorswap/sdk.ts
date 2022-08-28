@@ -15,7 +15,7 @@ import {
   findTSwapPDA,
 } from "./pda";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { getAccountRent } from "../../tests/shared";
+import { getAccountRent, TEST_PROVIDER } from "../../tests/shared";
 
 export const PoolType = {
   Token: { token: {} },
@@ -383,7 +383,11 @@ export class TensorSwapSDK {
     };
   }
 
-  async getSolEscrowRent(provider: AnchorProvider) {
-    return await getAccountRent(provider, this.program.account.solEscrow);
+  async getSolEscrowRent() {
+    return await TEST_PROVIDER.connection.getMinimumBalanceForRentExemption(0);
+  }
+
+  async getNftDepositReceiptRent() {
+    return await getAccountRent(this.program.account.nftDepositReceipt);
   }
 }

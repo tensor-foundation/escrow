@@ -104,7 +104,7 @@ pub struct Authority {
 }
 
 impl Authority {
-    pub const SIZE: usize = 8 + 32;
+    pub const SIZE: usize = 1 + 32;
 }
 
 #[account]

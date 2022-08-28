@@ -10,7 +10,7 @@ use vipers::throw_err;
 #[instruction(config: PoolConfig)]
 pub struct BuyNft<'info> {
     /// Needed for pool seeds derivation
-    #[account(seeds = [], bump = tswap.bump, has_one = fee_vault)]
+    #[account(seeds = [], bump = tswap.bump[0], has_one = fee_vault)]
     pub tswap: Box<Account<'info, TSwap>>,
 
     /// CHECK: checked above via has_one
@@ -25,7 +25,8 @@ pub struct BuyNft<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = sol_escrow, has_one = owner)]
+    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
+    has_one = sol_escrow, has_one = owner)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -51,11 +52,12 @@ pub struct BuyNft<'info> {
     ], bump = nft_receipt.bump, close = fee_vault)]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
+    /// CHECK: has_one escrow in pool
     #[account(mut, seeds=[
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump = sol_escrow.bump)]
-    pub sol_escrow: Box<Account<'info, SolEscrow>>,
+    ], bump = pool.sol_escrow_bump[0])]
+    pub sol_escrow: UncheckedAccount<'info>,
 
     /// CHECK: has_one = owner in pool (owner is the seller)
     #[account(mut)]
@@ -133,7 +135,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
-    let current_price = pool.current_price(TradeSide::Buy)?;
+    let current_price = pool.current_price(TradeAction::Buy)?;
     let mut left_for_seller = current_price;
 
     //transfer fee to Tensorswap
@@ -182,7 +184,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     token::transfer(
         ctx.accounts
             .transfer_ctx()
-            .with_signer(&[&[&[ctx.accounts.tswap.bump]]]),
+            .with_signer(&[&ctx.accounts.tswap.seeds()]),
         1,
     )?;
 

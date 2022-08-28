@@ -1,8 +1,5 @@
 //! User selling an NFT to the pool / pool buying an NFT from the user
-
 use crate::*;
-use anchor_lang::solana_program::program::invoke_signed;
-use anchor_lang::solana_program::system_instruction;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
@@ -11,7 +8,7 @@ use vipers::throw_err;
 #[instruction(config: PoolConfig)]
 pub struct SellNft<'info> {
     /// Needed for pool seeds derivation
-    #[account(seeds = [], bump = tswap.bump, has_one = fee_vault)]
+    #[account(seeds = [], bump = tswap.bump[0], has_one = fee_vault)]
     pub tswap: Box<Account<'info, TSwap>>,
 
     /// CHECK: checked above via has_one
@@ -26,7 +23,8 @@ pub struct SellNft<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = sol_escrow, has_one = owner)]
+    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
+    has_one = sol_escrow, has_one = owner)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -46,18 +44,22 @@ pub struct SellNft<'info> {
     ], bump, token::mint = nft_mint, token::authority = tswap)]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
-    #[account(init, payer=seller, seeds=[
-        b"nft_receipt".as_ref(),
-        nft_mint.key().as_ref(),
-        // TODO: hardcode size.
-    ], bump, space = 8 + std::mem::size_of::<NftDepositReceipt>())]
-    pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
+    // #[account(init_if_needed, payer=seller, seeds=[
+    //     b"nft_receipt".as_ref(),
+    //     nft_mint.key().as_ref(),
+    //     // TODO: hardcode size.
+    // ], bump, space = 8 + std::mem::size_of::<NftDepositReceipt>())]
+    // pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
+    /// CHECK: init'ed below only for Trade pools
+    pub nft_receipt: UncheckedAccount<'info>,
+
+    /// CHECK: has_one escrow in pool
     #[account(mut, seeds=[
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump = sol_escrow.bump)]
-    pub sol_escrow: Box<Account<'info, SolEscrow>>,
+    ], bump = pool.sol_escrow_bump[0])]
+    pub sol_escrow: UncheckedAccount<'info>,
 
     /// CHECK: has_one = owner in pool (owner is the buyer)
     #[account(mut)]
@@ -86,31 +88,37 @@ impl<'info> SellNft<'info> {
     }
 
     fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        msg!(
+            "transfer nft from  {} to {}, owner: {}, seller: {}",
+            self.nft_seller_acc.key().to_string(),
+            self.nft_escrow.key().to_string(),
+            self.nft_seller_acc.owner.to_string(),
+            self.seller.key().to_string()
+        );
         CpiContext::new(
             self.token_program.to_account_info(),
             Transfer {
                 from: self.nft_seller_acc.to_account_info(),
                 to: self.nft_escrow.to_account_info(),
-                authority: self.tswap.to_account_info(),
+                authority: self.seller.to_account_info(),
             },
         )
     }
 
     fn transfer_lamports(&self, to: &AccountInfo<'info>, lamports: u64) -> Result<()> {
-        invoke_signed(
-            &system_instruction::transfer(&self.sol_escrow.key(), to.key, lamports),
-            &[
-                self.sol_escrow.to_account_info(),
-                to.clone(),
-                self.system_program.to_account_info(),
-            ],
-            &[&[
-                b"sol_escrow".as_ref(),
-                self.pool.key().as_ref(),
-                &[self.sol_escrow.bump],
-            ]],
-        )
-        .map_err(Into::into)
+        msg!(
+            "transfer lamports from {} to {}: {}, owner: {}",
+            self.sol_escrow.key().to_string(),
+            to.key.to_string(),
+            lamports,
+            self.sol_escrow.owner.to_string(),
+        );
+
+        **self.sol_escrow.try_borrow_mut_lamports()? -= lamports;
+        msg!("escrow lamports after {}", self.sol_escrow.lamports.borrow());
+        **to.lamports.borrow_mut() += lamports;
+
+        Ok(())
     }
 }
 
@@ -137,7 +145,13 @@ pub fn handler<'a, 'b, 'c, 'info>(
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
-    let current_price = pool.current_price(TradeSide::Sell)?;
+    // todo: send nft directly to owner's account for Token pool?
+    // transfer nft to escrow
+    // This must go before any transfer_lamports
+    // o/w we get `sum of account balances before and after instruction do not match`
+    token::transfer(ctx.accounts.transfer_ctx(), 1)?;
+
+    let current_price = pool.current_price(TradeAction::Sell)?;
     let mut left_for_seller = current_price;
 
     //transfer fee to Tensorswap
@@ -180,24 +194,46 @@ pub fn handler<'a, 'b, 'c, 'info>(
         PoolType::NFT => unreachable!(),
     };
     msg!(
-        "transfer lamports to {}: {}",
+        "dest transfer lamports to {}: {}",
         destination.key.to_string(),
         left_for_seller
     );
     ctx.accounts
         .transfer_lamports(&destination, left_for_seller)?;
 
-    msg!("transfer nft");
-    // todo: send nft directly to owner's account for Token pool?
-    // transfer nft to escrow
-    token::transfer(ctx.accounts.transfer_ctx(), 1)?;
+    //create nft receipt for trade pool
+    if pool.config.pool_type == PoolType::Trade {
+        let receipt = &mut ctx.accounts.nft_receipt;
+        let (expected, bump) = Pubkey::find_program_address(&[b"nft_receipt", ctx.accounts.nft_mint.key().as_ref()], ctx.program_id);
+        if receipt.key() != expected {
+            return Err(ProgramError::InvalidAccountData.into());
+        }
 
-    //create nft receipt
-    let receipt = &mut ctx.accounts.nft_receipt;
-    receipt.bump = *ctx.bumps.get("nft_receipt").unwrap();
-    receipt.pool = pool.key();
-    receipt.nft_mint = ctx.accounts.nft_mint.key();
-    receipt.nft_escrow = ctx.accounts.nft_escrow.key();
+        let cpi_accounts = anchor_lang::system_program::CreateAccount {
+            from: ctx.accounts.seller.to_account_info(),
+            to: receipt.to_account_info(),
+        };
+
+        let cpi_context = anchor_lang::context::CpiContext::new(ctx.accounts.system_program.to_account_info(), cpi_accounts);
+        let space =  8 + std::mem::size_of::<NftDepositReceipt>();
+        anchor_lang::system_program::create_account(
+            cpi_context,
+            Rent::get()?.minimum_balance(space),
+             space as u64,
+              ctx.program_id)?;
+
+        let mut receipt_state = NftDepositReceipt::try_from_slice(&receipt.data.borrow())?;
+        receipt_state.bump = bump;
+        receipt_state.pool = pool.key();
+        receipt_state.nft_mint = ctx.accounts.nft_mint.key();
+        receipt_state.nft_escrow = ctx.accounts.nft_escrow.key();
+
+        // let receipt = &mut ctx.accounts.nft_receipt;
+        // receipt.bump = *ctx.bumps.get("nft_receipt").unwrap();
+        // receipt.pool = pool.key();
+        // receipt.nft_mint = ctx.accounts.nft_mint.key();
+        // receipt.nft_escrow = ctx.accounts.nft_escrow.key();
+    }
 
     //update pool accounting
     let pool = &mut ctx.accounts.pool;

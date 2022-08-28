@@ -7,7 +7,7 @@ use vipers::throw_err;
 #[instruction(config: PoolConfig)]
 pub struct DepositNft<'info> {
     /// Needed for pool seeds derivation
-    #[account(seeds = [], bump = tswap.bump)]
+    #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
     #[account(mut, seeds = [
@@ -18,7 +18,8 @@ pub struct DepositNft<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = owner)]
+    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
+    has_one = owner)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
