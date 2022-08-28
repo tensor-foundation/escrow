@@ -19,13 +19,13 @@ pub struct BuyNft<'info> {
 
     #[account(mut, seeds = [
         tswap.key().as_ref(),
-        seller.key().as_ref(),
+        owner.key().as_ref(),
         whitelist.key().as_ref(),
         &[config.pool_type as u8],
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = sol_escrow)]
+    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = sol_escrow, has_one = owner)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -57,11 +57,10 @@ pub struct BuyNft<'info> {
     ], bump = sol_escrow.bump)]
     pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
-    /// CHECK: used to derive pool seeds
+    /// CHECK: has_one = owner in pool (owner is the seller)
     #[account(mut)]
-    pub seller: UncheckedAccount<'info>,
+    pub owner: UncheckedAccount<'info>,
 
-    /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub buyer: Signer<'info>,
 
@@ -71,11 +70,9 @@ pub struct BuyNft<'info> {
     //todo write tests
     // Optional accounts: only for Trade pool
     // Optional account 1: mm_fee_vault
-    // Optional account 2: sol_escrow
 }
 
 impl<'info> BuyNft<'info> {
-    // todo open question if we want to be doing this on the buy side - DISCUSS
     fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
         let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
         require!(
@@ -112,9 +109,12 @@ impl<'info> BuyNft<'info> {
 // todo write tests
 impl<'info> Validate<'info> for BuyNft<'info> {
     fn validate(&self) -> Result<()> {
-        //can't buy an NFT from a token pool
-        if self.pool.config.pool_type == PoolType::Token {
-            throw_err!(WrongPoolType);
+        // can only buy from NFT/Trade pool
+        match self.pool.config.pool_type {
+            PoolType::NFT | PoolType::Trade => {}
+            _ => {
+                throw_err!(WrongPoolType);
+            }
         }
         //can't buy an NFT that's associated with a different pool
         if self.pool.key() != self.nft_receipt.pool {
@@ -133,7 +133,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
-    let current_price = pool.current_price()?;
+    let current_price = pool.current_price(TradeSide::Buy)?;
     let mut left_for_seller = current_price;
 
     //transfer fee to Tensorswap
@@ -159,10 +159,11 @@ pub fn handler<'a, 'b, 'c, 'info>(
             .transfer_lamports(&passed_mm_fee_vault, mm_fee)?;
     }
 
-    //transfer remainder to either user or the pool (if Trade pool)
+    //transfer remainder to either seller/owner or the pool (if Trade pool)
     let destination = match pool.config.pool_type {
-        //send money direct to user
-        PoolType::NFT => ctx.accounts.seller.to_account_info(),
+        //send money direct to seller/owner
+        PoolType::NFT => ctx.accounts.owner.to_account_info(),
+        // todo write tests
         //send money to the pool
         PoolType::Trade => ctx.accounts.sol_escrow.to_account_info(),
         // PoolType::Trade => {

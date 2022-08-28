@@ -18,18 +18,17 @@ pub struct DepositSol<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = owner)]
+    ], bump = pool.bump, has_one = tswap, has_one = whitelist, has_one = owner, has_one = sol_escrow)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    /// CHECK: seeds verification ensures correct acc
-    #[account(init_if_needed, payer=owner, seeds=[
+    #[account(mut, seeds=[
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump, space = 8)]
-    pub sol_escrow: UncheckedAccount<'info>,
+    ], bump = sol_escrow.bump)]
+    pub sol_escrow: Account<'info, SolEscrow>,
 
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
@@ -40,7 +39,7 @@ pub struct DepositSol<'info> {
 impl<'info> DepositSol<'info> {
     fn transfer_lamports(&self, lamports: u64) -> Result<()> {
         invoke(
-            &system_instruction::transfer(self.owner.key, self.sol_escrow.key, lamports),
+            &system_instruction::transfer(self.owner.key, &self.sol_escrow.key(), lamports),
             &[
                 self.owner.to_account_info(),
                 self.sol_escrow.to_account_info(),
@@ -53,9 +52,12 @@ impl<'info> DepositSol<'info> {
 
 impl<'info> Validate<'info> for DepositSol<'info> {
     fn validate(&self) -> Result<()> {
-        //can't deposit sol into an NFT pool
-        if self.pool.config.pool_type == PoolType::NFT {
-            throw_err!(WrongPoolType);
+        // can only deposit SOL into Token/Trade pool
+        match self.pool.config.pool_type {
+            PoolType::Token | PoolType::Trade => {}
+            _ => {
+                throw_err!(WrongPoolType);
+            }
         }
         Ok(())
     }

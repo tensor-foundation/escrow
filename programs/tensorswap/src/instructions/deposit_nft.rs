@@ -76,9 +76,12 @@ impl<'info> DepositNft<'info> {
 
 impl<'info> Validate<'info> for DepositNft<'info> {
     fn validate(&self) -> Result<()> {
-        //can't deposit an NFT into a token pool
-        if self.pool.config.pool_type == PoolType::Token {
-            throw_err!(WrongPoolType);
+        // can only deposit NFT into NFT/Trade pool
+        match self.pool.config.pool_type {
+            PoolType::NFT | PoolType::Trade => {}
+            _ => {
+                throw_err!(WrongPoolType);
+            }
         }
         Ok(())
     }

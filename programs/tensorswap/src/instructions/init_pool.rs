@@ -21,6 +21,7 @@ pub struct InitPool<'info> {
     ], bump, space = 8 + std::mem::size_of::<Pool>())]
     pub pool: Box<Account<'info, Pool>>,
 
+    // todo only init on deposit + buying?
     #[account(init, payer = owner, seeds = [
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),

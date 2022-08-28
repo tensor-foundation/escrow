@@ -42,6 +42,14 @@ pub mod tensorswap {
     ) -> Result<()> {
         instructions::buy_nft::handler(ctx, proof)
     }
+
+    pub fn sell_nft<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, SellNft<'info>>,
+        _config: PoolConfig,
+        proof: Vec<[u8; 32]>,
+    ) -> Result<()> {
+        instructions::sell_nft::handler(ctx, proof)
+    }
 }
 
 #[error_code]
