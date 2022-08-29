@@ -54,7 +54,6 @@ export interface PoolConfig {
   delta: BN;
   honorRoyalties: boolean;
   mmFeeBps: number; //set to 0 if not present, for some reason setting to null causes anchor to crash
-  mmFeeVault: PublicKey | null;
 }
 
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)

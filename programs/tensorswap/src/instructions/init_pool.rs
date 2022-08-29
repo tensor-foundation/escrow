@@ -41,15 +41,19 @@ pub struct InitPool<'info> {
 impl<'info> InitPool<'info> {
     // todo write tests for all these conditions
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
+        if config.honor_royalties {
+            throw_err!(RoyaltiesDisabled);
+        }
+
         //user fees can only be collected on Trade pools
         //can't check fee_pct coz FE has to set it to 0 rather than null to avoid certain errors
-        if config.pool_type != PoolType::Trade && config.mm_fee_vault.is_some() {
+        if config.pool_type != PoolType::Trade && config.mm_fee_bps != Some(0) {
             throw_err!(WrongPoolType);
         }
 
         //if it is indeed a Trade pool, ensure fees are correctly configured
         if config.pool_type == PoolType::Trade {
-            if config.mm_fee_vault.is_none() || config.mm_fee_bps.is_none() {
+            if config.mm_fee_bps.is_none() {
                 throw_err!(MissingFees);
             }
             if config.mm_fee_bps.unwrap() > MAX_MM_FEES_BPS {

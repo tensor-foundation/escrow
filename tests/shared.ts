@@ -113,7 +113,7 @@ export const createFundedWallet = async (
   sol?: number
 ): Promise<Keypair> => {
   const keypair = Keypair.generate();
-  //aidrops are funky, best to move from provider wallet
+  //airdrops are funky, best to move from provider wallet
   const tx = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: provider.publicKey,

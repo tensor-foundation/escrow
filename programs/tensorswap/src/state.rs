@@ -76,7 +76,6 @@ pub struct PoolConfig {
 
     /// Trade pools only
     pub mm_fee_bps: Option<u16>,
-    pub mm_fee_vault: Option<Pubkey>,
 }
 // #[proc_macros::assert_size(176)]
 #[account]
@@ -288,7 +287,6 @@ mod tests {
                     delta,
                     honor_royalties: false,
                     mm_fee_bps,
-                    mm_fee_vault: None,
                 },
                 pool_nft_purchase_count,
                 pool_nft_sale_count,

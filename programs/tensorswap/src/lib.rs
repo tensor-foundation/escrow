@@ -76,4 +76,6 @@ pub enum ErrorCode {
     ArithmeticError = 9,
     #[msg("this nft doesnt belong to this pool")]
     WrongPool = 10,
+    #[msg("royalties are disabled for now")]
+    RoyaltiesDisabled = 11,
 }

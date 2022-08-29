@@ -68,10 +68,6 @@ pub struct BuyNft<'info> {
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    //
-    //todo write tests
-    // Optional accounts: only for Trade pool
-    // Optional account 1: mm_fee_vault
 }
 
 impl<'info> BuyNft<'info> {
@@ -144,29 +140,13 @@ pub fn handler<'a, 'b, 'c, 'info>(
     ctx.accounts
         .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
 
-    let remaining_accs = &mut ctx.remaining_accounts.iter();
-
-    //todo write tests
-    //transfer fee to market maker
-    if pool.config.pool_type == PoolType::Trade {
-        let passed_mm_fee_vault = next_account_info(remaining_accs)?;
-        if *passed_mm_fee_vault.key != pool.config.mm_fee_vault.unwrap() {
-            throw_err!(BadFeeAccount);
-        }
-
-        let mm_fee = pool.calc_mm_fee(current_price)?;
-        left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
-
-        ctx.accounts
-            .transfer_lamports(&passed_mm_fee_vault, mm_fee)?;
-    }
-
     //transfer remainder to either seller/owner or the pool (if Trade pool)
     let destination = match pool.config.pool_type {
         //send money direct to seller/owner
         PoolType::NFT => ctx.accounts.owner.to_account_info(),
         // todo write tests
         //send money to the pool
+        // NB: no explicit MM fees here: that's because it goes directly to the escrow anyways.
         PoolType::Trade => ctx.accounts.sol_escrow.to_account_info(),
         // PoolType::Trade => {
         // let passed_sol_escrow = next_account_info(remaining_accs)?;

@@ -378,7 +378,7 @@ export type Tensorswap = {
         },
         {
           "name": "nftReceipt",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -629,12 +629,6 @@ export type Tensorswap = {
             "type": {
               "option": "u16"
             }
-          },
-          {
-            "name": "mmFeeVault",
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -754,6 +748,11 @@ export type Tensorswap = {
       "code": 6010,
       "name": "WrongPool",
       "msg": "this nft doesnt belong to this pool"
+    },
+    {
+      "code": 6011,
+      "name": "RoyaltiesDisabled",
+      "msg": "royalties are disabled for now"
     }
   ]
 };
@@ -1138,7 +1137,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "nftReceipt",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -1389,12 +1388,6 @@ export const IDL: Tensorswap = {
             "type": {
               "option": "u16"
             }
-          },
-          {
-            "name": "mmFeeVault",
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -1514,6 +1507,11 @@ export const IDL: Tensorswap = {
       "code": 6010,
       "name": "WrongPool",
       "msg": "this nft doesnt belong to this pool"
+    },
+    {
+      "code": 6011,
+      "name": "RoyaltiesDisabled",
+      "msg": "royalties are disabled for now"
     }
   ]
 };
