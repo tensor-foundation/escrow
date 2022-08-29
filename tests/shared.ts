@@ -213,8 +213,9 @@ export const getLamports = async (acct: PublicKey) => {
   return (await TEST_PROVIDER.connection.getAccountInfo(acct))?.lamports;
 };
 
-// This passes the account's lamports before the provided `callback` function is called.
+// This passes the accounts' lamports before the provided `callback` function is called.
 // Useful for doing before/after lamports diffing.
+// todo add example
 export const withLamports = async <
   Accounts extends Record<string, PublicKey>,
   R

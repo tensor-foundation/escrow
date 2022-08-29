@@ -103,7 +103,7 @@ pub struct Pool {
     /// We technically could read funding as balance of sol_escrow (- rent)
     /// but kind of annoying so let's keep this for now.
     pub sol_funding: u64, //total deposits - total withdrawals - any spent sol
-    pub sol_escrow: Pubkey, //Token/NFT = owner, Trade = PDA
+    pub sol_escrow: Pubkey, //always initialized regardless of type
 }
 
 impl Pool {
@@ -111,20 +111,6 @@ impl Pool {
     // pub fn SIZE() -> usize {
     //     //bools + u8s + u16s + u32s + u64s + pk
     //     (2 * 1) + (4 * 1) + 2 + (3 * 4) + (3 * 8) + (4 * 32)
-    // }
-
-    // todo rust is being fucking painful - not wasting time fighting the complier rn
-    //  https://stackoverflow.com/questions/73481281/rust-returns-a-value-referencing-data-owned-by-the-current-function
-    // pub fn pool_seeds(&self) -> [&[u8]; 7] {
-    //     [
-    //         self.tswap.as_ref(),
-    //         self.creator.as_ref(),
-    //         self.whitelist.as_ref(),
-    //         &[self.config.pool_type as u8],
-    //         &[self.config.curve_type as u8],
-    //         &self.config.starting_price.to_le_bytes(),
-    //         &self.config.delta.to_le_bytes(),
-    //     ]
     // }
 
     pub fn calc_mm_fee(&self, current_price: u64) -> Result<u64> {

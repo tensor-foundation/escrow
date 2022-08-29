@@ -31,7 +31,6 @@ pub struct SellNft<'info> {
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    // todo we can get rid of this to save accounts - simply take it from seller_acc
     pub nft_mint: Box<Account<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
