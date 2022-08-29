@@ -323,6 +323,10 @@ export type Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     },
@@ -429,6 +433,10 @@ export type Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     }
@@ -753,6 +761,11 @@ export type Tensorswap = {
       "code": 6011,
       "name": "RoyaltiesDisabled",
       "msg": "royalties are disabled for now"
+    },
+    {
+      "code": 6012,
+      "name": "PriceMismatch",
+      "msg": "specified price does not match current price"
     }
   ]
 };
@@ -1082,6 +1095,10 @@ export const IDL: Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     },
@@ -1188,6 +1205,10 @@ export const IDL: Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     }
@@ -1512,6 +1533,11 @@ export const IDL: Tensorswap = {
       "code": 6011,
       "name": "RoyaltiesDisabled",
       "msg": "royalties are disabled for now"
+    },
+    {
+      "code": 6012,
+      "name": "PriceMismatch",
+      "msg": "specified price does not match current price"
     }
   ]
 };

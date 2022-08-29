@@ -260,6 +260,7 @@ export class TensorSwapSDK {
     buyer,
     config,
     proof,
+    price,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -268,70 +269,7 @@ export class TensorSwapSDK {
     buyer: PublicKey;
     config: PoolConfig;
     proof: Buffer[];
-  }) {
-    const [tswapPda] = await findTSwapPDA({});
-
-    const [poolPda] = await findPoolPDA({
-      tswap: tswapPda,
-      owner,
-      whitelist,
-      delta: config.delta,
-      startingPrice: config.startingPrice,
-      poolType: poolTypeU8(config.poolType),
-      curveType: curveTypeU8(config.curveType),
-    });
-
-    const [escrowPda] = await findNftEscrowPDA({ nftMint });
-    const [solEscrowPda] = await findSolEscrowPDA({ pool: poolPda });
-    const [receiptPda] = await findNftDepositReceiptPDA({
-      nftMint,
-    });
-
-    const tSwapAcc = await this.fetchTSwap(tswapPda);
-
-    const builder = this.program.methods.buyNft(config as any, proof).accounts({
-      tswap: tswapPda,
-      feeVault: tSwapAcc.feeVault,
-      pool: poolPda,
-      whitelist,
-      nftMint,
-      nftBuyerAcc,
-      nftEscrow: escrowPda,
-      nftReceipt: receiptPda,
-      solEscrow: solEscrowPda,
-      owner,
-      buyer,
-      systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
-    });
-
-    return {
-      builder,
-      tx: { ixs: [await builder.instruction()], extraSigners: [] },
-      poolPda,
-      escrowPda,
-      solEscrowPda,
-      receiptPda,
-    };
-  }
-
-  //main signature: seller
-  async sellNft({
-    whitelist,
-    nftMint,
-    nftSellerAcc,
-    owner,
-    seller,
-    config,
-    proof,
-  }: {
-    whitelist: PublicKey;
-    nftMint: PublicKey;
-    nftSellerAcc: PublicKey;
-    owner: PublicKey;
-    seller: PublicKey;
-    config: PoolConfig;
-    proof: Buffer[];
+    price: BN;
   }) {
     const [tswapPda] = await findTSwapPDA({});
 
@@ -354,7 +292,75 @@ export class TensorSwapSDK {
     const tSwapAcc = await this.fetchTSwap(tswapPda);
 
     const builder = this.program.methods
-      .sellNft(config as any, proof)
+      .buyNft(config as any, proof, price)
+      .accounts({
+        tswap: tswapPda,
+        feeVault: tSwapAcc.feeVault,
+        pool: poolPda,
+        whitelist,
+        nftMint,
+        nftBuyerAcc,
+        nftEscrow: escrowPda,
+        nftReceipt: receiptPda,
+        solEscrow: solEscrowPda,
+        owner,
+        buyer,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      poolPda,
+      escrowPda,
+      solEscrowPda,
+      receiptPda,
+    };
+  }
+
+  //main signature: seller
+  async sellNft({
+    whitelist,
+    nftMint,
+    nftSellerAcc,
+    owner,
+    seller,
+    config,
+    proof,
+    price,
+  }: {
+    whitelist: PublicKey;
+    nftMint: PublicKey;
+    nftSellerAcc: PublicKey;
+    owner: PublicKey;
+    seller: PublicKey;
+    config: PoolConfig;
+    proof: Buffer[];
+    price: BN;
+  }) {
+    const [tswapPda] = await findTSwapPDA({});
+
+    const [poolPda] = await findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+
+    const [escrowPda] = await findNftEscrowPDA({ nftMint });
+    const [solEscrowPda] = await findSolEscrowPDA({ pool: poolPda });
+    const [receiptPda] = await findNftDepositReceiptPDA({
+      nftMint,
+    });
+
+    const tSwapAcc = await this.fetchTSwap(tswapPda);
+
+    const builder = this.program.methods
+      .sellNft(config as any, proof, price)
       .accounts({
         tswap: tswapPda,
         feeVault: tSwapAcc.feeVault,

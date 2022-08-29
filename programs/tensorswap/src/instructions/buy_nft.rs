@@ -127,10 +127,15 @@ impl<'info> Validate<'info> for BuyNft<'info> {
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
     proof: Vec<[u8; 32]>,
+    price: u64,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
     let current_price = pool.current_price(TradeAction::Buy)?;
+    if price != current_price {
+        throw_err!(PriceMismatch);
+    }
+
     let mut left_for_seller = current_price;
 
     //transfer fee to Tensorswap

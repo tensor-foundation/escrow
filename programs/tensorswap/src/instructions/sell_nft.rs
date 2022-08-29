@@ -119,8 +119,16 @@ impl<'info> Validate<'info> for SellNft<'info> {
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, SellNft<'info>>,
     proof: Vec<[u8; 32]>,
+    price: u64,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
+
+    let current_price = pool.current_price(TradeAction::Sell)?;
+    if price != current_price {
+        throw_err!(PriceMismatch);
+    }
+
+    let mut left_for_seller = current_price;
 
     // todo: send nft directly to owner's account for Token pool?
     // transfer nft to escrow
@@ -165,9 +173,6 @@ pub fn handler<'a, 'b, 'c, 'info>(
         }
     }
 
-
-    let current_price = pool.current_price(TradeAction::Sell)?;
-    let mut left_for_seller = current_price;
 
     //transfer fee to Tensorswap
     let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
