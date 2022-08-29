@@ -4,16 +4,11 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(auth_bump: u8, pool_bump: u8, config: PoolConfig)]
+#[instruction(config: PoolConfig)]
 pub struct DepositNft<'info> {
     /// Needed for pool seeds derivation
-    #[account(has_one = authority)]
+    #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
-
-    /// Needed to be set as authority on token escrows
-    /// CHECK: via seed derivation macro below / via has one_one above.
-    #[account(seeds = [tswap.key().as_ref()], bump = auth_bump)]
-    pub authority: UncheckedAccount<'info>,
 
     #[account(mut, seeds = [
         tswap.key().as_ref(),
@@ -23,7 +18,8 @@ pub struct DepositNft<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool_bump, has_one = tswap, has_one = whitelist)]
+    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
+    has_one = owner)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -39,12 +35,13 @@ pub struct DepositNft<'info> {
     #[account(init_if_needed, payer=owner, seeds=[
         b"nft_escrow".as_ref(),
         nft_mint.key().as_ref(),
-    ], bump, token::mint = nft_mint, token::authority = authority )]
+    ], bump, token::mint = nft_mint, token::authority = tswap )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
     #[account(init, payer=owner, seeds=[
         b"nft_receipt".as_ref(),
         nft_mint.key().as_ref(),
+        // TODO: hardcode size.
     ], bump, space = 8 + std::mem::size_of::<NftDepositReceipt>())]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
@@ -80,9 +77,12 @@ impl<'info> DepositNft<'info> {
 
 impl<'info> Validate<'info> for DepositNft<'info> {
     fn validate(&self) -> Result<()> {
-        //can't deposit an NFT into a token pool
-        if self.pool.config.pool_type == PoolType::Token {
-            throw_err!(WrongPoolType);
+        // can only deposit NFT into NFT/Trade pool
+        match self.pool.config.pool_type {
+            PoolType::NFT | PoolType::Trade => {}
+            _ => {
+                throw_err!(WrongPoolType);
+            }
         }
         Ok(())
     }
@@ -95,12 +95,11 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
 
     //update pool
     let pool = &mut ctx.accounts.pool;
-    let current_price = pool.current_price()?;
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_add(1));
-    pool.set_active(current_price);
 
     //create nft receipt
     let receipt = &mut ctx.accounts.nft_receipt;
+    receipt.bump = *ctx.bumps.get("nft_receipt").unwrap();
     receipt.pool = pool.key();
     receipt.nft_mint = ctx.accounts.nft_mint.key();
     receipt.nft_escrow = ctx.accounts.nft_escrow.key();

@@ -2,7 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { TENSOR_WHITELIST_ADDR } from "./constants";
 
 export const findWhitelistAuthPDA = ({ program }: { program?: PublicKey }) => {
-  return PublicKey.findProgramAddress([], program ?? TENSOR_WHITELIST_ADDR);
+  return PublicKey.findProgramAddressSync([], program ?? TENSOR_WHITELIST_ADDR);
 };
 
 export const findWhitelistPDA = ({
@@ -12,7 +12,7 @@ export const findWhitelistPDA = ({
   program?: PublicKey;
   uuid: number[];
 }) => {
-  return PublicKey.findProgramAddress(
+  return PublicKey.findProgramAddressSync(
     [Buffer.from(uuid)],
     program ?? TENSOR_WHITELIST_ADDR
   );

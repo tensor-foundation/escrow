@@ -5,7 +5,7 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(pool_bump: u8, config: PoolConfig)]
+#[instruction( config: PoolConfig)]
 pub struct DepositSol<'info> {
     /// Needed for pool seeds derivation
     pub tswap: Box<Account<'info, TSwap>>,
@@ -18,17 +18,18 @@ pub struct DepositSol<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool_bump, has_one = tswap, has_one = whitelist)]
+    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
+    has_one = owner, has_one = sol_escrow)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    /// CHECK: seeds verification ensures correct acc
-    #[account(init_if_needed, payer=owner, seeds=[
+    /// CHECK: has_one escrow in pool
+    #[account(mut, seeds=[
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump, space = 8)]
+    ], bump = pool.sol_escrow_bump[0])]
     pub sol_escrow: UncheckedAccount<'info>,
 
     /// Tied to the pool because used to verify pool seeds
@@ -40,7 +41,7 @@ pub struct DepositSol<'info> {
 impl<'info> DepositSol<'info> {
     fn transfer_lamports(&self, lamports: u64) -> Result<()> {
         invoke(
-            &system_instruction::transfer(self.owner.key, self.sol_escrow.key, lamports),
+            &system_instruction::transfer(self.owner.key, &self.sol_escrow.key(), lamports),
             &[
                 self.owner.to_account_info(),
                 self.sol_escrow.to_account_info(),
@@ -53,9 +54,12 @@ impl<'info> DepositSol<'info> {
 
 impl<'info> Validate<'info> for DepositSol<'info> {
     fn validate(&self) -> Result<()> {
-        //can't deposit sol into an NFT pool
-        if self.pool.config.pool_type == PoolType::NFT {
-            throw_err!(WrongPoolType);
+        // can only deposit SOL into Token/Trade pool
+        match self.pool.config.pool_type {
+            PoolType::Token | PoolType::Trade => {}
+            _ => {
+                throw_err!(WrongPoolType);
+            }
         }
         Ok(())
     }
@@ -68,9 +72,7 @@ pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
 
     //update pool
     let pool = &mut ctx.accounts.pool;
-    let current_price = pool.current_price()?;
     pool.sol_funding = unwrap_int!(pool.sol_funding.checked_add(lamports));
-    pool.set_active(current_price);
 
     Ok(())
 }

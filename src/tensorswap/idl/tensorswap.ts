@@ -8,11 +8,6 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "authority",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -26,12 +21,7 @@ export type Tensorswap = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "authBump",
-          "type": "u8"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initPool",
@@ -50,6 +40,11 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "whitelist",
           "isMut": false,
           "isSigner": false,
@@ -58,7 +53,7 @@ export type Tensorswap = {
           ]
         },
         {
-          "name": "creator",
+          "name": "owner",
           "isMut": true,
           "isSigner": true,
           "docs": [
@@ -72,10 +67,6 @@ export type Tensorswap = {
         }
       ],
       "args": [
-        {
-          "name": "poolBump",
-          "type": "u8"
-        },
         {
           "name": "config",
           "type": {
@@ -93,14 +84,6 @@ export type Tensorswap = {
           "isSigner": false,
           "docs": [
             "Needed for pool seeds derivation"
-          ]
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed to be set as authority on token escrows"
           ]
         },
         {
@@ -168,14 +151,6 @@ export type Tensorswap = {
       ],
       "args": [
         {
-          "name": "authBump",
-          "type": "u8"
-        },
-        {
-          "name": "poolBump",
-          "type": "u8"
-        },
-        {
           "name": "config",
           "type": {
             "defined": "PoolConfig"
@@ -239,10 +214,6 @@ export type Tensorswap = {
       ],
       "args": [
         {
-          "name": "poolBump",
-          "type": "u8"
-        },
-        {
           "name": "config",
           "type": {
             "defined": "PoolConfig"
@@ -269,14 +240,6 @@ export type Tensorswap = {
           "name": "feeVault",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed to be set as authority on token escrows"
-          ]
         },
         {
           "name": "pool",
@@ -318,17 +281,19 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
-          "name": "seller",
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "buyer",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Tied to the pool because used to verify pool seeds"
-          ]
+          "isSigner": true
         },
         {
           "name": "tokenProgram",
@@ -343,21 +308,111 @@ export type Tensorswap = {
       ],
       "args": [
         {
-          "name": "authBump",
-          "type": "u8"
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
         },
         {
-          "name": "poolBump",
-          "type": "u8"
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sellNft",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
         },
         {
-          "name": "receiptBump",
-          "type": "u8"
+          "name": "feeVault",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          "name": "escrowBump",
-          "type": "u8"
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
         },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation, also checked via has_one on pool"
+          ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftSellerAcc",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
+        },
+        {
+          "name": "nftEscrow",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
+        },
+        {
+          "name": "nftReceipt",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
           "name": "config",
           "type": {
@@ -389,15 +444,7 @@ export type Tensorswap = {
             "type": "u8"
           },
           {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "authSeed",
-            "type": "publicKey"
-          },
-          {
-            "name": "authBump",
+            "name": "bump",
             "type": {
               "array": [
                 "u8",
@@ -432,7 +479,16 @@ export type Tensorswap = {
             "type": "u8"
           },
           {
-            "name": "poolBump",
+            "name": "bump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "solEscrowBump",
             "type": {
               "array": [
                 "u8",
@@ -448,7 +504,7 @@ export type Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "creator",
+            "name": "owner",
             "type": "publicKey"
           },
           {
@@ -483,21 +539,17 @@ export type Tensorswap = {
             "type": "u32"
           },
           {
-            "name": "isActive",
-            "type": "bool"
-          },
-          {
             "name": "solFunding",
             "docs": [
-              "Trade / Token pools only"
+              "Trade / Token pools only",
+              "We technically could read funding as balance of sol_escrow (- rent)",
+              "but kind of annoying so let's keep this for now."
             ],
             "type": "u64"
           },
           {
             "name": "solEscrow",
-            "type": {
-              "option": "publicKey"
-            }
+            "type": "publicKey"
           }
         ]
       }
@@ -507,6 +559,10 @@ export type Tensorswap = {
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
           {
             "name": "pool",
             "type": "publicKey"
@@ -573,12 +629,6 @@ export type Tensorswap = {
             "type": {
               "option": "u16"
             }
-          },
-          {
-            "name": "mmFeeVault",
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -624,6 +674,20 @@ export type Tensorswap = {
           },
           {
             "name": "Down"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TradeAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Buy"
+          },
+          {
+            "name": "Sell"
           }
         ]
       }
@@ -687,8 +751,8 @@ export type Tensorswap = {
     },
     {
       "code": 6011,
-      "name": "PoolNotActive",
-      "msg": "this pool is not active for chosen action"
+      "name": "RoyaltiesDisabled",
+      "msg": "royalties are disabled for now"
     }
   ]
 };
@@ -703,11 +767,6 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "authority",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -721,12 +780,7 @@ export const IDL: Tensorswap = {
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "authBump",
-          "type": "u8"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initPool",
@@ -745,6 +799,11 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "whitelist",
           "isMut": false,
           "isSigner": false,
@@ -753,7 +812,7 @@ export const IDL: Tensorswap = {
           ]
         },
         {
-          "name": "creator",
+          "name": "owner",
           "isMut": true,
           "isSigner": true,
           "docs": [
@@ -767,10 +826,6 @@ export const IDL: Tensorswap = {
         }
       ],
       "args": [
-        {
-          "name": "poolBump",
-          "type": "u8"
-        },
         {
           "name": "config",
           "type": {
@@ -788,14 +843,6 @@ export const IDL: Tensorswap = {
           "isSigner": false,
           "docs": [
             "Needed for pool seeds derivation"
-          ]
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed to be set as authority on token escrows"
           ]
         },
         {
@@ -863,14 +910,6 @@ export const IDL: Tensorswap = {
       ],
       "args": [
         {
-          "name": "authBump",
-          "type": "u8"
-        },
-        {
-          "name": "poolBump",
-          "type": "u8"
-        },
-        {
           "name": "config",
           "type": {
             "defined": "PoolConfig"
@@ -934,10 +973,6 @@ export const IDL: Tensorswap = {
       ],
       "args": [
         {
-          "name": "poolBump",
-          "type": "u8"
-        },
-        {
           "name": "config",
           "type": {
             "defined": "PoolConfig"
@@ -964,14 +999,6 @@ export const IDL: Tensorswap = {
           "name": "feeVault",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed to be set as authority on token escrows"
-          ]
         },
         {
           "name": "pool",
@@ -1013,17 +1040,19 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
-          "name": "seller",
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "buyer",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Tied to the pool because used to verify pool seeds"
-          ]
+          "isSigner": true
         },
         {
           "name": "tokenProgram",
@@ -1038,21 +1067,111 @@ export const IDL: Tensorswap = {
       ],
       "args": [
         {
-          "name": "authBump",
-          "type": "u8"
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
         },
         {
-          "name": "poolBump",
-          "type": "u8"
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sellNft",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
         },
         {
-          "name": "receiptBump",
-          "type": "u8"
+          "name": "feeVault",
+          "isMut": true,
+          "isSigner": false
         },
         {
-          "name": "escrowBump",
-          "type": "u8"
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
         },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation, also checked via has_one on pool"
+          ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftSellerAcc",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
+        },
+        {
+          "name": "nftEscrow",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
+        },
+        {
+          "name": "nftReceipt",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
         {
           "name": "config",
           "type": {
@@ -1084,15 +1203,7 @@ export const IDL: Tensorswap = {
             "type": "u8"
           },
           {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "authSeed",
-            "type": "publicKey"
-          },
-          {
-            "name": "authBump",
+            "name": "bump",
             "type": {
               "array": [
                 "u8",
@@ -1127,7 +1238,16 @@ export const IDL: Tensorswap = {
             "type": "u8"
           },
           {
-            "name": "poolBump",
+            "name": "bump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "solEscrowBump",
             "type": {
               "array": [
                 "u8",
@@ -1143,7 +1263,7 @@ export const IDL: Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "creator",
+            "name": "owner",
             "type": "publicKey"
           },
           {
@@ -1178,21 +1298,17 @@ export const IDL: Tensorswap = {
             "type": "u32"
           },
           {
-            "name": "isActive",
-            "type": "bool"
-          },
-          {
             "name": "solFunding",
             "docs": [
-              "Trade / Token pools only"
+              "Trade / Token pools only",
+              "We technically could read funding as balance of sol_escrow (- rent)",
+              "but kind of annoying so let's keep this for now."
             ],
             "type": "u64"
           },
           {
             "name": "solEscrow",
-            "type": {
-              "option": "publicKey"
-            }
+            "type": "publicKey"
           }
         ]
       }
@@ -1202,6 +1318,10 @@ export const IDL: Tensorswap = {
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
           {
             "name": "pool",
             "type": "publicKey"
@@ -1268,12 +1388,6 @@ export const IDL: Tensorswap = {
             "type": {
               "option": "u16"
             }
-          },
-          {
-            "name": "mmFeeVault",
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -1319,6 +1433,20 @@ export const IDL: Tensorswap = {
           },
           {
             "name": "Down"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TradeAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Buy"
+          },
+          {
+            "name": "Sell"
           }
         ]
       }
@@ -1382,8 +1510,8 @@ export const IDL: Tensorswap = {
     },
     {
       "code": 6011,
-      "name": "PoolNotActive",
-      "msg": "this pool is not active for chosen action"
+      "name": "RoyaltiesDisabled",
+      "msg": "royalties are disabled for now"
     }
   ]
 };

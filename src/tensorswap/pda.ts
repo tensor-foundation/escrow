@@ -4,8 +4,8 @@ import { BN } from "@project-serum/anchor";
 
 export const findPoolPDA = async ({
   program,
-  tSwap,
-  creator,
+  tswap,
+  owner,
   whitelist,
   poolType,
   curveType,
@@ -13,8 +13,8 @@ export const findPoolPDA = async ({
   delta,
 }: {
   program?: PublicKey;
-  tSwap: PublicKey;
-  creator: PublicKey;
+  tswap: PublicKey;
+  owner: PublicKey;
   whitelist: PublicKey;
   poolType: number;
   curveType: number;
@@ -23,8 +23,8 @@ export const findPoolPDA = async ({
 }): Promise<[PublicKey, number]> => {
   return PublicKey.findProgramAddress(
     [
-      tSwap.toBytes(),
-      creator.toBytes(),
+      tswap.toBytes(),
+      owner.toBytes(),
       whitelist.toBytes(),
       //u8s, hence 1 byte each
       new BN(poolType).toBuffer("le", 1),
@@ -37,17 +37,8 @@ export const findPoolPDA = async ({
   );
 };
 
-export const findSwapAuthPDA = async ({
-  program,
-  tSwap,
-}: {
-  program?: PublicKey;
-  tSwap: PublicKey;
-}) => {
-  return PublicKey.findProgramAddress(
-    [tSwap.toBytes()],
-    program ?? TENSORSWAP_ADDR
-  );
+export const findTSwapPDA = async ({ program }: { program?: PublicKey }) => {
+  return PublicKey.findProgramAddress([], program ?? TENSORSWAP_ADDR);
 };
 
 export const findNftEscrowPDA = async ({

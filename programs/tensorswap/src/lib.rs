@@ -15,43 +15,40 @@ declare_id!("EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA");
 pub mod tensorswap {
     use super::*;
 
-    pub fn init_tswap(ctx: Context<InitTSwap>, auth_bump: u8) -> Result<()> {
-        instructions::init_tswap::handler(ctx, auth_bump)
+    pub fn init_tswap(ctx: Context<InitTSwap>) -> Result<()> {
+        instructions::init_tswap::handler(ctx)
     }
 
-    pub fn init_pool(ctx: Context<InitPool>, pool_bump: u8, config: PoolConfig) -> Result<()> {
-        instructions::init_pool::handler(ctx, pool_bump, config)
+    pub fn init_pool(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
+        instructions::init_pool::handler(ctx, config)
     }
 
     pub fn deposit_nft(
         ctx: Context<DepositNft>,
-        _auth_bump: u8,
-        _pool_bump: u8,
         _config: PoolConfig,
         proof: Vec<[u8; 32]>,
     ) -> Result<()> {
         instructions::deposit_nft::handler(ctx, proof)
     }
 
-    pub fn deposit_sol(
-        ctx: Context<DepositSol>,
-        _pool_bump: u8,
-        _config: PoolConfig,
-        lamports: u64,
-    ) -> Result<()> {
+    pub fn deposit_sol(ctx: Context<DepositSol>, _config: PoolConfig, lamports: u64) -> Result<()> {
         instructions::deposit_sol::handler(ctx, lamports)
     }
 
     pub fn buy_nft<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
-        _auth_bump: u8,
-        _pool_bump: u8,
-        _receipt_bump: u8,
-        _escrow_bump: u8,
         _config: PoolConfig,
         proof: Vec<[u8; 32]>,
     ) -> Result<()> {
         instructions::buy_nft::handler(ctx, proof)
+    }
+
+    pub fn sell_nft<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, SellNft<'info>>,
+        _config: PoolConfig,
+        proof: Vec<[u8; 32]>,
+    ) -> Result<()> {
+        instructions::sell_nft::handler(ctx, proof)
     }
 }
 
@@ -79,6 +76,6 @@ pub enum ErrorCode {
     ArithmeticError = 9,
     #[msg("this nft doesnt belong to this pool")]
     WrongPool = 10,
-    #[msg("this pool is not active for chosen action")]
-    PoolNotActive = 11,
+    #[msg("royalties are disabled for now")]
+    RoyaltiesDisabled = 11,
 }

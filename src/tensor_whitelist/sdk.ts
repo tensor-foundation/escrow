@@ -3,6 +3,7 @@ import { Commitment, PublicKey, SystemProgram } from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
 import { TENSOR_WHITELIST_ADDR } from "./constants";
 import { findWhitelistAuthPDA, findWhitelistPDA } from "./pda";
+import { v4 } from "uuid";
 
 export class TensorWhitelistSDK {
   program: Program<TensorWhitelist>;
@@ -37,7 +38,7 @@ export class TensorWhitelistSDK {
 
   //main signature: owner
   async initUpdateAuthority(owner: PublicKey, newOwner: PublicKey) {
-    const [authPda, authPdaBump] = await findWhitelistAuthPDA({});
+    const [authPda] = findWhitelistAuthPDA({});
 
     const builder = this.program.methods
       .initUpdateAuthority(newOwner)
@@ -51,24 +52,32 @@ export class TensorWhitelistSDK {
       builder,
       tx: { ixs: [await builder.instruction()], extraSigners: [] },
       authPda,
-      authPdaBump,
     };
   }
 
+  genWhitelistUUID() {
+    return v4().toString().replaceAll("-", "");
+  }
+
   //main signature: owner
-  async initUpdateWhitelist(
-    owner: PublicKey,
-    uuid: number[],
-    rootHash: number[] | null = null,
-    name: number[] | null = null
-  ) {
-    const [authPda, authPdaBump] = await findWhitelistAuthPDA({});
-    const [whitelistPda, whitelistPdaBump] = await findWhitelistPDA({
+  async initUpdateWhitelist({
+    owner,
+    uuid,
+    rootHash = null,
+    name = null,
+  }: {
+    owner: PublicKey;
+    uuid: number[];
+    rootHash?: number[] | null;
+    name?: number[] | null;
+  }) {
+    const [authPda] = findWhitelistAuthPDA({});
+    const [whitelistPda] = findWhitelistPDA({
       uuid,
     });
 
     const builder = this.program.methods
-      .initUpdateWhitelist(authPdaBump, uuid, rootHash, name)
+      .initUpdateWhitelist(uuid, rootHash, name)
       .accounts({
         whitelist: whitelistPda,
         whitelistAuthority: authPda,
@@ -80,9 +89,7 @@ export class TensorWhitelistSDK {
       builder,
       tx: { ixs: [await builder.instruction()], extraSigners: [] },
       authPda,
-      authPdaBump,
       whitelistPda,
-      whitelistPdaBump,
     };
   }
 }

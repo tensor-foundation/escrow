@@ -58,10 +58,6 @@ export type TensorWhitelist = {
       ],
       "args": [
         {
-          "name": "bumpAuth",
-          "type": "u8"
-        },
-        {
           "name": "uuid",
           "type": {
             "array": [
@@ -102,6 +98,10 @@ export type TensorWhitelist = {
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "owner",
             "type": "publicKey"
           }
@@ -115,6 +115,10 @@ export type TensorWhitelist = {
         "fields": [
           {
             "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
             "type": "u8"
           },
           {
@@ -231,10 +235,6 @@ export const IDL: TensorWhitelist = {
       ],
       "args": [
         {
-          "name": "bumpAuth",
-          "type": "u8"
-        },
-        {
           "name": "uuid",
           "type": {
             "array": [
@@ -275,6 +275,10 @@ export const IDL: TensorWhitelist = {
         "kind": "struct",
         "fields": [
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "owner",
             "type": "publicKey"
           }
@@ -288,6 +292,10 @@ export const IDL: TensorWhitelist = {
         "fields": [
           {
             "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
             "type": "u8"
           },
           {
