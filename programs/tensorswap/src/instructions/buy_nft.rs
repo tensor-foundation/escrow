@@ -144,17 +144,9 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let destination = match pool.config.pool_type {
         //send money direct to seller/owner
         PoolType::NFT => ctx.accounts.owner.to_account_info(),
-        // todo write tests
         //send money to the pool
         // NB: no explicit MM fees here: that's because it goes directly to the escrow anyways.
         PoolType::Trade => ctx.accounts.sol_escrow.to_account_info(),
-        // PoolType::Trade => {
-        // let passed_sol_escrow = next_account_info(remaining_accs)?;
-        // if *passed_sol_escrow.key != pool.sol_escrow.unwrap() {
-        //     throw_err!(BadEscrowAccount);
-        // }
-        // passed_sol_escrow.clone()
-        // }
         PoolType::Token => unreachable!(),
     };
     ctx.accounts

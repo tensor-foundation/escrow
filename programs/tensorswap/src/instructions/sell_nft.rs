@@ -45,14 +45,7 @@ pub struct SellNft<'info> {
     ], bump, token::mint = nft_mint, token::authority = tswap)]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
-    // #[account(init_if_needed, payer=seller, seeds=[
-    //     b"nft_receipt".as_ref(),
-    //     nft_mint.key().as_ref(),
-    //     // TODO: hardcode size.
-    // ], bump, space = 8 + std::mem::size_of::<NftDepositReceipt>())]
-    // pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
-
-    /// CHECK: init'ed below only for Trade pools
+    /// CHECK: init'ed below as PDA only for Trade pools
     #[account(mut)]
     pub nft_receipt: UncheckedAccount<'info>,
 
@@ -138,6 +131,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     // This must go before any transfer_lamports
     //create nft receipt for trade pool
+    // todo ilmoi: is this how you're suppose to manually create a PDA? seems like A PITA
     if pool.config.pool_type == PoolType::Trade {
         let receipt = &ctx.accounts.nft_receipt;
         let mint_key = ctx.accounts.nft_mint.key();
