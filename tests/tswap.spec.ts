@@ -23,14 +23,17 @@ import {
   createFundedWallet,
   generateTreeOfSize,
   getLamports,
+  hexCode,
   stringifyPKsAndBNs,
   swapSdk,
   testInitWLAuthority,
   TEST_PROVIDER,
+  TOKEN_ACCT_WRONG_MINT_ERR,
   withLamports,
   wlSdk,
 } from "./shared";
 import { getAccount, TokenAccountNotFoundError } from "@solana/spl-token";
+import { AnchorError, LangErrorCode } from "@project-serum/anchor";
 
 chai.use(chaiAsPromised);
 
@@ -212,7 +215,7 @@ describe("tensorswap", () => {
     return poolPda;
   };
 
-  // Can be run async.
+  // CANNOT be run async w/ same pool (nftsHeld check).
   const testDepositNft = async ({
     pool,
     config,
@@ -262,7 +265,7 @@ describe("tensorswap", () => {
     expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
   };
 
-  // Can be run async.
+  // CANNOT be run async w/ same pool (sol escrow balance check).
   const testDepositSol = async ({
     pool,
     whitelist,
@@ -561,7 +564,7 @@ describe("tensorswap", () => {
 
     // Initialize fees.
 
-    // Seller pays rent only for escrow account.
+    // Seller pays rent just for escrow account.
     expSellerRentForTokenPool = await swapSdk.getNftEscrowRent();
     // Seller pays rent for:
     // (1) NFT escrow account
@@ -617,7 +620,7 @@ describe("tensorswap", () => {
 
           await expect(
             testClosePool({ owner, whitelist, config })
-          ).rejectedWith("0x177d");
+          ).rejectedWith(swapSdk.getErrorCodeHex("ExistingNfts"));
         }
       )
     );
@@ -643,7 +646,7 @@ describe("tensorswap", () => {
       });
 
       await expect(testClosePool({ owner, whitelist, config })).rejectedWith(
-        "0x177d"
+        swapSdk.getErrorCodeHex("ExistingNfts")
       );
     }
   });
@@ -682,7 +685,7 @@ describe("tensorswap", () => {
           ixs,
           extraSigners: [owner],
         })
-      ).rejectedWith("0x1770");
+      ).rejectedWith(swapSdk.getErrorCodeHex("InvalidProof"));
     }
 
     // Good mint
@@ -723,14 +726,13 @@ describe("tensorswap", () => {
       config,
       proof: proofs[0].proof,
     });
-    // Rejects with "Account not associated with this Mint"
     await expect(
       buildAndSendTx({
         provider: TEST_PROVIDER,
         ixs,
         extraSigners: [owner],
       })
-    ).rejectedWith("0x3");
+    ).rejectedWith(TOKEN_ACCT_WRONG_MINT_ERR);
   });
 
   //#endregion
@@ -778,7 +780,7 @@ describe("tensorswap", () => {
         config: tokenPoolConfig,
         expectedLamports: LAMPORTS_PER_SOL,
       })
-    ).rejectedWith("0x1773");
+    ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
   it("buy nft at wrong price fails", async () => {
@@ -800,7 +802,137 @@ describe("tensorswap", () => {
             // Give bad price
             expectedLamports: 0.5 * LAMPORTS_PER_SOL,
           })
-        ).rejectedWith("0x177c");
+        ).rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
+      })
+    );
+  });
+
+  it("buy non-WL nft fails", async () => {
+    await Promise.all(
+      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const [owner, buyer] = await makeNTraders(2);
+        const { mint, ata } = await makeMintTwoAta(owner, buyer);
+        const { mint: badMint, ata: badAta } = await makeMintTwoAta(
+          owner,
+          buyer
+        );
+        const {
+          proofs: [wlNft],
+          whitelist,
+        } = await makeWhitelist([mint]);
+        const poolPda = await testMakePool({ owner, whitelist, config });
+
+        await testDepositNft({
+          pool: poolPda,
+          owner,
+          config,
+          ata,
+          wlNft,
+          whitelist,
+        });
+
+        // Both:
+        // 1) non-WL mint + good ATA
+        // 2) WL mint + bad ATA
+        // should fail.
+        for (const { currMint, currAta, err } of [
+          {
+            currMint: badMint,
+            currAta: ata,
+            err: hexCode(LangErrorCode.AccountNotInitialized),
+          },
+          { currMint: mint, currAta: badAta, err: TOKEN_ACCT_WRONG_MINT_ERR },
+        ]) {
+          const {
+            tx: { ixs },
+          } = await swapSdk.buyNft({
+            whitelist,
+            nftMint: currMint,
+            nftBuyerAcc: currAta,
+            owner: owner.publicKey,
+            buyer: buyer.publicKey,
+            config,
+            proof: wlNft.proof,
+            price: new BN(LAMPORTS_PER_SOL),
+          });
+
+          await expect(
+            buildAndSendTx({
+              provider: TEST_PROVIDER,
+              ixs,
+              extraSigners: [buyer],
+            })
+          ).rejectedWith(err);
+        }
+      })
+    );
+  });
+
+  it.only("buy formerly deposited now non-WL mint fails, can withdraw though", async () => {
+    await Promise.all(
+      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const [owner, buyer] = await makeNTraders(2);
+        const { mint, ata } = await makeMintTwoAta(owner, buyer);
+        const { mint: badMint, ata: badAta } = await makeMintTwoAta(
+          owner,
+          buyer
+        );
+        const {
+          proofs: [wlNft, badWlNft],
+          whitelist,
+        } = await makeWhitelist([mint, badMint]);
+        const poolPda = await testMakePool({ owner, whitelist, config });
+
+        // Deposit both good and (soon-to-be) bad mints.
+        for (const { nft, currAta } of [
+          { nft: wlNft, currAta: ata },
+          { nft: badWlNft, currAta: badAta },
+        ]) {
+          await testDepositNft({
+            pool: poolPda,
+            owner,
+            config,
+            ata: currAta,
+            wlNft: nft,
+            whitelist,
+          });
+        }
+
+        // Now update whitelist to just contain first mint.
+        const { root: newRoot } = generateTreeOfSize(100, [mint]);
+        const wlAcc = await wlSdk.fetchWhitelist(whitelist);
+        const {
+          tx: { ixs: updateWlIxs },
+        } = await wlSdk.initUpdateWhitelist({
+          owner: TEST_PROVIDER.publicKey,
+          uuid: wlAcc.uuid,
+          rootHash: newRoot,
+        });
+        await buildAndSendTx({ provider: TEST_PROVIDER, ixs: updateWlIxs });
+
+        // Cannot buy non-WL nft anymore.
+        const {
+          tx: { ixs },
+        } = await swapSdk.buyNft({
+          whitelist,
+          nftMint: badMint,
+          nftBuyerAcc: badAta,
+          owner: owner.publicKey,
+          buyer: buyer.publicKey,
+          config,
+          proof: wlNft.proof,
+          price: new BN(LAMPORTS_PER_SOL),
+        });
+
+        await expect(
+          buildAndSendTx({
+            provider: TEST_PROVIDER,
+            ixs,
+            extraSigners: [buyer],
+          })
+        ).rejectedWith(swapSdk.getErrorCodeHex("InvalidProof"));
+
+        // todo test withdraw
       })
     );
   });
@@ -982,7 +1114,7 @@ describe("tensorswap", () => {
         expectedLamports: LAMPORTS_PER_SOL,
         expectedRentBySeller: 0,
       })
-    ).rejectedWith("0x1773");
+    ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
   it("sell nft at wrong price fails", async () => {
@@ -1005,7 +1137,63 @@ describe("tensorswap", () => {
             expectedLamports: 0.5 * LAMPORTS_PER_SOL,
             expectedRentBySeller: 0, // doesn't matter
           })
-        ).rejectedWith("0x177c");
+        ).rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
+      })
+    );
+  });
+
+  it("sell non-WL nft fails", async () => {
+    await Promise.all(
+      [tradePoolConfig, tokenPoolConfig].map(async (config) => {
+        const [owner, seller] = await makeNTraders(2);
+        const { mint, ata } = await makeMintTwoAta(seller, owner);
+        const { mint: badMint, ata: badAta } = await makeMintTwoAta(
+          seller,
+          owner
+        );
+        const {
+          proofs: [wlNft],
+          whitelist,
+        } = await makeWhitelist([mint]);
+        await testMakePool({ owner, whitelist, config });
+
+        // Both:
+        // 1) non-WL mint + good ATA
+        // 2) WL mint + bad ATA
+        // should fail.
+        for (const { currMint, currAta, err } of [
+          {
+            currMint: badMint,
+            currAta: ata,
+            err: swapSdk.getErrorCodeHex("InvalidProof"),
+          },
+          { currMint: mint, currAta: badAta, err: TOKEN_ACCT_WRONG_MINT_ERR },
+        ]) {
+          const {
+            tx: { ixs },
+          } = await swapSdk.sellNft({
+            whitelist,
+            nftMint: currMint,
+            nftSellerAcc: currAta,
+            owner: owner.publicKey,
+            seller: seller.publicKey,
+            config,
+            proof: wlNft.proof,
+            price: new BN(
+              config === tokenPoolConfig
+                ? LAMPORTS_PER_SOL
+                : LAMPORTS_PER_SOL - 1234
+            ),
+          });
+
+          await expect(
+            buildAndSendTx({
+              provider: TEST_PROVIDER,
+              ixs,
+              extraSigners: [seller],
+            })
+          ).rejectedWith(err);
+        }
       })
     );
   });

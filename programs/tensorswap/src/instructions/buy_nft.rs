@@ -130,6 +130,8 @@ impl<'info> Validate<'info> for BuyNft<'info> {
                 throw_err!(WrongPoolType);
             }
         }
+
+        // todo test
         //can't buy an NFT that's associated with a different pool
         if self.pool.key() != self.nft_receipt.pool {
             throw_err!(WrongPool);

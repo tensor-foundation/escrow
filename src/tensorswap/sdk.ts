@@ -20,6 +20,7 @@ import {
 } from "@solana/spl-token";
 import {
   getAccountRent,
+  hexCode,
   stringifyPKsAndBNs,
   TEST_PROVIDER,
 } from "../../tests/shared";
@@ -454,5 +455,15 @@ export class TensorSwapSDK {
     return await getMinimumBalanceForRentExemptAccount(
       TEST_PROVIDER.connection
     );
+  }
+
+  getError(
+    name: typeof IDL["errors"][number]["name"]
+  ): typeof IDL["errors"][number] {
+    return this.program.idl.errors.find((e) => e.name === name)!;
+  }
+
+  getErrorCodeHex(name: typeof IDL["errors"][number]["name"]): string {
+    return hexCode(this.getError(name).code);
   }
 }

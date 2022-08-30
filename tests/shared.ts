@@ -28,6 +28,10 @@ import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
 import { expect } from "chai";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
+// Rejects with "Account not associated with this Mint" (eg transfer b/w 2 token accounts w/ different mints).
+export const TOKEN_ACCT_WRONG_MINT_ERR = "0x3";
+
+export const hexCode = (decCode: number) => "0x" + decCode.toString(16);
 
 export const waitMS = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
