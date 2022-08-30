@@ -652,7 +652,7 @@ describe("tensorswap", () => {
 
   //#region Deposits/withdrawals.
 
-  it.only("deposit non-WL nft fails", async () => {
+  it("deposit non-WL nft fails", async () => {
     const [owner] = await makeNTraders(1);
     const config = nftPoolConfig;
     const { mint, ata } = await createAndFundATA(TEST_PROVIDER, 1, owner);
