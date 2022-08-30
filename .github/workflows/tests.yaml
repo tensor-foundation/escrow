@@ -1,3 +1,4 @@
+# Adapted from Anchor's GH actions file.
 name: Tests
 
 on:

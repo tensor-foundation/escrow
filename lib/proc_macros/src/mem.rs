@@ -1,5 +1,4 @@
 use proc_macro::TokenStream;
-use proc_macro2;
 use quote::{quote, ToTokens};
 use syn::{ItemEnum, ItemStruct};
 
@@ -66,7 +65,7 @@ fn parse_args(args: &TokenStream) -> Vec<Constraint> {
         .map(|arg| {
             let standarg: String = arg
                 .to_string()
-                .replace("\"", "")
+                .replace('\"', "")
                 .chars()
                 .filter(|c| !c.is_whitespace())
                 .collect();

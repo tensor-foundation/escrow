@@ -579,14 +579,14 @@ export type Tensorswap = {
             }
           },
           {
-            "name": "poolNftPurchaseCount",
+            "name": "takerSellCount",
             "docs": [
               "Accounting"
             ],
             "type": "u32"
           },
           {
-            "name": "poolNftSaleCount",
+            "name": "takerBuyCount",
             "type": "u32"
           },
           {
@@ -741,7 +741,7 @@ export type Tensorswap = {
       }
     },
     {
-      "name": "TradeAction",
+      "name": "TakerSide",
       "type": {
         "kind": "enum",
         "variants": [
@@ -1410,14 +1410,14 @@ export const IDL: Tensorswap = {
             }
           },
           {
-            "name": "poolNftPurchaseCount",
+            "name": "takerSellCount",
             "docs": [
               "Accounting"
             ],
             "type": "u32"
           },
           {
-            "name": "poolNftSaleCount",
+            "name": "takerBuyCount",
             "type": "u32"
           },
           {
@@ -1572,7 +1572,7 @@ export const IDL: Tensorswap = {
       }
     },
     {
-      "name": "TradeAction",
+      "name": "TakerSide",
       "type": {
         "kind": "enum",
         "variants": [

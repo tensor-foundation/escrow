@@ -105,6 +105,7 @@ describe("tensorswap", () => {
 
   //#region Helper fns that also runs expect statements.
 
+  // Can be run async.
   const testMakePool = async ({
     owner,
     whitelist,
@@ -133,8 +134,8 @@ describe("tensorswap", () => {
     expect(poolAcc.owner.toBase58()).eq(owner.publicKey.toBase58());
     expect(poolAcc.tswap.toBase58()).eq(tswap.toBase58());
     expect(poolAcc.whitelist.toBase58()).eq(whitelist.toBase58());
-    expect(poolAcc.poolNftSaleCount).eq(0);
-    expect(poolAcc.poolNftPurchaseCount).eq(0);
+    expect(poolAcc.takerBuyCount).eq(0);
+    expect(poolAcc.takerSellCount).eq(0);
     expect(poolAcc.nftsHeld).eq(0);
     expect(poolAcc.solFunding.toNumber()).eq(0);
 
@@ -160,6 +161,7 @@ describe("tensorswap", () => {
     return poolPda;
   };
 
+  // Can be run async.
   const testClosePool = async ({
     owner,
     whitelist,
@@ -198,7 +200,7 @@ describe("tensorswap", () => {
     return poolPda;
   };
 
-  // Can be run async for same owner (no trader balance check).
+  // Can be run async.
   const testDepositNft = async ({
     pool,
     config,
@@ -246,7 +248,7 @@ describe("tensorswap", () => {
     expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
   };
 
-  // Can be run async for same owner (no trader balance check).
+  // Can be run async.
   const testDepositSol = async ({
     pool,
     whitelist,
@@ -394,8 +396,8 @@ describe("tensorswap", () => {
 
         const poolAcc = await swapSdk.fetchPool(pool);
         expect(poolAcc.nftsHeld).eq(0);
-        expect(poolAcc.poolNftSaleCount).eq(1);
-        expect(poolAcc.poolNftPurchaseCount).eq(0);
+        expect(poolAcc.takerBuyCount).eq(1);
+        expect(poolAcc.takerSellCount).eq(0);
 
         //receipt should have gotten closed
         await expect(swapSdk.fetchReceipt(receiptPda)).rejectedWith(
@@ -505,8 +507,8 @@ describe("tensorswap", () => {
 
         const poolAcc = await swapSdk.fetchPool(poolPda);
         expect(poolAcc.nftsHeld).eq(1);
-        expect(poolAcc.poolNftPurchaseCount).eq(1);
-        expect(poolAcc.poolNftSaleCount).eq(0);
+        expect(poolAcc.takerSellCount).eq(1);
+        expect(poolAcc.takerBuyCount).eq(0);
 
         return { escrowPda, receiptPda, poolPda, wlNft, whitelist };
       }
@@ -596,7 +598,7 @@ describe("tensorswap", () => {
     );
   });
 
-  it.only("close pool fails if someone sold nfts into it", async () => {
+  it("close pool fails if someone sold nfts into it", async () => {
     const [owner, seller] = await makeNTraders(2);
     for (const config of [tokenPoolConfig, tradePoolConfig]) {
       // Cannot run async.
@@ -624,6 +626,55 @@ describe("tensorswap", () => {
   //#endregion
 
   //#region Deposits/withdrawals.
+
+  it("deposit WL nft w/ non-WL ata", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+    const { mint, ata } = await createAndFundATA(TEST_PROVIDER, 1, owner);
+    const { proofs, whitelist } = await makeWhitelist([mint]);
+    const { mint: badMint, ata: badAta } = await createAndFundATA(
+      TEST_PROVIDER,
+      1,
+      owner
+    );
+    await testMakePool({ owner, config, whitelist });
+
+    // Bad mint.
+    const {
+      tx: { ixs: badIxs },
+    } = await swapSdk.depositNft({
+      whitelist,
+      nftMint: badMint,
+      nftSource: badAta,
+      owner: owner.publicKey,
+      config,
+      proof: proofs[0].proof,
+    });
+    await expect(
+      buildAndSendTx({
+        provider: TEST_PROVIDER,
+        ixs: badIxs,
+        extraSigners: [owner],
+      })
+    ).rejectedWith("0x1770");
+
+    // Good mint
+    const {
+      tx: { ixs: goodIxs },
+    } = await swapSdk.depositNft({
+      whitelist,
+      nftMint: mint,
+      nftSource: ata,
+      owner: owner.publicKey,
+      config,
+      proof: proofs[0].proof,
+    });
+    await buildAndSendTx({
+      provider: TEST_PROVIDER,
+      ixs: goodIxs,
+      extraSigners: [owner],
+    });
+  });
 
   it("deposit non-WL nft", async () => {
     const [owner] = await makeNTraders(1);

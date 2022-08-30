@@ -49,7 +49,7 @@ impl TSwap {
 // --------------------------------------- pool
 
 #[repr(u8)]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PoolType {
     Token = 0, //buys NFTs
     NFT = 1,   //sells NFTs
@@ -57,7 +57,7 @@ pub enum PoolType {
 }
 
 #[repr(u8)]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CurveType {
     Linear = 0,
     Exponential = 1,
@@ -186,7 +186,7 @@ impl Pool {
                 let factor = unwrap_checked!({
                     PreciseNumber::new(
                         (HUNDRED_PCT_BPS as u64)
-                            .checked_add(self.config.delta.into())?
+                            .checked_add(self.config.delta)?
                             .into(),
                     )?
                     .checked_div(&hundred_pct)?
