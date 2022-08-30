@@ -109,5 +109,6 @@ jobs:
           path: ~/.cargo/bin/
       - run: chmod +x ~/.cargo/bin/anchor
 
+      - run: yarn install
       - run: yarn test
       - uses: ./.github/actions/git-diff/
