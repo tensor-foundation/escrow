@@ -5,6 +5,8 @@ pub mod deposit_sol;
 pub mod init_pool;
 pub mod init_tswap;
 pub mod sell_nft;
+pub mod withdraw_nft;
+pub mod withdraw_sol;
 
 pub use buy_nft::*;
 pub use close_pool::*;
@@ -13,3 +15,5 @@ pub use deposit_sol::*;
 pub use init_pool::*;
 pub use init_tswap::*;
 pub use sell_nft::*;
+pub use withdraw_nft::*;
+pub use withdraw_sol::*;

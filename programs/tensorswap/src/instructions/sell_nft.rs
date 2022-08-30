@@ -1,6 +1,5 @@
 //! User selling an NFT to the pool / pool buying an NFT from the user
 use crate::*;
-use anchor_lang::Discriminator;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
@@ -16,16 +15,22 @@ pub struct SellNft<'info> {
     #[account(mut)]
     pub fee_vault: UncheckedAccount<'info>,
 
-    #[account(mut, seeds = [
-        tswap.key().as_ref(),
-        owner.key().as_ref(),
-        whitelist.key().as_ref(),
-        &[config.pool_type as u8],
-        &[config.curve_type as u8],
-        &config.starting_price.to_le_bytes(),
-        &config.delta.to_le_bytes()
-    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist,
-    has_one = sol_escrow, has_one = owner)]
+    #[account(
+        mut,
+        seeds = [
+            tswap.key().as_ref(),
+            owner.key().as_ref(),
+            whitelist.key().as_ref(),
+            &[config.pool_type as u8],
+            &[config.curve_type as u8],
+            &config.starting_price.to_le_bytes(),
+            &config.delta.to_le_bytes()
+        ],
+        bump = pool.bump[0],
+        has_one = tswap, has_one = whitelist, has_one = sol_escrow, has_one = owner,
+        // can only sell to Token/Trade pool
+        constraint = config.pool_type == PoolType::Token || config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
+    )]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -37,24 +42,42 @@ pub struct SellNft<'info> {
     pub nft_seller_acc: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(init_if_needed, payer=seller, seeds=[
-        b"nft_escrow".as_ref(),
-        nft_mint.key().as_ref(),
-    ], bump, token::mint = nft_mint, token::authority = tswap)]
+    #[account(
+        init_if_needed, 
+        payer = seller,
+        seeds=[
+            b"nft_escrow".as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        bump,
+        token::mint = nft_mint, token::authority = tswap,
+    )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: seed in nft_escrow
     pub nft_mint: Box<Account<'info, Mint>>,
 
-    /// CHECK: init'ed below as PDA only for Trade pools
-    #[account(mut)]
-    pub nft_receipt: UncheckedAccount<'info>,
+    #[account(
+        init,
+        payer = seller,
+        seeds=[
+            b"nft_receipt".as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        bump,
+        space = 8 + NftDepositReceipt::SIZE,
+    )]
+    pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
     /// CHECK: has_one = escrow in pool
-    #[account(mut, seeds=[
-        b"sol_escrow".as_ref(),
-        pool.key().as_ref(),
-    ], bump = pool.sol_escrow_bump[0])]
+    #[account(
+        mut,
+        seeds=[
+            b"sol_escrow".as_ref(),
+            pool.key().as_ref(),
+        ],
+        bump = pool.sol_escrow_bump[0],
+    )]
     pub sol_escrow: UncheckedAccount<'info>,
 
     /// CHECK: has_one = owner in pool (owner is the buyer)
@@ -104,13 +127,6 @@ impl<'info> SellNft<'info> {
 // todo write tests
 impl<'info> Validate<'info> for SellNft<'info> {
     fn validate(&self) -> Result<()> {
-        // can only sell to Token/Trade pool
-        match self.pool.config.pool_type {
-            PoolType::Token | PoolType::Trade => {}
-            _ => {
-                throw_err!(WrongPoolType);
-            }
-        }
         Ok(())
     }
 }
@@ -121,12 +137,13 @@ impl<'info> Validate<'info> for SellNft<'info> {
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, SellNft<'info>>,
     proof: Vec<[u8; 32]>,
-    price: u64,
+    // Min vs exact so we can add slippage later.
+    min_price: u64,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
     let current_price = pool.current_price(TakerSide::Sell)?;
-    if price != current_price {
+    if current_price < min_price {
         throw_err!(PriceMismatch);
     }
 
@@ -138,55 +155,12 @@ pub fn handler<'a, 'b, 'c, 'info>(
     // o/w we get `sum of account balances before and after instruction do not match`
     token::transfer(ctx.accounts.transfer_ctx(), 1)?;
 
-    // This must go before any transfer_lamports
     //create nft receipt for trade pool
-    // todo ilmoi: is this how you're suppose to manually create a PDA? seems like A PITA
-    if pool.config.pool_type == PoolType::Trade {
-        let receipt = &ctx.accounts.nft_receipt;
-        let mint_key = ctx.accounts.nft_mint.key();
-        let (expected, bump) =
-            Pubkey::find_program_address(&[b"nft_receipt", mint_key.as_ref()], ctx.program_id);
-        if receipt.key() != expected {
-            return Err(ProgramError::InvalidAccountData.into());
-        }
-
-        let space = 8 + std::mem::size_of::<NftDepositReceipt>();
-        let cpi_seeds: &[&[&[u8]]] = &[&[b"nft_receipt", mint_key.as_ref(), &[bump]]];
-        let cpi_accounts = anchor_lang::system_program::CreateAccount {
-            from: ctx.accounts.seller.to_account_info(),
-            to: receipt.to_account_info(),
-        };
-        let cpi_context = anchor_lang::context::CpiContext::new_with_signer(
-            ctx.accounts.system_program.to_account_info(),
-            cpi_accounts,
-            cpi_seeds,
-        );
-        anchor_lang::system_program::create_account(
-            cpi_context,
-            Rent::get()?.minimum_balance(space),
-            space as u64,
-            ctx.program_id,
-        )?;
-
-        let mut receipt_state = NftDepositReceipt::try_from_slice(&receipt.data.borrow()[8..])?;
-        receipt_state.bump = bump;
-        receipt_state.pool = pool.key();
-        receipt_state.nft_mint = ctx.accounts.nft_mint.key();
-        receipt_state.nft_escrow = ctx.accounts.nft_escrow.key();
-
-        {
-            let mut receipt_data = receipt
-                .data
-                .try_borrow_mut()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
-            (*receipt_data)[0..8].copy_from_slice(&NftDepositReceipt::discriminator());
-            (*receipt_data)[8..].copy_from_slice(
-                &receipt_state
-                    .try_to_vec()
-                    .map_err(|_| ProgramError::InvalidAccountData)?,
-            );
-        }
-    }
+    let receipt_state = &mut ctx.accounts.nft_receipt;
+    receipt_state.bump = unwrap_bump!(ctx, "nft_receipt");
+    receipt_state.pool = pool.key();
+    receipt_state.nft_mint = ctx.accounts.nft_mint.key();
+    receipt_state.nft_escrow = ctx.accounts.nft_escrow.key();
 
     //transfer fee to Tensorswap
     let tswap_fee = ctx

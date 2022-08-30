@@ -10,21 +10,31 @@ pub struct InitPool<'info> {
     #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    #[account(init, payer = owner, seeds = [
-        tswap.key().as_ref(),
-        owner.key().as_ref(),
-        whitelist.key().as_ref(),
-        &[config.pool_type as u8],
-        &[config.curve_type as u8],
-        &config.starting_price.to_le_bytes(),
-        &config.delta.to_le_bytes()
-    ], bump, space = 8 + std::mem::size_of::<Pool>())]
+    #[account(
+        init, payer = owner,
+        seeds = [
+            tswap.key().as_ref(),
+            owner.key().as_ref(),
+            whitelist.key().as_ref(),
+            &[config.pool_type as u8],
+            &[config.curve_type as u8],
+            &config.starting_price.to_le_bytes(),
+            &config.delta.to_le_bytes()
+        ],
+        bump,
+        space = 8 + std::mem::size_of::<Pool>()
+    )]
     pub pool: Box<Account<'info, Pool>>,
 
-    #[account(init, payer = owner, seeds = [
-        b"sol_escrow".as_ref(),
-        pool.key().as_ref(),
-    ], bump, space = 8)]
+    #[account(
+        init, payer = owner,
+        seeds = [
+            b"sol_escrow".as_ref(),
+            pool.key().as_ref(),
+        ],
+        bump,
+        space = 8
+    )]
     pub sol_escrow: Account<'info, SolEscrow>,
 
     /// Needed for pool seeds derivation / will be stored inside pool

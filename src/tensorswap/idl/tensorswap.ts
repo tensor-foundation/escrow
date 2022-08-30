@@ -219,6 +219,87 @@ export type Tensorswap = {
       ]
     },
     {
+      "name": "withdrawNft",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftDest",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
+        },
+        {
+          "name": "nftEscrow",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account",
+            "This is closed below (dest = owner)"
+          ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftReceipt",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Tied to the pool because used to verify pool seeds"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
+    },
+    {
       "name": "depositSol",
       "accounts": [
         {
@@ -372,7 +453,7 @@ export type Tensorswap = {
           }
         },
         {
-          "name": "price",
+          "name": "maxPrice",
           "type": "u64"
         }
       ]
@@ -482,7 +563,7 @@ export type Tensorswap = {
           }
         },
         {
-          "name": "price",
+          "name": "minPrice",
           "type": "u64"
         }
       ]
@@ -606,6 +687,10 @@ export type Tensorswap = {
     },
     {
       "name": "nftDepositReceipt",
+      "docs": [
+        "Represents NFTs deposited into our protocol.",
+        "Always associated to (1) NFT mint (2) NFT escrow and (3) pool (every type)."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -630,6 +715,9 @@ export type Tensorswap = {
     },
     {
       "name": "solEscrow",
+      "docs": [
+        "Need dummy Anchor account so we can use `close` constraint."
+      ],
       "type": {
         "kind": "struct",
         "fields": []
@@ -814,12 +902,17 @@ export type Tensorswap = {
     {
       "code": 6012,
       "name": "PriceMismatch",
-      "msg": "specified price does not match current price"
+      "msg": "specified price not within current price"
     },
     {
       "code": 6013,
       "name": "ExistingNfts",
       "msg": "cannot close pool with nfts in escrow -- withdraw all before closing"
+    },
+    {
+      "code": 6014,
+      "name": "WrongMint",
+      "msg": "wrong mint passed for provided accounts"
     }
   ]
 };
@@ -1045,6 +1138,87 @@ export const IDL: Tensorswap = {
       ]
     },
     {
+      "name": "withdrawNft",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftDest",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account"
+          ]
+        },
+        {
+          "name": "nftEscrow",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Implicitly checked via transfer. Will fail if wrong account",
+            "This is closed below (dest = owner)"
+          ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "nftReceipt",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Tied to the pool because used to verify pool seeds"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
+    },
+    {
       "name": "depositSol",
       "accounts": [
         {
@@ -1198,7 +1372,7 @@ export const IDL: Tensorswap = {
           }
         },
         {
-          "name": "price",
+          "name": "maxPrice",
           "type": "u64"
         }
       ]
@@ -1308,7 +1482,7 @@ export const IDL: Tensorswap = {
           }
         },
         {
-          "name": "price",
+          "name": "minPrice",
           "type": "u64"
         }
       ]
@@ -1432,6 +1606,10 @@ export const IDL: Tensorswap = {
     },
     {
       "name": "nftDepositReceipt",
+      "docs": [
+        "Represents NFTs deposited into our protocol.",
+        "Always associated to (1) NFT mint (2) NFT escrow and (3) pool (every type)."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1456,6 +1634,9 @@ export const IDL: Tensorswap = {
     },
     {
       "name": "solEscrow",
+      "docs": [
+        "Need dummy Anchor account so we can use `close` constraint."
+      ],
       "type": {
         "kind": "struct",
         "fields": []
@@ -1640,12 +1821,17 @@ export const IDL: Tensorswap = {
     {
       "code": 6012,
       "name": "PriceMismatch",
-      "msg": "specified price does not match current price"
+      "msg": "specified price not within current price"
     },
     {
       "code": 6013,
       "name": "ExistingNfts",
       "msg": "cannot close pool with nfts in escrow -- withdraw all before closing"
+    },
+    {
+      "code": 6014,
+      "name": "WrongMint",
+      "msg": "wrong mint passed for provided accounts"
     }
   ]
 };

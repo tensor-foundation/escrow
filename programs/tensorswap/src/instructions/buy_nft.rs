@@ -17,16 +17,22 @@ pub struct BuyNft<'info> {
     #[account(mut)]
     pub fee_vault: UncheckedAccount<'info>,
 
-    #[account(mut, seeds = [
-        tswap.key().as_ref(),
-        owner.key().as_ref(),
-        whitelist.key().as_ref(),
-        &[config.pool_type as u8],
-        &[config.curve_type as u8],
-        &config.starting_price.to_le_bytes(),
-        &config.delta.to_le_bytes()
-    ], bump = pool.bump[0],
-    has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow)]
+    #[account(
+        mut,
+        seeds = [
+            tswap.key().as_ref(),
+            owner.key().as_ref(),
+            whitelist.key().as_ref(),
+            &[config.pool_type as u8],
+            &[config.curve_type as u8],
+            &config.starting_price.to_le_bytes(),
+            &config.delta.to_le_bytes()
+        ],
+        bump = pool.bump[0],
+        has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
+        // can only buy from NFT/Trade pool
+        constraint = config.pool_type == PoolType::NFT || config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
+    )]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, has_one = whitelist on pool
@@ -38,30 +44,46 @@ pub struct BuyNft<'info> {
 
     /// Implicitly checked via transfer. Will fail if wrong account.
     /// This is closed below (dest = owner)
-    #[account(mut, seeds=[
-        b"nft_escrow".as_ref(),
-        nft_mint.key().as_ref(),
-    ], bump)]
+    #[account(
+        mut,
+        seeds=[
+            b"nft_escrow".as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        bump
+    )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
     /// CHECK: seed in nft_mint
+    #[account(
+        constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
+        constraint = nft_mint.key() == nft_receipt.nft_mint @ crate::ErrorCode::WrongMint,
+    )]
     pub nft_mint: Box<Account<'info, Mint>>,
 
-    // for TokenPool, seller (sells) -> rent -> owner
-    // for TradePool, owner (deposit) -> rent -> owner
-    // for NFTPool, owner (deposit) -> rent -> owner
-    #[account(mut, seeds=[
-        b"nft_receipt".as_ref(),
-        nft_mint.key().as_ref(),
-    ], bump = nft_receipt.bump,
-    close = owner)]
+    #[account(
+        mut,
+        seeds=[
+            b"nft_receipt".as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        bump = nft_receipt.bump,
+        close = owner,
+        // todo test
+        //can't buy an NFT that's associated with a different pool
+        constraint = nft_receipt.pool == pool.key() @ crate::ErrorCode::WrongPool,
+    )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
     /// CHECK: has_one = escrow in pool
-    #[account(mut, seeds=[
-        b"sol_escrow".as_ref(),
-        pool.key().as_ref(),
-    ], bump = pool.sol_escrow_bump[0])]
+    #[account(
+        mut,
+        seeds=[
+            b"sol_escrow".as_ref(),
+            pool.key().as_ref(),
+        ],
+        bump = pool.sol_escrow_bump[0],
+    )]
     pub sol_escrow: UncheckedAccount<'info>,
 
     /// CHECK: has_one = owner in pool (owner is the seller)
@@ -123,19 +145,6 @@ impl<'info> BuyNft<'info> {
 // todo write tests
 impl<'info> Validate<'info> for BuyNft<'info> {
     fn validate(&self) -> Result<()> {
-        // can only buy from NFT/Trade pool
-        match self.pool.config.pool_type {
-            PoolType::NFT | PoolType::Trade => {}
-            _ => {
-                throw_err!(WrongPoolType);
-            }
-        }
-
-        // todo test
-        //can't buy an NFT that's associated with a different pool
-        if self.pool.key() != self.nft_receipt.pool {
-            throw_err!(WrongPool);
-        }
         Ok(())
     }
 }
@@ -146,12 +155,13 @@ impl<'info> Validate<'info> for BuyNft<'info> {
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
     proof: Vec<[u8; 32]>,
-    price: u64,
+    // Max vs exact so we can add slippage later.
+    max_price: u64,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
     let current_price = pool.current_price(TakerSide::Buy)?;
-    if price != current_price {
+    if current_price > max_price {
         throw_err!(PriceMismatch);
     }
 
@@ -183,6 +193,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
         1,
     )?;
 
+    // close nft escrow account
     token::close_account(
         ctx.accounts
             .close_nft_escrow_ctx()

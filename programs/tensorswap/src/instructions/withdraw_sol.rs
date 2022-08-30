@@ -1,11 +1,11 @@
 use crate::*;
-use anchor_lang::solana_program::program::invoke;
+use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::solana_program::system_instruction;
 use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
-pub struct DepositSol<'info> {
+pub struct WithdrawSol<'info> {
     /// Needed for pool seeds derivation
     pub tswap: Box<Account<'info, TSwap>>,
 
@@ -22,9 +22,6 @@ pub struct DepositSol<'info> {
         ],
         bump = pool.bump[0],
         has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
-        // todo test
-        // can only deposit SOL into Token/Trade pool
-        constraint = config.pool_type == PoolType::Token ||  config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
     )]
     pub pool: Box<Account<'info, Pool>>,
 
@@ -48,34 +45,37 @@ pub struct DepositSol<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> DepositSol<'info> {
+impl<'info> WithdrawSol<'info> {
     fn transfer_lamports(&self, lamports: u64) -> Result<()> {
-        invoke(
-            &system_instruction::transfer(self.owner.key, &self.sol_escrow.key(), lamports),
+        invoke_signed(
+            &system_instruction::transfer(self.sol_escrow.key, &self.owner.key(), lamports),
             &[
-                self.owner.to_account_info(),
                 self.sol_escrow.to_account_info(),
+                self.owner.to_account_info(),
                 self.system_program.to_account_info(),
             ],
+            &[&self.pool.sol_escrow_seeds(&self.pool.key())],
         )
         .map_err(Into::into)
     }
 }
 
-impl<'info> Validate<'info> for DepositSol<'info> {
+impl<'info> Validate<'info> for WithdrawSol<'info> {
     fn validate(&self) -> Result<()> {
-        match self.pool.config.pool_type {
-            PoolType::Token | PoolType::Trade => {}
-            _ => {
-                throw_err!(WrongPoolType);
-            }
-        }
         Ok(())
     }
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
+pub fn handler(ctx: Context<WithdrawSol>, lamports: u64) -> Result<()> {
+    // todo test
+    // Check we are not withdrawing into our rent.
+    let rent = Rent::get()?.minimum_balance(ctx.accounts.sol_escrow.data_len());
+    let lamports_excl_rent = unwrap_int!(ctx.accounts.sol_escrow.lamports().checked_sub(rent));
+    if lamports > lamports_excl_rent {
+        throw_err!(InsufficientSolEscrowBalance);
+    }
+
     // do the transfer
     ctx.accounts.transfer_lamports(lamports)?;
 

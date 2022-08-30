@@ -64,6 +64,10 @@ export interface PoolConfig {
   mmFeeBps: number; //set to 0 if not present, for some reason setting to null causes anchor to crash
 }
 
+export interface TSwapConfig {
+  feeBps: number;
+}
+
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TensorSwapSDK {
   program: Program<Tensorswap>;
@@ -315,7 +319,7 @@ export class TensorSwapSDK {
     buyer,
     config,
     proof,
-    price,
+    maxPrice,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -324,7 +328,7 @@ export class TensorSwapSDK {
     buyer: PublicKey;
     config: PoolConfig;
     proof: Buffer[];
-    price: BN;
+    maxPrice: BN;
   }) {
     const [tswapPda] = await findTSwapPDA({});
 
@@ -347,7 +351,7 @@ export class TensorSwapSDK {
     const tSwapAcc = await this.fetchTSwap(tswapPda);
 
     const builder = this.program.methods
-      .buyNft(config as any, proof, price)
+      .buyNft(config as any, proof, maxPrice)
       .accounts({
         tswap: tswapPda,
         feeVault: tSwapAcc.feeVault,
@@ -383,7 +387,7 @@ export class TensorSwapSDK {
     seller,
     config,
     proof,
-    price,
+    minPrice,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -392,7 +396,7 @@ export class TensorSwapSDK {
     seller: PublicKey;
     config: PoolConfig;
     proof: Buffer[];
-    price: BN;
+    minPrice: BN;
   }) {
     const [tswapPda] = await findTSwapPDA({});
 
@@ -415,7 +419,7 @@ export class TensorSwapSDK {
     const tSwapAcc = await this.fetchTSwap(tswapPda);
 
     const builder = this.program.methods
-      .sellNft(config as any, proof, price)
+      .sellNft(config as any, proof, minPrice)
       .accounts({
         tswap: tswapPda,
         feeVault: tSwapAcc.feeVault,

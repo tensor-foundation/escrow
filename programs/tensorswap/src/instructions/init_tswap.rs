@@ -6,6 +6,7 @@ pub struct InitTSwap<'info> {
     #[account(init, seeds = [], bump, payer = owner, space = 8 + std::mem::size_of::<TSwap>())]
     pub tswap: Box<Account<'info, TSwap>>,
 
+    // todo: anyone can call this: add address constraint to hardcoded account
     #[account(mut)]
     pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,

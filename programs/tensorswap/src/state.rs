@@ -13,6 +13,7 @@ pub const TSWAP_FEE_BPS: u16 = 50; //0.5%
 
 pub const TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
 
+// todo test limits
 pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
 pub const HUNDRED_PCT_BPS: u16 = 10000;
 pub const MAX_DELTA_BPS: u16 = 9999; //99%
@@ -110,6 +111,10 @@ impl Pool {
     //     //bools + u8s + u16s + u32s + u64s + pk
     //     (2 * 1) + (4 * 1) + 2 + (3 * 4) + (3 * 8) + (4 * 32)
     // }
+
+    pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {
+        [b"sol_escrow", pool_key.as_ref(), &self.sol_escrow_bump]
+    }
 
     pub fn calc_mm_fee(&self, current_price: u64) -> Result<u64> {
         if self.config.pool_type != PoolType::Trade {
@@ -233,6 +238,8 @@ pub enum TakerSide {
 
 // --------------------------------------- receipts
 
+/// Represents NFTs deposited into our protocol.
+/// Always associated to (1) NFT mint (2) NFT escrow and (3) pool (every type).
 #[account]
 pub struct NftDepositReceipt {
     pub bump: u8,
@@ -241,9 +248,17 @@ pub struct NftDepositReceipt {
     pub nft_escrow: Pubkey,
 }
 
-// Need dummy Anchor account so we can use `close` constraint.
+impl NftDepositReceipt {
+    pub const SIZE: usize = 1 + 32 * 3;
+}
+
+// --------------------------------------- escrows
+
+/// Need dummy Anchor account so we can use `close` constraint.
 #[account]
 pub struct SolEscrow {}
+
+// --------------------------------------- tests
 
 // todo since we're allowing the pool to go infinitely each direction, think through security / ux of limits
 #[cfg(test)]

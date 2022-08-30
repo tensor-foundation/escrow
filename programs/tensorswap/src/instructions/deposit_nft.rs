@@ -1,7 +1,6 @@
 use crate::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
-use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -10,16 +9,22 @@ pub struct DepositNft<'info> {
     #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    #[account(mut, seeds = [
-        tswap.key().as_ref(),
-        owner.key().as_ref(),
-        whitelist.key().as_ref(),
-        &[config.pool_type as u8],
-        &[config.curve_type as u8],
-        &config.starting_price.to_le_bytes(),
-        &config.delta.to_le_bytes()
-    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist,
-    has_one = owner)]
+    #[account(
+        mut,
+        seeds = [
+            tswap.key().as_ref(),
+            owner.key().as_ref(),
+            whitelist.key().as_ref(),
+            &[config.pool_type as u8],
+            &[config.curve_type as u8],
+            &config.starting_price.to_le_bytes(),
+            &config.delta.to_le_bytes()
+        ],
+        bump = pool.bump[0],
+        has_one = tswap, has_one = whitelist, has_one = owner,
+        // can only deposit to NFT/Trade pool
+        constraint = config.pool_type == PoolType::NFT || config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
+    )]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
@@ -29,27 +34,38 @@ pub struct DepositNft<'info> {
     #[account(mut)]
     pub nft_source: Box<Account<'info, TokenAccount>>,
 
-    // todo: test if we can pass a WL mint here w/ non-WL mint account.
     /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(init_if_needed, payer=owner, seeds=[
-        b"nft_escrow".as_ref(),
-        nft_mint.key().as_ref(),
-    ], bump, token::mint = nft_mint, token::authority = tswap )]
+    #[account(
+        init_if_needed, 
+        payer = owner,
+        seeds=[
+            b"nft_escrow".as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        bump,
+        token::mint = nft_mint, token::authority = tswap,
+    )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
-    /// CHECK: seed in nft_mint
+    /// CHECK: seed in nft_escrow & nft_receipt
     pub nft_mint: Box<Account<'info, Mint>>,
 
-    #[account(init, payer=owner, seeds=[
-        b"nft_receipt".as_ref(),
-        nft_mint.key().as_ref(),
-        // TODO: hardcode size.
-    ], bump, space = 8 + std::mem::size_of::<NftDepositReceipt>())]
+    #[account(
+        init,
+        payer = owner,
+        seeds=[
+            b"nft_receipt".as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        bump,
+        space = 8 + NftDepositReceipt::SIZE,
+    )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub owner: Signer<'info>,
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -79,13 +95,6 @@ impl<'info> DepositNft<'info> {
 
 impl<'info> Validate<'info> for DepositNft<'info> {
     fn validate(&self) -> Result<()> {
-        // can only deposit NFT into NFT/Trade pool
-        match self.pool.config.pool_type {
-            PoolType::NFT | PoolType::Trade => {}
-            _ => {
-                throw_err!(WrongPoolType);
-            }
-        }
         Ok(())
     }
 }

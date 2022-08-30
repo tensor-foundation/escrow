@@ -3,6 +3,7 @@ import {
   PoolConfig,
   PoolType,
   TensorSwapSDK,
+  TSwapConfig,
   TSWAP_FEE_ACC,
 } from "../src";
 import {
@@ -77,8 +78,43 @@ describe("tensorswap", () => {
 
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
-  let expSellerRentForTokenPool: number;
-  let expSellerRentForTradePool: number;
+  let expSellerRent: number;
+
+  // All tests need these before they start.
+  before(async () => {
+    //keypairs (have a lot of sol for many tests that re-use these keypairs)
+    // WL authority
+    await testInitWLAuthority();
+
+    // Tswap
+    const {
+      tx: { ixs },
+      tswapPda,
+    } = await swapSdk.initTSwap(TEST_PROVIDER.publicKey);
+    tswap = tswapPda;
+    await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+
+    const swapAcc = await swapSdk.fetchTSwap(tswap);
+    expect(swapAcc.owner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
+    expect(swapAcc.feeVault.toBase58()).eq(TSWAP_FEE_ACC.toBase58());
+    expect((swapAcc.config as TSwapConfig).feeBps).eq(TSWAP_FEE * 1e4);
+
+    // Initialize fees.
+
+    // Seller pays rent for:
+    // (1) NFT escrow account
+    // (2) NFT deposit receipt
+    expSellerRent =
+      (await swapSdk.getNftEscrowRent()) +
+      (await swapSdk.getNftDepositReceiptRent());
+
+    console.log(
+      "debug accs",
+      stringifyPKsAndBNs({
+        tswap,
+      })
+    );
+  });
 
   //#region Helper functions (no expects run).
 
@@ -316,11 +352,15 @@ describe("tensorswap", () => {
     buyer,
     config,
     expectedLamports,
+    maxLamports = expectedLamports,
   }: {
     owner: Keypair;
     buyer: Keypair;
     config: PoolConfig;
     expectedLamports: number;
+    // If specified, uses this as the maxPrice for the buy instr.
+    // All expects will still use expectedLamports.
+    maxLamports?: number;
   }) => {
     const { mint, ata, otherAta } = await makeMintTwoAta(owner, buyer);
     const {
@@ -351,7 +391,7 @@ describe("tensorswap", () => {
       buyer: buyer.publicKey,
       config,
       proof: wlNft.proof,
-      price: new BN(expectedLamports),
+      maxPrice: new BN(maxLamports),
     });
 
     const prevPoolAcc = await swapSdk.fetchPool(poolPda);
@@ -436,14 +476,18 @@ describe("tensorswap", () => {
     owner,
     seller,
     config,
-    expectedLamports,
     expectedRentBySeller,
+    expectedLamports,
+    minLamports = expectedLamports,
   }: {
     owner: Keypair;
     seller: Keypair;
     config: PoolConfig;
-    expectedLamports: number;
     expectedRentBySeller: number;
+    expectedLamports: number;
+    // If specified, uses this as the minPrice for the sell instr.
+    // All expects will still use expectedLamports.
+    minLamports?: number;
   }) => {
     const { mint, ata } = await makeMintTwoAta(seller, owner);
     const {
@@ -475,7 +519,7 @@ describe("tensorswap", () => {
       seller: seller.publicKey,
       config,
       proof: wlNft.proof,
-      price: new BN(expectedLamports),
+      minPrice: new BN(minLamports),
     });
 
     return await withLamports(
@@ -538,48 +582,17 @@ describe("tensorswap", () => {
           buy: 0,
         });
 
+        const receipt = await swapSdk.fetchReceipt(receiptPda);
+        expect(receipt.pool.toBase58()).eq(poolPda.toBase58());
+        expect(receipt.nftMint.toBase58()).eq(wlNft.mint.toBase58());
+        expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
+
         return { escrowPda, receiptPda, poolPda, wlNft, whitelist };
       }
     );
   };
 
   //#endregion
-
-  // All tests need these before they start.
-  before(async () => {
-    //keypairs (have a lot of sol for many tests that re-use these keypairs)
-    // WL authority
-    await testInitWLAuthority();
-
-    // Tswap
-    const {
-      tx: { ixs },
-      tswapPda,
-    } = await swapSdk.initTSwap(TEST_PROVIDER.publicKey);
-    tswap = tswapPda;
-    await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
-
-    const swapAcc = await swapSdk.fetchTSwap(tswap);
-    expect(swapAcc.owner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
-
-    // Initialize fees.
-
-    // Seller pays rent just for escrow account.
-    expSellerRentForTokenPool = await swapSdk.getNftEscrowRent();
-    // Seller pays rent for:
-    // (1) NFT escrow account
-    // (2) NFT deposit receipt
-    expSellerRentForTradePool =
-      (await swapSdk.getNftEscrowRent()) +
-      (await swapSdk.getNftDepositReceiptRent());
-
-    console.log(
-      "debug accs",
-      stringifyPKsAndBNs({
-        tswap,
-      })
-    );
-  });
 
   //#region Close pool.
 
@@ -638,11 +651,7 @@ describe("tensorswap", () => {
           config === tokenPoolConfig
             ? LAMPORTS_PER_SOL
             : LAMPORTS_PER_SOL - 1234,
-        // Seller pays rent for NFT escrow account
-        expectedRentBySeller:
-          config === tokenPoolConfig
-            ? expSellerRentForTokenPool
-            : expSellerRentForTradePool,
+        expectedRentBySeller: expSellerRent,
       });
 
       await expect(testClosePool({ owner, whitelist, config })).rejectedWith(
@@ -653,7 +662,7 @@ describe("tensorswap", () => {
 
   //#endregion
 
-  //#region Deposits/withdrawals.
+  //#region Deposits.
 
   it("deposit non-WL nft fails", async () => {
     const [owner] = await makeNTraders(1);
@@ -737,6 +746,10 @@ describe("tensorswap", () => {
 
   //#endregion
 
+  //#region Withdrawals.
+
+  //#endregion
+
   //#region Buying NFTs.
 
   it("buys nft from nft pool", async () => {
@@ -783,7 +796,26 @@ describe("tensorswap", () => {
     ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
-  it("buy nft at wrong price fails", async () => {
+  it("buy nft at higher max price works (a steal!)", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+
+    // needs to be serial ugh
+    for (const [config, price] of cartesian(
+      [nftPoolConfig, tradePoolConfig],
+      [1.01 * LAMPORTS_PER_SOL, 100 * LAMPORTS_PER_SOL]
+    )) {
+      await testBuyNft({
+        owner,
+        buyer,
+        config,
+        // The lamports exchanged is still the current price.
+        expectedLamports: LAMPORTS_PER_SOL,
+        maxLamports: price,
+      });
+    }
+  });
+
+  it("buy nft at lower max price fails", async () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     await Promise.all(
@@ -792,15 +824,15 @@ describe("tensorswap", () => {
           { owner: traderA, buyer: traderB },
           { owner: traderB, buyer: traderA },
         ],
-        [nftPoolConfig, tradePoolConfig]
-      ).map(async ([{ owner, buyer }, config]) => {
+        [nftPoolConfig, tradePoolConfig],
+        [0.5 * LAMPORTS_PER_SOL, 0.99 * LAMPORTS_PER_SOL]
+      ).map(async ([{ owner, buyer }, config, price]) => {
         await expect(
           testBuyNft({
             owner,
             buyer,
             config,
-            // Give bad price
-            expectedLamports: 0.5 * LAMPORTS_PER_SOL,
+            expectedLamports: price,
           })
         ).rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
       })
@@ -853,7 +885,7 @@ describe("tensorswap", () => {
             buyer: buyer.publicKey,
             config,
             proof: wlNft.proof,
-            price: new BN(LAMPORTS_PER_SOL),
+            maxPrice: new BN(LAMPORTS_PER_SOL),
           });
 
           await expect(
@@ -868,7 +900,7 @@ describe("tensorswap", () => {
     );
   });
 
-  it.only("buy formerly deposited now non-WL mint fails, can withdraw though", async () => {
+  it("buy formerly deposited now non-WL mint fails, can withdraw though", async () => {
     await Promise.all(
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
         const [owner, buyer] = await makeNTraders(2);
@@ -921,7 +953,7 @@ describe("tensorswap", () => {
           buyer: buyer.publicKey,
           config,
           proof: wlNft.proof,
-          price: new BN(LAMPORTS_PER_SOL),
+          maxPrice: new BN(LAMPORTS_PER_SOL),
         });
 
         await expect(
@@ -1014,7 +1046,7 @@ describe("tensorswap", () => {
         buyer: traderB.publicKey,
         config: config,
         proof: proofs.find((p) => p.mint === nft.mint)!.proof,
-        price: currPrice,
+        maxPrice: currPrice,
       });
       nft.buyIxs = buyIxs;
       currPrice = currPrice.sub(config.delta);
@@ -1059,48 +1091,49 @@ describe("tensorswap", () => {
 
   //#region Selling NFTs.
 
-  it("sells nft into token pool", async () => {
+  it("sells nft into token/trade pool", async () => {
     const [traderA, traderB] = await makeNTraders(2);
     // Intentionally do this serially (o/w balances will race).
-    for (const { owner, seller } of [
-      { owner: traderA, seller: traderB },
-      { owner: traderB, seller: traderA },
-    ]) {
-      const { receiptPda } = await testSellNft({
+    for (const [{ owner, seller }, config] of cartesian(
+      [
+        { owner: traderA, seller: traderB },
+        { owner: traderB, seller: traderA },
+      ],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      await testSellNft({
         owner,
         seller,
-        config: tokenPoolConfig,
-        expectedLamports: LAMPORTS_PER_SOL,
-        expectedRentBySeller: expSellerRentForTokenPool,
+        config,
+        // Selling is 1 tick lower than start price for trade pools.
+        expectedLamports:
+          config === tokenPoolConfig
+            ? LAMPORTS_PER_SOL
+            : LAMPORTS_PER_SOL - 1234,
+        expectedRentBySeller: expSellerRent,
       });
-
-      //no deposit receipt when selling into a Token pool.
-      await expect(swapSdk.fetchReceipt(receiptPda)).rejectedWith(
-        ACCT_NOT_EXISTS_ERR
-      );
     }
   });
 
-  it("sells nft into trade pool", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
-    // Intentionally do this serially (o/w balances will race).
-    for (const { owner, seller } of [
-      { owner: traderA, seller: traderB },
-      { owner: traderB, seller: traderA },
-    ]) {
-      const { escrowPda, receiptPda, poolPda, wlNft } = await testSellNft({
-        config: tradePoolConfig,
-        // Selling is 1 tick lower than start price.
-        expectedLamports: LAMPORTS_PER_SOL - tokenPoolConfig.delta.toNumber(),
+  it("sell nft at lower min price works (a steal!)", async () => {
+    const [owner, seller] = await makeNTraders(2);
+
+    // needs to be serial ugh
+    for (const [config, price] of cartesian(
+      [tokenPoolConfig, tradePoolConfig],
+      [0.99 * LAMPORTS_PER_SOL, 0.01 * LAMPORTS_PER_SOL]
+    )) {
+      await testSellNft({
         owner,
         seller,
-        expectedRentBySeller: expSellerRentForTradePool,
+        config,
+        expectedLamports:
+          config === tokenPoolConfig
+            ? LAMPORTS_PER_SOL
+            : LAMPORTS_PER_SOL - 1234,
+        minLamports: config === tokenPoolConfig ? price : price - 1234,
+        expectedRentBySeller: expSellerRent,
       });
-
-      const receipt = await swapSdk.fetchReceipt(receiptPda);
-      expect(receipt.pool.toBase58()).eq(poolPda.toBase58());
-      expect(receipt.nftMint.toBase58()).eq(wlNft.mint.toBase58());
-      expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
     }
   });
 
@@ -1117,7 +1150,7 @@ describe("tensorswap", () => {
     ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
-  it("sell nft at wrong price fails", async () => {
+  it("sell nft at higher price fails", async () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     await Promise.all(
@@ -1126,15 +1159,15 @@ describe("tensorswap", () => {
           { owner: traderA, seller: traderB },
           { owner: traderB, seller: traderA },
         ],
-        [tokenPoolConfig, tradePoolConfig]
-      ).map(async ([{ owner, seller }, config]) => {
+        [tokenPoolConfig, tradePoolConfig],
+        [1.01 * LAMPORTS_PER_SOL, 1.5 * LAMPORTS_PER_SOL]
+      ).map(async ([{ owner, seller }, config, price]) => {
         await expect(
           testSellNft({
             owner,
             seller,
             config,
-            // Give bad price
-            expectedLamports: 0.5 * LAMPORTS_PER_SOL,
+            expectedLamports: config === tokenPoolConfig ? price : price - 1234,
             expectedRentBySeller: 0, // doesn't matter
           })
         ).rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
@@ -1179,7 +1212,7 @@ describe("tensorswap", () => {
             seller: seller.publicKey,
             config,
             proof: wlNft.proof,
-            price: new BN(
+            minPrice: new BN(
               config === tokenPoolConfig
                 ? LAMPORTS_PER_SOL
                 : LAMPORTS_PER_SOL - 1234
