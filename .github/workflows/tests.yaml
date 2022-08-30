@@ -15,13 +15,11 @@ jobs:
   test-rust:
     name: Rust Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/
-      - uses: actions/setup-node@v2
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+
       - uses: actions/cache@v2
         name: Cache Cargo registry + index
         id: cache-cargo-build
@@ -33,16 +31,18 @@ jobs:
             ~/.cargo/git/db/
             ./target/
           key: cargo-${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+
       - run: cargo build
       - run: cargo fmt -- --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+
       - uses: ./.github/actions/git-diff/
 
   setup-anchor-cli:
     name: Setup Anchor cli
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/
@@ -58,15 +58,12 @@ jobs:
             ~/.cargo/git/db/
             ./target/
           key: cargo-${{ runner.os }}-anchor-${{ hashFiles('**/Cargo.lock') }}
+
       - run: cargo install --git https://github.com/project-serum/anchor avm --locked --force
       - run: avm install latest
       - run: avm use latest
       - run: anchor --version
       - run: chmod +x ~/.cargo/bin/anchor
-      - uses: actions/upload-artifact@v2
-        with:
-          name: anchor-binary
-          path: ~/.cargo/bin/anchor
 
       - uses: ./.github/actions/git-diff/
 
@@ -81,10 +78,5 @@ jobs:
       - uses: ./.github/actions/setup-ts/
       - uses: ./.github/actions/setup-solana/
 
-      - uses: actions/download-artifact@v2
-        with:
-          name: anchor-binary-no-caching
-          path: ~/.cargo/bin/
-      - run: chmod +x ~/.cargo/bin/anchor
       - run: yarn test
       - uses: ./.github/actions/git-diff/
