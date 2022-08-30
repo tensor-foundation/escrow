@@ -101,7 +101,7 @@ describe("tensorswap", () => {
     const uuid = wlSdk.genWhitelistUUID();
     const name = "hello_world";
     const {
-      tx: { ixs: wlIxs },
+      tx: { ixs },
       whitelistPda,
     } = await wlSdk.initUpdateWhitelist({
       owner: TEST_PROVIDER.publicKey,
@@ -109,7 +109,7 @@ describe("tensorswap", () => {
       rootHash: root,
       name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
     });
-    await buildAndSendTx({ provider: TEST_PROVIDER, ixs: wlIxs });
+    await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
 
     return { proofs, whitelist: whitelistPda };
   };
@@ -652,7 +652,7 @@ describe("tensorswap", () => {
 
   //#region Deposits/withdrawals.
 
-  it("deposit WL nft w/ non-WL ata", async () => {
+  it.only("deposit non-WL nft fails", async () => {
     const [owner] = await makeNTraders(1);
     const config = nftPoolConfig;
     const { mint, ata } = await createAndFundATA(TEST_PROVIDER, 1, owner);
@@ -664,24 +664,26 @@ describe("tensorswap", () => {
     );
     await testMakePool({ owner, config, whitelist });
 
-    // Bad mint.
-    const {
-      tx: { ixs: badIxs },
-    } = await swapSdk.depositNft({
-      whitelist,
-      nftMint: badMint,
-      nftSource: badAta,
-      owner: owner.publicKey,
-      config,
-      proof: proofs[0].proof,
-    });
-    await expect(
-      buildAndSendTx({
-        provider: TEST_PROVIDER,
-        ixs: badIxs,
-        extraSigners: [owner],
-      })
-    ).rejectedWith("0x1770");
+    // Bad mint (w/ good + bad ATAs passed).
+    for (const currAta of [ata, badAta]) {
+      const {
+        tx: { ixs },
+      } = await swapSdk.depositNft({
+        whitelist,
+        nftMint: badMint,
+        nftSource: currAta,
+        owner: owner.publicKey,
+        config,
+        proof: proofs[0].proof,
+      });
+      await expect(
+        buildAndSendTx({
+          provider: TEST_PROVIDER,
+          ixs,
+          extraSigners: [owner],
+        })
+      ).rejectedWith("0x1770");
+    }
 
     // Good mint
     const {
@@ -701,53 +703,34 @@ describe("tensorswap", () => {
     });
   });
 
-  it("deposit non-WL nft", async () => {
+  it("deposit WL nft w/ non-WL ata fails", async () => {
     const [owner] = await makeNTraders(1);
     const config = nftPoolConfig;
-    const { mint, ata } = await createAndFundATA(TEST_PROVIDER, 1, owner);
+    const { mint } = await createAndFundATA(TEST_PROVIDER, 1, owner);
     const { proofs, whitelist } = await makeWhitelist([mint]);
-    const { mint: badMint, ata: badAta } = await createAndFundATA(
-      TEST_PROVIDER,
-      1,
-      owner
-    );
+    const { ata: badAta } = await createAndFundATA(TEST_PROVIDER, 1, owner);
     await testMakePool({ owner, config, whitelist });
 
-    // Bad mint.
     const {
-      tx: { ixs: badIxs },
+      tx: { ixs },
     } = await swapSdk.depositNft({
       whitelist,
-      nftMint: badMint,
+      // Good mint
+      nftMint: mint,
+      // Bad ATA
       nftSource: badAta,
       owner: owner.publicKey,
       config,
       proof: proofs[0].proof,
     });
+    // Rejects with "Account not associated with this Mint"
     await expect(
       buildAndSendTx({
         provider: TEST_PROVIDER,
-        ixs: badIxs,
+        ixs,
         extraSigners: [owner],
       })
-    ).rejectedWith("0x1770");
-
-    // Good mint
-    const {
-      tx: { ixs: goodIxs },
-    } = await swapSdk.depositNft({
-      whitelist,
-      nftMint: mint,
-      nftSource: ata,
-      owner: owner.publicKey,
-      config,
-      proof: proofs[0].proof,
-    });
-    await buildAndSendTx({
-      provider: TEST_PROVIDER,
-      ixs: goodIxs,
-      extraSigners: [owner],
-    });
+    ).rejectedWith("0x3");
   });
 
   //#endregion
