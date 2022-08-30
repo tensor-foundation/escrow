@@ -1,7 +1,7 @@
 [features]
 # Enable if we want to figure out pda-derivation.
 seeds = false
-skip-lint = false
+# skip-lint = false
 [programs.localnet]
 tensorswap = "EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA"
 tensor_whitelist = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6"

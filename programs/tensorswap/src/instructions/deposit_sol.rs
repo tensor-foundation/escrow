@@ -1,7 +1,6 @@
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
-use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
@@ -18,14 +17,14 @@ pub struct DepositSol<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
-    has_one = owner, has_one = sol_escrow)]
+    ], bump = pool.bump[0],
+    has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow)]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// Needed for pool seeds derivation, also checked via has_one on pool
-    pub whitelist: Box<Account<'info, Whitelist>>,
+    /// CHECK: Needed for pool seeds derivation,  has_one = whitelist in pool
+    pub whitelist: UncheckedAccount<'info>,
 
-    /// CHECK: has_one escrow in pool
+    /// CHECK: has_one = escrow in pool
     #[account(mut, seeds=[
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),

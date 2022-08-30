@@ -4,7 +4,7 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction( config: PoolConfig)]
+#[instruction(config: PoolConfig)]
 pub struct InitPool<'info> {
     /// Needed for pool seeds derivation
     #[account(seeds = [], bump = tswap.bump[0])]
@@ -21,12 +21,11 @@ pub struct InitPool<'info> {
     ], bump, space = 8 + std::mem::size_of::<Pool>())]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// CHECK: has_one escrow in pool
     #[account(init, payer = owner, seeds = [
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump, space = 0)]
-    pub sol_escrow: UncheckedAccount<'info>,
+    ], bump, space = 8)]
+    pub sol_escrow: Account<'info, SolEscrow>,
 
     /// Needed for pool seeds derivation / will be stored inside pool
     pub whitelist: Box<Account<'info, Whitelist>>,
@@ -85,7 +84,8 @@ impl<'info> Validate<'info> for InitPool<'info> {
 
 #[access_control(ctx.accounts.validate_pool_type(config); ctx.accounts.validate())]
 pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
-    // todo make sure config passed in fee/fee vault only allowed for trade pools
+    // todo: test whitelist fails for unverified stuff
+
     let whitelist = &ctx.accounts.whitelist;
 
     let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
@@ -117,8 +117,8 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
     pool.owner = ctx.accounts.owner.key();
     pool.whitelist = ctx.accounts.whitelist.key();
     pool.config = config;
-    pool.pool_nft_sale_count = 0;
-    pool.pool_nft_purchase_count = 0;
+    pool.taker_buy_count = 0;
+    pool.taker_sell_count = 0;
     pool.nfts_held = 0;
     pool.sol_escrow = ctx.accounts.sol_escrow.key();
 

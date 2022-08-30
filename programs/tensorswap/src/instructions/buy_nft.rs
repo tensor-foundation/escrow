@@ -2,7 +2,7 @@
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
-use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -25,33 +25,39 @@ pub struct BuyNft<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
-    has_one = sol_escrow, has_one = owner)]
+    ], bump = pool.bump[0],
+    has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow)]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// Needed for pool seeds derivation, also checked via has_one on pool
+    /// Needed for pool seeds derivation, has_one = whitelist on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
-
-    pub nft_mint: Box<Account<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(mut)]
     pub nft_buyer_acc: Box<Account<'info, TokenAccount>>,
 
-    /// Implicitly checked via transfer. Will fail if wrong account
+    /// Implicitly checked via transfer. Will fail if wrong account.
+    /// This is closed below (dest = owner)
     #[account(mut, seeds=[
         b"nft_escrow".as_ref(),
         nft_mint.key().as_ref(),
     ], bump)]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
+    /// CHECK: seed in nft_mint
+    pub nft_mint: Box<Account<'info, Mint>>,
+
+    // for TokenPool, seller (sells) -> rent -> owner
+    // for TradePool, owner (deposit) -> rent -> owner
+    // for NFTPool, owner (deposit) -> rent -> owner
     #[account(mut, seeds=[
         b"nft_receipt".as_ref(),
         nft_mint.key().as_ref(),
-    ], bump = nft_receipt.bump, close = fee_vault)]
+    ], bump = nft_receipt.bump,
+    close = owner)]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
-    /// CHECK: has_one escrow in pool
+    /// CHECK: has_one = escrow in pool
     #[account(mut, seeds=[
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
@@ -79,12 +85,23 @@ impl<'info> BuyNft<'info> {
         Ok(())
     }
 
-    fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+    fn transfer_nft_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         CpiContext::new(
             self.token_program.to_account_info(),
             Transfer {
                 from: self.nft_escrow.to_account_info(),
                 to: self.nft_buyer_acc.to_account_info(),
+                authority: self.tswap.to_account_info(),
+            },
+        )
+    }
+
+    fn close_nft_escrow_ctx(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
+        CpiContext::new(
+            self.token_program.to_account_info(),
+            CloseAccount {
+                account: self.nft_escrow.to_account_info(),
+                destination: self.owner.to_account_info(),
                 authority: self.tswap.to_account_info(),
             },
         )
@@ -131,7 +148,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
-    let current_price = pool.current_price(TradeAction::Buy)?;
+    let current_price = pool.current_price(TakerSide::Buy)?;
     if price != current_price {
         throw_err!(PriceMismatch);
     }
@@ -159,15 +176,21 @@ pub fn handler<'a, 'b, 'c, 'info>(
     // transfer nft to buyer
     token::transfer(
         ctx.accounts
-            .transfer_ctx()
+            .transfer_nft_ctx()
             .with_signer(&[&ctx.accounts.tswap.seeds()]),
         1,
+    )?;
+
+    token::close_account(
+        ctx.accounts
+            .close_nft_escrow_ctx()
+            .with_signer(&[&ctx.accounts.tswap.seeds()]),
     )?;
 
     //update pool accounting
     let pool = &mut ctx.accounts.pool;
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_sub(1));
-    pool.pool_nft_sale_count = unwrap_int!(pool.pool_nft_sale_count.checked_add(1));
+    pool.taker_buy_count = unwrap_int!(pool.taker_buy_count.checked_add(1));
 
     Ok(())
 }

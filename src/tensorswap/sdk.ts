@@ -14,8 +14,15 @@ import {
   findSolEscrowPDA,
   findTSwapPDA,
 } from "./pda";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { getAccountRent, TEST_PROVIDER } from "../../tests/shared";
+import {
+  getMinimumBalanceForRentExemptAccount,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import {
+  getAccountRent,
+  stringifyPKsAndBNs,
+  TEST_PROVIDER,
+} from "../../tests/shared";
 
 export const PoolType = {
   Token: { token: {} },
@@ -89,6 +96,10 @@ export class TensorSwapSDK {
     return this.program.account.nftDepositReceipt.fetch(receipt, commitment);
   }
 
+  async fetchSolEscrow(escrow: PublicKey, commitment?: Commitment) {
+    return this.program.account.solEscrow.fetch(escrow, commitment);
+  }
+
   // --------------------------------------- finders
 
   // --------------------------------------- tswap methods
@@ -147,8 +158,51 @@ export class TensorSwapSDK {
       builder,
       tx: { ixs: [await builder.instruction()], extraSigners: [] },
       poolPda,
+      solEscrowPda,
     };
   }
+
+  //main signature: owner
+  async closePool({
+    owner,
+    whitelist,
+    config,
+  }: {
+    owner: PublicKey;
+    whitelist: PublicKey;
+    config: PoolConfig;
+  }) {
+    const [tswapPda] = await findTSwapPDA({});
+    const [poolPda] = await findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+    const [solEscrowPda] = await findSolEscrowPDA({ pool: poolPda });
+
+    const builder = this.program.methods.closePool(config as any).accounts({
+      tswap: tswapPda,
+      pool: poolPda,
+      solEscrow: solEscrowPda,
+      whitelist,
+      owner,
+      systemProgram: SystemProgram.programId,
+    });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      poolPda,
+      solEscrowPda,
+      tswapPda,
+    };
+  }
+
+  // --------------------------------------- deposit/withdraw methods
 
   // main signature: owner
   async depositNft({
@@ -389,10 +443,16 @@ export class TensorSwapSDK {
   }
 
   async getSolEscrowRent() {
-    return await TEST_PROVIDER.connection.getMinimumBalanceForRentExemption(0);
+    return await getAccountRent(this.program.account.solEscrow);
   }
 
   async getNftDepositReceiptRent() {
     return await getAccountRent(this.program.account.nftDepositReceipt);
+  }
+
+  async getNftEscrowRent() {
+    return await getMinimumBalanceForRentExemptAccount(
+      TEST_PROVIDER.connection
+    );
   }
 }

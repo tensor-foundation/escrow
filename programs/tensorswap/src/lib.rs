@@ -23,6 +23,10 @@ pub mod tensorswap {
         instructions::init_pool::handler(ctx, config)
     }
 
+    pub fn close_pool(ctx: Context<ClosePool>, _config: PoolConfig) -> Result<()> {
+        instructions::close_pool::handler(ctx)
+    }
+
     pub fn deposit_nft(
         ctx: Context<DepositNft>,
         _config: PoolConfig,
@@ -82,4 +86,6 @@ pub enum ErrorCode {
     RoyaltiesDisabled = 11,
     #[msg("specified price does not match current price")]
     PriceMismatch = 12,
+    #[msg("cannot close pool with nfts in escrow -- withdraw all before closing")]
+    ExistingNfts = 13,
 }

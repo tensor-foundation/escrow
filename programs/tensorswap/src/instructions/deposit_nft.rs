@@ -18,25 +18,27 @@ pub struct DepositNft<'info> {
         &[config.curve_type as u8],
         &config.starting_price.to_le_bytes(),
         &config.delta.to_le_bytes()
-    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist, 
+    ], bump = pool.bump[0], has_one = tswap, has_one = whitelist,
     has_one = owner)]
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    pub nft_mint: Box<Account<'info, Mint>>,
-
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(mut)]
     pub nft_source: Box<Account<'info, TokenAccount>>,
 
+    // todo: test if we can pass a WL mint here w/ non-WL mint account.
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(init_if_needed, payer=owner, seeds=[
         b"nft_escrow".as_ref(),
         nft_mint.key().as_ref(),
     ], bump, token::mint = nft_mint, token::authority = tswap )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
+
+    /// CHECK: seed in nft_mint
+    pub nft_mint: Box<Account<'info, Mint>>,
 
     #[account(init, payer=owner, seeds=[
         b"nft_receipt".as_ref(),
