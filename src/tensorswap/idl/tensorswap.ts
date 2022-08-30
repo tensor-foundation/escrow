@@ -76,6 +76,55 @@ export type Tensorswap = {
       ]
     },
     {
+      "name": "closePool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Needed for pool seeds derivation / paying fr stuff"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
+    },
+    {
       "name": "depositNft",
       "accounts": [
         {
@@ -100,11 +149,6 @@ export type Tensorswap = {
           ]
         },
         {
-          "name": "nftMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "nftSource",
           "isMut": true,
           "isSigner": false,
@@ -119,6 +163,11 @@ export type Tensorswap = {
           "docs": [
             "Implicitly checked via transfer. Will fail if wrong account"
           ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -188,10 +237,7 @@ export type Tensorswap = {
         {
           "name": "whitelist",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation, also checked via has_one on pool"
-          ]
+          "isSigner": false
         },
         {
           "name": "solEscrow",
@@ -251,13 +297,8 @@ export type Tensorswap = {
           "isMut": false,
           "isSigner": false,
           "docs": [
-            "Needed for pool seeds derivation, also checked via has_one on pool"
+            "Needed for pool seeds derivation, has_one = whitelist on pool"
           ]
-        },
-        {
-          "name": "nftMint",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "nftBuyerAcc",
@@ -272,8 +313,14 @@ export type Tensorswap = {
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
+            "Implicitly checked via transfer. Will fail if wrong account.",
+            "This is closed below (dest = owner)"
           ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -323,6 +370,10 @@ export type Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     },
@@ -356,11 +407,6 @@ export type Tensorswap = {
           ]
         },
         {
-          "name": "nftMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "nftSellerAcc",
           "isMut": true,
           "isSigner": false,
@@ -375,6 +421,11 @@ export type Tensorswap = {
           "docs": [
             "Implicitly checked via transfer. Will fail if wrong account"
           ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -429,6 +480,10 @@ export type Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     }
@@ -524,14 +579,14 @@ export type Tensorswap = {
             }
           },
           {
-            "name": "poolNftPurchaseCount",
+            "name": "takerSellCount",
             "docs": [
               "Accounting"
             ],
             "type": "u32"
           },
           {
-            "name": "poolNftSaleCount",
+            "name": "takerBuyCount",
             "type": "u32"
           },
           {
@@ -539,16 +594,11 @@ export type Tensorswap = {
             "type": "u32"
           },
           {
-            "name": "solFunding",
-            "docs": [
-              "Trade / Token pools only",
-              "We technically could read funding as balance of sol_escrow (- rent)",
-              "but kind of annoying so let's keep this for now."
-            ],
-            "type": "u64"
-          },
-          {
             "name": "solEscrow",
+            "docs": [
+              "Used by Trade / Token pools only",
+              "Amount to spend is implied by balance - rent"
+            ],
             "type": "publicKey"
           }
         ]
@@ -576,6 +626,13 @@ export type Tensorswap = {
             "type": "publicKey"
           }
         ]
+      }
+    },
+    {
+      "name": "solEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": []
       }
     }
   ],
@@ -679,7 +736,7 @@ export type Tensorswap = {
       }
     },
     {
-      "name": "TradeAction",
+      "name": "TakerSide",
       "type": {
         "kind": "enum",
         "variants": [
@@ -753,6 +810,16 @@ export type Tensorswap = {
       "code": 6011,
       "name": "RoyaltiesDisabled",
       "msg": "royalties are disabled for now"
+    },
+    {
+      "code": 6012,
+      "name": "PriceMismatch",
+      "msg": "specified price does not match current price"
+    },
+    {
+      "code": 6013,
+      "name": "ExistingNfts",
+      "msg": "cannot close pool with nfts in escrow -- withdraw all before closing"
     }
   ]
 };
@@ -835,6 +902,55 @@ export const IDL: Tensorswap = {
       ]
     },
     {
+      "name": "closePool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Needed for pool seeds derivation / paying fr stuff"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
+    },
+    {
       "name": "depositNft",
       "accounts": [
         {
@@ -859,11 +975,6 @@ export const IDL: Tensorswap = {
           ]
         },
         {
-          "name": "nftMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "nftSource",
           "isMut": true,
           "isSigner": false,
@@ -878,6 +989,11 @@ export const IDL: Tensorswap = {
           "docs": [
             "Implicitly checked via transfer. Will fail if wrong account"
           ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -947,10 +1063,7 @@ export const IDL: Tensorswap = {
         {
           "name": "whitelist",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation, also checked via has_one on pool"
-          ]
+          "isSigner": false
         },
         {
           "name": "solEscrow",
@@ -1010,13 +1123,8 @@ export const IDL: Tensorswap = {
           "isMut": false,
           "isSigner": false,
           "docs": [
-            "Needed for pool seeds derivation, also checked via has_one on pool"
+            "Needed for pool seeds derivation, has_one = whitelist on pool"
           ]
-        },
-        {
-          "name": "nftMint",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "nftBuyerAcc",
@@ -1031,8 +1139,14 @@ export const IDL: Tensorswap = {
           "isMut": true,
           "isSigner": false,
           "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
+            "Implicitly checked via transfer. Will fail if wrong account.",
+            "This is closed below (dest = owner)"
           ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -1082,6 +1196,10 @@ export const IDL: Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     },
@@ -1115,11 +1233,6 @@ export const IDL: Tensorswap = {
           ]
         },
         {
-          "name": "nftMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "nftSellerAcc",
           "isMut": true,
           "isSigner": false,
@@ -1134,6 +1247,11 @@ export const IDL: Tensorswap = {
           "docs": [
             "Implicitly checked via transfer. Will fail if wrong account"
           ]
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -1188,6 +1306,10 @@ export const IDL: Tensorswap = {
               ]
             }
           }
+        },
+        {
+          "name": "price",
+          "type": "u64"
         }
       ]
     }
@@ -1283,14 +1405,14 @@ export const IDL: Tensorswap = {
             }
           },
           {
-            "name": "poolNftPurchaseCount",
+            "name": "takerSellCount",
             "docs": [
               "Accounting"
             ],
             "type": "u32"
           },
           {
-            "name": "poolNftSaleCount",
+            "name": "takerBuyCount",
             "type": "u32"
           },
           {
@@ -1298,16 +1420,11 @@ export const IDL: Tensorswap = {
             "type": "u32"
           },
           {
-            "name": "solFunding",
-            "docs": [
-              "Trade / Token pools only",
-              "We technically could read funding as balance of sol_escrow (- rent)",
-              "but kind of annoying so let's keep this for now."
-            ],
-            "type": "u64"
-          },
-          {
             "name": "solEscrow",
+            "docs": [
+              "Used by Trade / Token pools only",
+              "Amount to spend is implied by balance - rent"
+            ],
             "type": "publicKey"
           }
         ]
@@ -1335,6 +1452,13 @@ export const IDL: Tensorswap = {
             "type": "publicKey"
           }
         ]
+      }
+    },
+    {
+      "name": "solEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": []
       }
     }
   ],
@@ -1438,7 +1562,7 @@ export const IDL: Tensorswap = {
       }
     },
     {
-      "name": "TradeAction",
+      "name": "TakerSide",
       "type": {
         "kind": "enum",
         "variants": [
@@ -1512,6 +1636,16 @@ export const IDL: Tensorswap = {
       "code": 6011,
       "name": "RoyaltiesDisabled",
       "msg": "royalties are disabled for now"
+    },
+    {
+      "code": 6012,
+      "name": "PriceMismatch",
+      "msg": "specified price does not match current price"
+    },
+    {
+      "code": 6013,
+      "name": "ExistingNfts",
+      "msg": "cannot close pool with nfts in escrow -- withdraw all before closing"
     }
   ]
 };

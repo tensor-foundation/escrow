@@ -23,6 +23,10 @@ pub mod tensorswap {
         instructions::init_pool::handler(ctx, config)
     }
 
+    pub fn close_pool(ctx: Context<ClosePool>, _config: PoolConfig) -> Result<()> {
+        instructions::close_pool::handler(ctx)
+    }
+
     pub fn deposit_nft(
         ctx: Context<DepositNft>,
         _config: PoolConfig,
@@ -39,16 +43,18 @@ pub mod tensorswap {
         ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
         _config: PoolConfig,
         proof: Vec<[u8; 32]>,
+        price: u64,
     ) -> Result<()> {
-        instructions::buy_nft::handler(ctx, proof)
+        instructions::buy_nft::handler(ctx, proof, price)
     }
 
     pub fn sell_nft<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, SellNft<'info>>,
         _config: PoolConfig,
         proof: Vec<[u8; 32]>,
+        price: u64,
     ) -> Result<()> {
-        instructions::sell_nft::handler(ctx, proof)
+        instructions::sell_nft::handler(ctx, proof, price)
     }
 }
 
@@ -78,4 +84,8 @@ pub enum ErrorCode {
     WrongPool = 10,
     #[msg("royalties are disabled for now")]
     RoyaltiesDisabled = 11,
+    #[msg("specified price does not match current price")]
+    PriceMismatch = 12,
+    #[msg("cannot close pool with nfts in escrow -- withdraw all before closing")]
+    ExistingNfts = 13,
 }

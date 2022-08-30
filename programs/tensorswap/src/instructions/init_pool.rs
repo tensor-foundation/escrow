@@ -4,7 +4,7 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction( config: PoolConfig)]
+#[instruction(config: PoolConfig)]
 pub struct InitPool<'info> {
     /// Needed for pool seeds derivation
     #[account(seeds = [], bump = tswap.bump[0])]
@@ -21,13 +21,11 @@ pub struct InitPool<'info> {
     ], bump, space = 8 + std::mem::size_of::<Pool>())]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// CHECK: has_one escrow in pool
-    // todo only init on deposit + buying?
     #[account(init, payer = owner, seeds = [
         b"sol_escrow".as_ref(),
         pool.key().as_ref(),
-    ], bump, space = 0)]
-    pub sol_escrow: UncheckedAccount<'info>,
+    ], bump, space = 8)]
+    pub sol_escrow: Account<'info, SolEscrow>,
 
     /// Needed for pool seeds derivation / will be stored inside pool
     pub whitelist: Box<Account<'info, Whitelist>>,
@@ -41,29 +39,34 @@ pub struct InitPool<'info> {
 impl<'info> InitPool<'info> {
     // todo write tests for all these conditions
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
+        // todo test
         if config.honor_royalties {
             throw_err!(RoyaltiesDisabled);
         }
 
-        //user fees can only be collected on Trade pools
-        //can't check fee_pct coz FE has to set it to 0 rather than null to avoid certain errors
-        if config.pool_type != PoolType::Trade && config.mm_fee_bps != Some(0) {
-            throw_err!(WrongPoolType);
-        }
-
-        //if it is indeed a Trade pool, ensure fees are correctly configured
-        if config.pool_type == PoolType::Trade {
-            if config.mm_fee_bps.is_none() {
-                throw_err!(MissingFees);
+        match config.pool_type {
+            PoolType::NFT | PoolType::Token => {
+                // todo test
+                if config.mm_fee_bps != Some(0) && config.mm_fee_bps != None {
+                    throw_err!(WrongPoolType);
+                }
             }
-            if config.mm_fee_bps.unwrap() > MAX_MM_FEES_BPS {
-                throw_err!(FeesTooHigh);
+            PoolType::Trade => {
+                // todo test
+                if config.mm_fee_bps.is_none() {
+                    throw_err!(MissingFees);
+                }
+                // todo test
+                if config.mm_fee_bps.unwrap() > MAX_MM_FEES_BPS {
+                    throw_err!(FeesTooHigh);
+                }
             }
         }
 
         //for exponential pool delta can't be above 99.99% and has to fit into a u16
         if config.curve_type == CurveType::Exponential {
             let u16delta = try_or_err!(u16::try_from(config.delta), ArithmeticError);
+            // todo test
             if u16delta > MAX_DELTA_BPS {
                 throw_err!(DeltaTooLarge);
             }
@@ -81,7 +84,8 @@ impl<'info> Validate<'info> for InitPool<'info> {
 
 #[access_control(ctx.accounts.validate_pool_type(config); ctx.accounts.validate())]
 pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
-    // todo make sure config passed in fee/fee vault only allowed for trade pools
+    // todo: test whitelist fails for unverified stuff
+
     let whitelist = &ctx.accounts.whitelist;
 
     let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
@@ -113,20 +117,10 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
     pool.owner = ctx.accounts.owner.key();
     pool.whitelist = ctx.accounts.whitelist.key();
     pool.config = config;
-    pool.pool_nft_sale_count = 0;
-    pool.pool_nft_purchase_count = 0;
+    pool.taker_buy_count = 0;
+    pool.taker_sell_count = 0;
     pool.nfts_held = 0;
     pool.sol_escrow = ctx.accounts.sol_escrow.key();
-    // pool.sol_escrow = match config.pool_type {
-    //     PoolType::Token | PoolType::NFT => pool.owner,
-    //     PoolType::Trade => {
-    //         let (sol_escrow, _bump) = Pubkey::find_program_address(
-    //             &["sol_escrow".as_ref(), pool.key().as_ref()],
-    //             ctx.program_id,
-    //         );
-    //         sol_escrow
-    //     }
-    // };
 
     Ok(())
 }

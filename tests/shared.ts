@@ -27,6 +27,8 @@ import BN from "bn.js";
 import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
 import { expect } from "chai";
 
+export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
+
 export const waitMS = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export const buildAndSendTx = async ({
@@ -76,12 +78,7 @@ export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
   for (let i = 0; i < size; i++) {
     let u = anchor.web3.Keypair.generate();
     leaves.push(u.publicKey.toBuffer());
-    // if (i % 1000 === 0) {
-    //   console.log(i);
-    // }
   }
-
-  console.log(`there are ${leaves.length} leaves`);
 
   const tree = new MerkleTree(leaves, keccak256, {
     sortPairs: true,
@@ -93,7 +90,6 @@ export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
       const leaf = keccak256(targetMint.toBuffer());
       const proof = tree.getProof(leaf);
       const validProof: Buffer[] = proof.map((p) => p.data);
-      console.log(`proof is ${validProof.length} long`);
       return { mint: targetMint, proof: validProof };
     }
   );
@@ -110,7 +106,7 @@ export const removeNullBytes = (str: string) => {
 
 export const createFundedWallet = async (
   provider: AnchorProvider,
-  sol?: number
+  sol: number = 1000
 ): Promise<Keypair> => {
   const keypair = Keypair.generate();
   //airdrops are funky, best to move from provider wallet
@@ -118,7 +114,7 @@ export const createFundedWallet = async (
     SystemProgram.transfer({
       fromPubkey: provider.publicKey,
       toPubkey: keypair.publicKey,
-      lamports: (sol ?? 10) * LAMPORTS_PER_SOL,
+      lamports: sol * LAMPORTS_PER_SOL,
     })
   );
   await buildAndSendTx({ provider, ixs: tx.instructions });
@@ -213,8 +209,22 @@ export const getLamports = async (acct: PublicKey) => {
   return (await TEST_PROVIDER.connection.getAccountInfo(acct))?.lamports;
 };
 
-// This passes the account's lamports before the provided `callback` function is called.
+// This passes the accounts' lamports before the provided `callback` function is called.
 // Useful for doing before/after lamports diffing.
+//
+// Example:
+// ```
+// // Create tx...
+// await withLamports(
+//   { prevLamports: traderA.publicKey, prevEscrowLamports: solEscrowPda },
+//   async ({ prevLamports, prevEscrowLamports }) => {
+//     // Actually send tx
+//     await buildAndSendTx({...});
+//     const currlamports = await getLamports(traderA.publicKey);
+//     // Compare currlamports w/ prevLamports
+//   })
+// );
+// ```
 export const withLamports = async <
   Accounts extends Record<string, PublicKey>,
   R
@@ -234,6 +244,28 @@ export const withLamports = async <
   );
   return await callback(results);
 };
+
+// Taken from https://stackoverflow.com/a/65025697/4463793
+type MapCartesian<T extends any[][]> = {
+  [P in keyof T]: T[P] extends Array<infer U> ? U : never;
+};
+// Lets you form the cartesian/cross product of a bunch of parameters, useful for tests with a ladder.
+//
+// Example:
+// ```
+// await Promise.all(
+//   cartesian([traderA, traderB], [nftPoolConfig, tradePoolConfig]).map(
+//     async ([owner, config]) => {
+//        // Do stuff
+//     }
+//   )
+// );
+// ```
+export const cartesian = <T extends any[][]>(...arr: T): MapCartesian<T>[] =>
+  arr.reduce(
+    (a, b) => a.flatMap((c) => b.map((d) => [...c, d])),
+    [[]]
+  ) as MapCartesian<T>[];
 
 //#region Helper fns.
 
