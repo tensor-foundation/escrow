@@ -228,6 +228,8 @@ describe("tensorswap", () => {
       config,
       proof: wlNft.proof,
     });
+    const prevPoolAcc = await swapSdk.fetchPool(pool);
+
     await buildAndSendTx({
       provider: TEST_PROVIDER,
       ixs,
@@ -240,7 +242,8 @@ describe("tensorswap", () => {
     let escrowAcc = await getAccount(TEST_PROVIDER.connection, escrowPda);
     expect(escrowAcc.amount.toString()).eq("1");
     const poolAcc = await swapSdk.fetchPool(pool);
-    expect(poolAcc.nftsHeld).eq(1);
+    expect(poolAcc.nftsHeld - prevPoolAcc.nftsHeld).eq(1);
+    expect(poolAcc.solFunding.sub(prevPoolAcc.solFunding).toNumber()).eq(0);
 
     const receipt = await swapSdk.fetchReceipt(receiptPda);
     expect(receipt.pool.toBase58()).eq(pool.toBase58());
