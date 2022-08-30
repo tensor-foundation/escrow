@@ -60,7 +60,10 @@ jobs:
             ./target/
           key: cargo-${{ runner.os }}-anchor-${{ hashFiles('**/Cargo.lock') }}
 
-      - run: "[ ! -f ~/.cargo/bin/anchor ] && cargo install --git https://github.com/project-serum/anchor avm --locked"
+      - run: |
+          if [ ! -f ~/.cargo/bin/anchor ] ; then
+            cargo install --git https://github.com/project-serum/anchor avm --locked"
+          fi
       - run: avm install latest
       - run: avm use latest
       - run: anchor --version
