@@ -16,7 +16,7 @@ jobs:
   test-rust:
     name: Rust Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/
@@ -83,7 +83,7 @@ jobs:
     # so we need to download the anchor artifact from above.
     needs: setup-anchor-cli
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/

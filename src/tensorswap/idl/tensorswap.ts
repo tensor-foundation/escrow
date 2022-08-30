@@ -594,16 +594,11 @@ export type Tensorswap = {
             "type": "u32"
           },
           {
-            "name": "solFunding",
-            "docs": [
-              "Trade / Token pools only",
-              "We technically could read funding as balance of sol_escrow (- rent)",
-              "but kind of annoying so let's keep this for now."
-            ],
-            "type": "u64"
-          },
-          {
             "name": "solEscrow",
+            "docs": [
+              "Used by Trade / Token pools only",
+              "Amount to spend is implied by balance - rent"
+            ],
             "type": "publicKey"
           }
         ]
@@ -1425,16 +1420,11 @@ export const IDL: Tensorswap = {
             "type": "u32"
           },
           {
-            "name": "solFunding",
-            "docs": [
-              "Trade / Token pools only",
-              "We technically could read funding as balance of sol_escrow (- rent)",
-              "but kind of annoying so let's keep this for now."
-            ],
-            "type": "u64"
-          },
-          {
             "name": "solEscrow",
+            "docs": [
+              "Used by Trade / Token pools only",
+              "Amount to spend is implied by balance - rent"
+            ],
             "type": "publicKey"
           }
         ]

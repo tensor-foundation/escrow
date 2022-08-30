@@ -189,8 +189,12 @@ pub fn handler<'a, 'b, 'c, 'info>(
     }
 
     //transfer fee to Tensorswap
-    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
+    let tswap_fee = ctx
+        .accounts
+        .pool
+        .calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
+
     ctx.accounts
         .transfer_lamports_from_escrow(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
 

@@ -245,6 +245,7 @@ export const withLamports = async <
   return await callback(results);
 };
 
+// Taken from https://stackoverflow.com/a/65025697/4463793
 type MapCartesian<T extends any[][]> = {
   [P in keyof T]: T[P] extends Array<infer U> ? U : never;
 };

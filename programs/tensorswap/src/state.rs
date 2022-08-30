@@ -99,10 +99,8 @@ pub struct Pool {
     pub taker_buy_count: u32, //how many times a taker has BOUGHT from the pool
     pub nfts_held: u32,
 
-    /// Trade / Token pools only
-    /// We technically could read funding as balance of sol_escrow (- rent)
-    /// but kind of annoying so let's keep this for now.
-    pub sol_funding: u64, //total deposits - total withdrawals - any spent sol
+    /// Used by Trade / Token pools only
+    /// Amount to spend is implied by balance - rent
     pub sol_escrow: Pubkey, //always initialized regardless of type
 }
 
@@ -281,7 +279,6 @@ mod tests {
                 taker_sell_count,
                 taker_buy_count,
                 nfts_held: 0,
-                sol_funding: 0,
                 sol_escrow: Pubkey::default(),
             }
         }

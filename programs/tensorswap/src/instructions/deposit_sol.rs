@@ -69,9 +69,5 @@ pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
     // do the transfer
     ctx.accounts.transfer_lamports(lamports)?;
 
-    //update pool
-    let pool = &mut ctx.accounts.pool;
-    pool.sol_funding = unwrap_int!(pool.sol_funding.checked_add(lamports));
-
     Ok(())
 }

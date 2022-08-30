@@ -1,4 +1,10 @@
-import { CurveType, PoolConfig, PoolType, TSWAP_FEE_ACC } from "../src";
+import {
+  CurveType,
+  PoolConfig,
+  PoolType,
+  TensorSwapSDK,
+  TSWAP_FEE_ACC,
+} from "../src";
 import {
   Keypair,
   LAMPORTS_PER_SOL,
@@ -24,11 +30,7 @@ import {
   withLamports,
   wlSdk,
 } from "./shared";
-import {
-  getAccount,
-  getMinimumBalanceForRentExemptAccount,
-  TokenAccountNotFoundError,
-} from "@solana/spl-token";
+import { getAccount, TokenAccountNotFoundError } from "@solana/spl-token";
 
 chai.use(chaiAsPromised);
 
@@ -43,6 +45,17 @@ const LINEAR_CONFIG: Omit<PoolConfig, "poolType"> = {
 };
 
 type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
+
+type PoolAcc = Awaited<ReturnType<typeof swapSdk.fetchPool>>;
+const expectPoolAccounting = (
+  currPool: PoolAcc,
+  prevPool: PoolAcc,
+  diffs: { nfts: number; sell: number; buy: number }
+) => {
+  expect(currPool.nftsHeld - prevPool.nftsHeld).eq(diffs.nfts);
+  expect(currPool.takerSellCount - prevPool.takerSellCount).eq(diffs.sell);
+  expect(currPool.takerBuyCount - prevPool.takerBuyCount).eq(diffs.buy);
+};
 
 describe("tensorswap", () => {
   const nftPoolConfig: PoolConfig = {
@@ -137,7 +150,6 @@ describe("tensorswap", () => {
     expect(poolAcc.takerBuyCount).eq(0);
     expect(poolAcc.takerSellCount).eq(0);
     expect(poolAcc.nftsHeld).eq(0);
-    expect(poolAcc.solFunding.toNumber()).eq(0);
 
     const accConfig = poolAcc.config as PoolConfig;
     expect(Object.keys(config.poolType)[0] in accConfig.poolType).true;
@@ -242,8 +254,7 @@ describe("tensorswap", () => {
     let escrowAcc = await getAccount(TEST_PROVIDER.connection, escrowPda);
     expect(escrowAcc.amount.toString()).eq("1");
     const poolAcc = await swapSdk.fetchPool(pool);
-    expect(poolAcc.nftsHeld - prevPoolAcc.nftsHeld).eq(1);
-    expect(poolAcc.solFunding.sub(prevPoolAcc.solFunding).toNumber()).eq(0);
+    expectPoolAccounting(poolAcc, prevPoolAcc, { nfts: 1, sell: 0, buy: 0 });
 
     const receipt = await swapSdk.fetchReceipt(receiptPda);
     expect(receipt.pool.toBase58()).eq(pool.toBase58());
@@ -287,10 +298,11 @@ describe("tensorswap", () => {
         let currEscrowLamports = await getLamports(solEscrowPda);
         expect(currEscrowLamports! - prevEscrowLamports!).eq(lamports);
         const poolAcc = await swapSdk.fetchPool(pool);
-        expect(
-          poolAcc.solFunding.toNumber() - prevPoolAcc.solFunding.toNumber()
-        ).eq(lamports);
-        expect(poolAcc.nftsHeld - prevPoolAcc.nftsHeld).eq(0);
+        expectPoolAccounting(poolAcc, prevPoolAcc, {
+          nfts: 0,
+          sell: 0,
+          buy: 0,
+        });
       }
     );
   };
@@ -312,10 +324,10 @@ describe("tensorswap", () => {
       proofs: [wlNft],
       whitelist,
     } = await makeWhitelist([mint]);
-    const pool = await testMakePool({ owner, whitelist, config });
+    const poolPda = await testMakePool({ owner, whitelist, config });
 
     await testDepositNft({
-      pool,
+      pool: poolPda,
       config,
       owner,
       ata,
@@ -338,6 +350,8 @@ describe("tensorswap", () => {
       proof: wlNft.proof,
       price: new BN(expectedLamports),
     });
+
+    const prevPoolAcc = await swapSdk.fetchPool(poolPda);
 
     await withLamports(
       {
@@ -375,7 +389,9 @@ describe("tensorswap", () => {
 
         // Buyer pays full amount.
         const currBuyerLamports = await getLamports(buyer.publicKey);
-        expect(prevBuyerLamports! - currBuyerLamports!).eq(expectedLamports);
+        expect(currBuyerLamports! - prevBuyerLamports!).eq(
+          -1 * expectedLamports
+        );
 
         // Depending on the pool type:
         // (1) Trade = amount sent to escrow, NOT owner
@@ -397,10 +413,12 @@ describe("tensorswap", () => {
           expEscrowAmount
         );
 
-        const poolAcc = await swapSdk.fetchPool(pool);
-        expect(poolAcc.nftsHeld).eq(0);
-        expect(poolAcc.takerBuyCount).eq(1);
-        expect(poolAcc.takerSellCount).eq(0);
+        const poolAcc = await swapSdk.fetchPool(poolPda);
+        expectPoolAccounting(poolAcc, prevPoolAcc, {
+          nfts: -1,
+          sell: 0,
+          buy: 1,
+        });
 
         //receipt should have gotten closed
         await expect(swapSdk.fetchReceipt(receiptPda)).rejectedWith(
@@ -438,6 +456,8 @@ describe("tensorswap", () => {
       lamports: expectedLamports,
       whitelist,
     });
+
+    const prevPoolAcc = await swapSdk.fetchPool(poolPda);
 
     const {
       tx: { ixs },
@@ -504,14 +524,16 @@ describe("tensorswap", () => {
 
         // Sol escrow should have the NFT cost deducted (minus mm fees owner gets back).
         const currEscrowLamports = await getLamports(solEscrowPda);
-        expect(prevEscrowLamports! - currEscrowLamports!).eq(
-          expectedLamports - mmFees
+        expect(currEscrowLamports! - prevEscrowLamports!).eq(
+          -1 * (expectedLamports - mmFees)
         );
 
         const poolAcc = await swapSdk.fetchPool(poolPda);
-        expect(poolAcc.nftsHeld).eq(1);
-        expect(poolAcc.takerSellCount).eq(1);
-        expect(poolAcc.takerBuyCount).eq(0);
+        expectPoolAccounting(poolAcc, prevPoolAcc, {
+          nfts: 1,
+          sell: 1,
+          buy: 0,
+        });
 
         return { escrowPda, receiptPda, poolPda, wlNft, whitelist };
       }
