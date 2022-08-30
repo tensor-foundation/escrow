@@ -594,48 +594,71 @@ describe("tensorswap", () => {
 
   //#endregion
 
+  //#region Create pool.
+
+  it.only("cannot init pool with royalties", async () => {
+    const [owner] = await makeNTraders(1);
+    await Promise.all(
+      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const { mint } = await createAndFundATA(TEST_PROVIDER, 1, owner);
+        const { whitelist } = await makeWhitelist([mint]);
+
+        await expect(
+          testMakePool({
+            owner,
+            config: {
+              ...config,
+              honorRoyalties: true,
+            },
+            whitelist,
+          })
+        ).rejectedWith(swapSdk.getErrorCodeHex("RoyaltiesDisabled"));
+      })
+    );
+  });
+
+  //#endregion
+
   //#region Close pool.
 
   it("close pool roundtrips fees", async () => {
+    const [owner] = await makeNTraders(1);
     await Promise.all(
-      cartesian(await makeNTraders(2), [nftPoolConfig, tradePoolConfig]).map(
-        async ([owner, config]) => {
-          const { mint } = await createAndFundATA(TEST_PROVIDER, 1, owner);
-          const { whitelist } = await makeWhitelist([mint]);
+      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const { mint } = await createAndFundATA(TEST_PROVIDER, 1, owner);
+        const { whitelist } = await makeWhitelist([mint]);
 
-          await withLamports(
-            { prevLamports: owner.publicKey },
-            async ({ prevLamports }) => {
-              await testMakePool({ owner, config, whitelist });
-              await testClosePool({ owner, whitelist, config });
+        await withLamports(
+          { prevLamports: owner.publicKey },
+          async ({ prevLamports }) => {
+            await testMakePool({ owner, config, whitelist });
+            await testClosePool({ owner, whitelist, config });
 
-              const currLamports = await getLamports(owner.publicKey);
-              expect(currLamports! - prevLamports!).eq(0);
-            }
-          );
-        }
-      )
+            const currLamports = await getLamports(owner.publicKey);
+            expect(currLamports! - prevLamports!).eq(0);
+          }
+        );
+      })
     );
   });
 
   it("close pool fails if nfts still deposited", async () => {
+    const [owner] = await makeNTraders(1);
     await Promise.all(
-      cartesian(await makeNTraders(2), [nftPoolConfig, tradePoolConfig]).map(
-        async ([owner, config]) => {
-          const { mint, ata } = await createAndFundATA(TEST_PROVIDER, 1, owner);
-          const {
-            proofs: [wlNft],
-            whitelist,
-          } = await makeWhitelist([mint]);
+      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const { mint, ata } = await createAndFundATA(TEST_PROVIDER, 1, owner);
+        const {
+          proofs: [wlNft],
+          whitelist,
+        } = await makeWhitelist([mint]);
 
-          const pool = await testMakePool({ owner, config, whitelist });
-          await testDepositNft({ pool, config, owner, ata, wlNft, whitelist });
+        const pool = await testMakePool({ owner, config, whitelist });
+        await testDepositNft({ pool, config, owner, ata, wlNft, whitelist });
 
-          await expect(
-            testClosePool({ owner, whitelist, config })
-          ).rejectedWith(swapSdk.getErrorCodeHex("ExistingNfts"));
-        }
-      )
+        await expect(testClosePool({ owner, whitelist, config })).rejectedWith(
+          swapSdk.getErrorCodeHex("ExistingNfts")
+        );
+      })
     );
   });
 

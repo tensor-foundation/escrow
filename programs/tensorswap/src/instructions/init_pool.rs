@@ -22,7 +22,7 @@ pub struct InitPool<'info> {
             &config.delta.to_le_bytes()
         ],
         bump,
-        space = 8 + std::mem::size_of::<Pool>()
+        space = 8 + std::mem::size_of::<Pool>(),
     )]
     pub pool: Box<Account<'info, Pool>>,
 
@@ -49,7 +49,6 @@ pub struct InitPool<'info> {
 impl<'info> InitPool<'info> {
     // todo write tests for all these conditions
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
-        // todo test
         if config.honor_royalties {
             throw_err!(RoyaltiesDisabled);
         }

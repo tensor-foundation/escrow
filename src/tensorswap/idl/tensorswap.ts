@@ -913,6 +913,11 @@ export type Tensorswap = {
       "code": 6014,
       "name": "WrongMint",
       "msg": "wrong mint passed for provided accounts"
+    },
+    {
+      "code": 6015,
+      "name": "InsufficientSolEscrowBalance",
+      "msg": "insufficient SOL escrow balance"
     }
   ]
 };
@@ -1832,6 +1837,11 @@ export const IDL: Tensorswap = {
       "code": 6014,
       "name": "WrongMint",
       "msg": "wrong mint passed for provided accounts"
+    },
+    {
+      "code": 6015,
+      "name": "InsufficientSolEscrowBalance",
+      "msg": "insufficient SOL escrow balance"
     }
   ]
 };
