@@ -69,7 +69,6 @@ jobs:
       - run: anchor --version
       - run: chmod +x ~/.cargo/bin/anchor
       - uses: actions/upload-artifact@v2
-        if: steps.cache-anchor.outputs.cache-hit != 'true'
         with:
           name: anchor-binary
           path: ~/.cargo/bin/anchor
