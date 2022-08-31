@@ -11,6 +11,13 @@ pub use state::*;
 
 declare_id!("EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA");
 
+// TODO: replace these
+#[cfg(not(feature = "testing"))]
+static ROOT_AUTHORITY: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
+#[cfg(not(feature = "testing"))]
+static TSWAP_FEE_VAULT: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
+static TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
+
 #[program]
 pub mod tensorswap {
     use super::*;

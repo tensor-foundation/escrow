@@ -11,6 +11,11 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "feeVault",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "owner",
           "isMut": true,
           "isSigner": true
@@ -637,14 +642,14 @@ export type Tensorswap = {
             }
           },
           {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
             "name": "config",
             "type": {
               "defined": "TSwapConfig"
             }
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
           },
           {
             "name": "feeVault",
@@ -983,6 +988,11 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "feeVault",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "owner",
           "isMut": true,
           "isSigner": true
@@ -1609,14 +1619,14 @@ export const IDL: Tensorswap = {
             }
           },
           {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
             "name": "config",
             "type": {
               "defined": "TSwapConfig"
             }
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
           },
           {
             "name": "feeVault",

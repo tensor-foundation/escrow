@@ -3,6 +3,6 @@ set -e
 
 #moving everything into here so that tests dont run if build crashes
 rm -rf .anchor
-anchor build
+anchor build -- --features testing
 bash scripts/cp_idl.sh
-anchor test --skip-build
+anchor test --skip-build -- --features testing

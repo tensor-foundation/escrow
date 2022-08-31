@@ -1,54 +1,45 @@
+// Common helper functions b/w tensor_whitelist & tensorswap.
 import {
   ConfirmOptions,
-  Keypair,
-  LAMPORTS_PER_SOL,
   PublicKey,
   Signer,
-  SystemProgram,
-  Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
 import { buildTx } from "@tensor-hq/tensor-common/dist/solana_contrib";
 import * as anchor from "@project-serum/anchor";
-import { AccountClient, AnchorProvider } from "@project-serum/anchor";
+import { AnchorProvider } from "@project-serum/anchor";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
-import {
-  createAssociatedTokenAccountInstruction,
-  createInitializeMintInstruction,
-  createMintToInstruction,
-  getAssociatedTokenAddress,
-  getMinimumBalanceForRentExemptMint,
-  TOKEN_PROGRAM_ID,
-  MINT_SIZE,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
 import BN from "bn.js";
 import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
+import { getLamports as _getLamports } from "../src/common";
 import { expect } from "chai";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
 // Rejects with "Account not associated with this Mint" (eg transfer b/w 2 token accounts w/ different mints).
 export const TOKEN_ACCT_WRONG_MINT_ERR = "0x3";
 
-export const hexCode = (decCode: number) => "0x" + decCode.toString(16);
+export const getLamports = (acct: PublicKey) =>
+  _getLamports(TEST_PROVIDER.connection, acct);
 
 export const waitMS = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-export const buildAndSendTx = async ({
-  provider,
-  ixs,
-  extraSigners,
-  opts,
-  debug,
-}: {
+type BuildAndSendTxArgs = {
   provider: AnchorProvider;
   ixs: TransactionInstruction[];
   extraSigners?: Signer[];
   opts?: ConfirmOptions;
   // Prints out transaction (w/ logs) to stdout
   debug?: boolean;
-}) => {
+};
+
+const _buildAndSendTx = async ({
+  provider,
+  ixs,
+  extraSigners,
+  opts,
+  debug,
+}: BuildAndSendTxArgs) => {
   const { tx } = await buildTx({
     connections: [provider.connection],
     instructions: ixs,
@@ -75,6 +66,10 @@ export const buildAndSendTx = async ({
     throw e;
   }
 };
+
+export const buildAndSendTx = (
+  args: Omit<BuildAndSendTxArgs, "provider"> & { provider?: AnchorProvider }
+) => _buildAndSendTx({ provider: TEST_PROVIDER, ...args });
 
 export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
   const leaves = targetMints.map((m) => m.toBuffer());
@@ -108,90 +103,6 @@ export const removeNullBytes = (str: string) => {
     .join("");
 };
 
-export const createFundedWallet = async (
-  provider: AnchorProvider,
-  sol: number = 1000
-): Promise<Keypair> => {
-  const keypair = Keypair.generate();
-  //airdrops are funky, best to move from provider wallet
-  const tx = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: provider.publicKey,
-      toPubkey: keypair.publicKey,
-      lamports: sol * LAMPORTS_PER_SOL,
-    })
-  );
-  await buildAndSendTx({ provider, ixs: tx.instructions });
-  return keypair;
-};
-
-export const createATA = async (
-  provider: AnchorProvider,
-  mint: PublicKey,
-  owner: Keypair
-) => {
-  const ata = await getAssociatedTokenAddress(mint, owner.publicKey);
-  const createAtaIx = createAssociatedTokenAccountInstruction(
-    owner.publicKey,
-    ata,
-    owner.publicKey,
-    mint,
-    TOKEN_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID
-  );
-  await buildAndSendTx({ provider, ixs: [createAtaIx], extraSigners: [owner] });
-  return { mint, owner, ata };
-};
-
-export const createAndFundATA = async (
-  provider: AnchorProvider,
-  amount: number,
-  owner?: Keypair
-): Promise<{ mint: PublicKey; ata: PublicKey; owner: Keypair }> => {
-  const usedOwner = owner ?? (await createFundedWallet(provider));
-  const mint = Keypair.generate();
-  const lamports = await getMinimumBalanceForRentExemptMint(
-    provider.connection
-  );
-  const createMintAccIx = SystemProgram.createAccount({
-    fromPubkey: usedOwner.publicKey,
-    newAccountPubkey: mint.publicKey,
-    space: MINT_SIZE,
-    lamports,
-    programId: TOKEN_PROGRAM_ID,
-  });
-  const createMintIx = await createInitializeMintInstruction(
-    mint.publicKey,
-    0,
-    usedOwner.publicKey,
-    usedOwner.publicKey
-  );
-  const ata = await getAssociatedTokenAddress(
-    mint.publicKey,
-    usedOwner.publicKey
-  );
-  const createAtaIx = createAssociatedTokenAccountInstruction(
-    usedOwner.publicKey,
-    ata,
-    usedOwner.publicKey,
-    mint.publicKey
-  );
-  const mintIx = createMintToInstruction(
-    mint.publicKey,
-    ata,
-    usedOwner.publicKey,
-    amount
-  );
-
-  const ixs = [createMintAccIx, createMintIx, createAtaIx];
-  if (amount > 0) {
-    ixs.push(mintIx);
-  }
-
-  await buildAndSendTx({ provider, ixs, extraSigners: [usedOwner, mint] });
-  return { mint: mint.publicKey, ata, owner: usedOwner };
-};
-
 export const stringifyPKsAndBNs = (i: any) => {
   if (_isPk(i)) {
     return (<PublicKey>i).toBase58();
@@ -203,14 +114,6 @@ export const stringifyPKsAndBNs = (i: any) => {
     return _stringifyPKsAndBNsInObject(i);
   }
   return i;
-};
-
-export const getAccountRent = (acct: AccountClient) => {
-  return TEST_PROVIDER.connection.getMinimumBalanceForRentExemption(acct.size);
-};
-
-export const getLamports = async (acct: PublicKey) => {
-  return (await TEST_PROVIDER.connection.getAccountInfo(acct))?.lamports;
 };
 
 // This passes the accounts' lamports before the provided `callback` function is called.
@@ -350,7 +253,7 @@ export const testInitWLAuthority = async () => {
     TEST_PROVIDER.publicKey,
     TEST_PROVIDER.publicKey
   );
-  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+  await buildAndSendTx({ ixs });
 
   let authAcc = await wlSdk.fetchAuthority(authPda);
   expect(authAcc.owner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());

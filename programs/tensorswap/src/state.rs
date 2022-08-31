@@ -8,10 +8,7 @@ pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 1;
 
 // todo currently hardcoding, not to waste time passing in
-pub const TSWAP_FEE_VAULT: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
 pub const TSWAP_FEE_BPS: u16 = 50; //0.5%
-
-pub const TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
 
 // todo test limits
 pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
@@ -28,20 +25,25 @@ pub struct TSwapConfig {
     pub fee_bps: u16,
 }
 
+impl TSwapConfig {
+    pub const SIZE: usize = 2;
+}
+
 #[account]
 pub struct TSwap {
     pub version: u8,
     pub bump: [u8; 1],
+    pub config: TSwapConfig,
 
     // todo for v1 keeping it super naive - just a pk we control
     pub owner: Pubkey,
-
-    pub config: TSwapConfig,
     // todo for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
 }
 
 impl TSwap {
+    pub const SIZE: usize = 1 + 1 + TSwapConfig::SIZE + 32 * 2;
+
     pub fn seeds(&self) -> [&[u8]; 1] {
         [&self.bump]
     }

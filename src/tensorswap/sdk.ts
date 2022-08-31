@@ -6,7 +6,7 @@ import {
 } from "@solana/web3.js";
 import { AnchorProvider, BN, Coder, Program } from "@project-serum/anchor";
 import { IDL, Tensorswap } from "./idl/tensorswap";
-import { TENSORSWAP_ADDR } from "./constants";
+import { TENSORSWAP_ADDR, TSWAP_FEE_ACC } from "./constants";
 import {
   findNftDepositReceiptPDA,
   findNftEscrowPDA,
@@ -18,12 +18,7 @@ import {
   getMinimumBalanceForRentExemptAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import {
-  getAccountRent,
-  hexCode,
-  stringifyPKsAndBNs,
-  TEST_PROVIDER,
-} from "../../tests/shared";
+import { getAccountRent, hexCode } from "../common";
 
 export const PoolType = {
   Token: { token: {} },
@@ -110,12 +105,13 @@ export class TensorSwapSDK {
   // --------------------------------------- tswap methods
 
   //main signature: owner
-  async initTSwap(owner: PublicKey) {
+  async initTSwap(owner: PublicKey, feeVault: PublicKey = TSWAP_FEE_ACC) {
     const [tswapPda] = await findTSwapPDA({});
 
     const builder = this.program.methods.initTswap().accounts({
       tswap: tswapPda,
       owner,
+      feeVault,
       systemProgram: SystemProgram.programId,
     });
 
@@ -548,16 +544,22 @@ export class TensorSwapSDK {
   // --------------------------------------- helper methods
 
   async getSolEscrowRent() {
-    return await getAccountRent(this.program.account.solEscrow);
+    return await getAccountRent(
+      this.program.provider.connection,
+      this.program.account.solEscrow
+    );
   }
 
   async getNftDepositReceiptRent() {
-    return await getAccountRent(this.program.account.nftDepositReceipt);
+    return await getAccountRent(
+      this.program.provider.connection,
+      this.program.account.nftDepositReceipt
+    );
   }
 
   async getNftEscrowRent() {
     return await getMinimumBalanceForRentExemptAccount(
-      TEST_PROVIDER.connection
+      this.program.provider.connection
     );
   }
 

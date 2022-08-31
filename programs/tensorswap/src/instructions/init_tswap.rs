@@ -1,12 +1,18 @@
 use crate::*;
+#[cfg(not(feature = "testing"))]
 use std::str::FromStr;
 
 #[derive(Accounts)]
 pub struct InitTSwap<'info> {
-    #[account(init, seeds = [], bump, payer = owner, space = 8 + std::mem::size_of::<TSwap>())]
+    // NB: we can call this multiple times (init_if_needed) eg to update fee BPS.
+    #[account(init_if_needed, seeds = [], bump, payer = owner, space = 8 + TSwap::SIZE)]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    // todo: anyone can call this: add address constraint to hardcoded account
+    /// CHECK: initialized only once,
+    #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(TSWAP_FEE_VAULT).unwrap()))]
+    pub fee_vault: UncheckedAccount<'info>,
+
+    #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(ROOT_AUTHORITY).unwrap()))]
     #[account(mut)]
     pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -28,7 +34,7 @@ pub fn handler(ctx: Context<InitTSwap>) -> Result<()> {
     tswap.config = TSwapConfig {
         fee_bps: TSWAP_FEE_BPS,
     };
-    tswap.fee_vault = Pubkey::from_str(TSWAP_FEE_VAULT).unwrap();
+    tswap.fee_vault = ctx.accounts.fee_vault.key();
 
     Ok(())
 }
