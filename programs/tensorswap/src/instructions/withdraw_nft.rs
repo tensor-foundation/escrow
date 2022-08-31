@@ -39,7 +39,7 @@ pub struct WithdrawNft<'info> {
             b"nft_escrow".as_ref(),
             nft_mint.key().as_ref(),
         ],
-        bump
+        bump,
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
@@ -57,7 +57,6 @@ pub struct WithdrawNft<'info> {
         ],
         bump = nft_receipt.bump,
         close = owner,
-        // todo test
         //can't buy an NFT that's associated with a different pool
         constraint = nft_receipt.pool == pool.key() @ crate::ErrorCode::WrongPool,
         // redundant but extra safety
@@ -71,7 +70,6 @@ pub struct WithdrawNft<'info> {
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 impl<'info> WithdrawNft<'info> {

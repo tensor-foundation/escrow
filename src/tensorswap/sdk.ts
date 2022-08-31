@@ -310,6 +310,104 @@ export class TensorSwapSDK {
     };
   }
 
+  // main signature: owner
+  async withdrawNft({
+    whitelist,
+    nftMint,
+    nftDest,
+    owner,
+    config,
+  }: {
+    whitelist: PublicKey;
+    nftMint: PublicKey;
+    nftDest: PublicKey;
+    owner: PublicKey;
+    config: PoolConfig;
+  }) {
+    const [tswapPda] = await findTSwapPDA({});
+    const [poolPda] = await findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+
+    const [escrowPda] = await findNftEscrowPDA({ nftMint });
+    const [receiptPda] = await findNftDepositReceiptPDA({
+      nftMint,
+    });
+
+    const builder = this.program.methods.withdrawNft(config as any).accounts({
+      tswap: tswapPda,
+      pool: poolPda,
+      whitelist,
+      nftMint,
+      nftDest,
+      nftEscrow: escrowPda,
+      nftReceipt: receiptPda,
+      owner,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      poolPda,
+      escrowPda,
+      receiptPda,
+    };
+  }
+
+  // main signature: owner
+  async withdrawSol({
+    whitelist,
+    owner,
+    config,
+    lamports,
+  }: {
+    whitelist: PublicKey;
+    owner: PublicKey;
+    config: PoolConfig;
+    lamports: BN;
+  }) {
+    const [tswapPda] = await findTSwapPDA({});
+    const [poolPda] = await findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+
+    const [solEscrowPda] = await findSolEscrowPDA({ pool: poolPda });
+
+    const builder = this.program.methods
+      .withdrawSol(config as any, lamports)
+      .accounts({
+        tswap: tswapPda,
+        pool: poolPda,
+        whitelist,
+        solEscrow: solEscrowPda,
+        owner,
+        systemProgram: SystemProgram.programId,
+      });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      poolPda,
+      solEscrowPda,
+    };
+  }
+
+  // --------------------------------------- trade (buy/sell) methods
+
   //main signature: buyer
   async buyNft({
     whitelist,
@@ -446,6 +544,8 @@ export class TensorSwapSDK {
       receiptPda,
     };
   }
+
+  // --------------------------------------- helper methods
 
   async getSolEscrowRent() {
     return await getAccountRent(this.program.account.solEscrow);

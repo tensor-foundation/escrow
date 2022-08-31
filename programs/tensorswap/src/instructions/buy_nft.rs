@@ -50,7 +50,7 @@ pub struct BuyNft<'info> {
             b"nft_escrow".as_ref(),
             nft_mint.key().as_ref(),
         ],
-        bump
+        bump,
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 

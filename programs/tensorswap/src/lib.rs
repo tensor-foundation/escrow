@@ -43,6 +43,14 @@ pub mod tensorswap {
         instructions::deposit_sol::handler(ctx, lamports)
     }
 
+    pub fn withdraw_sol(
+        ctx: Context<WithdrawSol>,
+        _config: PoolConfig,
+        lamports: u64,
+    ) -> Result<()> {
+        instructions::withdraw_sol::handler(ctx, lamports)
+    }
+
     pub fn buy_nft<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
         _config: PoolConfig,
