@@ -1,3 +1,4 @@
+//! User depositing NFTs into their NFT/Trade pool (to sell NFTs)
 use crate::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};

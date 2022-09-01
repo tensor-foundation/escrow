@@ -23,11 +23,10 @@ import {
 describe("tswap sell", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
-  let expSellerRent: number;
 
   // All tests need these before they start.
   before(async () => {
-    ({ tswapPda: tswap, expSellerRent } = await beforeHook());
+    ({ tswapPda: tswap } = await beforeHook());
   });
 
   it("sells nft into token/trade pool", async () => {
@@ -41,6 +40,7 @@ describe("tswap sell", () => {
       [tokenPoolConfig, tradePoolConfig]
     )) {
       await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
         tswap,
         owner,
         seller,
@@ -50,7 +50,6 @@ describe("tswap sell", () => {
           config === tokenPoolConfig
             ? LAMPORTS_PER_SOL
             : LAMPORTS_PER_SOL - 1234,
-        expectedRentBySeller: expSellerRent,
       });
     }
   });
@@ -64,6 +63,7 @@ describe("tswap sell", () => {
       [0.99 * LAMPORTS_PER_SOL, 0.01 * LAMPORTS_PER_SOL]
     )) {
       await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
         tswap,
         owner,
         seller,
@@ -73,23 +73,41 @@ describe("tswap sell", () => {
             ? LAMPORTS_PER_SOL
             : LAMPORTS_PER_SOL - 1234,
         minLamports: config === tokenPoolConfig ? price : price - 1234,
-        expectedRentBySeller: expSellerRent,
       });
     }
   });
 
   it("sell into nft pool fails", async () => {
     const [traderA, traderB] = await makeNTraders(2);
-    await expect(
-      testMakePoolSellNft({
-        tswap,
-        owner: traderA,
-        seller: traderB,
-        config: nftPoolConfig,
-        expectedLamports: LAMPORTS_PER_SOL,
-        expectedRentBySeller: 0,
-      })
-    ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
+    for (const sellType of ["trade", "token"] as const) {
+      await expect(
+        testMakePoolSellNft({
+          sellType,
+          tswap,
+          owner: traderA,
+          seller: traderB,
+          config: nftPoolConfig,
+          expectedLamports: LAMPORTS_PER_SOL,
+        })
+      ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
+    }
+  });
+
+  it("sellNft(Trade|Token)Pool into (Token|Trade) pool fails", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    for (const sellType of ["trade", "token"] as const) {
+      await expect(
+        testMakePoolSellNft({
+          sellType,
+          tswap,
+          owner: traderA,
+          seller: traderB,
+          // Reverse the pool type vs the sell instr type.
+          config: sellType === "trade" ? tokenPoolConfig : tradePoolConfig,
+          expectedLamports: LAMPORTS_PER_SOL,
+        })
+      ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
+    }
   });
 
   it("sell nft at higher price fails", async () => {
@@ -106,12 +124,12 @@ describe("tswap sell", () => {
       ).map(async ([{ owner, seller }, config, price]) => {
         await expect(
           testMakePoolSellNft({
+            sellType: config === tradePoolConfig ? "trade" : "token",
             tswap,
             owner,
             seller,
             config,
             expectedLamports: config === tokenPoolConfig ? price : price - 1234,
-            expectedRentBySeller: 0, // doesn't matter
           })
         ).rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
       })
@@ -148,6 +166,7 @@ describe("tswap sell", () => {
           const {
             tx: { ixs },
           } = await swapSdk.sellNft({
+            type: config === tradePoolConfig ? "trade" : "token",
             whitelist,
             nftMint: currMint,
             nftSellerAcc: currAta,

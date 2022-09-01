@@ -1,4 +1,6 @@
-//! User selling an NFT to the pool / pool buying an NFT from the user
+//! User selling an NFT into a Trade pool
+//! We separate this from Token pool since the NFT will go into an NFT escrow w/ a receipt.
+//! (!) Keep common logic in sync with sell_nft_token_pool.rs.
 use crate::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
@@ -6,7 +8,7 @@ use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
-pub struct SellNft<'info> {
+pub struct SellNftTradePool<'info> {
     /// Needed for pool seeds derivation
     #[account(seeds = [], bump = tswap.bump[0], has_one = fee_vault)]
     pub tswap: Box<Account<'info, TSwap>>,
@@ -28,8 +30,8 @@ pub struct SellNft<'info> {
         ],
         bump = pool.bump[0],
         has_one = tswap, has_one = whitelist, has_one = sol_escrow, has_one = owner,
-        // can only sell to Token/Trade pool
-        constraint = config.pool_type == PoolType::Token || config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
+        // sell into a Token pool
+        constraint = config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
     )]
     pub pool: Box<Account<'info, Pool>>,
 
@@ -38,7 +40,7 @@ pub struct SellNft<'info> {
 
     // todo: test if we can pass a WL mint here w/ non-WL mint account.
     /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(mut)]
+    #[account(mut, token::mint = nft_mint, token::authority = seller)]
     pub nft_seller_acc: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
@@ -54,7 +56,7 @@ pub struct SellNft<'info> {
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
-    /// CHECK: seed in nft_escrow
+    /// CHECK: whitelist, token::mint + seed in nft_escrow, token::mint in nft_seller_acc
     pub nft_mint: Box<Account<'info, Mint>>,
 
     #[account(
@@ -92,7 +94,7 @@ pub struct SellNft<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-impl<'info> SellNft<'info> {
+impl<'info> SellNftTradePool<'info> {
     fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
         let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
         require!(
@@ -125,7 +127,7 @@ impl<'info> SellNft<'info> {
 }
 
 // todo write tests
-impl<'info> Validate<'info> for SellNft<'info> {
+impl<'info> Validate<'info> for SellNftTradePool<'info> {
     fn validate(&self) -> Result<()> {
         Ok(())
     }
@@ -135,7 +137,7 @@ impl<'info> Validate<'info> for SellNft<'info> {
 //todo need to think about sending price / max price
 #[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, SellNft<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, SellNftTradePool<'info>>,
     proof: Vec<[u8; 32]>,
     // Min vs exact so we can add slippage later.
     min_price: u64,
@@ -149,7 +151,6 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     let mut left_for_seller = current_price;
 
-    // todo: send nft directly to owner's account for Token pool?
     // transfer nft to escrow
     // This must go before any transfer_lamports
     // o/w we get `sum of account balances before and after instruction do not match`
@@ -174,10 +175,8 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     //todo write tests
     // Owner/MM keeps some funds as their fee (no transfer necessary).
-    if pool.config.pool_type == PoolType::Trade {
-        let mm_fee = pool.calc_mm_fee(current_price)?;
-        left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
-    }
+    let mm_fee = pool.calc_mm_fee(current_price)?;
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
 
     //send money directly to seller
     let destination = match pool.config.pool_type {

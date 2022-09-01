@@ -1,3 +1,4 @@
+//! User creating a (empty) pool to trade NFTs (buy, sell or both)
 use crate::*;
 use std::str::FromStr;
 use tensor_whitelist::{self, Whitelist};
@@ -10,6 +11,7 @@ pub struct InitPool<'info> {
     #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
+    // todo test creating multiple pool types/curve types/prices/deltas
     #[account(
         init, payer = owner,
         seeds = [
@@ -22,7 +24,9 @@ pub struct InitPool<'info> {
             &config.delta.to_le_bytes()
         ],
         bump,
-        space = 8 + std::mem::size_of::<Pool>(),
+        //todo
+        space = 8 + Pool::SIZE,
+        // space = 8 + std::mem::size_of::<Pool>(),
     )]
     pub pool: Box<Account<'info, Pool>>,
 

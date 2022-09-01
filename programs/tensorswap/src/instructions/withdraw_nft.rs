@@ -1,3 +1,4 @@
+//! User withdrawing an NFT from their Trade pool
 use crate::*;
 use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
 
@@ -21,6 +22,9 @@ pub struct WithdrawNft<'info> {
         ],
         bump = pool.bump[0],
         has_one = tswap, has_one = whitelist, has_one = owner,
+        // todo: test for Token pool
+        // can only withdraw from NFT or Trade pool (bought NFTs from Token goes directly to owner)
+        constraint = config.pool_type == PoolType::NFT || config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
     )]
     pub pool: Box<Account<'info, Pool>>,
 

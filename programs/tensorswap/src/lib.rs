@@ -67,13 +67,22 @@ pub mod tensorswap {
         instructions::buy_nft::handler(ctx, proof, max_price)
     }
 
-    pub fn sell_nft<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, SellNft<'info>>,
+    pub fn sell_nft_token_pool<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, SellNftTokenPool<'info>>,
         _config: PoolConfig,
         proof: Vec<[u8; 32]>,
         min_price: u64,
     ) -> Result<()> {
-        instructions::sell_nft::handler(ctx, proof, min_price)
+        instructions::sell_nft_token_pool::handler(ctx, proof, min_price)
+    }
+
+    pub fn sell_nft_trade_pool<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, SellNftTradePool<'info>>,
+        _config: PoolConfig,
+        proof: Vec<[u8; 32]>,
+        min_price: u64,
+    ) -> Result<()> {
+        instructions::sell_nft_trade_pool::handler(ctx, proof, min_price)
     }
 }
 

@@ -1,3 +1,4 @@
+//! Program owner (Tensor) creating the program authority + metadata (eg swap fees) PDA account (TSwap)
 use crate::*;
 #[cfg(not(feature = "testing"))]
 use std::str::FromStr;

@@ -1,3 +1,4 @@
+//! User withdrawing SOL from their pool (all 3 types)
 use crate::*;
 use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::solana_program::system_instruction;

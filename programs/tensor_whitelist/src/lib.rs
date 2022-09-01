@@ -36,7 +36,7 @@ pub mod tensor_whitelist {
 
         whitelist.version = CURRENT_WHITELIST_VERSION;
         whitelist.bump = *ctx.bumps.get("whitelist").unwrap();
-        //todo temp feature since for now we're keeping WL permissioned
+        // TODO: temp feature since for now we're keeping WL permissioned
         whitelist.verified = true;
         // set uuid (won't change after initialization)
         whitelist.uuid = uuid;
@@ -98,7 +98,7 @@ pub struct InitUpdateWhitelist<'info> {
 
 #[account]
 pub struct Authority {
-    //naive - todo move to current/pending authority later
+    // TODO: naive - move to current/pending authority later
     pub bump: u8,
     pub owner: Pubkey,
 }

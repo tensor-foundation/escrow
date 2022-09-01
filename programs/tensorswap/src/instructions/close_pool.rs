@@ -1,3 +1,4 @@
+//! User (owner) closing their pool and reclaims rent (+ SOL escrow)
 use crate::*;
 use vipers::throw_err;
 

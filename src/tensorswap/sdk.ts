@@ -15,10 +15,12 @@ import {
   findTSwapPDA,
 } from "./pda";
 import {
+  getAssociatedTokenAddress,
   getMinimumBalanceForRentExemptAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { getAccountRent, hexCode } from "../common";
+import { ASSOCIATED_PROGRAM_ID } from "@project-serum/anchor/dist/cjs/utils/token";
 
 export const PoolType = {
   Token: { token: {} },
@@ -474,6 +476,7 @@ export class TensorSwapSDK {
 
   //main signature: seller
   async sellNft({
+    type,
     whitelist,
     nftMint,
     nftSellerAcc,
@@ -483,6 +486,7 @@ export class TensorSwapSDK {
     proof,
     minPrice,
   }: {
+    type: "trade" | "token";
     whitelist: PublicKey;
     nftMint: PublicKey;
     nftSellerAcc: PublicKey;
@@ -493,7 +497,6 @@ export class TensorSwapSDK {
     minPrice: BN;
   }) {
     const [tswapPda] = await findTSwapPDA({});
-
     const [poolPda] = await findPoolPDA({
       tswap: tswapPda,
       owner,
@@ -503,41 +506,54 @@ export class TensorSwapSDK {
       poolType: poolTypeU8(config.poolType),
       curveType: curveTypeU8(config.curveType),
     });
-
-    const [escrowPda] = await findNftEscrowPDA({ nftMint });
     const [solEscrowPda] = await findSolEscrowPDA({ pool: poolPda });
-    const [receiptPda] = await findNftDepositReceiptPDA({
-      nftMint,
-    });
+    const ownerAtaAcc = await getAssociatedTokenAddress(nftMint, owner);
+    const [nftEscrow] = await findNftEscrowPDA({ nftMint });
+    const [nftReceipt] = await findNftDepositReceiptPDA({ nftMint });
+
+    const { method, accounts } =
+      type === "trade"
+        ? {
+            method: this.program.methods.sellNftTradePool,
+            accounts: {
+              nftEscrow,
+              nftReceipt,
+            },
+          }
+        : {
+            method: this.program.methods.sellNftTokenPool,
+            accounts: {
+              ownerAtaAcc,
+              associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
+            },
+          };
 
     const tSwapAcc = await this.fetchTSwap(tswapPda);
 
-    const builder = this.program.methods
-      .sellNft(config as any, proof, minPrice)
-      .accounts({
-        tswap: tswapPda,
-        feeVault: tSwapAcc.feeVault,
-        pool: poolPda,
-        whitelist,
-        nftMint,
-        nftSellerAcc,
-        nftEscrow: escrowPda,
-        nftReceipt: receiptPda,
-        solEscrow: solEscrowPda,
-        owner,
-        seller,
-        systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      });
+    const builder = method(config as any, proof, minPrice).accounts({
+      tswap: tswapPda,
+      feeVault: tSwapAcc.feeVault,
+      pool: poolPda,
+      whitelist,
+      nftMint,
+      nftSellerAcc,
+      solEscrow: solEscrowPda,
+      ...accounts,
+      owner,
+      seller,
+      systemProgram: SystemProgram.programId,
+      rent: SYSVAR_RENT_PUBKEY,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    });
 
     return {
       builder,
       tx: { ixs: [await builder.instruction()], extraSigners: [] },
       poolPda,
-      escrowPda,
       solEscrowPda,
-      receiptPda,
+      ownerAtaAcc,
+      nftEscrow,
+      nftReceipt,
     };
   }
 
@@ -557,7 +573,7 @@ export class TensorSwapSDK {
     );
   }
 
-  async getNftEscrowRent() {
+  async getTokenAcctRent() {
     return await getMinimumBalanceForRentExemptAccount(
       this.program.provider.connection
     );

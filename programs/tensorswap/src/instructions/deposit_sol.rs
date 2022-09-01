@@ -1,3 +1,4 @@
+//! User depositing SOL into their Token/Trade pool (to purchase NFTs)
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;

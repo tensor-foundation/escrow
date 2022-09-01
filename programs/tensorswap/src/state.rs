@@ -7,10 +7,10 @@ use crate::*;
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 1;
 
-// todo currently hardcoding, not to waste time passing in
+// TODO: currently hardcoding, not to waste time passing in
 pub const TSWAP_FEE_BPS: u16 = 50; //0.5%
 
-// todo test limits
+// TODO: test limits
 pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
 pub const HUNDRED_PCT_BPS: u16 = 10000;
 pub const MAX_DELTA_BPS: u16 = 9999; //99%
@@ -35,9 +35,9 @@ pub struct TSwap {
     pub bump: [u8; 1],
     pub config: TSwapConfig,
 
-    // todo for v1 keeping it super naive - just a pk we control
+    // TODO: for v1 keeping it super naive - just a pk we control
     pub owner: Pubkey,
-    // todo for v1 keeping it super naive - just a pk we control
+    // TODO: for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
 }
 
@@ -69,50 +69,50 @@ pub enum CurveType {
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 pub struct PoolConfig {
     pub pool_type: PoolType,
-    // todo later can be made into a dyn Trait
+    // TODO: later can be made into a dyn Trait
     pub curve_type: CurveType,
     pub starting_price: u64, //lamports
     pub delta: u64,          //lamports pr bps
 
-    // todo disable for v1?
+    // TODO: disabled for v1
     pub honor_royalties: bool,
 
     /// Trade pools only
     pub mm_fee_bps: Option<u16>,
 }
-// #[proc_macros::assert_size(176)]
+
+impl PoolConfig {
+    // 2 enums/u8s + 2 u64s + boolean + u16 + EXTRA???
+    // TODO: anchor says Pool is 173 bytes => PoolConfig 22 bytes: need to +1 to make it work... Why?
+    pub const SIZE: usize = (2 * 1) + (2 * 8) + 1 + 2 + 1;
+}
+
 #[account]
 pub struct Pool {
     pub version: u8,
     pub bump: [u8; 1],
     pub sol_escrow_bump: [u8; 1],
+    /// Config & calc
+    pub config: PoolConfig,
 
     /// Ownership & belonging
     pub tswap: Pubkey,
     pub owner: Pubkey,
-
     /// Collection stuff
     pub whitelist: Pubkey,
-
-    /// Config & calc
-    pub config: PoolConfig,
+    /// Used by Trade / Token pools only
+    /// Amount to spend is implied by balance - rent
+    pub sol_escrow: Pubkey, //always initialized regardless of type
 
     /// Accounting
     pub taker_sell_count: u32, //how many times a taker has SOLD into the pool
     pub taker_buy_count: u32, //how many times a taker has BOUGHT from the pool
     pub nfts_held: u32,
-
-    /// Used by Trade / Token pools only
-    /// Amount to spend is implied by balance - rent
-    pub sol_escrow: Pubkey, //always initialized regardless of type
 }
 
 impl Pool {
-    // todo to work on
-    // pub fn SIZE() -> usize {
-    //     //bools + u8s + u16s + u32s + u64s + pk
-    //     (2 * 1) + (4 * 1) + 2 + (3 * 4) + (3 * 8) + (4 * 32)
-    // }
+    // 3 u8s + config + 4 keys + 3 u32s
+    pub const SIZE: usize = (3 * 1) + PoolConfig::SIZE + (4 * 32) + (3 * 4);
 
     pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {
         [b"sol_escrow", pool_key.as_ref(), &self.sol_escrow_bump]
@@ -262,7 +262,7 @@ pub struct SolEscrow {}
 
 // --------------------------------------- tests
 
-// todo since we're allowing the pool to go infinitely each direction, think through security / ux of limits
+// TODO: since we're allowing the pool to go infinitely each direction, think through security / ux of limits
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -327,15 +327,14 @@ mod tests {
         );
 
         //if price too small, fee will start to look weird, but who cares at these levels
-        //todo 0xrwu - thoughts?
         p.config.mm_fee_bps = Some(2499);
-        assert_eq!(p.calc_mm_fee(10).unwrap(), 2); //2.499
+        assert_eq!(p.calc_mm_fee(10).unwrap(), 2); //2.499 floored
 
         p.config.mm_fee_bps = Some(2499);
-        assert_eq!(p.calc_mm_fee(100).unwrap(), 24); //24.99
+        assert_eq!(p.calc_mm_fee(100).unwrap(), 24); //24.99 floored
 
         p.config.mm_fee_bps = Some(2499);
-        assert_eq!(p.calc_mm_fee(1000).unwrap(), 249); //249.9
+        assert_eq!(p.calc_mm_fee(1000).unwrap(), 249); //249.9 floored
     }
 
     #[test]
@@ -361,7 +360,6 @@ mod tests {
         );
 
         //if price too small, fee will start to look weird, but who cares at these levels
-        //todo 0xrwu - thoughts?
         assert_eq!(p.calc_tswap_fee(2499, 10).unwrap(), 2); //2.499
         assert_eq!(p.calc_tswap_fee(2499, 100).unwrap(), 24); //24.99
         assert_eq!(p.calc_tswap_fee(2499, 1000).unwrap(), 249); //249.9
@@ -754,7 +752,6 @@ mod tests {
         assert!(p.current_price(TakerSide::Buy).unwrap() < LAMPORTS_PER_SOL * 137806124 / MAX_BPS);
     }
 
-    // todo fix
     #[test]
     #[should_panic(expected = "IntegerOverflow")]
     fn test_expo_nft_pool_panic() {

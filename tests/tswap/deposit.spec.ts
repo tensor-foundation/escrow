@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import { buildAndSendTx, swapSdk, TOKEN_ACCT_WRONG_MINT_ERR } from "../shared";
 import {
@@ -7,6 +7,7 @@ import {
   makeNTraders,
   makeWhitelist,
   nftPoolConfig,
+  testDepositSol,
   testMakePool,
 } from "./common";
 
@@ -90,5 +91,22 @@ describe("tswap deposits", () => {
         extraSigners: [owner],
       })
     ).rejectedWith(TOKEN_ACCT_WRONG_MINT_ERR);
+  });
+
+  it("deposit SOL into NFT pool fails", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+    const { mint } = await createAndFundATA(owner);
+    const { whitelist } = await makeWhitelist([mint]);
+    const pool = await testMakePool({ tswap, owner, config, whitelist });
+    await expect(
+      testDepositSol({
+        pool,
+        whitelist,
+        config,
+        owner,
+        lamports: 69 * LAMPORTS_PER_SOL,
+      })
+    ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 });

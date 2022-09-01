@@ -1,4 +1,4 @@
-//! User buying an NFT from the pool / pool selling an NFT to the user
+//! User buying an NFT from an NFT/Trade pool
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
@@ -51,6 +51,7 @@ pub struct BuyNft<'info> {
             nft_mint.key().as_ref(),
         ],
         bump,
+        // todo token::mint/authority constraint?
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 

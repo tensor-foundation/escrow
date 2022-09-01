@@ -512,7 +512,111 @@ export type Tensorswap = {
       ]
     },
     {
-      "name": "sellNft",
+      "name": "sellNftTokenPool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
+        },
+        {
+          "name": "feeVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation, also checked via has_one on pool"
+          ]
+        },
+        {
+          "name": "nftSellerAcc",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ownerAtaAcc",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        },
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        },
+        {
+          "name": "minPrice",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "sellNftTradePool",
       "accounts": [
         {
           "name": "tswap",
@@ -686,6 +790,15 @@ export type Tensorswap = {
             }
           },
           {
+            "name": "config",
+            "docs": [
+              "Config & calc"
+            ],
+            "type": {
+              "defined": "PoolConfig"
+            }
+          },
+          {
             "name": "tswap",
             "docs": [
               "Ownership & belonging"
@@ -704,13 +817,12 @@ export type Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "config",
+            "name": "solEscrow",
             "docs": [
-              "Config & calc"
+              "Used by Trade / Token pools only",
+              "Amount to spend is implied by balance - rent"
             ],
-            "type": {
-              "defined": "PoolConfig"
-            }
+            "type": "publicKey"
           },
           {
             "name": "takerSellCount",
@@ -726,14 +838,6 @@ export type Tensorswap = {
           {
             "name": "nftsHeld",
             "type": "u32"
-          },
-          {
-            "name": "solEscrow",
-            "docs": [
-              "Used by Trade / Token pools only",
-              "Amount to spend is implied by balance - rent"
-            ],
-            "type": "publicKey"
           }
         ]
       }
@@ -1489,7 +1593,111 @@ export const IDL: Tensorswap = {
       ]
     },
     {
-      "name": "sellNft",
+      "name": "sellNftTokenPool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation"
+          ]
+        },
+        {
+          "name": "feeVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation, also checked via has_one on pool"
+          ]
+        },
+        {
+          "name": "nftSellerAcc",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ownerAtaAcc",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "nftMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "seller",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        },
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        },
+        {
+          "name": "minPrice",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "sellNftTradePool",
       "accounts": [
         {
           "name": "tswap",
@@ -1663,6 +1871,15 @@ export const IDL: Tensorswap = {
             }
           },
           {
+            "name": "config",
+            "docs": [
+              "Config & calc"
+            ],
+            "type": {
+              "defined": "PoolConfig"
+            }
+          },
+          {
             "name": "tswap",
             "docs": [
               "Ownership & belonging"
@@ -1681,13 +1898,12 @@ export const IDL: Tensorswap = {
             "type": "publicKey"
           },
           {
-            "name": "config",
+            "name": "solEscrow",
             "docs": [
-              "Config & calc"
+              "Used by Trade / Token pools only",
+              "Amount to spend is implied by balance - rent"
             ],
-            "type": {
-              "defined": "PoolConfig"
-            }
+            "type": "publicKey"
           },
           {
             "name": "takerSellCount",
@@ -1703,14 +1919,6 @@ export const IDL: Tensorswap = {
           {
             "name": "nftsHeld",
             "type": "u32"
-          },
-          {
-            "name": "solEscrow",
-            "docs": [
-              "Used by Trade / Token pools only",
-              "Amount to spend is implied by balance - rent"
-            ],
-            "type": "publicKey"
           }
         ]
       }

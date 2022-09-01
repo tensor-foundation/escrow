@@ -43,57 +43,91 @@ describe("tswap withdraws", () => {
     );
   });
 
-  it("withdraw nft from pool after someone sells", async () => {
+  it("withdraw nft from TRADE pool after someone sells", async () => {
     const [owner, seller] = await makeNTraders(2);
+    const config = tradePoolConfig;
 
-    await Promise.all(
-      [tokenPoolConfig, tradePoolConfig].map(async (config) => {
-        // Create pool + ATAs.
-        const { mint, ata } = await createAndFundATA(seller);
-        const { ata: ownerAta } = await createATA(mint, owner);
-        const {
-          proofs: [wlNft],
-          whitelist,
-        } = await makeWhitelist([mint]);
-        const pool = await testMakePool({ tswap, owner, config, whitelist });
-        await testDepositSol({
-          pool,
-          whitelist,
-          config,
-          owner,
-          lamports: LAMPORTS_PER_SOL,
-        });
+    // Create pool + ATAs.
+    const { mint, ata } = await createAndFundATA(seller);
+    const { ata: ownerAta } = await createATA(mint, owner);
+    const {
+      proofs: [wlNft],
+      whitelist,
+    } = await makeWhitelist([mint]);
+    const pool = await testMakePool({ tswap, owner, config, whitelist });
+    await testDepositSol({
+      pool,
+      whitelist,
+      config,
+      owner,
+      lamports: LAMPORTS_PER_SOL,
+    });
 
-        // Seller sells into pool.
-        const {
-          tx: { ixs },
-        } = await swapSdk.sellNft({
-          whitelist,
-          nftMint: wlNft.mint,
-          nftSellerAcc: ata,
-          owner: owner.publicKey,
-          seller: seller.publicKey,
-          config,
-          proof: wlNft.proof,
-          // Fine to go lower.
-          minPrice: new BN(LAMPORTS_PER_SOL / 2),
-        });
-        await buildAndSendTx({
-          ixs,
-          extraSigners: [seller],
-        });
+    // Seller sells into pool.
+    const {
+      tx: { ixs },
+    } = await swapSdk.sellNft({
+      type: "trade",
+      whitelist,
+      nftMint: wlNft.mint,
+      nftSellerAcc: ata,
+      owner: owner.publicKey,
+      seller: seller.publicKey,
+      config,
+      proof: wlNft.proof,
+      // Fine to go lower.
+      minPrice: new BN(LAMPORTS_PER_SOL / 2),
+    });
+    await buildAndSendTx({
+      ixs,
+      extraSigners: [seller],
+    });
 
-        // Buyer buys.
-        await testWithdrawNft({
-          pool,
-          config,
-          owner,
-          ata: ownerAta,
-          wlNft,
-          whitelist,
-        });
+    // Buyer buys.
+    await testWithdrawNft({
+      pool,
+      config,
+      owner,
+      ata: ownerAta,
+      wlNft,
+      whitelist,
+    });
+  });
+
+  it.only("withdraw nft from token pool fails", async () => {
+    const [owner, seller] = await makeNTraders(2);
+    const config = tokenPoolConfig;
+
+    // Create pool + ATAs.
+    const { mint } = await createAndFundATA(seller);
+    const { ata } = await createATA(mint, owner);
+    const {
+      proofs: [wlNft],
+      whitelist,
+    } = await makeWhitelist([mint]);
+    const pool = await testMakePool({ tswap, owner, config, whitelist });
+
+    // Need to deposit in another pool to avoid "AccountNotInitialized" error for escrow.
+    const otherPool = await testMakePool({ tswap, owner, config, whitelist });
+    await testDepositNft({
+      pool: otherPool,
+      config: nftPoolConfig,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+    });
+
+    await expect(
+      testWithdrawNft({
+        pool,
+        config,
+        owner,
+        ata,
+        wlNft,
+        whitelist,
       })
-    );
+    ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
   it("withdraw NFT from another pool fails", async () => {
