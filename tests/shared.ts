@@ -15,6 +15,14 @@ import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
 import { getLamports as _getLamports } from "../src/common";
 import { expect } from "chai";
 import { backOff } from "exponential-backoff";
+// Exporting these here vs in each .test.ts file prevents weird undefined issues.
+export {
+  hexCode,
+  CurveTypeAnchor,
+  PoolConfigAnchor,
+  PoolTypeAnchor,
+  TakerSide,
+} from "../src";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
 // Vipers IntegerOverflow error.

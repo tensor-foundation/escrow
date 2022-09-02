@@ -3,18 +3,16 @@ import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {
-  CurveTypeAnchor,
-  PoolConfigAnchor,
-  PoolTypeAnchor,
-  hexCode,
-  TakerSide,
-} from "../../src";
-import {
   buildAndSendTx,
   cartesian,
   INTEGER_OVERFLOW_ERR,
   swapSdk,
   TEST_PROVIDER,
+  CurveTypeAnchor,
+  PoolConfigAnchor,
+  PoolTypeAnchor,
+  hexCode,
+  TakerSide,
 } from "../shared";
 import {
   beforeHook,

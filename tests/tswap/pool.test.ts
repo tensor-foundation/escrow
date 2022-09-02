@@ -1,9 +1,6 @@
 import {
-  closeAccount,
-  getAssociatedTokenAddress,
   getMinimumBalanceForRentExemptAccount,
   getMinimumBalanceForRentExemptMint,
-  TokenAccountNotFoundError,
 } from "@solana/spl-token";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
@@ -42,7 +39,7 @@ describe("tswap pool", () => {
 
   //#region Create pool.
 
-  it("cannot init pool with royalties", async () => {
+  it("pool adds the created unix timestamp (in seconds)", async () => {
     const [owner] = await makeNTraders(1);
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
@@ -142,26 +139,22 @@ describe("tswap pool", () => {
         });
         await testClosePool({ owner, whitelist, config });
 
-        await closeAccount(
-          TEST_PROVIDER.connection,
-          owner,
-          ownerAta,
-          owner.publicKey,
-          owner
-        );
-
         const currLamports = await getLamports(owner.publicKey);
         const diff = currLamports! - prevLamports!;
-        // TODO: figure out why this isn't always the lower bound when running with multiple tests
-        // (should be since a new mint is created each time).
 
-        expect(diff).gte(
-          // Proceeds from sale, minus the rent we paid to create the mint initially.
+        expect(diff).eq(
+          // Proceeds from sale, minus the rent we paid to create the mint + ATA initially.
           buyPrice * (1 - TSWAP_FEE) -
-            (await getMinimumBalanceForRentExemptMint(TEST_PROVIDER.connection))
+            (await getMinimumBalanceForRentExemptMint(
+              TEST_PROVIDER.connection
+            )) -
+            // NB: for some reason if we close the ATA beforehand (and now have this adjustment)
+            // the resulting amount credited differs depending on which tests run before this one (wtf??)
+            (await getMinimumBalanceForRentExemptAccount(
+              TEST_PROVIDER.connection
+            ))
           // No addn from rent since we roundtrip it from deposit.
         );
-        expect(currLamports).lte(buyPrice * (1 - TSWAP_FEE));
       }
     );
   });

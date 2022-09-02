@@ -2,19 +2,17 @@ import { BN, LangErrorCode } from "@project-serum/anchor";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {
-  hexCode,
-  CurveTypeAnchor,
-  PoolConfigAnchor,
-  PoolTypeAnchor,
-  TakerSide,
-} from "../../src";
-import {
   buildAndSendTx,
   cartesian,
   generateTreeOfSize,
   swapSdk,
   TEST_PROVIDER,
   wlSdk,
+  hexCode,
+  CurveTypeAnchor,
+  PoolConfigAnchor,
+  PoolTypeAnchor,
+  TakerSide,
 } from "../shared";
 import {
   beforeHook,

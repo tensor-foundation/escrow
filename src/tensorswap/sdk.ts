@@ -21,7 +21,6 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { getAccountRent, hexCode } from "../common";
-import common from "mocha/lib/interfaces/common";
 import { TEST_PROVIDER } from "../../tests/shared";
 
 export const PoolTypeAnchor = {

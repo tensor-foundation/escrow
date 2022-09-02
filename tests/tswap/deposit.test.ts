@@ -1,8 +1,7 @@
 import { LangErrorCode } from "@project-serum/anchor";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
-import { hexCode } from "../../src";
-import { buildAndSendTx, swapSdk } from "../shared";
+import { buildAndSendTx, swapSdk, hexCode } from "../shared";
 import {
   beforeHook,
   createAndFundATA,

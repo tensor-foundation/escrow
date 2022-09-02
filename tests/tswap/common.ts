@@ -9,7 +9,6 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
   createInitializeMintInstruction,
-  createMint,
   createMintToInstruction,
   getAccount as _getAccount,
   getAssociatedTokenAddress,
