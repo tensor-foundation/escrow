@@ -17,6 +17,7 @@ import { expect } from "chai";
 import { backOff } from "exponential-backoff";
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export {
+  TSWAP_FEE_ACC,
   hexCode,
   CurveTypeAnchor,
   PoolConfigAnchor,

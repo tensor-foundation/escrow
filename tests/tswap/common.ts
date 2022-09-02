@@ -76,14 +76,13 @@ export const tradePoolConfig: PoolConfigAnchor = {
   mmFeeBps: 300,
 };
 
-type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
+export type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
 
 //#endregion
 
 //#region Test fixtures.
 
 export const beforeHook = async () => {
-  //keypairs (have a lot of sol for many tests that re-use these keypairs)
   // WL authority
   await testInitWLAuthority();
 
@@ -91,7 +90,10 @@ export const beforeHook = async () => {
   const {
     tx: { ixs },
     tswapPda,
-  } = await swapSdk.initUpdateTSwap(TEST_PROVIDER.publicKey, TSWAP_FEE_ACC);
+  } = await swapSdk.initUpdateTSwap({
+    owner: TEST_PROVIDER.publicKey,
+    feeVault: TSWAP_FEE_ACC,
+  });
   await buildAndSendTx({ ixs });
 
   const swapAcc = await swapSdk.fetchTSwap(tswapPda);

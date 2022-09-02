@@ -18,7 +18,10 @@ export type Tensorswap = {
         {
           "name": "cosigner",
           "isMut": false,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "We ask also for a signature just to make sure this wallet can actually sign things"
+          ]
         },
         {
           "name": "owner",
@@ -1141,7 +1144,10 @@ export const IDL: Tensorswap = {
         {
           "name": "cosigner",
           "isMut": false,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "We ask also for a signature just to make sure this wallet can actually sign things"
+          ]
         },
         {
           "name": "owner",

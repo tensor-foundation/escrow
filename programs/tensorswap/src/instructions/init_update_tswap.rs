@@ -15,6 +15,7 @@ pub struct InitUpdateTSwap<'info> {
     pub fee_vault: UncheckedAccount<'info>,
 
     /// CHECK: initialized once on init, requires owner sign-off later
+    /// We ask also for a signature just to make sure this wallet can actually sign things
     pub cosigner: Signer<'info>,
 
     #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(ROOT_AUTHORITY).unwrap()))]
