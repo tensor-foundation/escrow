@@ -7,12 +7,10 @@ use crate::*;
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 1;
 
-// todo currently hardcoding, not to waste time passing in
-pub const TSWAP_FEE_VAULT: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
+// TODO: currently hardcoding, not to waste time passing in
 pub const TSWAP_FEE_BPS: u16 = 50; //0.5%
 
-pub const TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
-
+// TODO: test limits
 pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
 pub const HUNDRED_PCT_BPS: u16 = 10000;
 pub const MAX_DELTA_BPS: u16 = 9999; //99%
@@ -27,20 +25,28 @@ pub struct TSwapConfig {
     pub fee_bps: u16,
 }
 
+impl TSwapConfig {
+    pub const SIZE: usize = 2;
+}
+
 #[account]
 pub struct TSwap {
     pub version: u8,
     pub bump: [u8; 1],
-
-    // todo for v1 keeping it super naive - just a pk we control
-    pub owner: Pubkey,
-
     pub config: TSwapConfig,
-    // todo for v1 keeping it super naive - just a pk we control
+
+    // TODO: for v1 keeping it super naive - just a pk we control
+    pub owner: Pubkey,
+    // TODO: for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
+    // TODO: for v1 keeping it super naive - just a pk we control
+    pub cosigner: Pubkey,
 }
 
 impl TSwap {
+    // 2 u8s + config + 3 pubkeys
+    pub const SIZE: usize = 1 + 1 + TSwapConfig::SIZE + 32 * 3;
+
     pub fn seeds(&self) -> [&[u8]; 1] {
         [&self.bump]
     }
@@ -66,50 +72,56 @@ pub enum CurveType {
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 pub struct PoolConfig {
     pub pool_type: PoolType,
-    // todo later can be made into a dyn Trait
+    // TODO: later can be made into a dyn Trait
     pub curve_type: CurveType,
     pub starting_price: u64, //lamports
     pub delta: u64,          //lamports pr bps
 
-    // todo disable for v1?
+    // TODO: disabled for v1
     pub honor_royalties: bool,
 
     /// Trade pools only
     pub mm_fee_bps: Option<u16>,
 }
-// #[proc_macros::assert_size(176)]
+
+impl PoolConfig {
+    // 2 enums/u8s + 2 u64s + boolean + option<u16> (3 bytes)
+    #[allow(clippy::identity_op)]
+    pub const SIZE: usize = (2 * 1) + (2 * 8) + 1 + 3;
+}
+
 #[account]
 pub struct Pool {
     pub version: u8,
     pub bump: [u8; 1],
     pub sol_escrow_bump: [u8; 1],
+    pub created_unix_seconds: i64, //unix timestamp in seconds when pool was created
+    /// Config & calc
+    pub config: PoolConfig,
 
     /// Ownership & belonging
     pub tswap: Pubkey,
     pub owner: Pubkey,
-
     /// Collection stuff
     pub whitelist: Pubkey,
-
-    /// Config & calc
-    pub config: PoolConfig,
+    /// Used by Trade / Token pools only
+    /// Amount to spend is implied by balance - rent
+    pub sol_escrow: Pubkey, //always initialized regardless of type
 
     /// Accounting
     pub taker_sell_count: u32, //how many times a taker has SOLD into the pool
     pub taker_buy_count: u32, //how many times a taker has BOUGHT from the pool
     pub nfts_held: u32,
-
-    /// Used by Trade / Token pools only
-    /// Amount to spend is implied by balance - rent
-    pub sol_escrow: Pubkey, //always initialized regardless of type
 }
 
 impl Pool {
-    // todo to work on
-    // pub fn SIZE() -> usize {
-    //     //bools + u8s + u16s + u32s + u64s + pk
-    //     (2 * 1) + (4 * 1) + 2 + (3 * 4) + (3 * 8) + (4 * 32)
-    // }
+    // 3 u8s + 1 i64 + config + 4 keys + 3 u32s
+    #[allow(clippy::identity_op)]
+    pub const SIZE: usize = (3 * 1) + 8 + PoolConfig::SIZE + (4 * 32) + (3 * 4);
+
+    pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {
+        [b"sol_escrow", pool_key.as_ref(), &self.sol_escrow_bump]
+    }
 
     pub fn calc_mm_fee(&self, current_price: u64) -> Result<u64> {
         if self.config.pool_type != PoolType::Trade {
@@ -233,6 +245,8 @@ pub enum TakerSide {
 
 // --------------------------------------- receipts
 
+/// Represents NFTs deposited into our protocol.
+/// Always associated to (1) NFT mint (2) NFT escrow and (3) pool (every type).
 #[account]
 pub struct NftDepositReceipt {
     pub bump: u8,
@@ -241,11 +255,19 @@ pub struct NftDepositReceipt {
     pub nft_escrow: Pubkey,
 }
 
-// Need dummy Anchor account so we can use `close` constraint.
+impl NftDepositReceipt {
+    pub const SIZE: usize = 1 + 32 * 3;
+}
+
+// --------------------------------------- escrows
+
+/// Need dummy Anchor account so we can use `close` constraint.
 #[account]
 pub struct SolEscrow {}
 
-// todo since we're allowing the pool to go infinitely each direction, think through security / ux of limits
+// --------------------------------------- tests
+
+// TODO: since we're allowing the pool to go infinitely each direction, think through security / ux of limits
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,6 +287,7 @@ mod tests {
                 version: 1,
                 bump: [1],
                 sol_escrow_bump: [1],
+                created_unix_seconds: 1234,
                 tswap: Pubkey::default(),
                 owner: Pubkey::default(),
                 whitelist: Pubkey::default(),
@@ -310,15 +333,14 @@ mod tests {
         );
 
         //if price too small, fee will start to look weird, but who cares at these levels
-        //todo 0xrwu - thoughts?
         p.config.mm_fee_bps = Some(2499);
-        assert_eq!(p.calc_mm_fee(10).unwrap(), 2); //2.499
+        assert_eq!(p.calc_mm_fee(10).unwrap(), 2); //2.499 floored
 
         p.config.mm_fee_bps = Some(2499);
-        assert_eq!(p.calc_mm_fee(100).unwrap(), 24); //24.99
+        assert_eq!(p.calc_mm_fee(100).unwrap(), 24); //24.99 floored
 
         p.config.mm_fee_bps = Some(2499);
-        assert_eq!(p.calc_mm_fee(1000).unwrap(), 249); //249.9
+        assert_eq!(p.calc_mm_fee(1000).unwrap(), 249); //249.9 floored
     }
 
     #[test]
@@ -344,7 +366,6 @@ mod tests {
         );
 
         //if price too small, fee will start to look weird, but who cares at these levels
-        //todo 0xrwu - thoughts?
         assert_eq!(p.calc_tswap_fee(2499, 10).unwrap(), 2); //2.499
         assert_eq!(p.calc_tswap_fee(2499, 100).unwrap(), 24); //24.99
         assert_eq!(p.calc_tswap_fee(2499, 1000).unwrap(), 249); //249.9
@@ -737,7 +758,6 @@ mod tests {
         assert!(p.current_price(TakerSide::Buy).unwrap() < LAMPORTS_PER_SOL * 137806124 / MAX_BPS);
     }
 
-    // todo fix
     #[test]
     #[should_panic(expected = "IntegerOverflow")]
     fn test_expo_nft_pool_panic() {

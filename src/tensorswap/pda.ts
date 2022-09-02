@@ -2,7 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { TENSORSWAP_ADDR } from "./constants";
 import { BN } from "@project-serum/anchor";
 
-export const findPoolPDA = async ({
+export const findPoolPDA = ({
   program,
   tswap,
   owner,
@@ -20,8 +20,8 @@ export const findPoolPDA = async ({
   curveType: number;
   startingPrice: BN;
   delta: BN;
-}): Promise<[PublicKey, number]> => {
-  return PublicKey.findProgramAddress(
+}): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
     [
       tswap.toBytes(),
       owner.toBytes(),
@@ -37,44 +37,44 @@ export const findPoolPDA = async ({
   );
 };
 
-export const findTSwapPDA = async ({ program }: { program?: PublicKey }) => {
-  return PublicKey.findProgramAddress([], program ?? TENSORSWAP_ADDR);
+export const findTSwapPDA = ({ program }: { program?: PublicKey }) => {
+  return PublicKey.findProgramAddressSync([], program ?? TENSORSWAP_ADDR);
 };
 
-export const findNftEscrowPDA = async ({
+export const findNftEscrowPDA = ({
   program,
   nftMint,
 }: {
   program?: PublicKey;
   nftMint: PublicKey;
 }) => {
-  return PublicKey.findProgramAddress(
+  return PublicKey.findProgramAddressSync(
     [Buffer.from("nft_escrow"), nftMint.toBytes()],
     program ?? TENSORSWAP_ADDR
   );
 };
 
-export const findNftDepositReceiptPDA = async ({
+export const findNftDepositReceiptPDA = ({
   program,
   nftMint,
 }: {
   program?: PublicKey;
   nftMint: PublicKey;
 }) => {
-  return PublicKey.findProgramAddress(
+  return PublicKey.findProgramAddressSync(
     [Buffer.from("nft_receipt"), nftMint.toBytes()],
     program ?? TENSORSWAP_ADDR
   );
 };
 
-export const findSolEscrowPDA = async ({
+export const findSolEscrowPDA = ({
   program,
   pool,
 }: {
   program?: PublicKey;
   pool: PublicKey;
 }) => {
-  return PublicKey.findProgramAddress(
+  return PublicKey.findProgramAddressSync(
     [Buffer.from("sol_escrow"), pool.toBytes()],
     program ?? TENSORSWAP_ADDR
   );

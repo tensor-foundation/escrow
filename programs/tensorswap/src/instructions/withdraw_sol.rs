@@ -1,12 +1,10 @@
-//! User depositing SOL into their Token/Trade pool (to purchase NFTs)
+//! User withdrawing SOL from their pool (all 3 types)
 use crate::*;
-use anchor_lang::solana_program::program::invoke;
-use anchor_lang::solana_program::system_instruction;
 use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
-pub struct DepositSol<'info> {
+pub struct WithdrawSol<'info> {
     #[account(
         seeds = [], bump = tswap.bump[0],
         has_one = cosigner,
@@ -25,10 +23,8 @@ pub struct DepositSol<'info> {
             &config.delta.to_le_bytes()
         ],
         bump = pool.bump[0],
-        has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
-        // todo test
-        // can only deposit SOL into Token/Trade pool
         constraint = config.pool_type == PoolType::Token ||  config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
+        has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
     )]
     pub pool: Box<Account<'info, Pool>>,
 
@@ -44,9 +40,9 @@ pub struct DepositSol<'info> {
         ],
         bump = pool.sol_escrow_bump[0],
     )]
-    pub sol_escrow: UncheckedAccount<'info>,
+    pub sol_escrow: Account<'info, SolEscrow>,
 
-    /// CHECK: has_one = owner in pool
+    /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub owner: Signer<'info>,
     /// CHECK: has_one = cosigner in tswap
@@ -55,36 +51,35 @@ pub struct DepositSol<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> DepositSol<'info> {
-    fn transfer_lamports(&self, lamports: u64) -> Result<()> {
-        invoke(
-            &system_instruction::transfer(self.owner.key, &self.sol_escrow.key(), lamports),
-            &[
-                self.owner.to_account_info(),
-                self.sol_escrow.to_account_info(),
-                self.system_program.to_account_info(),
-            ],
-        )
-        .map_err(Into::into)
+impl<'info> WithdrawSol<'info> {
+    fn transfer_lamports_to_owner(&self, lamports: u64) -> Result<()> {
+        transfer_lamports_from_escrow(&self.sol_escrow, &self.owner.to_account_info(), lamports)
     }
 }
 
-impl<'info> Validate<'info> for DepositSol<'info> {
+impl<'info> Validate<'info> for WithdrawSol<'info> {
     fn validate(&self) -> Result<()> {
-        match self.pool.config.pool_type {
-            PoolType::Token | PoolType::Trade => {}
-            _ => {
-                throw_err!(WrongPoolType);
-            }
-        }
         Ok(())
     }
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
+pub fn handler(ctx: Context<WithdrawSol>, lamports: u64) -> Result<()> {
+    // todo test
+    // Check we are not withdrawing into our rent.
+    let rent = Rent::get()?.minimum_balance(ctx.accounts.sol_escrow.to_account_info().data_len());
+    let lamports_excl_rent = unwrap_int!(ctx
+        .accounts
+        .sol_escrow
+        .to_account_info()
+        .lamports()
+        .checked_sub(rent));
+    if lamports > lamports_excl_rent {
+        throw_err!(InsufficientSolEscrowBalance);
+    }
+
     // do the transfer
-    ctx.accounts.transfer_lamports(lamports)?;
+    ctx.accounts.transfer_lamports_to_owner(lamports)?;
 
     Ok(())
 }

@@ -1,3 +1,4 @@
+//! User creating a (empty) pool to trade NFTs (buy, sell or both)
 use crate::*;
 use std::str::FromStr;
 use tensor_whitelist::{self, Whitelist};
@@ -6,40 +7,55 @@ use vipers::throw_err;
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
 pub struct InitPool<'info> {
-    /// Needed for pool seeds derivation
-    #[account(seeds = [], bump = tswap.bump[0])]
+    #[account(
+        seeds = [], bump = tswap.bump[0],
+        has_one = cosigner,
+    )]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    #[account(init, payer = owner, seeds = [
-        tswap.key().as_ref(),
-        owner.key().as_ref(),
-        whitelist.key().as_ref(),
-        &[config.pool_type as u8],
-        &[config.curve_type as u8],
-        &config.starting_price.to_le_bytes(),
-        &config.delta.to_le_bytes()
-    ], bump, space = 8 + std::mem::size_of::<Pool>())]
+    // todo test creating multiple pool types/curve types/prices/deltas
+    #[account(
+        init, payer = owner,
+        seeds = [
+            tswap.key().as_ref(),
+            owner.key().as_ref(),
+            whitelist.key().as_ref(),
+            &[config.pool_type as u8],
+            &[config.curve_type as u8],
+            &config.starting_price.to_le_bytes(),
+            &config.delta.to_le_bytes()
+        ],
+        bump,
+        space = 8 + Pool::SIZE,
+    )]
     pub pool: Box<Account<'info, Pool>>,
 
-    #[account(init, payer = owner, seeds = [
-        b"sol_escrow".as_ref(),
-        pool.key().as_ref(),
-    ], bump, space = 8)]
+    #[account(
+        init, payer = owner,
+        seeds = [
+            b"sol_escrow".as_ref(),
+            pool.key().as_ref(),
+        ],
+        bump,
+        space = 8
+    )]
     pub sol_escrow: Account<'info, SolEscrow>,
 
     /// Needed for pool seeds derivation / will be stored inside pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    /// Needed for pool seeds derivation / paying fr stuff
+    /// CHECK: used in seed derivation
     #[account(mut)]
     pub owner: Signer<'info>,
+    /// CHECK: has_one = cosigner in tswap
+    pub cosigner: Signer<'info>,
+
     pub system_program: Program<'info, System>,
 }
 
 impl<'info> InitPool<'info> {
     // todo write tests for all these conditions
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
-        // todo test
         if config.honor_royalties {
             throw_err!(RoyaltiesDisabled);
         }
@@ -113,14 +129,17 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
     pool.version = CURRENT_POOL_VERSION;
     pool.bump = [unwrap_bump!(ctx, "pool")];
     pool.sol_escrow_bump = [unwrap_bump!(ctx, "sol_escrow")];
+    pool.created_unix_seconds = Clock::get()?.unix_timestamp;
+    pool.config = config;
+
     pool.tswap = ctx.accounts.tswap.key();
     pool.owner = ctx.accounts.owner.key();
     pool.whitelist = ctx.accounts.whitelist.key();
-    pool.config = config;
+    pool.sol_escrow = ctx.accounts.sol_escrow.key();
+
     pool.taker_buy_count = 0;
     pool.taker_sell_count = 0;
     pool.nfts_held = 0;
-    pool.sol_escrow = ctx.accounts.sol_escrow.key();
 
     Ok(())
 }

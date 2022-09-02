@@ -76,12 +76,23 @@ jobs:
       - uses: ./.github/actions/git-diff/
 
   test-typescript:
-    name: TypeScript Tests
     # NB: Even though this depends on setup-anchor-cli it technically runs a different machine/runner
     # so we need to download the anchor artifact from above.
     needs: setup-anchor-cli
+    name: Test ${{ matrix.node.glob }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy: 
+      fail-fast: false
+      matrix:
+        node:
+          - glob: tests/tswap/buy.test.ts
+          - glob: tests/tswap/cosigner.test.ts
+          - glob: tests/tswap/deposit.test.ts
+          - glob: tests/tswap/pool.test.ts
+          - glob: tests/tswap/sell.test.ts
+          - glob: tests/tswap/withdraw.test.ts
+          - glob: tests/twhitelist.spec.ts
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/
@@ -113,4 +124,7 @@ jobs:
 
       - run: yarn install
       - run: yarn test
+        env: 
+          TESTS_GLOB: ${{ matrix.node.glob }}
+      # This ensures the IDL generated matches what's checked in!
       - uses: ./.github/actions/git-diff/

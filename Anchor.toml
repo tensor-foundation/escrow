@@ -1,7 +1,7 @@
 [features]
 # Enable if we want to figure out pda-derivation.
 seeds = false
-# skip-lint = false
+skip-lint = false
 [programs.localnet]
 tensorswap = "EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA"
 tensor_whitelist = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6"
@@ -14,5 +14,5 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-# NB: mocha doesn't really parallelize it(..) tests: https://stackoverflow.com/a/35534550/4463793
-test = "yarn run ts-mocha -p ./tsconfig.json -t 100000 tests/**/*.ts"
+# eg TESTS_GLOB='tests/tswap/buy.spec.ts anchor test (omit TESTS_GLOB to run all tests)
+test = "bash scripts/anchor_test.sh"

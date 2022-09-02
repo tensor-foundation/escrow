@@ -1,8 +1,9 @@
 {
   "scripts": {
     "build": "anchor build && bash scripts/cp_idl.sh",
+    "build:test": "anchor build -- --features testing && bash scripts/cp_idl.sh",
     "test": "bash scripts/full_test.sh",
-    "fast-test": "anchor test --skip-build",
+    "fast-test": "anchor test --skip-build -- --features testing",
     "pub": "rm -rf ./dist && tsc && npm version patch --force && npm publish --access public",
     "upgrade:tswap": "yarn upgrade @tensor/tensorswap-ts --latest --check-files",
     "upgrade:anchor": "yarn upgrade @project-serum/anchor --latest --check-files"
@@ -14,11 +15,13 @@
     "@solana/web3.js": "^1.33.0",
     "@tensor-hq/tensor-common": "^0.1.36",
     "@types/bn.js": "^5.1.0",
+    "big.js": "^6.2.1",
     "bn.js": "^5.2.0",
     "keccak256": "^1.0.6",
     "merkletreejs": "^0.2.32"
   },
   "devDependencies": {
+    "@types/big.js": "^6.1.5",
     "@types/chai": "^4.3.0",
     "@types/chai-as-promised": "^7.1.4",
     "@types/mocha": "^9.1.0",
@@ -27,6 +30,7 @@
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",
     "chai-bn": "^0.3.1",
+    "exponential-backoff": "^3.1.0",
     "jsbi": "^4.1.0",
     "mocha": "^10.0.0",
     "prettier": "^2.5.1",
