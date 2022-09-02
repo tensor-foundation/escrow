@@ -126,4 +126,5 @@ jobs:
       - run: yarn test
         env: 
           TESTS_GLOB: ${{ matrix.node.glob }}
+      # This ensures the IDL generated matches what's checked in!
       - uses: ./.github/actions/git-diff/
