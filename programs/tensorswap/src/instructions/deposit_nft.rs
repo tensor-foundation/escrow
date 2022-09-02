@@ -31,8 +31,7 @@ pub struct DepositNft<'info> {
     /// Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(mut)]
+    #[account(mut, token::mint = nft_mint, token::authority = owner)]
     pub nft_source: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
@@ -63,7 +62,7 @@ pub struct DepositNft<'info> {
     )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
-    /// Tied to the pool because used to verify pool seeds
+    /// CHECK: has_one = owner in pool
     #[account(mut)]
     pub owner: Signer<'info>,
 

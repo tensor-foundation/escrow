@@ -1,6 +1,8 @@
+import { LangErrorCode } from "@project-serum/anchor";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
-import { buildAndSendTx, swapSdk, TOKEN_ACCT_WRONG_MINT_ERR } from "../shared";
+import { hexCode } from "../../src";
+import { buildAndSendTx, swapSdk } from "../shared";
 import {
   beforeHook,
   createAndFundATA,
@@ -29,12 +31,33 @@ describe("tswap deposits", () => {
     await testMakePool({ tswap, owner, config, whitelist });
 
     // Bad mint (w/ good + bad ATAs passed).
-    for (const currAta of [ata, badAta]) {
+    // All:
+    // 1) non-WL mint + bad ATA
+    // 2) non-WL mint + good ATA
+    // 3) WL mint + bad ATA
+    // should fail.
+    for (const { currMint, currAta, err } of [
+      {
+        currMint: badMint,
+        currAta: badAta,
+        err: swapSdk.getErrorCodeHex("InvalidProof"),
+      },
+      {
+        currMint: badMint,
+        currAta: ata,
+        err: hexCode(LangErrorCode.ConstraintTokenMint),
+      },
+      {
+        currMint: mint,
+        currAta: badAta,
+        err: hexCode(LangErrorCode.ConstraintTokenMint),
+      },
+    ]) {
       const {
         tx: { ixs },
       } = await swapSdk.depositNft({
         whitelist,
-        nftMint: badMint,
+        nftMint: currMint,
         nftSource: currAta,
         owner: owner.publicKey,
         config,
@@ -45,7 +68,7 @@ describe("tswap deposits", () => {
           ixs,
           extraSigners: [owner],
         })
-      ).rejectedWith(swapSdk.getErrorCodeHex("InvalidProof"));
+      ).rejectedWith(err);
     }
 
     // Good mint
@@ -63,34 +86,6 @@ describe("tswap deposits", () => {
       ixs: goodIxs,
       extraSigners: [owner],
     });
-  });
-
-  it("deposit WL nft w/ non-WL ata fails", async () => {
-    const [owner] = await makeNTraders(1);
-    const config = nftPoolConfig;
-    const { mint } = await createAndFundATA(owner);
-    const { proofs, whitelist } = await makeWhitelist([mint]);
-    const { ata: badAta } = await createAndFundATA(owner);
-    await testMakePool({ tswap, owner, config, whitelist });
-
-    const {
-      tx: { ixs },
-    } = await swapSdk.depositNft({
-      whitelist,
-      // Good mint
-      nftMint: mint,
-      // Bad ATA
-      nftSource: badAta,
-      owner: owner.publicKey,
-      config,
-      proof: proofs[0].proof,
-    });
-    await expect(
-      buildAndSendTx({
-        ixs,
-        extraSigners: [owner],
-      })
-    ).rejectedWith(TOKEN_ACCT_WRONG_MINT_ERR);
   });
 
   it("deposit SOL into NFT pool fails", async () => {

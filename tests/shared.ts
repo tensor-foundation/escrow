@@ -16,8 +16,8 @@ import { getLamports as _getLamports } from "../src/common";
 import { expect } from "chai";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
-// Rejects with "Account not associated with this Mint" (eg transfer b/w 2 token accounts w/ different mints).
-export const TOKEN_ACCT_WRONG_MINT_ERR = "0x3";
+// Vipers IntegerOverflow error.
+export const INTEGER_OVERFLOW_ERR = "0x44f";
 
 export const getLamports = (acct: PublicKey) =>
   _getLamports(TEST_PROVIDER.connection, acct);

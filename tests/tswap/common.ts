@@ -20,11 +20,17 @@ import {
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import {
-  CurveType,
-  PoolConfig,
-  PoolType,
+  CurveTypeAnchor,
+  PoolConfigAnchor,
+  PoolTypeAnchor,
+  TakerSide,
   TSwapConfig,
   TSWAP_FEE_ACC,
+  computeCurrentPrice as computeCurrentPrice_,
+  computeDepositAmount as computeDepositAmount_,
+  CurveType,
+  PoolType,
+  PoolConfig,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -40,34 +46,41 @@ import {
 } from "../shared";
 import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
+import Big from "big.js";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
 
+//#region Test constants/types.
+
 export const TSWAP_FEE = 0.005;
 
-export const LINEAR_CONFIG: Omit<PoolConfig, "poolType"> = {
-  curveType: CurveType.Linear,
+export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
+  curveType: CurveTypeAnchor.Linear,
   startingPrice: new BN(LAMPORTS_PER_SOL),
   delta: new BN(1234),
   honorRoyalties: false,
   mmFeeBps: 0,
 };
-export const nftPoolConfig: PoolConfig = {
-  poolType: PoolType.NFT,
+export const nftPoolConfig: PoolConfigAnchor = {
+  poolType: PoolTypeAnchor.NFT,
   ...LINEAR_CONFIG,
 };
-export const tokenPoolConfig: PoolConfig = {
-  poolType: PoolType.Token,
+export const tokenPoolConfig: PoolConfigAnchor = {
+  poolType: PoolTypeAnchor.Token,
   ...LINEAR_CONFIG,
 };
-export const tradePoolConfig: PoolConfig = {
-  poolType: PoolType.Trade,
+export const tradePoolConfig: PoolConfigAnchor = {
+  poolType: PoolTypeAnchor.Trade,
   ...LINEAR_CONFIG,
   mmFeeBps: 300,
 };
 
 type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
+
+//#endregion
+
+//#region Test fixtures.
 
 export const beforeHook = async () => {
   //keypairs (have a lot of sol for many tests that re-use these keypairs)
@@ -108,6 +121,8 @@ const expectPoolAccounting = (
   expect(currPool.takerSellCount - prevPool.takerSellCount).eq(diffs.sell);
   expect(currPool.takerBuyCount - prevPool.takerBuyCount).eq(diffs.buy);
 };
+
+//#endregion
 
 //#region ATA/wallet helper functions.
 
@@ -206,7 +221,7 @@ export const getAccount = (acct: PublicKey) =>
 
 //#endregion
 
-//#region Helper functions (no expects run).
+//#region Non-expect helper functions (no expects run).
 
 // Creates a mint + 2 ATAs. The `owner` will have the mint initially.
 export const makeMintTwoAta = async (owner: Keypair, other: Keypair) => {
@@ -243,9 +258,64 @@ export const makeWhitelist = async (mints: PublicKey[]) => {
   return { proofs, whitelist: whitelistPda };
 };
 
+const _castConfig = (config: PoolConfigAnchor): PoolConfig => {
+  return {
+    poolType:
+      config.poolType === PoolTypeAnchor.NFT
+        ? PoolType.NFT
+        : config.poolType === PoolTypeAnchor.Token
+        ? PoolType.Token
+        : PoolType.Trade,
+    curveType:
+      config.curveType === CurveTypeAnchor.Linear
+        ? CurveType.Linear
+        : CurveType.Exponential,
+    startingPrice: new Big(config.startingPrice.toString()),
+    delta: new Big(config.delta.toString()),
+  };
+};
+
+export const computeDepositAmount = ({
+  config,
+  nftCount,
+}: {
+  config: PoolConfigAnchor;
+  nftCount: number;
+}): BN =>
+  new BN(
+    computeDepositAmount_({
+      config: _castConfig(config),
+      nftCount,
+    }).toNumber()
+  );
+
+export const computeCurrentPrice = ({
+  config,
+  buyCount,
+  sellCount,
+  takerSide,
+  slippage,
+}: {
+  config: PoolConfigAnchor;
+  buyCount: number;
+  sellCount: number;
+  takerSide: TakerSide;
+  slippage?: number;
+}): BN =>
+  new BN(
+    computeCurrentPrice_({
+      config: _castConfig(config),
+      takerBuyCount: buyCount,
+      takerSellCount: sellCount,
+      takerSide,
+      extraNFTsSelected: 0,
+      slippage,
+    }).toNumber()
+  );
+
 //#endregion
 
-//#region Helper fns that also runs expect statements.
+//#region Helper fns with expect statements.
 
 // Can be run async.
 export const testMakePool = async ({
@@ -257,7 +327,7 @@ export const testMakePool = async ({
   tswap: PublicKey;
   owner: Keypair;
   whitelist: PublicKey;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
 }) => {
   const {
     tx: { ixs },
@@ -282,16 +352,18 @@ export const testMakePool = async ({
   expect(poolAcc.takerSellCount).eq(0);
   expect(poolAcc.nftsHeld).eq(0);
 
-  const accConfig = poolAcc.config as PoolConfig;
+  const accConfig = poolAcc.config as PoolConfigAnchor;
   expect(Object.keys(config.poolType)[0] in accConfig.poolType).true;
   expect(JSON.stringify(accConfig.curveType)).eq(
-    JSON.stringify(CurveType.Linear)
+    JSON.stringify(config.curveType)
   );
-  expect(accConfig.startingPrice.toNumber()).eq(LAMPORTS_PER_SOL);
-  expect(accConfig.delta.toNumber()).eq(1234);
+  expect(accConfig.startingPrice.toNumber()).eq(
+    config.startingPrice.toNumber()
+  );
+  expect(accConfig.delta.toNumber()).eq(config.delta.toNumber());
   expect(accConfig.honorRoyalties).eq(false);
-  if (config.poolType === PoolType.Trade) {
-    expect(accConfig.mmFeeBps).eq(300);
+  if (config.poolType === PoolTypeAnchor.Trade) {
+    expect(accConfig.mmFeeBps).eq(config.mmFeeBps);
   } else {
     expect(accConfig.mmFeeBps).eq(0);
   }
@@ -310,7 +382,7 @@ export const testClosePool = async ({
 }: {
   owner: Keypair;
   whitelist: PublicKey;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
 }) => {
   const {
     tx: { ixs },
@@ -351,7 +423,7 @@ export const testDepositNft = async ({
   whitelist,
 }: {
   pool: PublicKey;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
   owner: Keypair;
   ata: PublicKey;
   wlNft: WhitelistedNft;
@@ -401,7 +473,7 @@ export const testDepositSol = async ({
 }: {
   pool: PublicKey;
   whitelist: PublicKey;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
   owner: Keypair;
   lamports: number;
 }) => {
@@ -446,7 +518,7 @@ export const testWithdrawNft = async ({
   whitelist,
 }: {
   pool: PublicKey;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
   owner: Keypair;
   ata: PublicKey;
   wlNft: WhitelistedNft;
@@ -496,7 +568,7 @@ export const testWithdrawSol = async ({
 }: {
   pool: PublicKey;
   whitelist: PublicKey;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
   owner: Keypair;
   lamports: number;
 }) => {
@@ -543,7 +615,7 @@ export const testMakePoolBuyNft = async ({
   tswap: PublicKey;
   owner: Keypair;
   buyer: Keypair;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
   expectedLamports: number;
   // If specified, uses this as the maxPrice for the buy instr.
   // All expects will still use expectedLamports.
@@ -554,10 +626,10 @@ export const testMakePoolBuyNft = async ({
     proofs: [wlNft],
     whitelist,
   } = await makeWhitelist([mint]);
-  const poolPda = await testMakePool({ tswap, owner, whitelist, config });
+  const pool = await testMakePool({ tswap, owner, whitelist, config });
 
   await testDepositNft({
-    pool: poolPda,
+    pool,
     config,
     owner,
     ata,
@@ -581,7 +653,7 @@ export const testMakePoolBuyNft = async ({
     maxPrice: new BN(maxLamports),
   });
 
-  const prevPoolAcc = await swapSdk.fetchPool(poolPda);
+  const prevPoolAcc = await swapSdk.fetchPool(pool);
 
   return await withLamports(
     {
@@ -626,12 +698,12 @@ export const testMakePoolBuyNft = async ({
       // (1) NFT = amount sent to owner, NOT escrow
       const grossAmount = expectedLamports * (1 - TSWAP_FEE);
       const expOwnerAmount =
-        (config.poolType === PoolType.Trade ? 0 : grossAmount) +
+        (config.poolType === PoolTypeAnchor.Trade ? 0 : grossAmount) +
         // The owner gets back the rent costs.
         (await swapSdk.getNftDepositReceiptRent()) +
         (await swapSdk.getTokenAcctRent());
       const expEscrowAmount =
-        config.poolType === PoolType.Trade ? grossAmount : 0;
+        config.poolType === PoolTypeAnchor.Trade ? grossAmount : 0;
       // amount sent to owner's wallet
       const currSellerLamports = await getLamports(owner.publicKey);
       expect(currSellerLamports! - prevSellerLamports!).eq(expOwnerAmount);
@@ -639,7 +711,7 @@ export const testMakePoolBuyNft = async ({
       const currSolEscrowLamports = await getLamports(solEscrowPda);
       expect(currSolEscrowLamports! - prevEscrowLamports!).eq(expEscrowAmount);
 
-      const poolAcc = await swapSdk.fetchPool(poolPda);
+      const poolAcc = await swapSdk.fetchPool(pool);
       expectPoolAccounting(poolAcc, prevPoolAcc, {
         nfts: -1,
         sell: 0,
@@ -651,7 +723,15 @@ export const testMakePoolBuyNft = async ({
         ACCT_NOT_EXISTS_ERR
       );
 
-      return { poolPda, whitelist, ata, wlNft };
+      return {
+        pool,
+        whitelist,
+        ata,
+        wlNft,
+        receiptPda,
+        solEscrowPda,
+        escrowPda,
+      };
     }
   );
 };
@@ -670,7 +750,7 @@ export const testMakePoolSellNft = async ({
   tswap: PublicKey;
   owner: Keypair;
   seller: Keypair;
-  config: PoolConfig;
+  config: PoolConfigAnchor;
   expectedLamports: number;
   // If specified, uses this as the minPrice for the sell instr.
   // All expects will still use expectedLamports.
@@ -712,11 +792,14 @@ export const testMakePoolSellNft = async ({
   });
 
   const _checkDestAcc = async (amount: string) => {
-    const acc =
-      sellType === "trade"
-        ? await getAccount(nftEscrow)
-        : await getAccount(ownerAtaAcc);
-    expect(acc.amount.toString()).eq(amount);
+    const acc = sellType === "trade" ? nftEscrow : ownerAtaAcc;
+    // For trade pools, we expect the NFT escrow to not be initialized.
+    if (sellType === "trade" && amount === "0")
+      return await expect(getAccount(acc)).rejectedWith(
+        TokenAccountNotFoundError
+      );
+    // Owner should have ATA b/c we call makeMintTwoAta.
+    expect((await getAccount(acc)).amount.toString()).eq(amount);
   };
 
   return await withLamports(
@@ -735,9 +818,7 @@ export const testMakePoolSellNft = async ({
       // Trader initially has mint.
       let traderAcc = await getAccount(ata);
       expect(traderAcc.amount.toString()).eq("1");
-      // Owner may or may not have ATA already.
-      // todo if ata exists do not reject
-      await expect(_checkDestAcc("0")).rejectedWith(TokenAccountNotFoundError);
+      await _checkDestAcc("0");
 
       await buildAndSendTx({
         provider: TEST_PROVIDER,
@@ -767,10 +848,8 @@ export const testMakePoolSellNft = async ({
             // (2) NFT deposit receipt
             (await swapSdk.getTokenAcctRent()) +
             (await swapSdk.getNftDepositReceiptRent())
-          : // Seller pays rent only for owner's ATA (if it did not exist).
-          ownerAtaExists
-          ? 0
-          : await swapSdk.getTokenAcctRent();
+          : // owner ATA always exists (b/c we initialize it above)
+            0;
       const currSellerLamports = await getLamports(seller.publicKey);
       expect(currSellerLamports! - prevSellerLamports!).eq(
         expectedLamports -
@@ -809,7 +888,7 @@ export const testMakePoolSellNft = async ({
         );
       }
 
-      return { poolPda, wlNft, whitelist };
+      return { poolPda, wlNft, whitelist, ownerAtaAcc };
     }
   );
 };

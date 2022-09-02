@@ -15,20 +15,21 @@ import {
   findTSwapPDA,
 } from "./pda";
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   getMinimumBalanceForRentExemptAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { getAccountRent, hexCode } from "../common";
-import { ASSOCIATED_PROGRAM_ID } from "@project-serum/anchor/dist/cjs/utils/token";
 
-export const PoolType = {
+export const PoolTypeAnchor = {
   Token: { token: {} },
   NFT: { nft: {} },
   Trade: { trade: {} },
 };
+
 export const poolTypeU8 = (
-  poolType: typeof PoolType[keyof typeof PoolType]
+  poolType: typeof PoolTypeAnchor[keyof typeof PoolTypeAnchor]
 ): number => {
   const order: Record<string, number> = {
     token: 0,
@@ -38,12 +39,12 @@ export const poolTypeU8 = (
   return order[Object.keys(poolType)[0]];
 };
 
-export const CurveType = {
+export const CurveTypeAnchor = {
   Linear: { linear: {} },
   Exponential: { exponential: {} },
 };
 export const curveTypeU8 = (
-  curveType: typeof CurveType[keyof typeof CurveType]
+  curveType: typeof CurveTypeAnchor[keyof typeof CurveTypeAnchor]
 ): number => {
   const order: Record<string, number> = {
     linear: 0,
@@ -52,9 +53,9 @@ export const curveTypeU8 = (
   return order[Object.keys(curveType)[0]];
 };
 
-export interface PoolConfig {
-  poolType: typeof PoolType[keyof typeof PoolType];
-  curveType: typeof CurveType[keyof typeof CurveType];
+export interface PoolConfigAnchor {
+  poolType: typeof PoolTypeAnchor[keyof typeof PoolTypeAnchor];
+  curveType: typeof CurveTypeAnchor[keyof typeof CurveTypeAnchor];
   startingPrice: BN;
   delta: BN;
   honorRoyalties: boolean;
@@ -134,7 +135,7 @@ export class TensorSwapSDK {
   }: {
     owner: PublicKey;
     whitelist: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
   }) {
     const [tswapPda] = await findTSwapPDA({});
     const [poolPda] = await findPoolPDA({
@@ -173,7 +174,7 @@ export class TensorSwapSDK {
   }: {
     owner: PublicKey;
     whitelist: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
   }) {
     const [tswapPda] = await findTSwapPDA({});
     const [poolPda] = await findPoolPDA({
@@ -220,7 +221,7 @@ export class TensorSwapSDK {
     nftMint: PublicKey;
     nftSource: PublicKey;
     owner: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
     proof: Buffer[];
   }) {
     const [tswapPda] = await findTSwapPDA({});
@@ -250,9 +251,9 @@ export class TensorSwapSDK {
         nftEscrow: escrowPda,
         nftReceipt: receiptPda,
         owner,
+        tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
-        tokenProgram: TOKEN_PROGRAM_ID,
       });
 
     return {
@@ -273,7 +274,7 @@ export class TensorSwapSDK {
   }: {
     whitelist: PublicKey;
     owner: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
     lamports: BN;
   }) {
     const [tswapPda] = await findTSwapPDA({});
@@ -320,7 +321,7 @@ export class TensorSwapSDK {
     nftMint: PublicKey;
     nftDest: PublicKey;
     owner: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
   }) {
     const [tswapPda] = await findTSwapPDA({});
     const [poolPda] = await findPoolPDA({
@@ -347,8 +348,10 @@ export class TensorSwapSDK {
       nftEscrow: escrowPda,
       nftReceipt: receiptPda,
       owner,
-      systemProgram: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: SYSVAR_RENT_PUBKEY,
     });
 
     return {
@@ -369,7 +372,7 @@ export class TensorSwapSDK {
   }: {
     whitelist: PublicKey;
     owner: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
     lamports: BN;
   }) {
     const [tswapPda] = await findTSwapPDA({});
@@ -422,7 +425,7 @@ export class TensorSwapSDK {
     nftBuyerAcc: PublicKey;
     owner: PublicKey;
     buyer: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
     proof: Buffer[];
     maxPrice: BN;
   }) {
@@ -460,8 +463,10 @@ export class TensorSwapSDK {
         solEscrow: solEscrowPda,
         owner,
         buyer,
-        systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
       });
 
     return {
@@ -492,7 +497,7 @@ export class TensorSwapSDK {
     nftSellerAcc: PublicKey;
     owner: PublicKey;
     seller: PublicKey;
-    config: PoolConfig;
+    config: PoolConfigAnchor;
     proof: Buffer[];
     minPrice: BN;
   }) {
@@ -524,7 +529,7 @@ export class TensorSwapSDK {
             method: this.program.methods.sellNftTokenPool,
             accounts: {
               ownerAtaAcc,
-              associatedTokenProgram: ASSOCIATED_PROGRAM_ID,
+              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             },
           };
 
@@ -538,12 +543,12 @@ export class TensorSwapSDK {
       nftMint,
       nftSellerAcc,
       solEscrow: solEscrowPda,
-      ...accounts,
       owner,
       seller,
+      tokenProgram: TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
       rent: SYSVAR_RENT_PUBKEY,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      ...accounts,
     });
 
     return {

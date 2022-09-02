@@ -92,6 +92,7 @@ pub struct Pool {
     pub version: u8,
     pub bump: [u8; 1],
     pub sol_escrow_bump: [u8; 1],
+    pub created_unix_seconds: i64, //unix timestamp in seconds when pool was created
     /// Config & calc
     pub config: PoolConfig,
 
@@ -111,8 +112,8 @@ pub struct Pool {
 }
 
 impl Pool {
-    // 3 u8s + config + 4 keys + 3 u32s
-    pub const SIZE: usize = (3 * 1) + PoolConfig::SIZE + (4 * 32) + (3 * 4);
+    // 3 u8s + 1 i64 + config + 4 keys + 3 u32s
+    pub const SIZE: usize = (3 * 1) + 8 + PoolConfig::SIZE + (4 * 32) + (3 * 4);
 
     pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {
         [b"sol_escrow", pool_key.as_ref(), &self.sol_escrow_bump]
@@ -282,6 +283,7 @@ mod tests {
                 version: 1,
                 bump: [1],
                 sol_escrow_bump: [1],
+                created_unix_seconds: 1234,
                 tswap: Pubkey::default(),
                 owner: Pubkey::default(),
                 whitelist: Pubkey::default(),

@@ -1,6 +1,6 @@
 //! User withdrawing an NFT from their Trade pool
 use crate::*;
-use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::{token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer}, associated_token::AssociatedToken};
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -31,8 +31,12 @@ pub struct WithdrawNft<'info> {
     /// CHECK: Needed for pool seeds derivation, also checked via has_one on pool
     pub whitelist: UncheckedAccount<'info>,
 
-    /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(mut)]
+    #[account(
+        init_if_needed,
+        payer = owner,
+        associated_token::mint = nft_mint,
+        associated_token::authority = owner,
+    )]
     pub nft_dest: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
@@ -73,7 +77,9 @@ pub struct WithdrawNft<'info> {
     pub owner: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 impl<'info> WithdrawNft<'info> {

@@ -2,7 +2,10 @@
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
-use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer},
+};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -38,8 +41,12 @@ pub struct BuyNft<'info> {
     /// Needed for pool seeds derivation, has_one = whitelist on pool
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(mut)]
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = nft_mint,
+        associated_token::authority = buyer,
+    )]
     pub nft_buyer_acc: Box<Account<'info, TokenAccount>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account.
@@ -51,11 +58,10 @@ pub struct BuyNft<'info> {
             nft_mint.key().as_ref(),
         ],
         bump,
-        // todo token::mint/authority constraint?
+        token::mint = nft_mint, token::authority = tswap
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
-    /// CHECK: seed in nft_mint
     #[account(
         constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
         constraint = nft_mint.key() == nft_receipt.nft_mint @ crate::ErrorCode::WrongMint,
@@ -95,7 +101,9 @@ pub struct BuyNft<'info> {
     pub buyer: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 impl<'info> BuyNft<'info> {
@@ -163,12 +171,14 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     let current_price = pool.current_price(TakerSide::Buy)?;
     if current_price > max_price {
+        msg!("{} {} {}", pool.taker_buy_count, current_price, max_price);
         throw_err!(PriceMismatch);
     }
 
+    // seller = owner
     let mut left_for_seller = current_price;
 
-    //transfer fee to Tensorswap
+    // transfer fee to Tensorswap
     let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
     ctx.accounts

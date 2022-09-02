@@ -1,7 +1,13 @@
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { expect } from "chai";
-import { buildAndSendTx, swapSdk } from "../shared";
+import {
+  buildAndSendTx,
+  cartesian,
+  getLamports,
+  swapSdk,
+  withLamports,
+} from "../shared";
 import {
   beforeHook,
   createAndFundATA,
@@ -12,9 +18,12 @@ import {
   testDepositNft,
   testDepositSol,
   testMakePool,
+  testMakePoolBuyNft,
   testWithdrawNft,
+  testWithdrawSol,
   tokenPoolConfig,
   tradePoolConfig,
+  TSWAP_FEE,
 } from "./common";
 
 describe("tswap withdraws", () => {
@@ -25,6 +34,8 @@ describe("tswap withdraws", () => {
   before(async () => {
     ({ tswapPda: tswap } = await beforeHook());
   });
+
+  //#region Withdraw NFT.
 
   it("withdraw nft from pool after depositing", async () => {
     const [owner] = await makeNTraders(1);
@@ -94,23 +105,27 @@ describe("tswap withdraws", () => {
     });
   });
 
-  it.only("withdraw nft from token pool fails", async () => {
-    const [owner, seller] = await makeNTraders(2);
+  it("withdraw nft from token pool fails", async () => {
+    const [owner] = await makeNTraders(1);
     const config = tokenPoolConfig;
 
     // Create pool + ATAs.
-    const { mint } = await createAndFundATA(seller);
-    const { ata } = await createATA(mint, owner);
+    const { mint, ata } = await createAndFundATA(owner);
     const {
       proofs: [wlNft],
       whitelist,
     } = await makeWhitelist([mint]);
-    const pool = await testMakePool({ tswap, owner, config, whitelist });
+    const tokenPool = await testMakePool({ tswap, owner, config, whitelist });
 
     // Need to deposit in another pool to avoid "AccountNotInitialized" error for escrow.
-    const otherPool = await testMakePool({ tswap, owner, config, whitelist });
+    const nftPool = await testMakePool({
+      tswap,
+      owner,
+      config: nftPoolConfig,
+      whitelist,
+    });
     await testDepositNft({
-      pool: otherPool,
+      pool: nftPool,
       config: nftPoolConfig,
       owner,
       ata,
@@ -120,7 +135,7 @@ describe("tswap withdraws", () => {
 
     await expect(
       testWithdrawNft({
-        pool,
+        pool: tokenPool,
         config,
         owner,
         ata,
@@ -130,7 +145,7 @@ describe("tswap withdraws", () => {
     ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
-  it("withdraw NFT from another pool fails", async () => {
+  it("withdraw nft from another pool fails", async () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     for (const config of [nftPoolConfig, tradePoolConfig]) {
@@ -198,4 +213,128 @@ describe("tswap withdraws", () => {
       ).rejectedWith(swapSdk.getErrorCodeHex("WrongPool"));
     }
   });
+
+  //#endregion
+
+  //#region Withdraw SOL
+
+  it("withdraw can roundtrip deposits", async () => {
+    const [owner] = await makeNTraders(1);
+    for (const [lamports, config] of cartesian(
+      [0, 0.0001 * LAMPORTS_PER_SOL, 69 * LAMPORTS_PER_SOL],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      // Create pool + ATAs.
+      const { mint } = await createAndFundATA(owner);
+      const { whitelist } = await makeWhitelist([mint]);
+      const pool = await testMakePool({ tswap, owner, config, whitelist });
+
+      await withLamports(
+        { prevLamports: owner.publicKey },
+        async ({ prevLamports }) => {
+          await testDepositSol({
+            pool,
+            config,
+            owner,
+            whitelist,
+            lamports,
+          });
+          await testWithdrawSol({
+            pool,
+            config,
+            owner,
+            whitelist,
+            lamports,
+          });
+
+          const currLamports = await getLamports(owner.publicKey);
+          expect(currLamports! - prevLamports!).eq(0);
+        }
+      );
+    }
+  });
+
+  it("withdraw works after someone buys from trade pool", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+    const config = tradePoolConfig;
+
+    const { pool, whitelist } = await testMakePoolBuyNft({
+      tswap,
+      owner,
+      buyer,
+      config,
+      expectedLamports: LAMPORTS_PER_SOL,
+    });
+
+    const funds = LAMPORTS_PER_SOL * (1 - TSWAP_FEE);
+
+    await withLamports(
+      { prevLamports: owner.publicKey },
+      async ({ prevLamports }) => {
+        await testWithdrawSol({
+          pool,
+          config,
+          owner,
+          whitelist,
+          lamports: funds,
+        });
+
+        const currLamports = await getLamports(owner.publicKey);
+        expect(currLamports! - prevLamports!).eq(funds);
+      }
+    );
+  });
+
+  it("cannot withdraw more than deposited (eating into rent amount)", async () => {
+    const [owner] = await makeNTraders(1);
+    for (const [lamports, config] of cartesian(
+      [0, 69 * LAMPORTS_PER_SOL],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      // Create pool + ATAs.
+      const { mint } = await createAndFundATA(owner);
+      const { whitelist } = await makeWhitelist([mint]);
+      const pool = await testMakePool({ tswap, owner, config, whitelist });
+
+      await testDepositSol({
+        pool,
+        config,
+        owner,
+        whitelist,
+        lamports,
+      });
+      await expect(
+        testWithdrawSol({
+          pool,
+          config,
+          owner,
+          whitelist,
+          // +1 lamport dips into rent.
+          lamports: lamports + 1,
+        })
+      ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientSolEscrowBalance"));
+    }
+  });
+
+  it("withdraw sol from NFT pool fails", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+
+    // Create pool + ATAs.
+    const { mint } = await createAndFundATA(owner);
+    const { whitelist } = await makeWhitelist([mint]);
+    const pool = await testMakePool({ tswap, owner, config, whitelist });
+
+    await expect(
+      testWithdrawSol({
+        pool,
+        config,
+        owner,
+        whitelist,
+        lamports: 0,
+      })
+    ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
+  });
+
+  //endregion
 });

@@ -1,6 +1,18 @@
+import {
+  closeAccount,
+  getAssociatedTokenAddress,
+  getMinimumBalanceForRentExemptAccount,
+  getMinimumBalanceForRentExemptMint,
+} from "@solana/spl-token";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
-import { cartesian, getLamports, swapSdk, withLamports } from "../shared";
+import {
+  cartesian,
+  getLamports,
+  swapSdk,
+  TEST_PROVIDER,
+  withLamports,
+} from "../shared";
 import {
   beforeHook,
   createAndFundATA,
@@ -13,7 +25,6 @@ import {
   testMakePool,
   testMakePoolBuyNft,
   testMakePoolSellNft,
-  testWithdrawNft,
   tokenPoolConfig,
   tradePoolConfig,
   TSWAP_FEE,
@@ -33,7 +44,29 @@ describe("tswap pool", () => {
   it("cannot init pool with royalties", async () => {
     const [owner] = await makeNTraders(1);
     await Promise.all(
-      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+      [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const { mint } = await createAndFundATA(owner);
+        const { whitelist } = await makeWhitelist([mint]);
+
+        const poolPda = await testMakePool({
+          tswap,
+          owner,
+          config,
+          whitelist,
+        });
+        const pool = await swapSdk.fetchPool(poolPda);
+        const dateMs = pool.createdUnixSeconds.toNumber() * 1000;
+        console.log(`pool created: ${new Date(dateMs)}`);
+        // This should be within 3 days (max clock drift historical) of the current time.
+        expect(dateMs).gte(Date.now() - 3 * 86400 * 1000);
+      })
+    );
+  });
+
+  it("cannot init pool with royalties", async () => {
+    const [owner] = await makeNTraders(1);
+    await Promise.all(
+      [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
         const { whitelist } = await makeWhitelist([mint]);
 
@@ -59,7 +92,7 @@ describe("tswap pool", () => {
   it("close pool roundtrips fees + any deposited SOL", async () => {
     const [owner] = await makeNTraders(1);
     for (const [config, lamports] of cartesian(
-      [nftPoolConfig, tradePoolConfig],
+      [tokenPoolConfig, tradePoolConfig],
       [0, 69 * LAMPORTS_PER_SOL]
     )) {
       const { mint } = await createAndFundATA(owner);
@@ -90,35 +123,37 @@ describe("tswap pool", () => {
     }
   });
 
-  it("close pool withdraws SOL from any sales into TRADE pool", async () => {
+  it("close pool withdraws SOL from any buys from the TRADE pool", async () => {
     const [owner, buyer] = await makeNTraders(2);
     // We know for TOKEN pools SOL goes directly to owner.
     const config = tradePoolConfig;
+    const buyPrice = LAMPORTS_PER_SOL;
+
     await withLamports(
       { prevLamports: owner.publicKey },
       async ({ prevLamports }) => {
-        const { poolPda, whitelist, ata, wlNft } = await testMakePoolBuyNft({
+        const { whitelist, ata: ownerAta } = await testMakePoolBuyNft({
           tswap,
           owner,
           buyer,
           config,
-          expectedLamports: LAMPORTS_PER_SOL,
-        });
-        // Need to withdraw NFT before we can close pool.
-        await testWithdrawNft({
-          pool: poolPda,
-          config,
-          owner,
-          ata,
-          wlNft,
-          whitelist,
+          expectedLamports: buyPrice,
         });
         await testClosePool({ owner, whitelist, config });
 
+        await closeAccount(
+          TEST_PROVIDER.connection,
+          owner,
+          ownerAta,
+          owner.publicKey,
+          owner
+        );
+
         const currLamports = await getLamports(owner.publicKey);
         expect(currLamports! - prevLamports!).eq(
-          // Proceeds from sale.
-          LAMPORTS_PER_SOL * (1 - TSWAP_FEE)
+          // Proceeds from sale, minus the rent we paid to create the mint initially.
+          buyPrice * (1 - TSWAP_FEE) -
+            (await getMinimumBalanceForRentExemptMint(TEST_PROVIDER.connection))
           // No addn from rent since we roundtrip it from deposit.
         );
       }

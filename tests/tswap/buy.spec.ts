@@ -5,15 +5,20 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { expect } from "chai";
-import { CurveType, PoolConfig, PoolType } from "../../src";
-import { hexCode } from "../../src/common";
+import {
+  hexCode,
+  CurveTypeAnchor,
+  PoolConfigAnchor,
+  PoolTypeAnchor,
+  TakerSide,
+  HUNDRED_PCT_BPS,
+} from "../../src";
 import {
   buildAndSendTx,
   cartesian,
   generateTreeOfSize,
   swapSdk,
   TEST_PROVIDER,
-  TOKEN_ACCT_WRONG_MINT_ERR,
   wlSdk,
 } from "../shared";
 import {
@@ -28,6 +33,7 @@ import {
   testMakePool,
   tokenPoolConfig,
   tradePoolConfig,
+  computeCurrentPrice,
 } from "./common";
 
 describe("tswap buy", () => {
@@ -135,8 +141,12 @@ describe("tswap buy", () => {
     await Promise.all(
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
         const [owner, buyer] = await makeNTraders(2);
-        const { mint, ata } = await makeMintTwoAta(owner, buyer);
-        const { mint: badMint, ata: badAta } = await makeMintTwoAta(
+        const {
+          mint,
+          ata,
+          otherAta: buyerAta,
+        } = await makeMintTwoAta(owner, buyer);
+        const { mint: badMint, otherAta: badBuyerAta } = await makeMintTwoAta(
           owner,
           buyer
         );
@@ -155,17 +165,29 @@ describe("tswap buy", () => {
           whitelist,
         });
 
-        // Both:
-        // 1) non-WL mint + good ATA
-        // 2) WL mint + bad ATA
+        // All:
+        // 1) non-WL mint + bad ATA
+        // 2) non-WL mint + good ATA
+        // 3) WL mint + bad ATA
         // should fail.
         for (const { currMint, currAta, err } of [
           {
             currMint: badMint,
-            currAta: ata,
+            currAta: badBuyerAta,
+            // NotInitialized vs InvalidProof since nft escrow for bad mint does not exist.
             err: hexCode(LangErrorCode.AccountNotInitialized),
           },
-          { currMint: mint, currAta: badAta, err: TOKEN_ACCT_WRONG_MINT_ERR },
+          {
+            currMint: badMint,
+            currAta: buyerAta,
+            // NotInitialized vs Constraint since nft escrow for bad mint does not exist.
+            err: hexCode(LangErrorCode.AccountNotInitialized),
+          },
+          {
+            currMint: mint,
+            currAta: badBuyerAta,
+            err: hexCode(LangErrorCode.ConstraintTokenMint),
+          },
         ]) {
           const {
             tx: { ixs },
@@ -196,10 +218,11 @@ describe("tswap buy", () => {
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
         const [owner, buyer] = await makeNTraders(2);
         const { mint, ata } = await makeMintTwoAta(owner, buyer);
-        const { mint: badMint, ata: badAta } = await makeMintTwoAta(
-          owner,
-          buyer
-        );
+        const {
+          mint: badMint,
+          ata: badAta,
+          otherAta: badBuyerAta,
+        } = await makeMintTwoAta(owner, buyer);
         const {
           proofs: [wlNft, badWlNft],
           whitelist,
@@ -239,7 +262,7 @@ describe("tswap buy", () => {
         } = await swapSdk.buyNft({
           whitelist,
           nftMint: badMint,
-          nftBuyerAcc: badAta,
+          nftBuyerAcc: badBuyerAta,
           owner: owner.publicKey,
           buyer: buyer.publicKey,
           config,
@@ -259,88 +282,123 @@ describe("tswap buy", () => {
     );
   });
 
-  it("deposits/buys multiple", async () => {
-    //todo once optimize the ix, try increasing
-    const MAX_IXS = 1;
+  it("alternate deposits & buys", async () => {
+    const numBuys = 10;
     const [traderA, traderB] = await makeNTraders(2);
+    await Promise.all(
+      cartesian(
+        [PoolTypeAnchor.NFT, PoolTypeAnchor.Trade],
+        [CurveTypeAnchor.Linear, CurveTypeAnchor.Exponential]
+      ).map(async ([poolType, curveType]) => {
+        const config: PoolConfigAnchor = {
+          poolType,
+          curveType,
+          // ~1.2 SOL (prime #)
+          startingPrice: new BN(1_238_923_843),
+          delta:
+            curveType === CurveTypeAnchor.Linear
+              ? new BN(1_238_923_843 / numBuys)
+              : // 10.21% (prime #)
+                new BN(10_21),
+          honorRoyalties: false,
+          mmFeeBps: 0,
+        };
 
-    //prepare multiple nfts
-    const nfts: {
-      mint: PublicKey;
-      ataA: PublicKey;
-      ataB: PublicKey;
-      depositIxs?: TransactionInstruction[];
-      buyIxs?: TransactionInstruction[];
-    }[] = [];
+        //prepare multiple nfts
+        const nfts = await Promise.all(
+          new Array(numBuys).fill(null).map(async () => {
+            const {
+              mint,
+              ata: ataA,
+              otherAta: ataB,
+            } = await makeMintTwoAta(traderA, traderB);
+            return { mint, ataA, ataB };
+          })
+        );
 
-    for (let i = 0; i < MAX_IXS; i++) {
-      const {
-        mint,
-        ata: ataA,
-        otherAta: ataB,
-      } = await makeMintTwoAta(traderA, traderB);
-      nfts.push({ mint, ataA, ataB });
-    }
+        //prepare tree & pool
+        const { proofs, whitelist } = await makeWhitelist(
+          nfts.map((nft) => nft.mint)
+        );
+        await testMakePool({ tswap, owner: traderA, whitelist, config });
 
-    //prepare tree & pool
-    const { proofs, whitelist } = await makeWhitelist(
-      nfts.map((nft) => nft.mint)
+        // This determines the sequence in which we do deposits & buys.
+        // This should be length numBuys.
+        const buyWhenDepCount = [1, 3, 5, 5, 5, 7, 9, 10, 10, 10];
+        const depositedNfts = [];
+        let depCount = 0;
+        let buyCount = 0;
+
+        // deposit all NFTs.
+        for (const nft of nfts) {
+          const {
+            tx: { ixs },
+          } = await swapSdk.depositNft({
+            whitelist,
+            nftMint: nft.mint,
+            nftSource: nft.ataA,
+            owner: traderA.publicKey,
+            config: config,
+            proof: proofs.find((p) => p.mint === nft.mint)!.proof,
+          });
+          await buildAndSendTx({
+            ixs,
+            extraSigners: [traderA],
+          });
+
+          depositedNfts.push(nft);
+          depCount++;
+
+          // Buy.
+          while (buyCount < numBuys && buyWhenDepCount[buyCount] === depCount) {
+            const currPrice = computeCurrentPrice({
+              config,
+              buyCount,
+              sellCount: 0,
+              takerSide: TakerSide.Buy,
+            });
+            buyCount++;
+
+            // Sample a random deposited NFT to buy.
+            const targNft = depositedNfts.splice(
+              Math.floor(Math.random() * depositedNfts.length),
+              1
+            )[0];
+
+            const {
+              tx: { ixs },
+            } = await swapSdk.buyNft({
+              whitelist,
+              nftMint: targNft.mint,
+              nftBuyerAcc: targNft.ataB,
+              owner: traderA.publicKey,
+              buyer: traderB.publicKey,
+              config: config,
+              proof: proofs.find((p) => p.mint === targNft.mint)!.proof,
+              maxPrice: currPrice,
+            });
+            await buildAndSendTx({
+              ixs,
+              extraSigners: [traderB],
+            });
+            console.debug(
+              `bought nft (count: ${buyCount}, dep: ${depCount}) at ${currPrice.toNumber()}`
+            );
+          }
+        }
+
+        // Check NFTs have all been transferred.
+
+        await Promise.all(
+          nfts.map(async (nft) => {
+            const traderAccA = await getAccount(nft.ataA);
+            expect(traderAccA.amount.toString()).eq("0");
+            const traderAccB = await getAccount(nft.ataB);
+            expect(traderAccB.amount.toString()).eq("1");
+          })
+        );
+      })
     );
-
-    const config: PoolConfig = {
-      poolType: PoolType.NFT,
-      curveType: CurveType.Linear,
-      startingPrice: new BN(LAMPORTS_PER_SOL),
-      delta: new BN(LAMPORTS_PER_SOL / 10),
-      honorRoyalties: false,
-      mmFeeBps: 0,
-    };
-
-    // Run txs.
-
-    const {
-      tx: { ixs: poolIxs },
-    } = await swapSdk.initPool({
-      owner: traderA.publicKey,
-      whitelist,
-      config: config,
-    });
-    await buildAndSendTx({
-      ixs: poolIxs,
-      extraSigners: [traderA],
-    });
-
-    let currPrice = new BN(config.startingPrice);
-
-    for (const nft of nfts) {
-      const {
-        tx: { ixs: depositIxs },
-      } = await swapSdk.depositNft({
-        whitelist,
-        nftMint: nft.mint,
-        nftSource: nft.ataA,
-        owner: traderA.publicKey,
-        config: config,
-        proof: proofs.find((p) => p.mint === nft.mint)!.proof,
-      });
-      nft.depositIxs = depositIxs;
-
-      const {
-        tx: { ixs: buyIxs },
-      } = await swapSdk.buyNft({
-        whitelist,
-        nftMint: nft.mint,
-        nftBuyerAcc: nft.ataB,
-        owner: traderA.publicKey,
-        buyer: traderB.publicKey,
-        config: config,
-        proof: proofs.find((p) => p.mint === nft.mint)!.proof,
-        maxPrice: currPrice,
-      });
-      nft.buyIxs = buyIxs;
-      currPrice = currPrice.sub(config.delta);
-    }
-
     // amazing table for debugging
     // const tx = new TransactionEnvelope(
     //   new SolanaAugmentedProvider(
@@ -354,23 +412,100 @@ describe("tswap buy", () => {
     //   [traderA]
     // );
     // await tx.simulateTable().catch(console.log);
+  });
 
-    //deposit
-    await buildAndSendTx({
-      ixs: nfts.map((n) => n.depositIxs).flat() as TransactionInstruction[],
-      extraSigners: [traderA],
-    });
+  it("buy a ton with default exponential curve + tolerance", async () => {
+    // prime #
+    const numBuys = 109;
 
-    //buy
-    await buildAndSendTx({
-      ixs: nfts.map((n) => n.buyIxs).flat() as TransactionInstruction[],
-      extraSigners: [traderB],
-    });
+    const [traderA, traderB] = await makeNTraders(2, 1_000_000);
+    const config: PoolConfigAnchor = {
+      poolType: PoolTypeAnchor.NFT,
+      curveType: CurveTypeAnchor.Exponential,
+      // ~2 SOL (prime #)
+      startingPrice: new BN(2_083_195_757),
+      // 8.77% (prime #)
+      delta: new BN(8_77),
+      honorRoyalties: false,
+      mmFeeBps: 0,
+    };
 
-    //check one of the accounts
-    const traderAccA = await getAccount(nfts[0].ataA);
-    expect(traderAccA.amount.toString()).eq("0");
-    const traderAccB = await getAccount(nfts[0].ataB);
-    expect(traderAccB.amount.toString()).eq("1");
+    //prepare multiple nfts
+    const nfts = await Promise.all(
+      new Array(numBuys).fill(null).map(async () => {
+        const {
+          mint,
+          ata: ataA,
+          otherAta: ataB,
+        } = await makeMintTwoAta(traderA, traderB);
+        return { mint, ataA, ataB };
+      })
+    );
+
+    //prepare tree & pool
+    const { proofs, whitelist } = await makeWhitelist(
+      nfts.map((nft) => nft.mint)
+    );
+    await testMakePool({ tswap, owner: traderA, whitelist, config });
+
+    // deposit all NFTs.
+    await Promise.all(
+      nfts.map(async (nft) => {
+        const {
+          tx: { ixs },
+        } = await swapSdk.depositNft({
+          whitelist,
+          nftMint: nft.mint,
+          nftSource: nft.ataA,
+          owner: traderA.publicKey,
+          config: config,
+          proof: proofs.find((p) => p.mint === nft.mint)!.proof,
+        });
+        await buildAndSendTx({
+          ixs,
+          extraSigners: [traderA],
+        });
+      })
+    );
+
+    // buy NFTs (sequentially).
+    for (const [buyCount, nft] of nfts.entries()) {
+      const currPrice = computeCurrentPrice({
+        config,
+        buyCount,
+        sellCount: 0,
+        takerSide: TakerSide.Buy,
+      });
+
+      const {
+        tx: { ixs },
+      } = await swapSdk.buyNft({
+        whitelist,
+        nftMint: nft.mint,
+        nftBuyerAcc: nft.ataB,
+        owner: traderA.publicKey,
+        buyer: traderB.publicKey,
+        config: config,
+        proof: proofs.find((p) => p.mint === nft.mint)!.proof,
+        maxPrice: currPrice,
+      });
+      await buildAndSendTx({
+        ixs,
+        extraSigners: [traderB],
+      });
+      console.debug(
+        `bought nft (count: ${buyCount}) at ${currPrice.toNumber()}`
+      );
+    }
+
+    // Check NFTs have all been transferred.
+    await Promise.all(
+      nfts.map(async (nft) => {
+        const traderAccA = await getAccount(nft.ataA);
+        expect(traderAccA.amount.toString()).eq("0");
+        const traderAccB = await getAccount(nft.ataB);
+        expect(traderAccB.amount.toString()).eq("1");
+      })
+    );
   });
 });

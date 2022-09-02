@@ -116,13 +116,7 @@ impl<'info> SellNftTradePool<'info> {
     }
 
     fn transfer_lamports_from_escrow(&self, to: &AccountInfo<'info>, lamports: u64) -> Result<()> {
-        let new_sol_escrow = unwrap_int!(self.sol_escrow.lamports.borrow().checked_sub(lamports));
-        **self.sol_escrow.try_borrow_mut_lamports()? = new_sol_escrow;
-
-        let new_to = unwrap_int!(to.lamports.borrow().checked_add(lamports));
-        **to.lamports.borrow_mut() = new_to;
-
-        Ok(())
+        transfer_lamports_from_escrow(&self.sol_escrow, to, lamports)
     }
 }
 

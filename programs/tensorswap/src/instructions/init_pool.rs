@@ -126,14 +126,17 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
     pool.version = CURRENT_POOL_VERSION;
     pool.bump = [unwrap_bump!(ctx, "pool")];
     pool.sol_escrow_bump = [unwrap_bump!(ctx, "sol_escrow")];
+    pool.created_unix_seconds = Clock::get()?.unix_timestamp;
+    pool.config = config;
+
     pool.tswap = ctx.accounts.tswap.key();
     pool.owner = ctx.accounts.owner.key();
     pool.whitelist = ctx.accounts.whitelist.key();
-    pool.config = config;
+    pool.sol_escrow = ctx.accounts.sol_escrow.key();
+
     pool.taker_buy_count = 0;
     pool.taker_sell_count = 0;
     pool.nfts_held = 0;
-    pool.sol_escrow = ctx.accounts.sol_escrow.key();
 
     Ok(())
 }

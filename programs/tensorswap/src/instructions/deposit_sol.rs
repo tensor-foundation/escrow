@@ -43,7 +43,7 @@ pub struct DepositSol<'info> {
     )]
     pub sol_escrow: UncheckedAccount<'info>,
 
-    /// Tied to the pool because used to verify pool seeds
+    /// CHECK: has_one = owner in pool
     #[account(mut)]
     pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,

@@ -1,7 +1,5 @@
 //! User withdrawing SOL from their pool (all 3 types)
 use crate::*;
-use anchor_lang::solana_program::program::invoke_signed;
-use anchor_lang::solana_program::system_instruction;
 use vipers::throw_err;
 
 #[derive(Accounts)]
@@ -22,6 +20,7 @@ pub struct WithdrawSol<'info> {
             &config.delta.to_le_bytes()
         ],
         bump = pool.bump[0],
+        constraint = config.pool_type == PoolType::Token ||  config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
         has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
     )]
     pub pool: Box<Account<'info, Pool>>,
@@ -47,17 +46,8 @@ pub struct WithdrawSol<'info> {
 }
 
 impl<'info> WithdrawSol<'info> {
-    fn transfer_lamports(&self, lamports: u64) -> Result<()> {
-        invoke_signed(
-            &system_instruction::transfer(self.sol_escrow.key, &self.owner.key(), lamports),
-            &[
-                self.sol_escrow.to_account_info(),
-                self.owner.to_account_info(),
-                self.system_program.to_account_info(),
-            ],
-            &[&self.pool.sol_escrow_seeds(&self.pool.key())],
-        )
-        .map_err(Into::into)
+    fn transfer_lamports_to_owner(&self, lamports: u64) -> Result<()> {
+        transfer_lamports_from_escrow(&self.sol_escrow, &self.owner.to_account_info(), lamports)
     }
 }
 
@@ -78,7 +68,7 @@ pub fn handler(ctx: Context<WithdrawSol>, lamports: u64) -> Result<()> {
     }
 
     // do the transfer
-    ctx.accounts.transfer_lamports(lamports)?;
+    ctx.accounts.transfer_lamports_to_owner(lamports)?;
 
     Ok(())
 }

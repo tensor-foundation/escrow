@@ -20,5 +20,5 @@ wallet = "~/.config/solana/id.json"
 # (3) cfg_attr does not work with account(init) apparently...
 # test = "yarn run ts-mocha --parallel --jobs 100 ./tsconfig.json -t 100000 tests/**/*.ts"
 # non-parallel mode (for .only)
-# test = "yarn run ts-mocha -p ./tsconfig.json -t 100000 tests/tswap/**/*.ts"
-test = "yarn run ts-mocha -p ./tsconfig.json -t 100000 tests/tswap/withdraw.spec.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 100000 tests/**/*.ts"
+# test = "yarn run ts-mocha -p ./tsconfig.json -t 100000 tests/tswap/sell.spec.ts"

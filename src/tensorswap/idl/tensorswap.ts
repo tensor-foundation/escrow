@@ -156,10 +156,7 @@ export type Tensorswap = {
         {
           "name": "nftSource",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftEscrow",
@@ -182,10 +179,7 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Tied to the pool because used to verify pool seeds"
-          ]
+          "isSigner": true
         },
         {
           "name": "tokenProgram",
@@ -247,10 +241,7 @@ export type Tensorswap = {
         {
           "name": "nftDest",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftEscrow",
@@ -285,7 +276,17 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -328,10 +329,7 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Tied to the pool because used to verify pool seeds"
-          ]
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -437,10 +435,7 @@ export type Tensorswap = {
         {
           "name": "nftBuyerAcc",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftEscrow",
@@ -482,7 +477,17 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -788,6 +793,10 @@ export type Tensorswap = {
                 1
               ]
             }
+          },
+          {
+            "name": "createdUnixSeconds",
+            "type": "i64"
           },
           {
             "name": "config",
@@ -1237,10 +1246,7 @@ export const IDL: Tensorswap = {
         {
           "name": "nftSource",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftEscrow",
@@ -1263,10 +1269,7 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Tied to the pool because used to verify pool seeds"
-          ]
+          "isSigner": true
         },
         {
           "name": "tokenProgram",
@@ -1328,10 +1331,7 @@ export const IDL: Tensorswap = {
         {
           "name": "nftDest",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftEscrow",
@@ -1366,7 +1366,17 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -1409,10 +1419,7 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Tied to the pool because used to verify pool seeds"
-          ]
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -1518,10 +1525,7 @@ export const IDL: Tensorswap = {
         {
           "name": "nftBuyerAcc",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftEscrow",
@@ -1563,7 +1567,17 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
           "isMut": false,
           "isSigner": false
         }
@@ -1869,6 +1883,10 @@ export const IDL: Tensorswap = {
                 1
               ]
             }
+          },
+          {
+            "name": "createdUnixSeconds",
+            "type": "i64"
           },
           {
             "name": "config",
