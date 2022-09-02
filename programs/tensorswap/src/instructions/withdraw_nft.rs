@@ -1,18 +1,21 @@
 //! User withdrawing an NFT from their Trade pool
 use crate::*;
-use anchor_spl::{token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer}, associated_token::AssociatedToken};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer},
+};
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
 pub struct WithdrawNft<'info> {
     #[account(
-        seeds = [], bump = tswap.bump[0], 
+        seeds = [], bump = tswap.bump[0],
         has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
     #[account(
-        mut, 
+        mut,
         seeds = [
             tswap.key().as_ref(),
             owner.key().as_ref(),
@@ -41,6 +44,12 @@ pub struct WithdrawNft<'info> {
     )]
     pub nft_dest: Box<Account<'info, TokenAccount>>,
 
+    #[account(
+        constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
+        constraint = nft_mint.key() == nft_receipt.nft_mint @ crate::ErrorCode::WrongMint,
+    )]
+    pub nft_mint: Box<Account<'info, Mint>>,
+
     /// Implicitly checked via transfer. Will fail if wrong account
     /// This is closed below (dest = owner)
     #[account(
@@ -52,12 +61,6 @@ pub struct WithdrawNft<'info> {
         bump,
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
-
-    #[account(
-        constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
-        constraint = nft_mint.key() == nft_receipt.nft_mint @ crate::ErrorCode::WrongMint,
-    )]
-    pub nft_mint: Box<Account<'info, Mint>>,
 
     #[account(
         mut,

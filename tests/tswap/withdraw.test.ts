@@ -12,6 +12,7 @@ import {
   beforeHook,
   createAndFundATA,
   createATA,
+  makeMintTwoAta,
   makeNTraders,
   makeWhitelist,
   nftPoolConfig,
@@ -37,7 +38,7 @@ describe("tswap withdraws", () => {
 
   //#region Withdraw NFT.
 
-  it("withdraw nft from pool after depositing", async () => {
+  it("withdraw from pool after depositing", async () => {
     const [owner] = await makeNTraders(1);
 
     await Promise.all(
@@ -54,7 +55,7 @@ describe("tswap withdraws", () => {
     );
   });
 
-  it("withdraw nft from TRADE pool after someone sells", async () => {
+  it("withdraw from TRADE pool after someone sells", async () => {
     const [owner, seller] = await makeNTraders(2);
     const config = tradePoolConfig;
 
@@ -105,7 +106,7 @@ describe("tswap withdraws", () => {
     });
   });
 
-  it("withdraw nft from token pool fails", async () => {
+  it("withdraw from token pool fails", async () => {
     const [owner] = await makeNTraders(1);
     const config = tokenPoolConfig;
 
@@ -145,14 +146,20 @@ describe("tswap withdraws", () => {
     ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
-  it("withdraw nft from another pool fails", async () => {
+  it("withdraw from another pool fails", async () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     for (const config of [nftPoolConfig, tradePoolConfig]) {
-      const { mint: mintA, ata: ataA } = await createAndFundATA(traderA);
-      const { mint: mintB, ata: ataB } = await createAndFundATA(traderB);
-      const { ata: ataAforB } = await createATA(mintA, traderB);
-      const { ata: ataBforA } = await createATA(mintB, traderA);
+      const {
+        mint: mintA,
+        ata: ataA,
+        otherAta: ataAforB,
+      } = await makeMintTwoAta(traderA, traderB);
+      const {
+        mint: mintB,
+        ata: ataB,
+        otherAta: ataBforA,
+      } = await makeMintTwoAta(traderB, traderA);
 
       // Reuse whitelist fine.
       const {

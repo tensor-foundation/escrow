@@ -3,6 +3,8 @@ import Big from "big.js";
 import BN from "bn.js";
 
 export const HUNDRED_PCT_BPS = 100_00;
+// 0.1% seems to be enough to deal with truncation divergence b/w off-chain and on-chain.
+const EXPO_SLIPPAGE = 0.001;
 
 export type PoolConfig = {
   poolType: PoolType;
@@ -33,8 +35,9 @@ export const computeDepositAmount = ({
         takerBuyCount: currentTakerBuyCount,
         takerSide: TakerSide.Sell,
         extraNFTsSelected: 0,
-        // NB: negative 0.5% for exponential so we overestimate instead of underestimate.
-        slippage: config.curveType === CurveType.Linear ? 0 : -1 * 0.005,
+        // NB: negative slippage for exponential so we overestimate instead of underestimate.
+        slippage:
+          config.curveType === CurveType.Linear ? 0 : -1 * EXPO_SLIPPAGE,
       })
     );
   }
@@ -51,8 +54,8 @@ export const computeCurrentPrice = ({
   takerBuyCount,
   takerSide,
   extraNFTsSelected,
-  // Default tolerance of 0.5% for exponential curves.
-  slippage = config.curveType === CurveType.Linear ? 0 : 0.005,
+  // Default small tolerance for exponential curves.
+  slippage = config.curveType === CurveType.Linear ? 0 : EXPO_SLIPPAGE,
 }: {
   config: PoolConfig;
   takerSellCount: number;
@@ -64,7 +67,7 @@ export const computeCurrentPrice = ({
   extraNFTsSelected: number;
 
   // In addition to your standard slippage,
-  // for exponential prices, we MUST add a small tolerance/slippage (0.5%)
+  // for exponential prices, we MUST add a small tolerance/slippage
   // since on-chain and off-chain rounding is not exactly the same.
   // 0.01 = 1%.
   slippage?: number;

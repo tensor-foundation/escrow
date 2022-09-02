@@ -14,6 +14,7 @@ import BN from "bn.js";
 import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
 import { getLamports as _getLamports } from "../src/common";
 import { expect } from "chai";
+import { backOff } from "exponential-backoff";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
 // Vipers IntegerOverflow error.
@@ -40,12 +41,21 @@ const _buildAndSendTx = async ({
   opts,
   debug,
 }: BuildAndSendTxArgs) => {
-  const { tx } = await buildTx({
-    connections: [provider.connection],
-    instructions: ixs,
-    additionalSigners: extraSigners,
-    feePayer: provider.publicKey,
-  });
+  const { tx } = await backOff(
+    () =>
+      buildTx({
+        connections: [provider.connection],
+        instructions: ixs,
+        additionalSigners: extraSigners,
+        feePayer: provider.publicKey,
+      }),
+    {
+      // Retry blockhash errors (happens during tests sometimes).
+      retry: (e: any) => {
+        return e.message.includes("blockhash");
+      },
+    }
+  );
   await provider.wallet.signTransaction(tx);
   try {
     if (debug) opts = { ...opts, commitment: "confirmed" };

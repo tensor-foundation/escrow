@@ -11,11 +11,10 @@ pub struct InitUpdateTSwap<'info> {
     #[account(init_if_needed, seeds = [], bump, payer = owner, space = 8 + TSwap::SIZE)]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    /// CHECK: initialized only once,
-    #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(TSWAP_FEE_VAULT).unwrap()))]
+    /// CHECK: initialized once on init, requires owner sign-off later
     pub fee_vault: UncheckedAccount<'info>,
 
-    #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(COSIGNER).unwrap()))]
+    /// CHECK: initialized once on init, requires owner sign-off later
     pub cosigner: Signer<'info>,
 
     #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(ROOT_AUTHORITY).unwrap()))]

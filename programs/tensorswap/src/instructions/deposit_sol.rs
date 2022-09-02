@@ -8,7 +8,7 @@ use vipers::throw_err;
 #[instruction( config: PoolConfig)]
 pub struct DepositSol<'info> {
     #[account(
-        seeds = [], bump = tswap.bump[0], 
+        seeds = [], bump = tswap.bump[0],
         has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,

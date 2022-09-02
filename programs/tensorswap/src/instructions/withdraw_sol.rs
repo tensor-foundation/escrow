@@ -6,7 +6,7 @@ use vipers::throw_err;
 #[instruction( config: PoolConfig)]
 pub struct WithdrawSol<'info> {
     #[account(
-        seeds = [], bump = tswap.bump[0], 
+        seeds = [], bump = tswap.bump[0],
         has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
@@ -40,7 +40,7 @@ pub struct WithdrawSol<'info> {
         ],
         bump = pool.sol_escrow_bump[0],
     )]
-    pub sol_escrow: UncheckedAccount<'info>,
+    pub sol_escrow: Account<'info, SolEscrow>,
 
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
@@ -67,8 +67,13 @@ impl<'info> Validate<'info> for WithdrawSol<'info> {
 pub fn handler(ctx: Context<WithdrawSol>, lamports: u64) -> Result<()> {
     // todo test
     // Check we are not withdrawing into our rent.
-    let rent = Rent::get()?.minimum_balance(ctx.accounts.sol_escrow.data_len());
-    let lamports_excl_rent = unwrap_int!(ctx.accounts.sol_escrow.lamports().checked_sub(rent));
+    let rent = Rent::get()?.minimum_balance(ctx.accounts.sol_escrow.to_account_info().data_len());
+    let lamports_excl_rent = unwrap_int!(ctx
+        .accounts
+        .sol_escrow
+        .to_account_info()
+        .lamports()
+        .checked_sub(rent));
     if lamports > lamports_excl_rent {
         throw_err!(InsufficientSolEscrowBalance);
     }

@@ -9,6 +9,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
   createInitializeMintInstruction,
+  createMint,
   createMintToInstruction,
   getAccount as _getAccount,
   getAssociatedTokenAddress,
@@ -178,7 +179,7 @@ const _createAndFundATA = async (
     lamports,
     programId: TOKEN_PROGRAM_ID,
   });
-  const createMintIx = await createInitializeMintInstruction(
+  const createMintIx = createInitializeMintInstruction(
     mint.publicKey,
     0,
     usedOwner.publicKey,
@@ -776,9 +777,9 @@ export const testMakePoolSellNft = async ({
   const {
     tx: { ixs },
     solEscrowPda,
-    nftEscrow,
+    escrowPda: nftEscrow,
     ownerAtaAcc,
-    nftReceipt,
+    receiptPda: nftReceipt,
   } = await swapSdk.sellNft({
     type: sellType,
     whitelist,

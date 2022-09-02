@@ -7,7 +7,7 @@ use tensor_whitelist::{self, Whitelist};
 #[instruction(config: PoolConfig)]
 pub struct DepositNft<'info> {
     #[account(
-        seeds = [], bump = tswap.bump[0], 
+        seeds = [], bump = tswap.bump[0],
         has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
@@ -36,9 +36,12 @@ pub struct DepositNft<'info> {
     #[account(mut, token::mint = nft_mint, token::authority = owner)]
     pub nft_source: Box<Account<'info, TokenAccount>>,
 
+    /// CHECK: seed in nft_escrow & nft_receipt
+    pub nft_mint: Box<Account<'info, Mint>>,
+
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(
-        init_if_needed, 
+        init_if_needed,
         payer = owner,
         seeds=[
             b"nft_escrow".as_ref(),
@@ -48,9 +51,6 @@ pub struct DepositNft<'info> {
         token::mint = nft_mint, token::authority = tswap,
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
-
-    /// CHECK: seed in nft_escrow & nft_receipt
-    pub nft_mint: Box<Account<'info, Mint>>,
 
     #[account(
         init,

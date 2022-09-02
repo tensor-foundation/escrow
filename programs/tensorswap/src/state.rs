@@ -85,9 +85,9 @@ pub struct PoolConfig {
 }
 
 impl PoolConfig {
-    // 2 enums/u8s + 2 u64s + boolean + u16 + EXTRA???
-    // TODO: anchor says Pool is 173 bytes => PoolConfig 22 bytes: need to +1 to make it work... Why?
-    pub const SIZE: usize = (2 * 1) + (2 * 8) + 1 + 2 + 1;
+    // 2 enums/u8s + 2 u64s + boolean + option<u16> (3 bytes)
+    #[allow(clippy::identity_op)]
+    pub const SIZE: usize = (2 * 1) + (2 * 8) + 1 + 3;
 }
 
 #[account]
@@ -116,6 +116,7 @@ pub struct Pool {
 
 impl Pool {
     // 3 u8s + 1 i64 + config + 4 keys + 3 u32s
+    #[allow(clippy::identity_op)]
     pub const SIZE: usize = (3 * 1) + 8 + PoolConfig::SIZE + (4 * 32) + (3 * 4);
 
     pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {

@@ -994,16 +994,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proc_macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "static_assertions",
- "syn",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1414,7 +1404,6 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
- "proc_macros",
  "spl-math",
  "static_assertions",
  "tensor_whitelist",

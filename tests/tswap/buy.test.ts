@@ -40,7 +40,7 @@ describe("tswap buy", () => {
     ({ tswapPda: tswap } = await beforeHook());
   });
 
-  it("buys nft from nft pool", async () => {
+  it("buy from nft pool", async () => {
     const [traderA, traderB] = await makeNTraders(2);
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
@@ -57,7 +57,7 @@ describe("tswap buy", () => {
     }
   });
 
-  it("buys nft from trade pool", async () => {
+  it("buy from trade pool", async () => {
     const [traderA, traderB] = await makeNTraders(2);
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
@@ -87,7 +87,7 @@ describe("tswap buy", () => {
     ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
 
-  it("buy nft at higher max price works (a steal!)", async () => {
+  it("buy at higher max price works (a steal!)", async () => {
     const [owner, buyer] = await makeNTraders(2);
 
     // needs to be serial ugh
@@ -107,7 +107,7 @@ describe("tswap buy", () => {
     }
   });
 
-  it("buy nft at lower max price fails", async () => {
+  it("buy at lower max price fails", async () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     await Promise.all(
@@ -275,6 +275,87 @@ describe("tswap buy", () => {
         // todo test withdraw
       })
     );
+  });
+
+  it("buy nft from another pool fails", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+
+    for (const config of [nftPoolConfig, tradePoolConfig]) {
+      const { mint: mintA, ata: ataA } = await makeMintTwoAta(traderA, traderB);
+      const { mint: mintB, ata: ataB } = await makeMintTwoAta(traderB, traderA);
+
+      // Reuse whitelist fine.
+      const {
+        proofs: [wlNftA, wlNftB],
+        whitelist,
+      } = await makeWhitelist([mintA, mintB]);
+
+      // Deposit into 2 pools.
+      const poolA = await testMakePool({
+        tswap,
+        owner: traderA,
+        config,
+        whitelist,
+      });
+      const poolB = await testMakePool({
+        tswap,
+        owner: traderB,
+        config,
+        whitelist,
+      });
+      await testDepositNft({
+        pool: poolA,
+        config,
+        owner: traderA,
+        ata: ataA,
+        wlNft: wlNftA,
+        whitelist,
+      });
+      await testDepositNft({
+        pool: poolB,
+        config,
+        owner: traderB,
+        ata: ataB,
+        wlNft: wlNftB,
+        whitelist,
+      });
+
+      // Try buying from each other's pool.
+
+      // PoolA has nft A, NOT nft B.
+      const {
+        tx: { ixs: ixsA },
+      } = await swapSdk.buyNft({
+        config,
+        owner: traderA.publicKey,
+        buyer: traderB.publicKey,
+        nftBuyerAcc: ataB,
+        whitelist,
+        nftMint: wlNftB.mint,
+        proof: wlNftB.proof,
+        maxPrice: new BN(LAMPORTS_PER_SOL),
+      });
+      await expect(
+        buildAndSendTx({ ixs: ixsA, extraSigners: [traderB] })
+      ).rejectedWith(swapSdk.getErrorCodeHex("WrongPool"));
+
+      // Pool B has nft B, NOT nft A.
+      const {
+        tx: { ixs: ixsB },
+      } = await swapSdk.buyNft({
+        config,
+        owner: traderB.publicKey,
+        buyer: traderA.publicKey,
+        nftBuyerAcc: ataA,
+        whitelist,
+        nftMint: wlNftA.mint,
+        proof: wlNftA.proof,
+        maxPrice: new BN(LAMPORTS_PER_SOL),
+      });
+      await expect(
+        buildAndSendTx({ ixs: ixsB, extraSigners: [traderA] })
+      ).rejectedWith(swapSdk.getErrorCodeHex("WrongPool"));
+    }
   });
 
   it("alternate deposits & buys", async () => {

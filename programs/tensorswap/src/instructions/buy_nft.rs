@@ -13,7 +13,7 @@ use vipers::throw_err;
 #[instruction(config: PoolConfig)]
 pub struct BuyNft<'info> {
     #[account(
-        seeds = [], bump = tswap.bump[0], 
+        seeds = [], bump = tswap.bump[0],
         has_one = fee_vault, has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
@@ -51,6 +51,12 @@ pub struct BuyNft<'info> {
     )]
     pub nft_buyer_acc: Box<Account<'info, TokenAccount>>,
 
+    #[account(
+        constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
+        constraint = nft_mint.key() == nft_receipt.nft_mint @ crate::ErrorCode::WrongMint,
+    )]
+    pub nft_mint: Box<Account<'info, Mint>>,
+
     /// Implicitly checked via transfer. Will fail if wrong account.
     /// This is closed below (dest = owner)
     #[account(
@@ -65,12 +71,6 @@ pub struct BuyNft<'info> {
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 
     #[account(
-        constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
-        constraint = nft_mint.key() == nft_receipt.nft_mint @ crate::ErrorCode::WrongMint,
-    )]
-    pub nft_mint: Box<Account<'info, Mint>>,
-
-    #[account(
         mut,
         seeds=[
             b"nft_receipt".as_ref(),
@@ -78,9 +78,10 @@ pub struct BuyNft<'info> {
         ],
         bump = nft_receipt.bump,
         close = owner,
-        // todo test
         //can't buy an NFT that's associated with a different pool
         constraint = nft_receipt.pool == pool.key() @ crate::ErrorCode::WrongPool,
+        // redundant but extra safety
+        constraint = nft_receipt.nft_escrow == nft_escrow.key() @ crate::ErrorCode::WrongMint,
     )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
@@ -175,7 +176,6 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     let current_price = pool.current_price(TakerSide::Buy)?;
     if current_price > max_price {
-        msg!("{} {} {}", pool.taker_buy_count, current_price, max_price);
         throw_err!(PriceMismatch);
     }
 

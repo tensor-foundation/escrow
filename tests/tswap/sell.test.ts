@@ -1,10 +1,6 @@
 import { BN, LangErrorCode } from "@project-serum/anchor";
 import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
-import {
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {
   CurveTypeAnchor,
@@ -46,7 +42,7 @@ describe("tswap sell", () => {
     ({ tswapPda: tswap } = await beforeHook());
   });
 
-  it("sells nft into token/trade pool", async () => {
+  it("sell into token/trade pool", async () => {
     const [traderA, traderB] = await makeNTraders(2);
     // Intentionally do this serially (o/w balances will race).
     for (const [{ owner, seller }, config] of cartesian(
@@ -71,7 +67,7 @@ describe("tswap sell", () => {
     }
   });
 
-  it("sell nft at lower min price works (a steal!)", async () => {
+  it("sell at lower min price works (a steal!)", async () => {
     const [owner, seller] = await makeNTraders(2);
 
     // needs to be serial ugh
@@ -94,7 +90,7 @@ describe("tswap sell", () => {
     }
   });
 
-  it("sell nft into token pool inits owner's ATA", async () => {
+  it("sell into token pool inits owner's ATA", async () => {
     const [owner, seller] = await makeNTraders(2);
     const config = tokenPoolConfig;
 
@@ -183,7 +179,7 @@ describe("tswap sell", () => {
     }
   });
 
-  it("sell nft at higher price fails", async () => {
+  it("sell at higher price fails", async () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     await Promise.all(
