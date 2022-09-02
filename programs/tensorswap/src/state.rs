@@ -39,10 +39,13 @@ pub struct TSwap {
     pub owner: Pubkey,
     // TODO: for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
+    // TODO: for v1 keeping it super naive - just a pk we control
+    pub cosigner: Pubkey,
 }
 
 impl TSwap {
-    pub const SIZE: usize = 1 + 1 + TSwapConfig::SIZE + 32 * 2;
+    // 2 u8s + config + 3 pubkeys
+    pub const SIZE: usize = 1 + 1 + TSwapConfig::SIZE + 32 * 3;
 
     pub fn seeds(&self) -> [&[u8]; 1] {
         [&self.bump]

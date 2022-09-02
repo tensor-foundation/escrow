@@ -1,9 +1,5 @@
 import { BN, LangErrorCode } from "@project-serum/anchor";
-import {
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {
   hexCode,
@@ -11,7 +7,6 @@ import {
   PoolConfigAnchor,
   PoolTypeAnchor,
   TakerSide,
-  HUNDRED_PCT_BPS,
 } from "../../src";
 import {
   buildAndSendTx,

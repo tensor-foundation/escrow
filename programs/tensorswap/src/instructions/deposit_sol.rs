@@ -7,7 +7,10 @@ use vipers::throw_err;
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
 pub struct DepositSol<'info> {
-    /// Needed for pool seeds derivation
+    #[account(
+        seeds = [], bump = tswap.bump[0], 
+        has_one = cosigner,
+    )]
     pub tswap: Box<Account<'info, TSwap>>,
 
     #[account(
@@ -46,6 +49,9 @@ pub struct DepositSol<'info> {
     /// CHECK: has_one = owner in pool
     #[account(mut)]
     pub owner: Signer<'info>,
+    /// CHECK: has_one = cosigner in tswap
+    pub cosigner: Signer<'info>,
+
     pub system_program: Program<'info, System>,
 }
 

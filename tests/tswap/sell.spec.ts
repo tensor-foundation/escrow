@@ -16,7 +16,6 @@ import {
 import {
   buildAndSendTx,
   cartesian,
-  HUNDRED_PCT_BPS,
   INTEGER_OVERFLOW_ERR,
   swapSdk,
   TEST_PROVIDER,
@@ -277,7 +276,7 @@ describe("tswap sell", () => {
     );
   });
 
-  it.only("sell below 0 is not possible", async () => {
+  it("sell below 0 is not possible", async () => {
     const [traderA, traderB] = await makeNTraders(2, 1_000_000);
 
     const numSells = 5;

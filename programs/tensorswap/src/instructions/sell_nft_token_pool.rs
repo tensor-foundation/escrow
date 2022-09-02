@@ -9,11 +9,13 @@ use vipers::throw_err;
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
 pub struct SellNftTokenPool<'info> {
-    /// Needed for pool seeds derivation
-    #[account(seeds = [], bump = tswap.bump[0], has_one = fee_vault)]
+    #[account(
+        seeds = [], bump = tswap.bump[0], 
+        has_one = fee_vault, has_one = cosigner,
+    )]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    /// CHECK: checked above via has_one
+    /// CHECK: has_one = fee_vault in tswap
     #[account(mut)]
     pub fee_vault: UncheckedAccount<'info>,
 
@@ -69,6 +71,8 @@ pub struct SellNftTokenPool<'info> {
 
     #[account(mut)]
     pub seller: Signer<'info>,
+    /// CHECK: has_one = cosigner in tswap
+    pub cosigner: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,

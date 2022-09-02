@@ -29,7 +29,7 @@ describe("tensor_whitelist", () => {
       TEST_PROVIDER.publicKey,
       tempAuth.publicKey
     );
-    await buildAndSendTx({ provider: TEST_PROVIDER, ixs: updateGood });
+    await buildAndSendTx({ ixs: updateGood });
 
     let authAcc = await wlSdk.fetchAuthority(authPda);
     authAcc = await wlSdk.fetchAuthority(authPda);
@@ -45,9 +45,9 @@ describe("tensor_whitelist", () => {
       TEST_PROVIDER.publicKey,
       TEST_PROVIDER.publicKey
     );
-    await expect(
-      buildAndSendTx({ provider: TEST_PROVIDER, ixs: updateBad })
-    ).to.be.rejectedWith("0x1770");
+    await expect(buildAndSendTx({ ixs: updateBad })).to.be.rejectedWith(
+      "0x1770"
+    );
 
     //update (good again - transfer back)
     const {
@@ -57,7 +57,6 @@ describe("tensor_whitelist", () => {
       TEST_PROVIDER.publicKey
     );
     await buildAndSendTx({
-      provider: TEST_PROVIDER,
       ixs: updateGood2,
       extraSigners: [tempAuth],
     });
@@ -79,9 +78,9 @@ describe("tensor_whitelist", () => {
       owner: TEST_PROVIDER.publicKey,
       uuid: Buffer.from(uuid).toJSON().data,
     });
-    await expect(
-      buildAndSendTx({ provider: TEST_PROVIDER, ixs: initWlBad })
-    ).to.be.rejectedWith("0x1771");
+    await expect(buildAndSendTx({ ixs: initWlBad })).to.be.rejectedWith(
+      "0x1771"
+    );
 
     const {
       tx: { ixs: initWlBad2 },
@@ -90,9 +89,9 @@ describe("tensor_whitelist", () => {
       uuid: Buffer.from(uuid).toJSON().data,
       rootHash: root,
     });
-    await expect(
-      buildAndSendTx({ provider: TEST_PROVIDER, ixs: initWlBad2 })
-    ).to.be.rejectedWith("0x1772");
+    await expect(buildAndSendTx({ ixs: initWlBad2 })).to.be.rejectedWith(
+      "0x1772"
+    );
 
     //init ok
     const {
@@ -104,7 +103,7 @@ describe("tensor_whitelist", () => {
       rootHash: root,
       name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
     });
-    await buildAndSendTx({ provider: TEST_PROVIDER, ixs: initWlGood });
+    await buildAndSendTx({ ixs: initWlGood });
 
     let wlAcc = await wlSdk.fetchWhitelist(whitelistPda);
     expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid);
@@ -127,7 +126,7 @@ describe("tensor_whitelist", () => {
       rootHash: root2,
       name: Buffer.from(name2.padEnd(32, "\0")).toJSON().data,
     });
-    await buildAndSendTx({ provider: TEST_PROVIDER, ixs: initWlGood2 });
+    await buildAndSendTx({ ixs: initWlGood2 });
 
     wlAcc = await wlSdk.fetchWhitelist(whitelistPda2);
     expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid2);

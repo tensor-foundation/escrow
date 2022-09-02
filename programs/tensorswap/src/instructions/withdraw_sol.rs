@@ -5,7 +5,10 @@ use vipers::throw_err;
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
 pub struct WithdrawSol<'info> {
-    /// Needed for pool seeds derivation
+    #[account(
+        seeds = [], bump = tswap.bump[0], 
+        has_one = cosigner,
+    )]
     pub tswap: Box<Account<'info, TSwap>>,
 
     #[account(
@@ -42,6 +45,9 @@ pub struct WithdrawSol<'info> {
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub owner: Signer<'info>,
+    /// CHECK: has_one = cosigner in tswap
+    pub cosigner: Signer<'info>,
+
     pub system_program: Program<'info, System>,
 }
 

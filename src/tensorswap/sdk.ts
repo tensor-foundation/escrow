@@ -108,10 +108,10 @@ export class TensorSwapSDK {
   // --------------------------------------- tswap methods
 
   //main signature: owner
-  async initTSwap(owner: PublicKey, feeVault: PublicKey = TSWAP_FEE_ACC) {
+  async initUpdateTSwap(owner: PublicKey, feeVault: PublicKey = TSWAP_FEE_ACC) {
     const [tswapPda] = await findTSwapPDA({});
 
-    const builder = this.program.methods.initTswap().accounts({
+    const builder = this.program.methods.initUpdateTswap().accounts({
       tswap: tswapPda,
       owner,
       feeVault,

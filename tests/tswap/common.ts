@@ -91,7 +91,7 @@ export const beforeHook = async () => {
   const {
     tx: { ixs },
     tswapPda,
-  } = await swapSdk.initTSwap(TEST_PROVIDER.publicKey, TSWAP_FEE_ACC);
+  } = await swapSdk.initUpdateTSwap(TEST_PROVIDER.publicKey, TSWAP_FEE_ACC);
   await buildAndSendTx({ ixs });
 
   const swapAcc = await swapSdk.fetchTSwap(tswapPda);

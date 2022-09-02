@@ -11,19 +11,21 @@ pub use state::*;
 
 declare_id!("EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA");
 
-// TODO: replace these
+// TODO: replace these (make root/fee vault/cosigner all different ideally)
 #[cfg(not(feature = "testing"))]
 static ROOT_AUTHORITY: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
 #[cfg(not(feature = "testing"))]
 static TSWAP_FEE_VAULT: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
+#[cfg(not(feature = "testing"))]
+static COSIGNER: &str = "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK";
 static TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
 
 #[program]
 pub mod tensorswap {
     use super::*;
 
-    pub fn init_tswap(ctx: Context<InitTSwap>) -> Result<()> {
-        instructions::init_tswap::handler(ctx)
+    pub fn init_update_tswap(ctx: Context<InitUpdateTSwap>) -> Result<()> {
+        instructions::init_update_tswap::handler(ctx)
     }
 
     pub fn init_pool(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
@@ -119,5 +121,7 @@ pub enum ErrorCode {
     #[msg("wrong mint passed for provided accounts")]
     WrongMint = 14,
     #[msg("insufficient SOL escrow balance")]
-    InsufficientSolEscrowBalance,
+    InsufficientSolEscrowBalance = 15,
+    #[msg("bad tswap owner")]
+    BadTSwapOwner = 16,
 }

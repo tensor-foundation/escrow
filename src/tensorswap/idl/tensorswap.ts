@@ -3,7 +3,7 @@ export type Tensorswap = {
   "name": "tensorswap",
   "instructions": [
     {
-      "name": "initTswap",
+      "name": "initUpdateTswap",
       "accounts": [
         {
           "name": "tswap",
@@ -14,6 +14,11 @@ export type Tensorswap = {
           "name": "feeVault",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "owner",
@@ -34,10 +39,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -60,10 +62,12 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Needed for pool seeds derivation / paying fr stuff"
-          ]
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -86,10 +90,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -109,10 +110,12 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Needed for pool seeds derivation / paying fr stuff"
-          ]
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -135,10 +138,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -179,6 +179,11 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -223,10 +228,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -271,6 +273,11 @@ export type Tensorswap = {
           ]
         },
         {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -306,10 +313,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -329,6 +333,11 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -356,10 +365,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -383,6 +389,11 @@ export type Tensorswap = {
           "docs": [
             "Tied to the pool because used to verify pool seeds"
           ]
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -409,10 +420,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "feeVault",
@@ -472,6 +480,11 @@ export type Tensorswap = {
           "isSigner": true
         },
         {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -522,10 +535,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "feeVault",
@@ -573,6 +583,11 @@ export type Tensorswap = {
         {
           "name": "seller",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -626,10 +641,7 @@ export type Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "feeVault",
@@ -688,6 +700,11 @@ export type Tensorswap = {
         {
           "name": "seller",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -762,6 +779,10 @@ export type Tensorswap = {
           },
           {
             "name": "feeVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "cosigner",
             "type": "publicKey"
           }
         ]
@@ -1084,6 +1105,11 @@ export type Tensorswap = {
       "code": 6015,
       "name": "InsufficientSolEscrowBalance",
       "msg": "insufficient SOL escrow balance"
+    },
+    {
+      "code": 6016,
+      "name": "BadTSwapOwner",
+      "msg": "bad tswap owner"
     }
   ]
 };
@@ -1093,7 +1119,7 @@ export const IDL: Tensorswap = {
   "name": "tensorswap",
   "instructions": [
     {
-      "name": "initTswap",
+      "name": "initUpdateTswap",
       "accounts": [
         {
           "name": "tswap",
@@ -1104,6 +1130,11 @@ export const IDL: Tensorswap = {
           "name": "feeVault",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "owner",
@@ -1124,10 +1155,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -1150,10 +1178,12 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Needed for pool seeds derivation / paying fr stuff"
-          ]
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -1176,10 +1206,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -1199,10 +1226,12 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Needed for pool seeds derivation / paying fr stuff"
-          ]
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -1225,10 +1254,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -1269,6 +1295,11 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -1313,10 +1344,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -1361,6 +1389,11 @@ export const IDL: Tensorswap = {
           ]
         },
         {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -1396,10 +1429,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -1419,6 +1449,11 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -1446,10 +1481,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "pool",
@@ -1473,6 +1505,11 @@ export const IDL: Tensorswap = {
           "docs": [
             "Tied to the pool because used to verify pool seeds"
           ]
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -1499,10 +1536,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "feeVault",
@@ -1562,6 +1596,11 @@ export const IDL: Tensorswap = {
           "isSigner": true
         },
         {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -1612,10 +1651,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "feeVault",
@@ -1663,6 +1699,11 @@ export const IDL: Tensorswap = {
         {
           "name": "seller",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -1716,10 +1757,7 @@ export const IDL: Tensorswap = {
         {
           "name": "tswap",
           "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Needed for pool seeds derivation"
-          ]
+          "isSigner": false
         },
         {
           "name": "feeVault",
@@ -1778,6 +1816,11 @@ export const IDL: Tensorswap = {
         {
           "name": "seller",
           "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -1852,6 +1895,10 @@ export const IDL: Tensorswap = {
           },
           {
             "name": "feeVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "cosigner",
             "type": "publicKey"
           }
         ]
@@ -2174,6 +2221,11 @@ export const IDL: Tensorswap = {
       "code": 6015,
       "name": "InsufficientSolEscrowBalance",
       "msg": "insufficient SOL escrow balance"
+    },
+    {
+      "code": 6016,
+      "name": "BadTSwapOwner",
+      "msg": "bad tswap owner"
     }
   ]
 };
