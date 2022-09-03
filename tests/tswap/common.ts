@@ -687,10 +687,9 @@ export const testMakePoolBuyNft = async ({
       );
 
       const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
+      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE);
       //paid tswap fees (NB: fee account may be un-init before).
-      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(
-        expectedLamports * TSWAP_FEE
-      );
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
       // Buyer pays full amount.
       const currBuyerLamports = await getLamports(buyer.publicKey);
@@ -836,10 +835,9 @@ export const testMakePoolSellNft = async ({
       await _checkDestAcc("1");
 
       const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
+      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE);
       //paid tswap fees (NB: fee account may be un-init before).
-      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(
-        expectedLamports * TSWAP_FEE
-      );
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
       const mmFees = Math.trunc(
         (expectedLamports * (config.mmFeeBps ?? 0)) / 1e4
@@ -861,10 +859,7 @@ export const testMakePoolSellNft = async ({
         // (1) TSwap fees
         // (2) MM fees (if trade pool)
         // (3) any rent paid by seller
-        expectedLamports -
-          Math.trunc(expectedLamports * TSWAP_FEE) -
-          mmFees -
-          expectedRentBySeller
+        expectedLamports - tswapFee - mmFees - expectedRentBySeller
       );
 
       // buyer should not have balance change
