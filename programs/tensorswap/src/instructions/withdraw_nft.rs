@@ -4,6 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer},
 };
+use tensor_whitelist::Whitelist;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -27,14 +28,13 @@ pub struct WithdrawNft<'info> {
         ],
         bump = pool.bump[0],
         has_one = tswap, has_one = whitelist, has_one = owner,
-        // todo: test for Token pool
         // can only withdraw from NFT or Trade pool (bought NFTs from Token goes directly to owner)
         constraint = config.pool_type == PoolType::NFT || config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
     )]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// CHECK: Needed for pool seeds derivation, also checked via has_one on pool
-    pub whitelist: UncheckedAccount<'info>,
+    /// CHECK: has_one = whitelist in pool
+    pub whitelist: Box<Account<'info, Whitelist>>,
 
     #[account(
         init_if_needed,

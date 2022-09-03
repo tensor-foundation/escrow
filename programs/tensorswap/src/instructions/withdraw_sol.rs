@@ -1,5 +1,6 @@
 //! User withdrawing SOL from their pool (all 3 types)
 use crate::*;
+use tensor_whitelist::Whitelist;
 use vipers::throw_err;
 
 #[derive(Accounts)]
@@ -28,8 +29,8 @@ pub struct WithdrawSol<'info> {
     )]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// CHECK: Needed for pool seeds derivation,  has_one = whitelist in pool
-    pub whitelist: UncheckedAccount<'info>,
+    /// CHECK: has_one = whitelist in pool
+    pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// CHECK: has_one = escrow in pool
     #[account(
@@ -40,7 +41,7 @@ pub struct WithdrawSol<'info> {
         ],
         bump = pool.sol_escrow_bump[0],
     )]
-    pub sol_escrow: Account<'info, SolEscrow>,
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]

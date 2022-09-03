@@ -15,6 +15,7 @@ pub struct InitUpdateTSwap<'info> {
     pub fee_vault: UncheckedAccount<'info>,
 
     /// CHECK: initialized once on init, requires owner sign-off later
+    /// We ask also for a signature just to make sure this wallet can actually sign things
     pub cosigner: Signer<'info>,
 
     #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(ROOT_AUTHORITY).unwrap()))]
@@ -27,7 +28,6 @@ impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
     fn validate(&self) -> Result<()> {
         let owner = self.tswap.owner;
 
-        // TODO: test
         //if owner already present, make sure it's signing off on the update
         if owner != Pubkey::default() && owner != self.owner.key() {
             throw_err!(BadTSwapOwner);

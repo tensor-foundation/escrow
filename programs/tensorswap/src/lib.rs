@@ -120,4 +120,6 @@ pub enum ErrorCode {
     InsufficientSolEscrowBalance = 15,
     #[msg("bad tswap owner")]
     BadTSwapOwner = 16,
+    #[msg("fees not allowed for non-trade pools")]
+    FeesNotAllowed = 17,
 }

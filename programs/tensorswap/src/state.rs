@@ -10,7 +10,6 @@ pub const CURRENT_POOL_VERSION: u8 = 1;
 // TODO: currently hardcoding, not to waste time passing in
 pub const TSWAP_FEE_BPS: u16 = 50; //0.5%
 
-// TODO: test limits
 pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
 pub const HUNDRED_PCT_BPS: u16 = 10000;
 pub const MAX_DELTA_BPS: u16 = 9999; //99%
@@ -267,7 +266,6 @@ pub struct SolEscrow {}
 
 // --------------------------------------- tests
 
-// TODO: since we're allowing the pool to go infinitely each direction, think through security / ux of limits
 #[cfg(test)]
 mod tests {
     use super::*;

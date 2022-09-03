@@ -98,8 +98,8 @@ pub struct InitUpdateWhitelist<'info> {
 
 #[account]
 pub struct Authority {
-    // TODO: naive - move to current/pending authority later
     pub bump: u8,
+    // TODO: naive - move to current/pending authority later
     pub owner: Pubkey,
 }
 

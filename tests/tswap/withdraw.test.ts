@@ -6,6 +6,7 @@ import {
   cartesian,
   getLamports,
   swapSdk,
+  TEST_PROVIDER,
   withLamports,
 } from "../shared";
 import {
@@ -89,6 +90,7 @@ describe("tswap withdraws", () => {
       proof: wlNft.proof,
       // Fine to go lower.
       minPrice: new BN(LAMPORTS_PER_SOL / 2),
+      cosigner: TEST_PROVIDER.publicKey,
     });
     await buildAndSendTx({
       ixs,

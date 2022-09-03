@@ -18,7 +18,10 @@ export type Tensorswap = {
         {
           "name": "cosigner",
           "isMut": false,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "We ask also for a signature just to make sure this wallet can actually sign things"
+          ]
         },
         {
           "name": "owner",
@@ -1117,6 +1120,11 @@ export type Tensorswap = {
       "code": 6016,
       "name": "BadTSwapOwner",
       "msg": "bad tswap owner"
+    },
+    {
+      "code": 6017,
+      "name": "FeesNotAllowed",
+      "msg": "fees not allowed for non-trade pools"
     }
   ]
 };
@@ -1141,7 +1149,10 @@ export const IDL: Tensorswap = {
         {
           "name": "cosigner",
           "isMut": false,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "We ask also for a signature just to make sure this wallet can actually sign things"
+          ]
         },
         {
           "name": "owner",
@@ -2240,6 +2251,11 @@ export const IDL: Tensorswap = {
       "code": 6016,
       "name": "BadTSwapOwner",
       "msg": "bad tswap owner"
+    },
+    {
+      "code": 6017,
+      "name": "FeesNotAllowed",
+      "msg": "fees not allowed for non-trade pools"
     }
   ]
 };

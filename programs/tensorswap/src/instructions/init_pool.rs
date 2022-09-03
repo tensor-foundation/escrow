@@ -13,7 +13,6 @@ pub struct InitPool<'info> {
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    // todo test creating multiple pool types/curve types/prices/deltas
     #[account(
         init, payer = owner,
         seeds = [
@@ -39,7 +38,7 @@ pub struct InitPool<'info> {
         bump,
         space = 8
     )]
-    pub sol_escrow: Account<'info, SolEscrow>,
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// Needed for pool seeds derivation / will be stored inside pool
     pub whitelist: Box<Account<'info, Whitelist>>,
@@ -54,7 +53,6 @@ pub struct InitPool<'info> {
 }
 
 impl<'info> InitPool<'info> {
-    // todo write tests for all these conditions
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
         if config.honor_royalties {
             throw_err!(RoyaltiesDisabled);
@@ -62,17 +60,14 @@ impl<'info> InitPool<'info> {
 
         match config.pool_type {
             PoolType::NFT | PoolType::Token => {
-                // todo test
-                if config.mm_fee_bps != Some(0) && config.mm_fee_bps != None {
-                    throw_err!(WrongPoolType);
+                if config.mm_fee_bps != None {
+                    throw_err!(FeesNotAllowed);
                 }
             }
             PoolType::Trade => {
-                // todo test
                 if config.mm_fee_bps.is_none() {
                     throw_err!(MissingFees);
                 }
-                // todo test
                 if config.mm_fee_bps.unwrap() > MAX_MM_FEES_BPS {
                     throw_err!(FeesTooHigh);
                 }
@@ -82,7 +77,6 @@ impl<'info> InitPool<'info> {
         //for exponential pool delta can't be above 99.99% and has to fit into a u16
         if config.curve_type == CurveType::Exponential {
             let u16delta = try_or_err!(u16::try_from(config.delta), ArithmeticError);
-            // todo test
             if u16delta > MAX_DELTA_BPS {
                 throw_err!(DeltaTooLarge);
             }

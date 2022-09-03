@@ -68,7 +68,7 @@ pub struct SellNft<'info> {
         ],
         bump = pool.sol_escrow_bump[0],
     )]
-    pub sol_escrow: Account<'info, SolEscrow>,
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// CHECK: has_one = owner in pool (owner is the buyer)
     #[account(mut)]

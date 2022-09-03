@@ -21,7 +21,6 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { getAccountRent, hexCode } from "../common";
-import { TEST_PROVIDER } from "../../tests/shared";
 
 export const PoolTypeAnchor = {
   Token: { token: {} },
@@ -60,7 +59,7 @@ export interface PoolConfigAnchor {
   startingPrice: BN;
   delta: BN;
   honorRoyalties: boolean;
-  mmFeeBps: number; //set to 0 if not present, for some reason setting to null causes anchor to crash
+  mmFeeBps: number | null; //set to 0 if not present, for some reason setting to null causes anchor to crash
 }
 
 export interface TSwapConfig {
@@ -109,12 +108,22 @@ export class TensorSwapSDK {
   // --------------------------------------- tswap methods
 
   //main signature: owner
-  async initUpdateTSwap(owner: PublicKey, feeVault: PublicKey = TSWAP_FEE_ACC) {
+  async initUpdateTSwap({
+    owner,
+    feeVault = TSWAP_FEE_ACC,
+    cosigner = owner,
+  }: {
+    owner: PublicKey;
+    feeVault?: PublicKey;
+    // Default to owner (ie anchor provider wallet).
+    cosigner?: PublicKey;
+  }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
 
     const builder = this.program.methods.initUpdateTswap().accounts({
       tswap: tswapPda,
       owner,
+      cosigner,
       feeVault,
       systemProgram: SystemProgram.programId,
     });
@@ -134,10 +143,12 @@ export class TensorSwapSDK {
     owner,
     whitelist,
     config,
+    cosigner,
   }: {
     owner: PublicKey;
     whitelist: PublicKey;
     config: PoolConfigAnchor;
+    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -157,6 +168,7 @@ export class TensorSwapSDK {
       solEscrow: solEscrowPda,
       whitelist,
       owner,
+      cosigner,
       systemProgram: SystemProgram.programId,
     });
 
@@ -177,10 +189,12 @@ export class TensorSwapSDK {
     owner,
     whitelist,
     config,
+    cosigner,
   }: {
     owner: PublicKey;
     whitelist: PublicKey;
     config: PoolConfigAnchor;
+    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -200,6 +214,7 @@ export class TensorSwapSDK {
       solEscrow: solEscrowPda,
       whitelist,
       owner,
+      cosigner,
       systemProgram: SystemProgram.programId,
     });
 
@@ -225,6 +240,7 @@ export class TensorSwapSDK {
     owner,
     config,
     proof,
+    cosigner,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -232,6 +248,7 @@ export class TensorSwapSDK {
     owner: PublicKey;
     config: PoolConfigAnchor;
     proof: Buffer[];
+    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -260,6 +277,7 @@ export class TensorSwapSDK {
         nftEscrow: escrowPda,
         nftReceipt: receiptPda,
         owner,
+        cosigner,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -285,11 +303,13 @@ export class TensorSwapSDK {
     owner,
     config,
     lamports,
+    cosigner,
   }: {
     whitelist: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
     lamports: BN;
+    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -312,6 +332,7 @@ export class TensorSwapSDK {
         whitelist,
         solEscrow: solEscrowPda,
         owner,
+        cosigner,
         systemProgram: SystemProgram.programId,
       });
 
@@ -334,12 +355,14 @@ export class TensorSwapSDK {
     nftDest,
     owner,
     config,
+    cosigner,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
     nftDest: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
+    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -366,6 +389,7 @@ export class TensorSwapSDK {
       nftEscrow: escrowPda,
       nftReceipt: receiptPda,
       owner,
+      cosigner,
       tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
@@ -392,11 +416,13 @@ export class TensorSwapSDK {
     owner,
     config,
     lamports,
+    cosigner,
   }: {
     whitelist: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
     lamports: BN;
+    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -419,6 +445,7 @@ export class TensorSwapSDK {
         whitelist,
         solEscrow: solEscrowPda,
         owner,
+        cosigner,
         systemProgram: SystemProgram.programId,
       });
 
@@ -446,6 +473,7 @@ export class TensorSwapSDK {
     config,
     proof,
     maxPrice,
+    cosigner,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -455,6 +483,7 @@ export class TensorSwapSDK {
     config: PoolConfigAnchor;
     proof: Buffer[];
     maxPrice: BN;
+    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -489,6 +518,7 @@ export class TensorSwapSDK {
         solEscrow: solEscrowPda,
         owner,
         buyer,
+        cosigner,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
@@ -522,6 +552,8 @@ export class TensorSwapSDK {
     config,
     proof,
     minPrice,
+    // Weird how cosigner is necessary/cannot be non-null (composite accounts).
+    cosigner,
   }: {
     type: "trade" | "token";
     whitelist: PublicKey;
@@ -532,6 +564,7 @@ export class TensorSwapSDK {
     config: PoolConfigAnchor;
     proof: Buffer[];
     minPrice: BN;
+    cosigner: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -558,7 +591,7 @@ export class TensorSwapSDK {
       solEscrow: solEscrowPda,
       owner,
       seller,
-      cosigner: TEST_PROVIDER.publicKey,
+      cosigner,
     };
 
     const { method, accounts } =

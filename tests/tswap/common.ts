@@ -60,7 +60,7 @@ export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
   startingPrice: new BN(LAMPORTS_PER_SOL),
   delta: new BN(1234),
   honorRoyalties: false,
-  mmFeeBps: 0,
+  mmFeeBps: null,
 };
 export const nftPoolConfig: PoolConfigAnchor = {
   poolType: PoolTypeAnchor.NFT,
@@ -76,14 +76,13 @@ export const tradePoolConfig: PoolConfigAnchor = {
   mmFeeBps: 300,
 };
 
-type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
+export type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
 
 //#endregion
 
 //#region Test fixtures.
 
 export const beforeHook = async () => {
-  //keypairs (have a lot of sol for many tests that re-use these keypairs)
   // WL authority
   await testInitWLAuthority();
 
@@ -91,11 +90,16 @@ export const beforeHook = async () => {
   const {
     tx: { ixs },
     tswapPda,
-  } = await swapSdk.initUpdateTSwap(TEST_PROVIDER.publicKey, TSWAP_FEE_ACC);
+  } = await swapSdk.initUpdateTSwap({
+    owner: TEST_PROVIDER.publicKey,
+    feeVault: TSWAP_FEE_ACC,
+  });
   await buildAndSendTx({ ixs });
 
   const swapAcc = await swapSdk.fetchTSwap(tswapPda);
+  expect(swapAcc.version).eq(1);
   expect(swapAcc.owner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
+  expect(swapAcc.cosigner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
   expect(swapAcc.feeVault.toBase58()).eq(TSWAP_FEE_ACC.toBase58());
   expect((swapAcc.config as TSwapConfig).feeBps).eq(TSWAP_FEE * 1e4);
 
@@ -365,7 +369,7 @@ export const testMakePool = async ({
   if (config.poolType === PoolTypeAnchor.Trade) {
     expect(accConfig.mmFeeBps).eq(config.mmFeeBps);
   } else {
-    expect(accConfig.mmFeeBps).eq(0);
+    expect(accConfig.mmFeeBps).eq(null);
   }
 
   await swapSdk.fetchSolEscrow(solEscrowPda);
@@ -682,12 +686,10 @@ export const testMakePoolBuyNft = async ({
         TokenAccountNotFoundError
       );
 
-      //paid tswap fees (NB: fee account may be un-init before).
       const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
-      const feeDiff = feeAccLamports! - (prevFeeAccLamports ?? 0);
-      // todo: why is this not exactly 5%? where is rent coming from?
-      expect(feeDiff).gte(expectedLamports * TSWAP_FEE);
-      expect(feeDiff).lt(expectedLamports * 2 * TSWAP_FEE);
+      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE);
+      //paid tswap fees (NB: fee account may be un-init before).
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
       // Buyer pays full amount.
       const currBuyerLamports = await getLamports(buyer.publicKey);
@@ -789,6 +791,7 @@ export const testMakePoolSellNft = async ({
     config,
     proof: wlNft.proof,
     minPrice: new BN(minLamports),
+    cosigner: TEST_PROVIDER.publicKey,
   });
 
   const _checkDestAcc = async (amount: string) => {
@@ -831,14 +834,14 @@ export const testMakePoolSellNft = async ({
       expect(traderAcc.amount.toString()).eq("0");
       await _checkDestAcc("1");
 
-      //paid tswap fees (NB: fee account may be un-init before).
       const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
-      const feeDiff = feeAccLamports! - (prevFeeAccLamports ?? 0);
-      // todo: why is this not exactly 5%? where is rent coming from?
-      expect(feeDiff).gte(Math.trunc(expectedLamports * TSWAP_FEE));
-      expect(feeDiff).lt(Math.trunc(expectedLamports * 2 * TSWAP_FEE));
+      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE);
+      //paid tswap fees (NB: fee account may be un-init before).
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
-      const mmFees = Math.trunc((expectedLamports * config.mmFeeBps) / 1e4);
+      const mmFees = Math.trunc(
+        (expectedLamports * (config.mmFeeBps ?? 0)) / 1e4
+      );
 
       //paid full amount to seller
       const expectedRentBySeller =
@@ -852,10 +855,11 @@ export const testMakePoolSellNft = async ({
             0;
       const currSellerLamports = await getLamports(seller.publicKey);
       expect(currSellerLamports! - prevSellerLamports!).eq(
-        expectedLamports -
-          Math.trunc(expectedLamports * TSWAP_FEE) -
-          mmFees -
-          expectedRentBySeller
+        // Seller gets back original price minus:
+        // (1) TSwap fees
+        // (2) MM fees (if trade pool)
+        // (3) any rent paid by seller
+        expectedLamports - tswapFee - mmFees - expectedRentBySeller
       );
 
       // buyer should not have balance change

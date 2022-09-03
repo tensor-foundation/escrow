@@ -375,7 +375,7 @@ describe("tswap buy", () => {
               : // 10.21% (prime #)
                 new BN(10_21),
           honorRoyalties: false,
-          mmFeeBps: 0,
+          mmFeeBps: poolType === PoolTypeAnchor.Trade ? 0 : null,
         };
 
         //prepare multiple nfts
@@ -399,7 +399,7 @@ describe("tswap buy", () => {
         // This determines the sequence in which we do deposits & buys.
         // This should be length numBuys.
         const buyWhenDepCount = [1, 3, 5, 5, 5, 7, 9, 10, 10, 10];
-        const depositedNfts = [];
+        const depositedNfts: typeof nfts = [];
         let depCount = 0;
         let buyCount = 0;
 
@@ -501,7 +501,7 @@ describe("tswap buy", () => {
       // 8.77% (prime #)
       delta: new BN(8_77),
       honorRoyalties: false,
-      mmFeeBps: 0,
+      mmFeeBps: null,
     };
 
     //prepare multiple nfts
