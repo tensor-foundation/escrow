@@ -1,9 +1,9 @@
 {
   "name": "@tensor-hq/tensorswap-sdk",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Anchor/JS SDK for interacting with the tensorswap Solana program.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "files": [
     "/dist"
   ],
