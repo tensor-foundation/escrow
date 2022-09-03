@@ -1,12 +1,13 @@
 {
   "name": "@tensor-hq/tensorswap-sdk",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Anchor/JS SDK for interacting with the tensorswap Solana program.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "/dist"
   ],
+  "repository": "git@github.com:tensor-hq/tensorswap.git",
   "license": "MIT",
   "publishConfig": {
     "@tensor-hq:registry": "https://npm.pkg.github.com"
