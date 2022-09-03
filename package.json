@@ -1,6 +1,6 @@
 {
-  "name": "@tensor-hq/tensorswap-sdk",
-  "version": "0.0.6",
+  "name": "@tensor-hq/tensorswap",
+  "version": "0.0.7",
   "description": "Anchor/JS SDK for interacting with the tensorswap Solana program.",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
@@ -18,6 +18,7 @@
     "test": "bash scripts/full_test.sh",
     "fast-test": "anchor test --skip-build -- --features testing",
     "pub": "rm -rf ./dist && yarn tsc && yarn publish --patch",
+    "push": "git push --follow-tags",
     "pubpush": "yarn pub && yarn push",
     "upgrade:tswap": "yarn upgrade @tensor/tensorswap-ts --latest --check-files",
     "upgrade:anchor": "yarn upgrade @project-serum/anchor --latest --check-files"
