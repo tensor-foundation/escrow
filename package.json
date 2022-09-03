@@ -8,6 +8,9 @@
     "upgrade:tswap": "yarn upgrade @tensor/tensorswap-ts --latest --check-files",
     "upgrade:anchor": "yarn upgrade @project-serum/anchor --latest --check-files"
   },
+  "publishConfig": {
+    "@tensor-hq:registry": "https://npm.pkg.github.com"
+  },
   "dependencies": {
     "@project-serum/anchor": "^0.25.0",
     "@saberhq/anchor-contrib": "^1.14.4",
@@ -39,5 +42,5 @@
     "typescript": "^4.3.5",
     "uuid": "^8.3.2"
   },
-  "version": "0.0.1"
+  "version": "0.0.2"
 }
