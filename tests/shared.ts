@@ -23,6 +23,7 @@ export {
   PoolConfigAnchor,
   PoolTypeAnchor,
   TakerSide,
+  HUNDRED_PCT_BPS,
 } from "../src";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";

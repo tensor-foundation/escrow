@@ -1,5 +1,6 @@
 //! User (owner) closing their pool and reclaims rent (+ SOL escrow)
 use crate::*;
+use tensor_whitelist::Whitelist;
 use vipers::throw_err;
 
 #[derive(Accounts)]
@@ -37,10 +38,10 @@ pub struct ClosePool<'info> {
         bump = pool.sol_escrow_bump[0],
         close = owner,
     )]
-    pub sol_escrow: Account<'info, SolEscrow>,
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
-    /// CHECK: Needed for pool seeds derivation, has_one = whitelist in pool
-    pub whitelist: UncheckedAccount<'info>,
+    /// CHECK: has_one = whitelist in pool
+    pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// CHECK: has_one = owner in pool
     #[account(mut)]
@@ -63,6 +64,5 @@ impl<'info> Validate<'info> for ClosePool<'info> {
 
 #[access_control(ctx.accounts.validate())]
 pub fn handler(ctx: Context<ClosePool>) -> Result<()> {
-    // todo: test if closing pool also moves money from escrow
     Ok(())
 }

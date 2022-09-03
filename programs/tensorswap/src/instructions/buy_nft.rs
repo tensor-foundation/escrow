@@ -94,7 +94,7 @@ pub struct BuyNft<'info> {
         ],
         bump = pool.sol_escrow_bump[0],
     )]
-    pub sol_escrow: UncheckedAccount<'info>,
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// CHECK: has_one = owner in pool (owner is the seller)
     #[account(mut)]
@@ -156,15 +156,12 @@ impl<'info> BuyNft<'info> {
     }
 }
 
-// todo write tests
 impl<'info> Validate<'info> for BuyNft<'info> {
     fn validate(&self) -> Result<()> {
         Ok(())
     }
 }
 
-//todo need to see how many of these can fit into a single tx,
-//todo need to think about sending price / max price
 #[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,

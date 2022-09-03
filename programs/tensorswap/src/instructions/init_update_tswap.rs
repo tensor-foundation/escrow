@@ -28,7 +28,6 @@ impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
     fn validate(&self) -> Result<()> {
         let owner = self.tswap.owner;
 
-        // TODO: test
         //if owner already present, make sure it's signing off on the update
         if owner != Pubkey::default() && owner != self.owner.key() {
             throw_err!(BadTSwapOwner);

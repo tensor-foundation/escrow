@@ -59,7 +59,7 @@ export interface PoolConfigAnchor {
   startingPrice: BN;
   delta: BN;
   honorRoyalties: boolean;
-  mmFeeBps: number; //set to 0 if not present, for some reason setting to null causes anchor to crash
+  mmFeeBps: number | null; //set to 0 if not present, for some reason setting to null causes anchor to crash
 }
 
 export interface TSwapConfig {
@@ -552,6 +552,7 @@ export class TensorSwapSDK {
     config,
     proof,
     minPrice,
+    // Weird how cosigner is necessary/cannot be non-null (composite accounts).
     cosigner,
   }: {
     type: "trade" | "token";
@@ -563,7 +564,7 @@ export class TensorSwapSDK {
     config: PoolConfigAnchor;
     proof: Buffer[];
     minPrice: BN;
-    cosigner?: PublicKey;
+    cosigner: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({

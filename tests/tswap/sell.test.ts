@@ -119,6 +119,7 @@ describe("tswap sell", () => {
       config,
       proof: wlNft.proof,
       minPrice: new BN(LAMPORTS_PER_SOL),
+      cosigner: TEST_PROVIDER.publicKey,
     });
 
     // Ensure ATA is closed to begin with.
@@ -256,6 +257,7 @@ describe("tswap sell", () => {
                 ? LAMPORTS_PER_SOL
                 : LAMPORTS_PER_SOL - 1234
             ),
+            cosigner: TEST_PROVIDER.publicKey,
           });
 
           await expect(
@@ -277,7 +279,6 @@ describe("tswap sell", () => {
     const baseConfig = {
       startingPrice: new BN(2),
       honorRoyalties: false,
-      mmFeeBps: 0,
     };
     await Promise.all(
       cartesian(
@@ -295,7 +296,11 @@ describe("tswap sell", () => {
           },
         ]
       ).map(async ([poolType, config]) => {
-        const currConfig = { ...config, poolType };
+        const currConfig = {
+          ...config,
+          poolType,
+          mmFeeBps: poolType === PoolTypeAnchor.Trade ? 0 : null,
+        };
         const type =
           currConfig.poolType === PoolTypeAnchor.Trade ? "trade" : "token";
         const failOnIdx =
@@ -357,6 +362,7 @@ describe("tswap sell", () => {
             config: currConfig,
             proof: proofs.find((p) => p.mint === nft.mint)!.proof,
             minPrice: new BN(0),
+            cosigner: TEST_PROVIDER.publicKey,
           });
 
           const promise = buildAndSendTx({
@@ -393,7 +399,7 @@ describe("tswap sell", () => {
               : // 10.21% (prime #)
                 new BN(10_21),
           honorRoyalties: false,
-          mmFeeBps: 0,
+          mmFeeBps: poolType === PoolTypeAnchor.Trade ? 0 : null,
         };
 
         //prepare multiple nfts
@@ -478,6 +484,7 @@ describe("tswap sell", () => {
               config: config,
               proof: proofs.find((p) => p.mint === targNft.mint)!.proof,
               minPrice: currPrice,
+              cosigner: TEST_PROVIDER.publicKey,
             });
             await buildAndSendTx({
               ixs,
@@ -519,7 +526,7 @@ describe("tswap sell", () => {
       // 17.21% (prime #)
       delta: new BN(17_21),
       honorRoyalties: false,
-      mmFeeBps: 0,
+      mmFeeBps: null,
     };
 
     //prepare multiple nfts
@@ -576,6 +583,7 @@ describe("tswap sell", () => {
         config: config,
         proof: proofs.find((p) => p.mint === nft.mint)!.proof,
         minPrice: currPrice,
+        cosigner: TEST_PROVIDER.publicKey,
       });
       await buildAndSendTx({
         ixs,

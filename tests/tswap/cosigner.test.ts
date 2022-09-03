@@ -125,19 +125,15 @@ describe("tswap cosigner", () => {
 
   it("init pool cosign", async () => {
     // Init pool.
-    const _initPoolIxs = async () =>
-      (
-        await swapSdk.initPool({
-          owner: owner.publicKey,
-          whitelist,
-          config,
-          cosigner,
-        })
-      ).tx.ixs;
-    {
-      const ixs = await _initPoolIxs();
-      await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
-    }
+    const {
+      tx: { ixs },
+    } = await swapSdk.initPool({
+      owner: owner.publicKey,
+      whitelist,
+      config,
+      cosigner,
+    });
+    await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
   });
 
   it("deposit nft cosign", async () => {

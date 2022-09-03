@@ -3,13 +3,16 @@ import {
   getMinimumBalanceForRentExemptMint,
 } from "@solana/spl-token";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { BN } from "bn.js";
 import { expect } from "chai";
 import {
+  CurveTypeAnchor,
   cartesian,
   getLamports,
   swapSdk,
   TEST_PROVIDER,
   withLamports,
+  HUNDRED_PCT_BPS,
 } from "../shared";
 import {
   beforeHook,
@@ -79,6 +82,92 @@ describe("tswap pool", () => {
             whitelist,
           })
         ).rejectedWith(swapSdk.getErrorCodeHex("RoyaltiesDisabled"));
+      })
+    );
+  });
+
+  it("cannot init exponential pool with 100% delta", async () => {
+    const [owner] = await makeNTraders(1);
+    await Promise.all(
+      [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const { mint } = await createAndFundATA(owner);
+        const { whitelist } = await makeWhitelist([mint]);
+
+        await expect(
+          testMakePool({
+            tswap,
+            owner,
+            config: {
+              ...config,
+              curveType: CurveTypeAnchor.Exponential,
+              delta: new BN(HUNDRED_PCT_BPS),
+            },
+            whitelist,
+          })
+        ).rejectedWith(swapSdk.getErrorCodeHex("DeltaTooLarge"));
+      })
+    );
+  });
+
+  it("cannot init non-trade pool with mmFees", async () => {
+    const [owner] = await makeNTraders(1);
+    await Promise.all(
+      [tokenPoolConfig, nftPoolConfig].map(async (config) => {
+        const { mint } = await createAndFundATA(owner);
+        const { whitelist } = await makeWhitelist([mint]);
+
+        await expect(
+          testMakePool({
+            tswap,
+            owner,
+            config: {
+              ...config,
+              mmFeeBps: 0,
+            },
+            whitelist,
+          })
+        ).rejectedWith(swapSdk.getErrorCodeHex("FeesNotAllowed"));
+      })
+    );
+  });
+
+  it("cannot init trade pool with no fees or high fees", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = tradePoolConfig;
+    const { mint } = await createAndFundATA(owner);
+    const { whitelist } = await makeWhitelist([mint]);
+
+    await expect(
+      testMakePool({
+        tswap,
+        owner,
+        config: {
+          ...config,
+          mmFeeBps: null,
+        },
+        whitelist,
+      })
+    ).rejectedWith(swapSdk.getErrorCodeHex("MissingFees"));
+
+    await Promise.all(
+      [
+        { mmFeeBps: 2500, fail: false },
+        { mmFeeBps: 2501, fail: true },
+      ].map(async ({ mmFeeBps, fail }) => {
+        const promise = testMakePool({
+          tswap,
+          owner,
+          config: {
+            ...config,
+            mmFeeBps,
+          },
+          whitelist,
+        });
+        if (fail)
+          await expect(promise).rejectedWith(
+            swapSdk.getErrorCodeHex("FeesTooHigh")
+          );
+        else await promise;
       })
     );
   });

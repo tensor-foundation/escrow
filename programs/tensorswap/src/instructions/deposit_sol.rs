@@ -2,6 +2,7 @@
 use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
+use tensor_whitelist::Whitelist;
 use vipers::throw_err;
 
 #[derive(Accounts)]
@@ -26,14 +27,13 @@ pub struct DepositSol<'info> {
         ],
         bump = pool.bump[0],
         has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
-        // todo test
         // can only deposit SOL into Token/Trade pool
         constraint = config.pool_type == PoolType::Token ||  config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
     )]
     pub pool: Box<Account<'info, Pool>>,
 
-    /// CHECK: Needed for pool seeds derivation,  has_one = whitelist in pool
-    pub whitelist: UncheckedAccount<'info>,
+    /// CHECK: has_one = whitelist in pool
+    pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// CHECK: has_one = escrow in pool
     #[account(
@@ -44,7 +44,7 @@ pub struct DepositSol<'info> {
         ],
         bump = pool.sol_escrow_bump[0],
     )]
-    pub sol_escrow: UncheckedAccount<'info>,
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// CHECK: has_one = owner in pool
     #[account(mut)]

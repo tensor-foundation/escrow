@@ -1120,6 +1120,11 @@ export type Tensorswap = {
       "code": 6016,
       "name": "BadTSwapOwner",
       "msg": "bad tswap owner"
+    },
+    {
+      "code": 6017,
+      "name": "FeesNotAllowed",
+      "msg": "fees not allowed for non-trade pools"
     }
   ]
 };
@@ -2246,6 +2251,11 @@ export const IDL: Tensorswap = {
       "code": 6016,
       "name": "BadTSwapOwner",
       "msg": "bad tswap owner"
+    },
+    {
+      "code": 6017,
+      "name": "FeesNotAllowed",
+      "msg": "fees not allowed for non-trade pools"
     }
   ]
 };
