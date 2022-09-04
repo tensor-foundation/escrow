@@ -67,7 +67,21 @@ export interface TSwapConfig {
   feeBps: number;
 }
 
-export type PoolAcc = Awaited<ReturnType<typeof swapSdk.fetchPool>>;
+//don't know how to get out of anchor so typing manually
+export type PoolTypeAnchor = {
+  version: number;
+  bump: number | number[];
+  solEscrowBump: number | number[];
+  createdUnixSeconds: BN;
+  config: PoolConfigAnchor;
+  tswap: PublicKey;
+  owner: PublicKey;
+  whitelist: PublicKey;
+  solEscrow: PublicKey;
+  takerSellCount: number;
+  takerBuyCount: number;
+  nftsHeld: number;
+};
 
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TensorSwapSDK {
@@ -94,7 +108,11 @@ export class TensorSwapSDK {
     return this.program.account.tSwap.fetch(tswap, commitment);
   }
 
-  async fetchPool(pool: PublicKey, commitment?: Commitment) {
+  async fetchPool(
+    pool: PublicKey,
+    commitment?: Commitment
+  ): Promise<PoolTypeAnchor> {
+    //@ts-ignore have to ts-ignore because Anchor thinks config is Record<string, any>
     return this.program.account.pool.fetch(pool, commitment);
   }
 
