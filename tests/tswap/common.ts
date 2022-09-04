@@ -22,7 +22,7 @@ import chai, { expect } from "chai";
 import {
   CurveTypeAnchor,
   PoolConfigAnchor,
-  PoolTypeAnchor,
+  PoolAnchor,
   TakerSide,
   TSwapConfig,
   TSWAP_FEE_ACC,
@@ -47,6 +47,7 @@ import {
 import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
 import Big from "big.js";
+import { PoolTypeAnchor } from "../../dist/src";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);

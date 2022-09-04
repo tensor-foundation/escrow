@@ -21,7 +21,6 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { getAccountRent, hexCode } from "../common";
-import { swapSdk } from "../../tests/shared";
 
 export const PoolTypeAnchor = {
   Token: { token: {} },
@@ -68,7 +67,7 @@ export interface TSwapConfig {
 }
 
 //don't know how to get out of anchor so typing manually
-export type PoolTypeAnchor = {
+export type PoolAnchor = {
   version: number;
   bump: number | number[];
   solEscrowBump: number | number[];
@@ -111,7 +110,7 @@ export class TensorSwapSDK {
   async fetchPool(
     pool: PublicKey,
     commitment?: Commitment
-  ): Promise<PoolTypeAnchor> {
+  ): Promise<PoolAnchor> {
     //@ts-ignore have to ts-ignore because Anchor thinks config is Record<string, any>
     return this.program.account.pool.fetch(pool, commitment);
   }

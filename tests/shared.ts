@@ -21,7 +21,7 @@ export {
   hexCode,
   CurveTypeAnchor,
   PoolConfigAnchor,
-  PoolTypeAnchor,
+  PoolAnchor,
   TakerSide,
   HUNDRED_PCT_BPS,
 } from "../src";

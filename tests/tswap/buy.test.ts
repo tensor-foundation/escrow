@@ -11,7 +11,6 @@ import {
   hexCode,
   CurveTypeAnchor,
   PoolConfigAnchor,
-  PoolTypeAnchor,
   TakerSide,
 } from "../shared";
 import {
@@ -28,6 +27,7 @@ import {
   tradePoolConfig,
   computeCurrentPrice,
 } from "./common";
+import { PoolTypeAnchor } from "../../src";
 
 describe("tswap buy", () => {
   // Keep these coupled global vars b/w tests at a minimal.
