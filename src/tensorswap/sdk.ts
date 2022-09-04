@@ -21,6 +21,7 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { getAccountRent, hexCode } from "../common";
+import { swapSdk } from "../../tests/shared";
 
 export const PoolTypeAnchor = {
   Token: { token: {} },
@@ -65,6 +66,8 @@ export interface PoolConfigAnchor {
 export interface TSwapConfig {
   feeBps: number;
 }
+
+export type PoolAcc = Awaited<ReturnType<typeof swapSdk.fetchPool>>;
 
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TensorSwapSDK {

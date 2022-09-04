@@ -17,14 +17,17 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "outDir": "dist",
-    "strict": true
+    "strict": true,
+    "declaration": true
   },
   "include": [
-    "**/*",
-    "types/*.d.ts"
+    "src/*",
   ],
   "exclude": [
     "node_modules",
-    "**/*.test.ts"
+    "**/*.test.ts",
+    "target",
+    "tests",
+    "migrations"
   ]
 }

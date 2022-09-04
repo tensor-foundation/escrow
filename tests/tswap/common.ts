@@ -31,6 +31,7 @@ import {
   CurveType,
   PoolType,
   PoolConfig,
+  PoolAcc,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -115,7 +116,6 @@ export const beforeHook = async () => {
   return { tswapPda };
 };
 
-type PoolAcc = Awaited<ReturnType<typeof swapSdk.fetchPool>>;
 const expectPoolAccounting = (
   currPool: PoolAcc,
   prevPool: PoolAcc,
