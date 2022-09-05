@@ -1,10 +1,10 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
+import { TensorWhitelistSDK } from "../src";
 import {
   buildAndSendTx,
   generateTreeOfSize,
-  removeNullBytes,
   testInitWLAuthority,
   TEST_PROVIDER,
   waitMS,
@@ -68,15 +68,18 @@ describe("tensor_whitelist", () => {
   it("inits/updates whitelist", async () => {
     //fail init'ing a whitelist w/o name or root hash
     const uuid = wlSdk.genWhitelistUUID();
+    const uuidBuffer = TensorWhitelistSDK.uuidToBuffer(uuid);
     const name = "hello_world";
-    expect(uuid.length).to.eq(32);
+    const nameBuffer = TensorWhitelistSDK.nameToBuffer(name);
+    expect(uuidBuffer.length).to.eq(32);
+    expect(nameBuffer.length).to.eq(32);
     const { root } = generateTreeOfSize(100, [Keypair.generate().publicKey]);
 
     const {
       tx: { ixs: initWlBad },
     } = await wlSdk.initUpdateWhitelist({
       owner: TEST_PROVIDER.publicKey,
-      uuid: Buffer.from(uuid).toJSON().data,
+      uuid: uuidBuffer,
     });
     await expect(buildAndSendTx({ ixs: initWlBad })).to.be.rejectedWith(
       "0x1771"
@@ -86,7 +89,7 @@ describe("tensor_whitelist", () => {
       tx: { ixs: initWlBad2 },
     } = await wlSdk.initUpdateWhitelist({
       owner: TEST_PROVIDER.publicKey,
-      uuid: Buffer.from(uuid).toJSON().data,
+      uuid: uuidBuffer,
       rootHash: root,
     });
     await expect(buildAndSendTx({ ixs: initWlBad2 })).to.be.rejectedWith(
@@ -99,15 +102,15 @@ describe("tensor_whitelist", () => {
       whitelistPda,
     } = await wlSdk.initUpdateWhitelist({
       owner: TEST_PROVIDER.publicKey,
-      uuid: Buffer.from(uuid).toJSON().data,
+      uuid: uuidBuffer,
       rootHash: root,
-      name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
+      name: nameBuffer,
     });
     await buildAndSendTx({ ixs: initWlGood });
 
     let wlAcc = await wlSdk.fetchWhitelist(whitelistPda);
-    expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid);
-    expect(removeNullBytes(String.fromCharCode(...wlAcc.name))).to.eq(name);
+    expect(TensorWhitelistSDK.bufferToUuid(wlAcc.uuid)).to.eq(uuid);
+    expect(TensorWhitelistSDK.bufferToName(wlAcc.name)).to.eq(name);
     expect(wlAcc.rootHash).to.deep.eq(root);
 
     //update ok
@@ -122,15 +125,15 @@ describe("tensor_whitelist", () => {
       whitelistPda: whitelistPda2,
     } = await wlSdk.initUpdateWhitelist({
       owner: TEST_PROVIDER.publicKey,
-      uuid: Buffer.from(uuid2).toJSON().data,
+      uuid: TensorWhitelistSDK.uuidToBuffer(uuid2),
       rootHash: root2,
-      name: Buffer.from(name2.padEnd(32, "\0")).toJSON().data,
+      name: TensorWhitelistSDK.nameToBuffer(name2),
     });
     await buildAndSendTx({ ixs: initWlGood2 });
 
     wlAcc = await wlSdk.fetchWhitelist(whitelistPda2);
-    expect(String.fromCharCode(...wlAcc.uuid)).to.eq(uuid2);
-    expect(removeNullBytes(String.fromCharCode(...wlAcc.name))).to.eq(name2);
+    expect(TensorWhitelistSDK.bufferToUuid(wlAcc.uuid)).to.eq(uuid2);
+    expect(TensorWhitelistSDK.bufferToName(wlAcc.name)).to.eq(name2);
     expect(wlAcc.rootHash).to.deep.eq(root2);
   });
 });

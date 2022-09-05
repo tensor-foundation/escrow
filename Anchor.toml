@@ -6,6 +6,7 @@ skip-lint = false
 tensorswap = "EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA"
 tensor_whitelist = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6"
 
+
 [registry]
 url = "https://api.apr.dev"
 

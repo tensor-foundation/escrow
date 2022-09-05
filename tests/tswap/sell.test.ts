@@ -10,6 +10,7 @@ import {
   TEST_PROVIDER,
   CurveTypeAnchor,
   PoolConfigAnchor,
+  PoolTypeAnchor,
   hexCode,
   TakerSide,
 } from "../shared";
@@ -29,7 +30,6 @@ import {
   tokenPoolConfig,
   tradePoolConfig,
 } from "./common";
-import { PoolTypeAnchor } from "../../src";
 
 describe("tswap sell", () => {
   // Keep these coupled global vars b/w tests at a minimal.

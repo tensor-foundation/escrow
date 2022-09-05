@@ -20,6 +20,7 @@ export {
   TSWAP_FEE_ACC,
   hexCode,
   CurveTypeAnchor,
+  PoolTypeAnchor,
   PoolConfigAnchor,
   PoolAnchor,
   TakerSide,
@@ -114,13 +115,6 @@ export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
   );
 
   return { tree, root: tree.getRoot().toJSON().data, proofs };
-};
-
-export const removeNullBytes = (str: string) => {
-  return str
-    .split("")
-    .filter((char) => char.codePointAt(0))
-    .join("");
 };
 
 export const stringifyPKsAndBNs = (i: any) => {

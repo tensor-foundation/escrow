@@ -3344,6 +3344,10 @@ supports-color@^7.1.0:
   dependencies:
     has-flag "^4.0.0"
 
+"tensorswap@link:./../../tensorswap":
+  version "0.0.0"
+  uid ""
+
 text-encoding-utf-8@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/text-encoding-utf-8/-/text-encoding-utf-8-1.0.2.tgz#585b62197b0ae437e3c7b5d0af27ac1021e10d13"

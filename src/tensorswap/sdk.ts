@@ -1,4 +1,5 @@
 import {
+  AccountInfo,
   Commitment,
   PublicKey,
   SystemProgram,
@@ -20,7 +21,14 @@ import {
   getMinimumBalanceForRentExemptAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { getAccountRent, hexCode } from "../common";
+import {
+  decodeAcct,
+  DiscMap,
+  genDiscToDecoderMap,
+  getAccountRent,
+  hexCode,
+} from "../common";
+import { AccountClient } from "@project-serum/anchor";
 
 export const PoolTypeAnchor = {
   Token: { token: {} },
@@ -53,24 +61,23 @@ export const curveTypeU8 = (
   return order[Object.keys(curveType)[0]];
 };
 
-export interface PoolConfigAnchor {
+export type TSwapConfigAnchor = {
+  feeBps: number;
+};
+
+export type PoolConfigAnchor = {
   poolType: typeof PoolTypeAnchor[keyof typeof PoolTypeAnchor];
   curveType: typeof CurveTypeAnchor[keyof typeof CurveTypeAnchor];
   startingPrice: BN;
   delta: BN;
   honorRoyalties: boolean;
   mmFeeBps: number | null; //set to 0 if not present, for some reason setting to null causes anchor to crash
-}
+};
 
-export interface TSwapConfig {
-  feeBps: number;
-}
-
-//don't know how to get out of anchor so typing manually
 export type PoolAnchor = {
   version: number;
-  bump: number | number[];
-  solEscrowBump: number | number[];
+  bump: number[];
+  solEscrowBump: number[];
   createdUnixSeconds: BN;
   config: PoolConfigAnchor;
   tswap: PublicKey;
@@ -82,9 +89,51 @@ export type PoolAnchor = {
   nftsHeld: number;
 };
 
+export type SolEscrowAnchor = {};
+export type TSwapAnchor = {
+  version: number;
+  bump: number[];
+  config: TSwapConfigAnchor;
+  owner: PublicKey;
+  feeVault: PublicKey;
+  cosigner: PublicKey;
+};
+
+export type NftDepositReceiptAnchor = {
+  bump: number;
+  pool: PublicKey;
+  nftMint: PublicKey;
+  nftEscrow: PublicKey;
+};
+
+export type TensorSwapPdaAnchor =
+  | PoolAnchor
+  | SolEscrowAnchor
+  | TSwapAnchor
+  | NftDepositReceiptAnchor;
+
+type TaggedTensorSwapPdaAnchor =
+  | {
+      name: "pool";
+      account: PoolAnchor;
+    }
+  | {
+      name: "solEscrow";
+      account: SolEscrowAnchor;
+    }
+  | {
+      name: "tSwap";
+      account: TSwapAnchor;
+    }
+  | {
+      name: "nftDepositReceipt";
+      account: NftDepositReceiptAnchor;
+    };
+
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TensorSwapSDK {
   program: Program<Tensorswap>;
+  discMap: DiscMap<Tensorswap>;
 
   //can build ixs without provider, but need provider for
   constructor({
@@ -99,31 +148,44 @@ export class TensorSwapSDK {
     coder?: Coder;
   }) {
     this.program = new Program<Tensorswap>(idl, addr, provider, coder);
+    this.discMap = genDiscToDecoderMap(this.program);
   }
 
   // --------------------------------------- fetchers
 
   async fetchTSwap(tswap: PublicKey, commitment?: Commitment) {
-    return this.program.account.tSwap.fetch(tswap, commitment);
+    return (await this.program.account.tSwap.fetch(
+      tswap,
+      commitment
+    )) as TSwapAnchor;
   }
 
-  async fetchPool(
-    pool: PublicKey,
-    commitment?: Commitment
-  ): Promise<PoolAnchor> {
-    //@ts-ignore have to ts-ignore because Anchor thinks config is Record<string, any>
-    return this.program.account.pool.fetch(pool, commitment);
+  async fetchPool(pool: PublicKey, commitment?: Commitment) {
+    return (await this.program.account.pool.fetch(
+      pool,
+      commitment
+    )) as PoolAnchor;
   }
 
   async fetchReceipt(receipt: PublicKey, commitment?: Commitment) {
-    return this.program.account.nftDepositReceipt.fetch(receipt, commitment);
+    return (await this.program.account.nftDepositReceipt.fetch(
+      receipt,
+      commitment
+    )) as NftDepositReceiptAnchor;
   }
 
   async fetchSolEscrow(escrow: PublicKey, commitment?: Commitment) {
-    return this.program.account.solEscrow.fetch(escrow, commitment);
+    return this.program.account.solEscrow.fetch(
+      escrow,
+      commitment
+    ) as SolEscrowAnchor;
   }
 
-  // --------------------------------------- finders
+  // --------------------------------------- account methods
+
+  decode(acct: AccountInfo<Buffer>): TaggedTensorSwapPdaAnchor | null {
+    return decodeAcct(acct, this.discMap);
+  }
 
   // --------------------------------------- tswap methods
 

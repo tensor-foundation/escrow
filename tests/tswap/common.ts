@@ -24,13 +24,14 @@ import {
   PoolConfigAnchor,
   PoolAnchor,
   TakerSide,
-  TSwapConfig,
+  TSwapConfigAnchor,
   TSWAP_FEE_ACC,
   computeCurrentPrice as computeCurrentPrice_,
   computeDepositAmount as computeDepositAmount_,
   CurveType,
   PoolType,
   PoolConfig,
+  TensorWhitelistSDK,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -102,7 +103,7 @@ export const beforeHook = async () => {
   expect(swapAcc.owner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
   expect(swapAcc.cosigner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
   expect(swapAcc.feeVault.toBase58()).eq(TSWAP_FEE_ACC.toBase58());
-  expect((swapAcc.config as TSwapConfig).feeBps).eq(TSWAP_FEE * 1e4);
+  expect((swapAcc.config as TSwapConfigAnchor).feeBps).eq(TSWAP_FEE * 1e4);
 
   // Initialize fees.
 
@@ -168,38 +169,39 @@ const _createATA = async (
 const _createAndFundATA = async (
   provider: AnchorProvider,
   amount: number,
-  owner?: Keypair
+  owner?: Keypair,
+  mint?: Keypair
 ): Promise<{ mint: PublicKey; ata: PublicKey; owner: Keypair }> => {
   const usedOwner = owner ?? (await _createFundedWallet(provider));
-  const mint = Keypair.generate();
+  const usedMint = mint ?? Keypair.generate();
   const lamports = await getMinimumBalanceForRentExemptMint(
     provider.connection
   );
   const createMintAccIx = SystemProgram.createAccount({
     fromPubkey: usedOwner.publicKey,
-    newAccountPubkey: mint.publicKey,
+    newAccountPubkey: usedMint.publicKey,
     space: MINT_SIZE,
     lamports,
     programId: TOKEN_PROGRAM_ID,
   });
   const createMintIx = createInitializeMintInstruction(
-    mint.publicKey,
+    usedMint.publicKey,
     0,
     usedOwner.publicKey,
     usedOwner.publicKey
   );
   const ata = await getAssociatedTokenAddress(
-    mint.publicKey,
+    usedMint.publicKey,
     usedOwner.publicKey
   );
   const createAtaIx = createAssociatedTokenAccountInstruction(
     usedOwner.publicKey,
     ata,
     usedOwner.publicKey,
-    mint.publicKey
+    usedMint.publicKey
   );
   const mintIx = createMintToInstruction(
-    mint.publicKey,
+    usedMint.publicKey,
     ata,
     usedOwner.publicKey,
     amount
@@ -210,16 +212,16 @@ const _createAndFundATA = async (
     ixs.push(mintIx);
   }
 
-  await buildAndSendTx({ provider, ixs, extraSigners: [usedOwner, mint] });
-  return { mint: mint.publicKey, ata, owner: usedOwner };
+  await buildAndSendTx({ provider, ixs, extraSigners: [usedOwner, usedMint] });
+  return { mint: usedMint.publicKey, ata, owner: usedOwner };
 };
 
 export const createFundedWallet = (sol?: number) =>
   _createFundedWallet(TEST_PROVIDER, sol);
 export const createATA = (mint: PublicKey, owner: Keypair) =>
   _createATA(TEST_PROVIDER, mint, owner);
-export const createAndFundATA = (owner?: Keypair) =>
-  _createAndFundATA(TEST_PROVIDER, 1, owner);
+export const createAndFundATA = (owner?: Keypair, mint?: Keypair) =>
+  _createAndFundATA(TEST_PROVIDER, 1, owner, mint);
 export const getAccount = (acct: PublicKey) =>
   _getAccount(TEST_PROVIDER.connection, acct);
 
@@ -253,7 +255,7 @@ export const makeWhitelist = async (mints: PublicKey[]) => {
     whitelistPda,
   } = await wlSdk.initUpdateWhitelist({
     owner: TEST_PROVIDER.publicKey,
-    uuid: Buffer.from(uuid).toJSON().data,
+    uuid: TensorWhitelistSDK.uuidToBuffer(uuid),
     rootHash: root,
     name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
   });

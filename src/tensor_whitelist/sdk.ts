@@ -1,12 +1,52 @@
 import { IDL, TensorWhitelist } from "./idl/tensor_whitelist";
-import { Commitment, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  AccountInfo,
+  Commitment,
+  PublicKey,
+  SystemProgram,
+} from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
 import { TENSOR_WHITELIST_ADDR } from "./constants";
 import { findWhitelistAuthPDA, findWhitelistPDA } from "./pda";
 import { v4 } from "uuid";
+import MerkleTree from "merkletreejs";
+import keccak256 from "keccak256";
+import {
+  decodeAcct,
+  DiscMap,
+  genDiscToDecoderMap,
+  removeNullBytes,
+} from "../common";
+
+export type AuthorityAnchor = {
+  bump: number;
+  owner: PublicKey;
+};
+
+export type WhitelistAnchor = {
+  version: number;
+  bump: number;
+  verified: boolean;
+  rootHash: number[];
+  uuid: number[];
+  name: number[];
+};
+
+export type TensorWhitelistPdaAnchor = AuthorityAnchor | WhitelistAnchor;
+
+type TaggedTensorWhitelistPdaAnchor =
+  | {
+      name: "authority";
+      account: AuthorityAnchor;
+    }
+  | {
+      name: "whitelist";
+      account: WhitelistAnchor;
+    };
 
 export class TensorWhitelistSDK {
   program: Program<TensorWhitelist>;
+  discMap: DiscMap<TensorWhitelist>;
 
   constructor({
     idl = IDL,
@@ -20,21 +60,32 @@ export class TensorWhitelistSDK {
     coder?: Coder;
   }) {
     this.program = new Program<TensorWhitelist>(idl, addr, provider, coder);
+    this.discMap = genDiscToDecoderMap(this.program);
   }
 
   // --------------------------------------- fetchers
 
   async fetchAuthority(authority: PublicKey, commitment?: Commitment) {
-    return this.program.account.authority.fetch(authority, commitment);
+    return (await this.program.account.authority.fetch(
+      authority,
+      commitment
+    )) as AuthorityAnchor;
   }
 
   async fetchWhitelist(whitelist: PublicKey, commitment?: Commitment) {
-    return this.program.account.whitelist.fetch(whitelist, commitment);
+    return (await this.program.account.whitelist.fetch(
+      whitelist,
+      commitment
+    )) as WhitelistAnchor;
   }
 
-  // --------------------------------------- finders
+  // --------------------------------------- account methods
 
-  // --------------------------------------- methods
+  decode(acct: AccountInfo<Buffer>): TaggedTensorWhitelistPdaAnchor | null {
+    return decodeAcct(acct, this.discMap);
+  }
+
+  // --------------------------------------- authority methods
 
   //main signature: owner
   async initUpdateAuthority(owner: PublicKey, newOwner: PublicKey) {
@@ -55,9 +106,7 @@ export class TensorWhitelistSDK {
     };
   }
 
-  genWhitelistUUID() {
-    return v4().toString().replaceAll("-", "");
-  }
+  // --------------------------------------- whitelist methods
 
   //main signature: owner
   async initUpdateWhitelist({
@@ -91,5 +140,50 @@ export class TensorWhitelistSDK {
       authPda,
       whitelistPda,
     };
+  }
+
+  // --------------------------------------- helper methods
+
+  static uuidToBuffer = (uuid: string) => {
+    return Buffer.from(uuid.replaceAll("-", "")).toJSON().data;
+  };
+
+  static bufferToUuid = (buffer: number[]) => {
+    const raw = String.fromCharCode(...buffer);
+    return `${raw.slice(0, 8)}-${raw.slice(8, 12)}-${raw.slice(
+      12,
+      16
+    )}-${raw.slice(16, 20)}-${raw.slice(20)}`;
+  };
+
+  // NB: this truncates names to 32 bytes (32 chars if ascii, < if unicode).
+  static nameToBuffer = (name: string) => {
+    return Buffer.from(name.padEnd(32, "\0")).toJSON().data.slice(0, 32);
+  };
+
+  static bufferToName = (buffer: number[]) => {
+    return removeNullBytes(String.fromCharCode(...buffer));
+  };
+
+  // Generates a Merkle tree + root hash + proofs for a set of mints.
+  static createTreeForMints = (mints: PublicKey[]) => {
+    const buffers = mints.map((m) => m.toBuffer());
+
+    const tree = new MerkleTree(buffers, keccak256, {
+      sortPairs: true,
+      hashLeaves: true,
+    });
+    const proofs: { mint: PublicKey; proof: Buffer[] }[] = mints.map((mint) => {
+      const leaf = keccak256(mint.toBuffer());
+      const proof = tree.getProof(leaf);
+      const validProof: Buffer[] = proof.map((p) => p.data);
+      return { mint, proof: validProof };
+    });
+
+    return { tree, root: tree.getRoot().toJSON().data, proofs };
+  };
+
+  genWhitelistUUID() {
+    return v4().toString();
   }
 }
