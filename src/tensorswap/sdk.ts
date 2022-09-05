@@ -112,7 +112,7 @@ export type TensorSwapPdaAnchor =
   | TSwapAnchor
   | NftDepositReceiptAnchor;
 
-type TaggedTensorSwapPdaAnchor =
+export type TaggedTensorSwapPdaAnchor =
   | {
       name: "pool";
       account: PoolAnchor;

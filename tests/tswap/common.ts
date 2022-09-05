@@ -22,7 +22,7 @@ import chai, { expect } from "chai";
 import {
   CurveTypeAnchor,
   PoolConfigAnchor,
-  PoolAnchor,
+  PoolTypeAnchor,
   TakerSide,
   TSwapConfigAnchor,
   TSWAP_FEE_ACC,
@@ -32,6 +32,7 @@ import {
   PoolType,
   PoolConfig,
   TensorWhitelistSDK,
+  PoolAnchor,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -48,7 +49,6 @@ import {
 import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
 import Big from "big.js";
-import { PoolTypeAnchor } from "../../dist/src";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -118,8 +118,8 @@ export const beforeHook = async () => {
 };
 
 const expectPoolAccounting = (
-  currPool: PoolTypeAnchor,
-  prevPool: PoolTypeAnchor,
+  currPool: PoolAnchor,
+  prevPool: PoolAnchor,
   diffs: { nfts: number; sell: number; buy: number }
 ) => {
   expect(currPool.nftsHeld - prevPool.nftsHeld).eq(diffs.nfts);

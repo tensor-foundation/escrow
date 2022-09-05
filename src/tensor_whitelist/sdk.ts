@@ -34,7 +34,7 @@ export type WhitelistAnchor = {
 
 export type TensorWhitelistPdaAnchor = AuthorityAnchor | WhitelistAnchor;
 
-type TaggedTensorWhitelistPdaAnchor =
+export type TaggedTensorWhitelistPdaAnchor =
   | {
       name: "authority";
       account: AuthorityAnchor;
