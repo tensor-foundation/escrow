@@ -2,7 +2,7 @@ import { Keypair } from "@solana/web3.js";
 import { swapSdk, buildAndSendTx, TSWAP_FEE_ACC } from "../shared";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { createFundedWallet } from "./common";
+import { createFundedWallet, TSWAP_CONFIG } from "./common";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -17,6 +17,7 @@ describe("tswap init_update_tswap", () => {
       owner: initialOwner.publicKey,
       feeVault: TSWAP_FEE_ACC,
       cosigner: initialOwner.publicKey,
+      config: TSWAP_CONFIG,
     });
     await buildAndSendTx({ ixs, extraSigners: [initialOwner] });
 
@@ -35,6 +36,7 @@ describe("tswap init_update_tswap", () => {
       owner: randomOwner.publicKey,
       feeVault: randomFeeAcct,
       cosigner: randomCosigner.publicKey,
+      config: TSWAP_CONFIG,
     });
     await expect(
       buildAndSendTx({
@@ -49,6 +51,7 @@ describe("tswap init_update_tswap", () => {
       owner: initialOwner.publicKey,
       feeVault: randomFeeAcct,
       cosigner: randomCosigner.publicKey,
+      config: TSWAP_CONFIG,
     });
     await buildAndSendTx({
       ixs: goodIxs,

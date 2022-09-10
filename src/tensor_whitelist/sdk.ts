@@ -18,6 +18,8 @@ import {
   removeNullBytes,
 } from "../common";
 
+export const TensorWhitelistIDL = IDL;
+
 export type AuthorityAnchor = {
   bump: number;
   owner: PublicKey;
@@ -170,7 +172,7 @@ export class TensorWhitelistSDK {
     const buffers = mints.map((m) => m.toBuffer());
 
     const tree = new MerkleTree(buffers, keccak256, {
-      sortPairs: true,
+      sort: true,
       hashLeaves: true,
     });
     const proofs: { mint: PublicKey; proof: Buffer[] }[] = mints.map((mint) => {

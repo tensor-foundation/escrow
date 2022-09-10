@@ -4,6 +4,7 @@ import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
+  castPoolConfigAnchor,
   getLamports,
   swapSdk,
   TEST_PROVIDER,
@@ -49,7 +50,12 @@ describe("tswap withdraws", () => {
           proofs: [wlNft],
           whitelist,
         } = await makeWhitelist([mint]);
-        const pool = await testMakePool({ tswap, owner, config, whitelist });
+        const { poolPda: pool } = await testMakePool({
+          tswap,
+          owner,
+          config,
+          whitelist,
+        });
         await testDepositNft({ pool, config, owner, ata, wlNft, whitelist });
         await testWithdrawNft({ pool, config, owner, ata, wlNft, whitelist });
       })
@@ -67,7 +73,12 @@ describe("tswap withdraws", () => {
       proofs: [wlNft],
       whitelist,
     } = await makeWhitelist([mint]);
-    const pool = await testMakePool({ tswap, owner, config, whitelist });
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
     await testDepositSol({
       pool,
       whitelist,
@@ -118,10 +129,15 @@ describe("tswap withdraws", () => {
       proofs: [wlNft],
       whitelist,
     } = await makeWhitelist([mint]);
-    const tokenPool = await testMakePool({ tswap, owner, config, whitelist });
+    const { poolPda: tokenPool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
 
     // Need to deposit in another pool to avoid "AccountNotInitialized" error for escrow.
-    const nftPool = await testMakePool({
+    const { poolPda: nftPool } = await testMakePool({
       tswap,
       owner,
       config: nftPoolConfig,
@@ -170,13 +186,13 @@ describe("tswap withdraws", () => {
       } = await makeWhitelist([mintA, mintB]);
 
       // Deposit into 2 pools.
-      const poolA = await testMakePool({
+      const { poolPda: poolA } = await testMakePool({
         tswap,
         owner: traderA,
         config,
         whitelist,
       });
-      const poolB = await testMakePool({
+      const { poolPda: poolB } = await testMakePool({
         tswap,
         owner: traderB,
         config,
@@ -236,7 +252,12 @@ describe("tswap withdraws", () => {
       // Create pool + ATAs.
       const { mint } = await createAndFundATA(owner);
       const { whitelist } = await makeWhitelist([mint]);
-      const pool = await testMakePool({ tswap, owner, config, whitelist });
+      const { poolPda: pool } = await testMakePool({
+        tswap,
+        owner,
+        config,
+        whitelist,
+      });
 
       await withLamports(
         { prevLamports: owner.publicKey },
@@ -303,7 +324,12 @@ describe("tswap withdraws", () => {
       // Create pool + ATAs.
       const { mint } = await createAndFundATA(owner);
       const { whitelist } = await makeWhitelist([mint]);
-      const pool = await testMakePool({ tswap, owner, config, whitelist });
+      const { poolPda: pool } = await testMakePool({
+        tswap,
+        owner,
+        config,
+        whitelist,
+      });
 
       await testDepositSol({
         pool,
@@ -332,7 +358,12 @@ describe("tswap withdraws", () => {
     // Create pool + ATAs.
     const { mint } = await createAndFundATA(owner);
     const { whitelist } = await makeWhitelist([mint]);
-    const pool = await testMakePool({ tswap, owner, config, whitelist });
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
 
     await expect(
       testWithdrawSol({
@@ -343,6 +374,114 @@ describe("tswap withdraws", () => {
         lamports: 0,
       })
     ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
+  });
+
+  it("properly parses raw withdraw sol tx", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+    const { mint, ata } = await createAndFundATA(owner);
+    const {
+      whitelist,
+      proofs: [wlNft],
+    } = await makeWhitelist([mint]);
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+    await testDepositNft({
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+
+    const { withdrawSig } = await testWithdrawNft({
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+
+    const tx = (await TEST_PROVIDER.connection.getTransaction(withdrawSig, {
+      commitment: "confirmed",
+    }))!;
+    expect(tx).not.null;
+    const ixs = swapSdk.parseIxs(tx);
+    expect(ixs).length(1);
+
+    const ix = ixs[0];
+    expect(ix.ix.name).eq("withdrawNft");
+    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+      JSON.stringify(castPoolConfigAnchor(config))
+    );
+    expect(swapSdk.getSolAmount(ix)).null;
+    expect(swapSdk.getFeeAmount(ix)).null;
+
+    expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
+      wlNft.mint.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+      owner.publicKey.toBase58()
+    );
+  });
+
+  it("properly parses raw withdraw sol tx", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = tokenPoolConfig;
+    const { mint } = await createAndFundATA(owner);
+    const { whitelist } = await makeWhitelist([mint]);
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+    const amount = 137391932;
+
+    await testDepositSol({
+      pool,
+      config,
+      owner,
+      whitelist,
+      lamports: amount,
+      commitment: "confirmed",
+    });
+
+    const { withdrawSig } = await testWithdrawSol({
+      pool,
+      config,
+      owner,
+      whitelist,
+      lamports: amount,
+      commitment: "confirmed",
+    });
+
+    const tx = (await TEST_PROVIDER.connection.getTransaction(withdrawSig, {
+      commitment: "confirmed",
+    }))!;
+    expect(tx).not.null;
+    const ixs = swapSdk.parseIxs(tx);
+    expect(ixs).length(1);
+
+    const ix = ixs[0];
+    expect(ix.ix.name).eq("withdrawSol");
+    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+      JSON.stringify(castPoolConfigAnchor(config))
+    );
+    expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(amount);
+    expect(swapSdk.getFeeAmount(ix)).null;
+
+    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+      owner.publicKey.toBase58()
+    );
   });
 
   //endregion

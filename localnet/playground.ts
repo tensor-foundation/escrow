@@ -3,21 +3,21 @@ Instructions:
 
 At the top level (ie tensorswap/), run:
 
-0. `yarn build:test`
-1. `solana config set --url localhost`
-2. `solana-test-validator`
-3. `anchor deploy --provider.cluster localnet`, note down program IDs (also `anchor keys list`)
-4. Modify program IDs in `lib.rs` `declare_id!`s and `Anchor.toml` for both programs
-5. 
-6. 
+1. See setup_data.ts instructions first
+2. 
     ```
     ANCHOR_WALLET=~/.config/solana/id.json \
     TENSORSWAP_ADDR=<tswap program id> \
     TWHITELIST_ADDR=<twhitelist program id> \
     TSWAP_FEE_ACC=$(solana address) \
-        yarn ts-node tests/localnet/setup_data.ts`
+        yarn ts-node localnet/playground.ts
+    ```
 */
-import { TENSORSWAP_ADDR, TENSOR_WHITELIST_ADDR } from "../src";
+import {
+  TENSORSWAP_ADDR,
+  TensorWhitelistSDK,
+  TENSOR_WHITELIST_ADDR,
+} from "../src";
 
 import { swapSdk, TEST_PROVIDER, wlSdk } from "../tests/shared";
 
@@ -32,7 +32,6 @@ import { swapSdk, TEST_PROVIDER, wlSdk } from "../tests/shared";
       acct: wlSdk.decode(acc.account),
     }))
   );
-  // console.log(findWhitelistAuthPDA({})[0].toBase58());
 
   const tswapAccs = await TEST_PROVIDER.connection.getProgramAccounts(
     TENSORSWAP_ADDR

@@ -37,15 +37,13 @@ impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<InitUpdateTSwap>) -> Result<()> {
+pub fn handler(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
     let tswap = &mut ctx.accounts.tswap;
 
     tswap.version = CURRENT_TSWAP_VERSION;
     tswap.bump = [unwrap_bump!(ctx, "tswap")];
     tswap.owner = ctx.accounts.owner.key();
-    tswap.config = TSwapConfig {
-        fee_bps: TSWAP_FEE_BPS,
-    };
+    tswap.config = config;
     tswap.fee_vault = ctx.accounts.fee_vault.key();
     tswap.cosigner = ctx.accounts.cosigner.key();
 

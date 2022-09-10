@@ -20,8 +20,8 @@ static TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxV
 pub mod tensorswap {
     use super::*;
 
-    pub fn init_update_tswap(ctx: Context<InitUpdateTSwap>) -> Result<()> {
-        instructions::init_update_tswap::handler(ctx)
+    pub fn init_update_tswap(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
+        instructions::init_update_tswap::handler(ctx, config)
     }
 
     pub fn init_pool(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {

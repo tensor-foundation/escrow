@@ -34,7 +34,14 @@ export type Tensorswap = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "TSwapConfig"
+          }
+        }
+      ]
     },
     {
       "name": "initPool",
@@ -1033,6 +1040,28 @@ export type Tensorswap = {
           }
         ]
       }
+    }
+  ],
+  "events": [
+    {
+      "name": "BuySellEvent",
+      "fields": [
+        {
+          "name": "currentPrice",
+          "type": "u64",
+          "index": true
+        },
+        {
+          "name": "tswapFee",
+          "type": "u64",
+          "index": true
+        },
+        {
+          "name": "mmFee",
+          "type": "u64",
+          "index": true
+        }
+      ]
     }
   ],
   "errors": [
@@ -1165,7 +1194,14 @@ export const IDL: Tensorswap = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "TSwapConfig"
+          }
+        }
+      ]
     },
     {
       "name": "initPool",
@@ -2164,6 +2200,28 @@ export const IDL: Tensorswap = {
           }
         ]
       }
+    }
+  ],
+  "events": [
+    {
+      "name": "BuySellEvent",
+      "fields": [
+        {
+          "name": "currentPrice",
+          "type": "u64",
+          "index": true
+        },
+        {
+          "name": "tswapFee",
+          "type": "u64",
+          "index": true
+        },
+        {
+          "name": "mmFee",
+          "type": "u64",
+          "index": true
+        }
+      ]
     }
   ],
   "errors": [

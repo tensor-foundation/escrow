@@ -1,4 +1,5 @@
 import {
+  Commitment,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
@@ -55,7 +56,10 @@ chai.use(chaiAsPromised);
 
 //#region Test constants/types.
 
-export const TSWAP_FEE = 0.005;
+export const TSWAP_CONFIG: TSwapConfigAnchor = {
+  feeBps: 500,
+};
+export const TSWAP_FEE = TSWAP_CONFIG.feeBps / 1e4;
 
 export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
   curveType: CurveTypeAnchor.Linear,
@@ -95,6 +99,7 @@ export const beforeHook = async () => {
   } = await swapSdk.initUpdateTSwap({
     owner: TEST_PROVIDER.publicKey,
     feeVault: TSWAP_FEE_ACC,
+    config: TSWAP_CONFIG,
   });
   await buildAndSendTx({ ixs });
 
@@ -329,11 +334,13 @@ export const testMakePool = async ({
   owner,
   whitelist,
   config,
+  commitment,
 }: {
   tswap: PublicKey;
   owner: Keypair;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
+  commitment?: Commitment;
 }) => {
   const {
     tx: { ixs },
@@ -344,10 +351,10 @@ export const testMakePool = async ({
     whitelist,
     config,
   });
-  await buildAndSendTx({
-    provider: TEST_PROVIDER,
+  const sig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
+    opts: { commitment },
   });
 
   const poolAcc = await swapSdk.fetchPool(poolPda);
@@ -377,7 +384,7 @@ export const testMakePool = async ({
   await swapSdk.fetchSolEscrow(solEscrowPda);
   expect(await getLamports(solEscrowPda)).eq(await swapSdk.getSolEscrowRent());
 
-  return poolPda;
+  return { poolPda, sig };
 };
 
 // Can be run async.
@@ -385,10 +392,12 @@ export const testClosePool = async ({
   owner,
   whitelist,
   config,
+  commitment,
 }: {
   owner: Keypair;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
+  commitment?: Commitment;
 }) => {
   const {
     tx: { ixs },
@@ -400,10 +409,10 @@ export const testClosePool = async ({
     whitelist,
     config,
   });
-  await buildAndSendTx({
-    provider: TEST_PROVIDER,
+  const sig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
+    opts: { commitment },
   });
 
   // These should no longer exist.
@@ -416,7 +425,7 @@ export const testClosePool = async ({
   await swapSdk.fetchTSwap(tswapPda);
   await wlSdk.fetchWhitelist(whitelist);
 
-  return poolPda;
+  return { poolPda, sig };
 };
 
 // CANNOT be run async w/ same pool (nftsHeld check).
@@ -427,6 +436,7 @@ export const testDepositNft = async ({
   ata,
   wlNft,
   whitelist,
+  commitment,
 }: {
   pool: PublicKey;
   config: PoolConfigAnchor;
@@ -434,6 +444,7 @@ export const testDepositNft = async ({
   ata: PublicKey;
   wlNft: WhitelistedNft;
   whitelist: PublicKey;
+  commitment?: Commitment;
 }) => {
   let {
     tx: { ixs },
@@ -449,10 +460,10 @@ export const testDepositNft = async ({
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
 
-  await buildAndSendTx({
-    provider: TEST_PROVIDER,
+  const depSig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
+    opts: { commitment },
   });
 
   //NFT moved from trader to escrow
@@ -467,6 +478,8 @@ export const testDepositNft = async ({
   expect(receipt.pool.toBase58()).eq(pool.toBase58());
   expect(receipt.nftMint.toBase58()).eq(wlNft.mint.toBase58());
   expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
+
+  return { depSig };
 };
 
 // CANNOT be run async w/ same pool (sol escrow balance check).
@@ -476,12 +489,14 @@ export const testDepositSol = async ({
   config,
   owner,
   lamports,
+  commitment,
 }: {
   pool: PublicKey;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
   owner: Keypair;
   lamports: number;
+  commitment?: Commitment;
 }) => {
   let {
     tx: { ixs },
@@ -493,13 +508,13 @@ export const testDepositSol = async ({
     lamports: new BN(lamports),
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
-  await withLamports(
+  return await withLamports(
     { prevEscrowLamports: solEscrowPda },
     async ({ prevEscrowLamports }) => {
-      await buildAndSendTx({
-        provider: TEST_PROVIDER,
+      const depSig = await buildAndSendTx({
         ixs,
         extraSigners: [owner],
+        opts: { commitment },
       });
 
       let currEscrowLamports = await getLamports(solEscrowPda);
@@ -510,6 +525,8 @@ export const testDepositSol = async ({
         sell: 0,
         buy: 0,
       });
+
+      return { depSig };
     }
   );
 };
@@ -522,6 +539,7 @@ export const testWithdrawNft = async ({
   ata,
   wlNft,
   whitelist,
+  commitment,
 }: {
   pool: PublicKey;
   config: PoolConfigAnchor;
@@ -529,6 +547,7 @@ export const testWithdrawNft = async ({
   ata: PublicKey;
   wlNft: WhitelistedNft;
   whitelist: PublicKey;
+  commitment?: Commitment;
 }) => {
   let {
     tx: { ixs },
@@ -543,10 +562,10 @@ export const testWithdrawNft = async ({
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
 
-  await buildAndSendTx({
-    provider: TEST_PROVIDER,
+  const withdrawSig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
+    opts: { commitment },
   });
 
   //NFT moved from escrow to trader
@@ -562,6 +581,8 @@ export const testWithdrawNft = async ({
   await expect(swapSdk.fetchReceipt(receiptPda)).rejectedWith(
     ACCT_NOT_EXISTS_ERR
   );
+
+  return { withdrawSig };
 };
 
 // CANNOT be run async w/ same pool (sol escrow balance check).
@@ -571,12 +592,14 @@ export const testWithdrawSol = async ({
   config,
   owner,
   lamports,
+  commitment,
 }: {
   pool: PublicKey;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
   owner: Keypair;
   lamports: number;
+  commitment?: Commitment;
 }) => {
   let {
     tx: { ixs },
@@ -588,13 +611,13 @@ export const testWithdrawSol = async ({
     lamports: new BN(lamports),
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
-  await withLamports(
+  return await withLamports(
     { prevEscrowLamports: solEscrowPda },
     async ({ prevEscrowLamports }) => {
-      await buildAndSendTx({
-        provider: TEST_PROVIDER,
+      const withdrawSig = await buildAndSendTx({
         ixs,
         extraSigners: [owner],
+        opts: { commitment },
       });
 
       let currEscrowLamports = await getLamports(solEscrowPda);
@@ -605,6 +628,8 @@ export const testWithdrawSol = async ({
         sell: 0,
         buy: 0,
       });
+
+      return { withdrawSig };
     }
   );
 };
@@ -617,6 +642,7 @@ export const testMakePoolBuyNft = async ({
   config,
   expectedLamports,
   maxLamports = expectedLamports,
+  commitment,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -626,13 +652,19 @@ export const testMakePoolBuyNft = async ({
   // If specified, uses this as the maxPrice for the buy instr.
   // All expects will still use expectedLamports.
   maxLamports?: number;
+  commitment?: Commitment;
 }) => {
   const { mint, ata, otherAta } = await makeMintTwoAta(owner, buyer);
   const {
     proofs: [wlNft],
     whitelist,
   } = await makeWhitelist([mint]);
-  const pool = await testMakePool({ tswap, owner, whitelist, config });
+  const { poolPda: pool } = await testMakePool({
+    tswap,
+    owner,
+    whitelist,
+    config,
+  });
 
   await testDepositNft({
     pool,
@@ -674,11 +706,19 @@ export const testMakePoolBuyNft = async ({
       prevBuyerLamports,
       prevEscrowLamports,
     }) => {
-      await buildAndSendTx({
-        provider: TEST_PROVIDER,
+      const buySig = await buildAndSendTx({
         ixs,
         extraSigners: [buyer],
+        opts: {
+          commitment,
+        },
       });
+      console.log(
+        "lol2",
+        owner.publicKey.toBase58(),
+        buyer.publicKey.toBase58(),
+        wlNft.mint.toBase58()
+      );
 
       //NFT moved from escrow to trader
       const traderAcc = await getAccount(otherAta);
@@ -735,6 +775,7 @@ export const testMakePoolBuyNft = async ({
         receiptPda,
         solEscrowPda,
         escrowPda,
+        buySig,
       };
     }
   );
@@ -749,6 +790,7 @@ export const testMakePoolSellNft = async ({
   config,
   expectedLamports,
   minLamports = expectedLamports,
+  commitment,
 }: {
   sellType: "trade" | "token";
   tswap: PublicKey;
@@ -759,13 +801,14 @@ export const testMakePoolSellNft = async ({
   // If specified, uses this as the minPrice for the sell instr.
   // All expects will still use expectedLamports.
   minLamports?: number;
+  commitment?: Commitment;
 }) => {
   const { mint, ata } = await makeMintTwoAta(seller, owner);
   const {
     proofs: [wlNft],
     whitelist,
   } = await makeWhitelist([mint]);
-  const poolPda = await testMakePool({ tswap, owner, whitelist, config });
+  const { poolPda } = await testMakePool({ tswap, owner, whitelist, config });
 
   await testDepositSol({
     pool: poolPda,
@@ -825,10 +868,10 @@ export const testMakePoolSellNft = async ({
       expect(traderAcc.amount.toString()).eq("1");
       await _checkDestAcc("0");
 
-      await buildAndSendTx({
-        provider: TEST_PROVIDER,
+      const sellSig = await buildAndSendTx({
         ixs,
         extraSigners: [seller],
+        opts: { commitment },
       });
 
       //NFT moved from trader to escrow
@@ -894,7 +937,7 @@ export const testMakePoolSellNft = async ({
         );
       }
 
-      return { poolPda, wlNft, whitelist, ownerAtaAcc };
+      return { sellSig, poolPda, wlNft, whitelist, ownerAtaAcc };
     }
   );
 };

@@ -264,6 +264,19 @@ impl NftDepositReceipt {
 #[account]
 pub struct SolEscrow {}
 
+// --------------------------------------- events
+
+#[event]
+pub struct BuySellEvent {
+    #[index]
+    pub current_price: u64,
+    #[index]
+    pub tswap_fee: u64,
+    // Should be 0 for
+    #[index]
+    pub mm_fee: u64,
+}
+
 // --------------------------------------- tests
 
 #[cfg(test)]

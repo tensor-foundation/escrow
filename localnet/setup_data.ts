@@ -15,7 +15,8 @@ At the top level (ie tensorswap/), run:
     TENSORSWAP_ADDR=<tswap program id> \
     TWHITELIST_ADDR=<twhitelist program id> \
     TSWAP_FEE_ACC=$(solana address) \
-        yarn ts-node localnet/setup_data.ts`
+        yarn ts-node localnet/setup_data.ts
+    ```
 */
 import {
   getAccount,
@@ -32,6 +33,9 @@ import {
 } from "@solana/web3.js";
 import { BN } from "bn.js";
 import { readFileSync } from "fs";
+import { parseArgs } from "util";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 import {
   CurveTypeAnchor,
   findWhitelistPDA,
@@ -60,15 +64,6 @@ console.log(
   "traders",
   traders.map((t) => t.publicKey.toBase58())
 );
-
-const BASE_CONFIG: PoolConfigAnchor = {
-  poolType: PoolTypeAnchor.NFT,
-  curveType: CurveTypeAnchor.Linear,
-  startingPrice: new BN(5 * LAMPORTS_PER_SOL),
-  delta: new BN(0.25 * LAMPORTS_PER_SOL),
-  honorRoyalties: false,
-  mmFeeBps: null,
-};
 
 const mockMints = Array(5)
   .fill(null)
@@ -111,6 +106,15 @@ const traderMints = [
     mints: [...mockColl1.mints.slice(1), ...mockColl2.mints.slice(0, 2)],
   },
 ];
+
+const BASE_CONFIG: PoolConfigAnchor = {
+  poolType: PoolTypeAnchor.NFT,
+  curveType: CurveTypeAnchor.Linear,
+  startingPrice: new BN(5 * LAMPORTS_PER_SOL),
+  delta: new BN(0.25 * LAMPORTS_PER_SOL),
+  honorRoyalties: false,
+  mmFeeBps: null,
+};
 
 const mockConfigs: (PoolConfigAnchor & {
   coll: typeof mockColl1;
@@ -168,7 +172,7 @@ const mockConfigs: (PoolConfigAnchor & {
     curveType: CurveTypeAnchor.Exponential,
     delta: new BN(125),
     mmFeeBps: 0,
-    coll: mockColl2,
+    coll: mockColl1,
     trader: traderA,
     depSol: 1337 * LAMPORTS_PER_SOL,
   },
@@ -191,6 +195,9 @@ const idempotentTxs = async () => {
       tx: { ixs },
     } = await swapSdk.initUpdateTSwap({
       owner: TEST_PROVIDER.publicKey,
+      config: {
+        feeBps: 500,
+      },
     });
     await buildAndSendTx({ ixs });
   }
@@ -270,58 +277,133 @@ const initWalletMints = async () => {
   );
 };
 
+const _findWhitelist = (coll: typeof mockColl1) => {
+  return findWhitelistPDA({
+    uuid: TensorWhitelistSDK.uuidToBuffer(coll.uuid),
+  })[0];
+};
+
 const oneTimeTxs = async () => {
-  mockConfigs.map(async (config) => {
-    const { coll, trader, depMints, depSol, ...poolConfig } = config;
-    const [whitelist] = findWhitelistPDA({
-      uuid: TensorWhitelistSDK.uuidToBuffer(coll.uuid),
-    });
+  await Promise.all(
+    mockConfigs.map(async (config) => {
+      const { coll, trader, depMints, depSol, ...poolConfig } = config;
+      const whitelist = _findWhitelist(coll);
 
-    // Create pool.
-    const {
-      tx: { ixs },
-    } = await swapSdk.initPool({
-      owner: trader.publicKey,
-      whitelist,
-      config: poolConfig,
-    });
-    await buildAndSendTx({ ixs, extraSigners: [trader] });
-
-    // Deposit mints.
-    await Promise.all(
-      (depMints ?? []).map(async (mint) => {
-        const ata = await getAssociatedTokenAddress(
-          mint.publicKey,
-          trader.publicKey
-        );
-
-        const {
-          tx: { ixs },
-        } = await swapSdk.depositNft({
-          whitelist,
-          nftMint: mint.publicKey,
-          nftSource: ata,
-          owner: trader.publicKey,
-          config: poolConfig,
-          proof: _getProof(mint.publicKey).proof,
-        });
-        await buildAndSendTx({ ixs, extraSigners: [trader] });
-      })
-    );
-
-    // Deposit SOL.
-    if (depSol) {
+      // Create pool.
       const {
         tx: { ixs },
-      } = await swapSdk.depositSol({
-        whitelist,
+        poolPda,
+      } = await swapSdk.initPool({
         owner: trader.publicKey,
+        whitelist,
         config: poolConfig,
-        lamports: new BN(depSol),
       });
-      await buildAndSendTx({ ixs, extraSigners: [trader] });
-    }
-  });
+      const sig = await buildAndSendTx({ ixs, extraSigners: [trader] });
+      console.log(`sig ${sig} for init pool ${poolPda.toBase58()}`);
+
+      // Deposit mints.
+      await Promise.all(
+        (depMints ?? []).map(async (mint) => {
+          const ata = await getAssociatedTokenAddress(
+            mint.publicKey,
+            trader.publicKey
+          );
+
+          const {
+            tx: { ixs },
+          } = await swapSdk.depositNft({
+            whitelist,
+            nftMint: mint.publicKey,
+            nftSource: ata,
+            owner: trader.publicKey,
+            config: poolConfig,
+            proof: _getProof(mint.publicKey).proof,
+          });
+          const sig = await buildAndSendTx({ ixs, extraSigners: [trader] });
+          console.log(
+            `sig ${sig} for deposit nft ${mint.publicKey.toBase58()} into pool ${poolPda.toBase58()}`
+          );
+        })
+      );
+
+      // Deposit SOL.
+      if (depSol) {
+        const {
+          tx: { ixs },
+        } = await swapSdk.depositSol({
+          whitelist,
+          owner: trader.publicKey,
+          config: poolConfig,
+          lamports: new BN(depSol),
+        });
+        const sig = await buildAndSendTx({ ixs, extraSigners: [trader] });
+        console.log(
+          `sig ${sig} for deposit sol into pool ${poolPda.toBase58()}`
+        );
+      }
+    })
+  );
+
+  // Buy NFT.
+  {
+    const config = mockConfigs[0];
+    const mint = config.depMints![0];
+    const ata = await getAssociatedTokenAddress(
+      mint.publicKey,
+      traderB.publicKey
+    );
+    const { coll, trader, depMints, depSol, ...poolConfig } = config;
+    const whitelist = _findWhitelist(coll);
+    const {
+      tx: { ixs },
+      poolPda,
+    } = await swapSdk.buyNft({
+      whitelist,
+      nftMint: mint.publicKey,
+      nftBuyerAcc: ata,
+      proof: _getProof(mint.publicKey).proof,
+      owner: traderA.publicKey,
+      buyer: traderB.publicKey,
+      config: poolConfig,
+      maxPrice: config.startingPrice,
+    });
+    const sig = await buildAndSendTx({ ixs, extraSigners: [traderB] });
+    console.log(
+      `sig ${sig} for BUY nft ${mint.publicKey.toBase58()} from pool ${poolPda.toBase58()}`
+    );
+  }
+
+  // Sell NFT.
+  {
+    const config = mockConfigs.at(-1)!;
+    const mint = mockColl1.mints[1];
+    const ata = await getAssociatedTokenAddress(
+      mint.publicKey,
+      traderB.publicKey
+    );
+    const { coll, trader, depMints, depSol, ...poolConfig } = config;
+    const whitelist = _findWhitelist(coll);
+    const {
+      tx: { ixs },
+      poolPda,
+    } = await swapSdk.sellNft({
+      type: "trade",
+      whitelist,
+      nftMint: mint.publicKey,
+      nftSellerAcc: ata,
+      proof: _getProof(mint.publicKey).proof,
+      owner: traderA.publicKey,
+      seller: traderB.publicKey,
+      config: poolConfig,
+      // Sell into trade pool is 1 tick lower.
+      minPrice: config.startingPrice.sub(new BN(0.5 * LAMPORTS_PER_SOL)),
+      cosigner: TEST_PROVIDER.publicKey,
+    });
+    const sig = await buildAndSendTx({ ixs, extraSigners: [traderB] });
+    console.log(
+      `sig ${sig} for SELL nft ${mint.publicKey.toBase58()} from pool ${poolPda.toBase58()}`
+    );
+  }
 };
 
 const _randomChoice = <T>(choices: T[]) => {
@@ -368,27 +450,54 @@ const generateRandomPools = async (n: number) => {
         const trader = _randomChoice(traders);
         const {
           tx: { ixs },
+          poolPda,
         } = await swapSdk.initPool({
           owner: trader.publicKey,
           whitelist,
           config: _genRandomPoolConfig(),
         });
-        await buildAndSendTx({ ixs, extraSigners: [trader] });
+        const sig = await buildAndSendTx({ ixs, extraSigners: [trader] });
+        console.log("tx sig", sig, "for init pool", poolPda.toBase58());
       })
   );
   console.log(`created ${n} random pools`);
 };
 
 (async () => {
+  const args = await yargs(hideBin(process.argv))
+    .command(
+      "setup data",
+      "creates mock whitelist + mint + pools + txs in localnet"
+    )
+    .option("one_time", {
+      alias: "ot",
+      describe:
+        "runs the one time txs (eg on a new ledger). Will fail after the first time",
+      type: "boolean",
+      default: true,
+    })
+    .option("random_pools", {
+      alias: "rp",
+      describe: "# of random pools to also create",
+      type: "number",
+      default: 0,
+    }).argv;
+
   console.log("begin idempt...");
   await idempotentTxs();
   console.log("done idempt, begin init wallet/mints...");
   await initWalletMints();
-  console.log("done init wallet/mints, begin one time txs...");
+  console.log("done init wallet/mints");
 
-  //   await oneTimeTxs();
-  //   console.log("done one time txs");
-  console.log("gen random pools...");
-  await generateRandomPools(1000);
-  console.log("done gen random pools");
+  if (args.one_time) {
+    console.log("begin one time txs...");
+    await oneTimeTxs();
+    console.log("done one time txs");
+  }
+
+  if (args.random_pools > 0) {
+    console.log("gen random pools...");
+    await generateRandomPools(args.random_pools);
+    console.log("done gen random pools");
+  }
 })();

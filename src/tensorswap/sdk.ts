@@ -4,8 +4,19 @@ import {
   PublicKey,
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
+  TransactionResponse,
 } from "@solana/web3.js";
-import { AnchorProvider, BN, Coder, Program } from "@project-serum/anchor";
+import {
+  AnchorProvider,
+  BN,
+  BorshCoder,
+  Coder,
+  Event,
+  EventParser,
+  Instruction,
+  Program,
+} from "@project-serum/anchor";
+import Big from "big.js";
 import { IDL, Tensorswap } from "./idl/tensorswap";
 import { TENSORSWAP_ADDR, TSWAP_FEE_ACC } from "./constants";
 import {
@@ -28,18 +39,20 @@ import {
   getAccountRent,
   hexCode,
 } from "../common";
-import { AccountClient } from "@project-serum/anchor";
+import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/instruction";
+import { CurveType, PoolConfig, PoolType } from "../types";
+
+export const TensorswapIDL = IDL;
 
 export const PoolTypeAnchor = {
   Token: { token: {} },
   NFT: { nft: {} },
   Trade: { trade: {} },
 };
+type PoolTypeAnchor = typeof PoolTypeAnchor[keyof typeof PoolTypeAnchor];
 
-export const poolTypeU8 = (
-  poolType: typeof PoolTypeAnchor[keyof typeof PoolTypeAnchor]
-): number => {
-  const order: Record<string, number> = {
+export const poolTypeU8 = (poolType: PoolTypeAnchor): 0 | 1 | 2 => {
+  const order: Record<string, 0 | 1 | 2> = {
     token: 0,
     nft: 1,
     trade: 2,
@@ -47,32 +60,55 @@ export const poolTypeU8 = (
   return order[Object.keys(poolType)[0]];
 };
 
+export const castPoolTypeAnchor = (poolType: PoolTypeAnchor): PoolType =>
+  ({
+    0: PoolType.Token,
+    1: PoolType.NFT,
+    2: PoolType.Trade,
+  }[poolTypeU8(poolType)]);
+
 export const CurveTypeAnchor = {
   Linear: { linear: {} },
   Exponential: { exponential: {} },
 };
-export const curveTypeU8 = (
-  curveType: typeof CurveTypeAnchor[keyof typeof CurveTypeAnchor]
-): number => {
-  const order: Record<string, number> = {
+
+type CurveTypeAnchor = typeof CurveTypeAnchor[keyof typeof CurveTypeAnchor];
+
+export const curveTypeU8 = (curveType: CurveTypeAnchor): 0 | 1 => {
+  const order: Record<string, 0 | 1> = {
     linear: 0,
     exponential: 1,
   };
   return order[Object.keys(curveType)[0]];
 };
 
+export const castCurveTypeAnchor = (curveType: CurveTypeAnchor): CurveType =>
+  ({
+    0: CurveType.Linear,
+    1: CurveType.Exponential,
+  }[curveTypeU8(curveType)]);
+
 export type TSwapConfigAnchor = {
   feeBps: number;
 };
 
 export type PoolConfigAnchor = {
-  poolType: typeof PoolTypeAnchor[keyof typeof PoolTypeAnchor];
-  curveType: typeof CurveTypeAnchor[keyof typeof CurveTypeAnchor];
+  poolType: PoolTypeAnchor;
+  curveType: CurveTypeAnchor;
   startingPrice: BN;
   delta: BN;
   honorRoyalties: boolean;
-  mmFeeBps: number | null; //set to 0 if not present, for some reason setting to null causes anchor to crash
+  mmFeeBps: number | null; // null for non-trade pools
 };
+
+export const castPoolConfigAnchor = (config: PoolConfigAnchor): PoolConfig => ({
+  poolType: castPoolTypeAnchor(config.poolType),
+  curveType: castCurveTypeAnchor(config.curveType),
+  startingPrice: new Big(config.startingPrice.toString()),
+  delta: new Big(config.delta.toString()),
+  honorRoyalties: config.honorRoyalties,
+  mmFeeBps: config.mmFeeBps,
+});
 
 export type PoolAnchor = {
   version: number;
@@ -130,10 +166,30 @@ export type TaggedTensorSwapPdaAnchor =
       account: NftDepositReceiptAnchor;
     };
 
+export type TensorSwapEventAnchor = Event<typeof IDL["events"][number]>;
+
+// ------------- Types for parsed ixs from raw tx.
+
+export type TSwapIxName = typeof IDL["instructions"][number]["name"];
+export type TSwapIx = Omit<Instruction, "name"> & { name: TSwapIxName };
+export type ParsedTSwapIx = {
+  ixIdx: number;
+  ix: TSwapIx;
+  events: TensorSwapEventAnchor[];
+  // FYI: accounts under InstructioNDisplay is the space-separated capitalized
+  // version of the fields for the corresponding #[Accounts].
+  // eg sol_escrow -> "Sol Escrow', or tswap -> "Tswap"
+  formatted: InstructionDisplay | null;
+};
+export type TSwapIxData = { config: PoolConfigAnchor };
+export type WithdrawDepositSolData = TSwapIxData & { lamports: BN };
+
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TensorSwapSDK {
   program: Program<Tensorswap>;
   discMap: DiscMap<Tensorswap>;
+  coder: BorshCoder;
+  eventParser: EventParser;
 
   //can build ixs without provider, but need provider for
   constructor({
@@ -149,6 +205,8 @@ export class TensorSwapSDK {
   }) {
     this.program = new Program<Tensorswap>(idl, addr, provider, coder);
     this.discMap = genDiscToDecoderMap(this.program);
+    this.coder = new BorshCoder(idl);
+    this.eventParser = new EventParser(addr, this.coder);
   }
 
   // --------------------------------------- fetchers
@@ -192,17 +250,19 @@ export class TensorSwapSDK {
   //main signature: owner
   async initUpdateTSwap({
     owner,
+    config,
     feeVault = TSWAP_FEE_ACC,
     cosigner = owner,
   }: {
     owner: PublicKey;
+    config: TSwapConfigAnchor;
     feeVault?: PublicKey;
     // Default to owner (ie anchor provider wallet).
     cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
 
-    const builder = this.program.methods.initUpdateTswap().accounts({
+    const builder = this.program.methods.initUpdateTswap(config).accounts({
       tswap: tswapPda,
       owner,
       cosigner,
@@ -718,6 +778,10 @@ export class TensorSwapSDK {
     };
   }
 
+  async parseIx() {
+    return this.program.coder.instruction;
+  }
+
   // --------------------------------------- helper methods
 
   async getSolEscrowRent() {
@@ -748,5 +812,111 @@ export class TensorSwapSDK {
 
   getErrorCodeHex(name: typeof IDL["errors"][number]["name"]): string {
     return hexCode(this.getError(name).code);
+  }
+
+  // --------------------------------------- parsing raw transactions
+
+  // Stolen from https://github.com/saber-hq/saber-common/blob/4b533d77af8ad5c26f033fd5e69bace96b0e1840/packages/anchor-contrib/src/utils/coder.ts#L171-L185
+  parseEvents = (logs: string[] | undefined | null) => {
+    if (!logs) {
+      return [];
+    }
+
+    const events: TensorSwapEventAnchor[] = [];
+    const parsedLogsIter = this.eventParser.parseLogs(logs ?? []);
+    let parsedEvent = parsedLogsIter.next();
+    while (!parsedEvent.done) {
+      events.push(parsedEvent.value as unknown as TensorSwapEventAnchor);
+      parsedEvent = parsedLogsIter.next();
+    }
+
+    return events;
+  };
+
+  parseIxs(tx: TransactionResponse): ParsedTSwapIx[] {
+    const message = tx.transaction.message;
+    const logs = tx.meta?.logMessages;
+
+    const ixs: ParsedTSwapIx[] = [];
+    message.instructions.forEach((rawIx, ixIdx) => {
+      // Instruction data.
+      const ix = this.coder.instruction.decode(rawIx.data, "base58");
+      if (!ix) return;
+      const accountMetas = rawIx.accounts.map((acctIdx) => {
+        const pubkey = message.accountKeys[acctIdx];
+        return {
+          pubkey,
+          isSigner: message.isAccountSigner(acctIdx),
+          isWritable: message.isAccountWritable(acctIdx),
+        };
+      });
+      const formatted = this.coder.instruction.format(ix, accountMetas);
+
+      // Events data.
+
+      const events = this.parseEvents(logs);
+      ixs.push({ ixIdx, ix: ix as TSwapIx, events, formatted });
+    });
+
+    return ixs;
+  }
+
+  getPoolConfig(ix: ParsedTSwapIx): PoolConfig | null {
+    switch (ix.ix.name) {
+      case "initUpdateTswap":
+        return null;
+      default:
+        const config = (ix.ix.data as TSwapIxData).config;
+        return castPoolConfigAnchor(config);
+    }
+  }
+
+  getSolAmount(ix: ParsedTSwapIx): BN | null {
+    switch (ix.ix.name) {
+      case "buyNft":
+      case "sellNftTradePool":
+      case "sellNftTokenPool":
+        return ix.events[0].data.currentPrice;
+      case "depositSol":
+      case "withdrawSol":
+        return (ix.ix.data as WithdrawDepositSolData).lamports;
+      default:
+        return null;
+    }
+  }
+
+  getFeeAmount(ix: ParsedTSwapIx): BN | null {
+    switch (ix.ix.name) {
+      case "buyNft":
+      case "sellNftTradePool":
+      case "sellNftTokenPool":
+        // todo: type
+        const event = ix.events[0].data;
+        return event.mmFee.add(event.tswapFee);
+      default:
+        return null;
+    }
+  }
+
+  // FYI: accounts under InstructioNDisplay is the space-separated capitalized
+  // version of the fields for the corresponding #[Accounts].
+  // eg sol_escrow -> "Sol Escrow', or tswap -> "Tswap"
+  // shared.sol_escrow -> "Shared > Sol Escrow"
+  getAccountByName(
+    ix: ParsedTSwapIx,
+    name:
+      | "Nft Mint"
+      | "Sol Escrow"
+      | "Pool"
+      | "Nft Escrow"
+      | "Whitelist"
+      | "NftReceipt"
+      | "Buyer"
+      | "Seller"
+      | "Owner"
+  ) {
+    // We use endsWith since composite nested accounts (eg shared.sol_escrow)
+    // will prefix it as "Shared > Sol Escrow"
+    return ix.formatted?.accounts.find((acc) => acc.name?.endsWith(name));
   }
 }

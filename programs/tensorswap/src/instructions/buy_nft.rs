@@ -172,6 +172,16 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let pool = &ctx.accounts.pool;
 
     let current_price = pool.current_price(TakerSide::Buy)?;
+    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
+
+    // for keeping track of current price + fees charged (computed dynamically)
+    // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
+    emit!(BuySellEvent {
+        current_price,
+        tswap_fee,
+        mm_fee: 0, // no MM fee for buying
+    });
+
     if current_price > max_price {
         throw_err!(PriceMismatch);
     }
@@ -180,7 +190,6 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let mut left_for_seller = current_price;
 
     // transfer fee to Tensorswap
-    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
     ctx.accounts
         .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;

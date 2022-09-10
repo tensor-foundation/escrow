@@ -1,17 +1,10 @@
-import { TakerSide, CurveType, PoolType } from "../types";
+import { TakerSide, CurveType, PoolType, PoolConfig } from "../types";
 import Big from "big.js";
 import BN from "bn.js";
 
 export const HUNDRED_PCT_BPS = 100_00;
 // 0.1% seems to be enough to deal with truncation divergence b/w off-chain and on-chain.
 const EXPO_SLIPPAGE = 0.001;
-
-export type PoolConfig = {
-  poolType: PoolType;
-  curveType: CurveType;
-  startingPrice: Big;
-  delta: Big;
-};
 
 // Computes how much needs to be deposited to purchase an additional N # of NFTs.
 export const computeDepositAmount = ({
@@ -152,16 +145,21 @@ const _shiftPriceByDelta = (
   }
 };
 
-//todo in theory could dedupe with above function
-export const calcCurveTotalCount = (
-  desiredCount: number,
+export const calcCurveTotalCount = ({
+  desired,
+  startPrice,
+  normedCurveIncr,
+  curveType,
+  takerSide,
+}: {
+  desired: { count: number } | { total: BN };
   // These should be in native units (no decimals) .
-  startPrice: BN,
+  startPrice: BN;
   // For exp: this is in bps (1/100th of a percent, so 50% = 5000).
-  normedCurveIncr: BN,
-  curveType: CurveType,
-  takerSide: TakerSide
-) => {
+  normedCurveIncr: BN;
+  curveType: CurveType;
+  takerSide: TakerSide;
+}) => {
   let total = new BN(0);
   let allowedCount = 0;
   let curPrice = startPrice;
@@ -171,7 +169,11 @@ export const calcCurveTotalCount = (
   // 1 - curveIncrement or 1 + curveIncrement.
   const expFactorBps = new BN(HUNDRED_PCT_BPS).add(normedCurveIncr.mul(sign));
 
-  while (allowedCount < desiredCount && curPrice.gt(new BN(0))) {
+  while (
+    (("count" in desired && allowedCount < desired.count) ||
+      ("total" in desired && total.lt(desired.total))) &&
+    curPrice.gt(new BN(0))
+  ) {
     total = total.add(curPrice);
     allowedCount++;
     switch (curveType) {

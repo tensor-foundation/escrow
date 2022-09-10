@@ -13,6 +13,7 @@ import {
   TEST_PROVIDER,
   withLamports,
   HUNDRED_PCT_BPS,
+  castPoolConfigAnchor,
 } from "../shared";
 import {
   beforeHook,
@@ -49,7 +50,7 @@ describe("tswap pool", () => {
         const { mint } = await createAndFundATA(owner);
         const { whitelist } = await makeWhitelist([mint]);
 
-        const poolPda = await testMakePool({
+        const { poolPda } = await testMakePool({
           tswap,
           owner,
           config,
@@ -172,6 +173,55 @@ describe("tswap pool", () => {
     );
   });
 
+  it("properly parses raw init/close pool tx", async () => {
+    const [owner] = await makeNTraders(1);
+    const { mint } = await createAndFundATA(owner);
+    const { whitelist } = await makeWhitelist([mint]);
+
+    await Promise.all(
+      [tokenPoolConfig, tradePoolConfig, nftPoolConfig].map(async (config) => {
+        const { sig: initSig } = await testMakePool({
+          tswap,
+          owner,
+          config,
+          whitelist,
+          commitment: "confirmed",
+        });
+
+        const { sig: closeSig } = await testClosePool({
+          owner,
+          config,
+          whitelist,
+          commitment: "confirmed",
+        });
+
+        for (const { sig, name } of [
+          { sig: initSig, name: "initPool" },
+          { sig: closeSig, name: "closePool" },
+        ]) {
+          const tx = (await TEST_PROVIDER.connection.getTransaction(sig, {
+            commitment: "confirmed",
+          }))!;
+          expect(tx).not.null;
+          const ixs = swapSdk.parseIxs(tx);
+          expect(ixs).length(1);
+
+          const ix = ixs[0];
+          expect(ix.ix.name).eq(name);
+          expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+            JSON.stringify(castPoolConfigAnchor(config))
+          );
+          expect(swapSdk.getSolAmount(ix)).null;
+          expect(swapSdk.getFeeAmount(ix)).null;
+
+          expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+            owner.publicKey.toBase58()
+          );
+        }
+      })
+    );
+  });
+
   //#endregion
 
   //#region Close pool.
@@ -188,7 +238,12 @@ describe("tswap pool", () => {
       await withLamports(
         { prevLamports: owner.publicKey },
         async ({ prevLamports }) => {
-          const pool = await testMakePool({ tswap, owner, config, whitelist });
+          const { poolPda: pool } = await testMakePool({
+            tswap,
+            owner,
+            config,
+            whitelist,
+          });
 
           // Deposit SOL if applicable.
           if (lamports !== 0) {
@@ -258,7 +313,12 @@ describe("tswap pool", () => {
           whitelist,
         } = await makeWhitelist([mint]);
 
-        const pool = await testMakePool({ tswap, owner, config, whitelist });
+        const { poolPda: pool } = await testMakePool({
+          tswap,
+          owner,
+          config,
+          whitelist,
+        });
         await testDepositNft({ pool, config, owner, ata, wlNft, whitelist });
 
         await expect(testClosePool({ owner, whitelist, config })).rejectedWith(

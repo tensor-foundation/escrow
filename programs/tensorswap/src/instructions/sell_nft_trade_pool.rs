@@ -76,6 +76,17 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let pool = &ctx.accounts.shared.pool;
 
     let current_price = pool.current_price(TakerSide::Sell)?;
+    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.shared.tswap.config.fee_bps, current_price)?;
+    let mm_fee = pool.calc_mm_fee(current_price)?;
+
+    // for keeping track of current price + fees charged (computed dynamically)
+    // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
+    emit!(BuySellEvent {
+        current_price,
+        tswap_fee,
+        mm_fee
+    });
+
     if current_price < min_price {
         throw_err!(PriceMismatch);
     }
@@ -95,17 +106,13 @@ pub fn handler<'a, 'b, 'c, 'info>(
     receipt_state.nft_escrow = ctx.accounts.nft_escrow.key();
 
     //transfer fee to Tensorswap
-    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.shared.tswap.config.fee_bps, current_price)?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-
     ctx.accounts.shared.transfer_lamports_from_escrow(
         &ctx.accounts.shared.fee_vault.to_account_info(),
         tswap_fee,
     )?;
 
-    //todo write tests
     // Owner/MM keeps some funds as their fee (no transfer necessary).
-    let mm_fee = pool.calc_mm_fee(current_price)?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
 
     //send money directly to seller

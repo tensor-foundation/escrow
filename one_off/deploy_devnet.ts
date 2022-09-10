@@ -91,7 +91,10 @@ const initWhitelistForDonkeys = async () => {
 const initTswap = async () => {
   const {
     tx: { ixs },
-  } = await swapSDK.initUpdateTSwap({ owner: payer.publicKey });
+  } = await swapSDK.initUpdateTSwap({
+    owner: payer.publicKey,
+    config: { feeBps: 500 },
+  });
   const sig = await buildAndSendTx({ ixs, provider });
   console.log(sig);
 };

@@ -1,15 +1,23 @@
 import { LangErrorCode } from "@project-serum/anchor";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
-import { buildAndSendTx, swapSdk, hexCode } from "../shared";
+import {
+  buildAndSendTx,
+  swapSdk,
+  hexCode,
+  TEST_PROVIDER,
+  castPoolConfigAnchor,
+} from "../shared";
 import {
   beforeHook,
   createAndFundATA,
   makeNTraders,
   makeWhitelist,
   nftPoolConfig,
+  testDepositNft,
   testDepositSol,
   testMakePool,
+  tokenPoolConfig,
 } from "./common";
 
 describe("tswap deposits", () => {
@@ -20,6 +28,8 @@ describe("tswap deposits", () => {
   before(async () => {
     ({ tswapPda: tswap } = await beforeHook());
   });
+
+  //#region Deposit NFT
 
   it("deposit non-WL nft fails", async () => {
     const [owner] = await makeNTraders(1);
@@ -87,12 +97,68 @@ describe("tswap deposits", () => {
     });
   });
 
+  it("properly parses raw deposit nft tx", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+    const { mint, ata } = await createAndFundATA(owner);
+    const {
+      whitelist,
+      proofs: [wlNft],
+    } = await makeWhitelist([mint]);
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+    const { depSig } = await testDepositNft({
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+
+    const tx = (await TEST_PROVIDER.connection.getTransaction(depSig, {
+      commitment: "confirmed",
+    }))!;
+    expect(tx).not.null;
+    const ixs = swapSdk.parseIxs(tx);
+    expect(ixs).length(1);
+
+    const ix = ixs[0];
+    expect(ix.ix.name).eq("depositNft");
+    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+      JSON.stringify(castPoolConfigAnchor(config))
+    );
+    expect(swapSdk.getSolAmount(ix)).null;
+    expect(swapSdk.getFeeAmount(ix)).null;
+
+    expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
+      wlNft.mint.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+      owner.publicKey.toBase58()
+    );
+  });
+
+  //#endregion
+
+  //#region Deposit SOL
+
   it("deposit SOL into NFT pool fails", async () => {
     const [owner] = await makeNTraders(1);
     const config = nftPoolConfig;
     const { mint } = await createAndFundATA(owner);
     const { whitelist } = await makeWhitelist([mint]);
-    const pool = await testMakePool({ tswap, owner, config, whitelist });
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
     await expect(
       testDepositSol({
         pool,
@@ -103,4 +169,48 @@ describe("tswap deposits", () => {
       })
     ).rejectedWith(swapSdk.getErrorCodeHex("WrongPoolType"));
   });
+
+  it("properly parses raw deposit sol tx", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = tokenPoolConfig;
+    const { mint } = await createAndFundATA(owner);
+    const { whitelist } = await makeWhitelist([mint]);
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+    const amount = 137391932;
+
+    const { depSig } = await testDepositSol({
+      pool,
+      config,
+      owner,
+      whitelist,
+      lamports: amount,
+      commitment: "confirmed",
+    });
+
+    const tx = (await TEST_PROVIDER.connection.getTransaction(depSig, {
+      commitment: "confirmed",
+    }))!;
+    expect(tx).not.null;
+    const ixs = swapSdk.parseIxs(tx);
+    expect(ixs).length(1);
+
+    const ix = ixs[0];
+    expect(ix.ix.name).eq("depositSol");
+    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+      JSON.stringify(castPoolConfigAnchor(config))
+    );
+    expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(amount);
+    expect(swapSdk.getFeeAmount(ix)).null;
+
+    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+      owner.publicKey.toBase58()
+    );
+  });
+
+  //#endregion
 });

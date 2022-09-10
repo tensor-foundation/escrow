@@ -13,6 +13,7 @@ import {
   PoolTypeAnchor,
   hexCode,
   TakerSide,
+  castPoolConfigAnchor,
 } from "../shared";
 import {
   beforeHook,
@@ -29,6 +30,7 @@ import {
   testMakePoolSellNft,
   tokenPoolConfig,
   tradePoolConfig,
+  TSWAP_FEE,
 } from "./common";
 
 describe("tswap sell", () => {
@@ -97,9 +99,14 @@ describe("tswap sell", () => {
       proofs: [wlNft],
       whitelist,
     } = await makeWhitelist([mint]);
-    const poolPda = await testMakePool({ tswap, owner, whitelist, config });
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      whitelist,
+      config,
+    });
     await testDepositSol({
-      pool: poolPda,
+      pool,
       config,
       owner,
       lamports: LAMPORTS_PER_SOL,
@@ -603,5 +610,56 @@ describe("tswap sell", () => {
         expect(traderAccA.amount.toString()).eq("1");
       })
     );
+  });
+
+  it("properly parses raw sell tx", async () => {
+    const [owner, seller] = await makeNTraders(2);
+
+    for (const { config, name } of [
+      { config: tradePoolConfig, name: "sellNftTradePool" },
+      { config: tokenPoolConfig, name: "sellNftTokenPool" },
+    ]) {
+      let temp = config.startingPrice;
+      if (config === tradePoolConfig) temp = temp.sub(config.delta);
+      const expectedLamports = temp.toNumber();
+
+      const { sellSig, wlNft } = await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        commitment: "confirmed",
+      });
+
+      const tx = (await TEST_PROVIDER.connection.getTransaction(sellSig, {
+        commitment: "confirmed",
+      }))!;
+      expect(tx).not.null;
+      const ixs = swapSdk.parseIxs(tx);
+      expect(ixs).length(1);
+
+      const ix = ixs[0];
+      expect(ix.ix.name).eq(name);
+      expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+        JSON.stringify(castPoolConfigAnchor(config))
+      );
+      expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
+      expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
+        Math.floor(expectedLamports * TSWAP_FEE) +
+          Math.floor((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4)
+      );
+
+      expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
+        wlNft.mint.toBase58()
+      );
+      expect(swapSdk.getAccountByName(ix, "Seller")?.pubkey.toBase58()).eq(
+        seller.publicKey.toBase58()
+      );
+      expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+        owner.publicKey.toBase58()
+      );
+    }
   });
 });

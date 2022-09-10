@@ -13,6 +13,7 @@ import {
   PoolConfigAnchor,
   PoolTypeAnchor,
   TakerSide,
+  castPoolConfigAnchor,
 } from "../shared";
 import {
   beforeHook,
@@ -27,6 +28,7 @@ import {
   tokenPoolConfig,
   tradePoolConfig,
   computeCurrentPrice,
+  TSWAP_FEE,
 } from "./common";
 
 describe("tswap buy", () => {
@@ -147,7 +149,12 @@ describe("tswap buy", () => {
           proofs: [wlNft],
           whitelist,
         } = await makeWhitelist([mint]);
-        const poolPda = await testMakePool({ tswap, owner, whitelist, config });
+        const { poolPda } = await testMakePool({
+          tswap,
+          owner,
+          whitelist,
+          config,
+        });
 
         await testDepositNft({
           pool: poolPda,
@@ -220,7 +227,12 @@ describe("tswap buy", () => {
           proofs: [wlNft, badWlNft],
           whitelist,
         } = await makeWhitelist([mint, badMint]);
-        const poolPda = await testMakePool({ tswap, owner, whitelist, config });
+        const { poolPda } = await testMakePool({
+          tswap,
+          owner,
+          whitelist,
+          config,
+        });
 
         // Deposit both good and (soon-to-be) bad mints.
         for (const { nft, currAta } of [
@@ -289,13 +301,13 @@ describe("tswap buy", () => {
       } = await makeWhitelist([mintA, mintB]);
 
       // Deposit into 2 pools.
-      const poolA = await testMakePool({
+      const { poolPda: poolA } = await testMakePool({
         tswap,
         owner: traderA,
         config,
         whitelist,
       });
-      const poolB = await testMakePool({
+      const { poolPda: poolB } = await testMakePool({
         tswap,
         owner: traderB,
         config,
@@ -580,6 +592,47 @@ describe("tswap buy", () => {
         const traderAccB = await getAccount(nft.ataB);
         expect(traderAccB.amount.toString()).eq("1");
       })
+    );
+  });
+
+  it("properly parses raw buy tx", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+
+    const expectedLamports = nftPoolConfig.startingPrice.toNumber();
+    const { buySig, wlNft } = await testMakePoolBuyNft({
+      tswap,
+      owner,
+      buyer,
+      config: nftPoolConfig,
+      expectedLamports,
+      commitment: "confirmed",
+    });
+
+    const tx = (await TEST_PROVIDER.connection.getTransaction(buySig, {
+      commitment: "confirmed",
+    }))!;
+    expect(tx).not.null;
+    const ixs = swapSdk.parseIxs(tx);
+    expect(ixs).length(1);
+
+    const ix = ixs[0];
+    expect(ix.ix.name).eq("buyNft");
+    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+      JSON.stringify(castPoolConfigAnchor(nftPoolConfig))
+    );
+    expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
+    expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
+      expectedLamports * TSWAP_FEE
+    );
+
+    expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
+      wlNft.mint.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Buyer")?.pubkey.toBase58()).eq(
+      buyer.publicKey.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+      owner.publicKey.toBase58()
     );
   });
 });

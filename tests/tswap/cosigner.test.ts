@@ -18,6 +18,7 @@ import {
   makeNTraders,
   makeWhitelist,
   tradePoolConfig,
+  TSWAP_CONFIG,
   TSWAP_FEE,
   WhitelistedNft,
 } from "./common";
@@ -99,6 +100,7 @@ describe("tswap cosigner", () => {
       tswapPda,
     } = await swapSdk.initUpdateTSwap({
       owner: TEST_PROVIDER.publicKey,
+      config: TSWAP_CONFIG,
       cosigner,
     });
     tswap = tswapPda;
