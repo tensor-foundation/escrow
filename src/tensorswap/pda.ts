@@ -27,11 +27,11 @@ export const findPoolPDA = ({
       owner.toBytes(),
       whitelist.toBytes(),
       //u8s, hence 1 byte each
-      new BN(poolType).toBuffer("le", 1),
-      new BN(curveType).toBuffer("le", 1),
+      new BN(poolType).toArrayLike(Uint8Array as any, "le", 1),
+      new BN(curveType).toArrayLike(Uint8Array as any, "le", 1),
       //u64s, hence 8 bytes each
-      startingPrice.toBuffer("le", 8),
-      delta.toBuffer("le", 8),
+      startingPrice.toArrayLike(Uint8Array as any, "le", 8),
+      delta.toArrayLike(Uint8Array as any, "le", 8),
     ],
     program ?? TENSORSWAP_ADDR
   );
