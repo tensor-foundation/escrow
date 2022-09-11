@@ -34,6 +34,7 @@ import {
   PoolConfig,
   TensorWhitelistSDK,
   PoolAnchor,
+  castPoolConfigAnchor,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -269,23 +270,6 @@ export const makeWhitelist = async (mints: PublicKey[]) => {
   return { proofs, whitelist: whitelistPda };
 };
 
-const _castConfig = (config: PoolConfigAnchor): PoolConfig => {
-  return {
-    poolType:
-      config.poolType === PoolTypeAnchor.NFT
-        ? PoolType.NFT
-        : config.poolType === PoolTypeAnchor.Token
-        ? PoolType.Token
-        : PoolType.Trade,
-    curveType:
-      config.curveType === CurveTypeAnchor.Linear
-        ? CurveType.Linear
-        : CurveType.Exponential,
-    startingPrice: new Big(config.startingPrice.toString()),
-    delta: new Big(config.delta.toString()),
-  };
-};
-
 export const computeDepositAmount = ({
   config,
   nftCount,
@@ -295,7 +279,7 @@ export const computeDepositAmount = ({
 }): BN =>
   new BN(
     computeDepositAmount_({
-      config: _castConfig(config),
+      config: castPoolConfigAnchor(config),
       nftCount,
     }).toNumber()
   );
@@ -315,7 +299,7 @@ export const computeCurrentPrice = ({
 }): BN =>
   new BN(
     computeCurrentPrice_({
-      config: _castConfig(config),
+      config: castPoolConfigAnchor(config),
       takerBuyCount: buyCount,
       takerSellCount: sellCount,
       takerSide,
