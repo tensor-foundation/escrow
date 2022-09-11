@@ -38,18 +38,7 @@ export const computeDepositAmount = ({
   return amount;
 };
 
-// Computes the current price of a pool, optionally with slippage (so minPrice for Sell, maxPrice for Buy).
-// Note even w/ 0 slippage this price will differ from the on-chain current price for Exponential curves
-// b/c of rounding differences.
-export const computeCurrentPrice = ({
-  config,
-  takerSellCount,
-  takerBuyCount,
-  takerSide,
-  extraNFTsSelected,
-  // Default small tolerance for exponential curves.
-  slippage = config.curveType === CurveType.Linear ? 0 : EXPO_SLIPPAGE,
-}: {
+export type ComputePriceArgs = {
   config: PoolConfig;
   takerSellCount: number;
   takerBuyCount: number;
@@ -64,7 +53,38 @@ export const computeCurrentPrice = ({
   // since on-chain and off-chain rounding is not exactly the same.
   // 0.01 = 1%.
   slippage?: number;
-}): Big => {
+};
+
+// This is what should be displayed to the user.
+// In contrast, computeCurrentPrice is what should be passed to the ix itself
+// (doesn't take into account tswap/mm fees).
+export const computeTakerDisplayPrice = (args: ComputePriceArgs) => {
+  let takerPrice = computeCurrentPrice(args);
+  // For
+  if (
+    args.config.poolType === PoolType.Trade &&
+    args.takerSide === TakerSide.Sell
+  ) {
+    takerPrice = takerPrice.sub(
+      takerPrice.mul(args.config.mmFeeBps ?? 0).div(HUNDRED_PCT_BPS)
+    );
+  }
+
+  return takerPrice;
+};
+
+// Computes the current price of a pool, optionally with slippage (so minPrice for Sell, maxPrice for Buy).
+// Note even w/ 0 slippage this price will differ from the on-chain current price for Exponential curves
+// b/c of rounding differences.
+export const computeCurrentPrice = ({
+  config,
+  takerSellCount,
+  takerBuyCount,
+  takerSide,
+  extraNFTsSelected,
+  // Default small tolerance for exponential curves.
+  slippage = config.curveType === CurveType.Linear ? 0 : EXPO_SLIPPAGE,
+}: ComputePriceArgs): Big => {
   let basePrice = (() => {
     switch (config.poolType) {
       case PoolType.Token:
