@@ -44,6 +44,8 @@ import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
 
 export const TensorswapIDL = IDL;
 
+// --------------------------------------- pool type
+
 export const PoolTypeAnchor = {
   Token: { token: {} },
   NFT: { nft: {} },
@@ -67,6 +69,15 @@ export const castPoolTypeAnchor = (poolType: PoolTypeAnchor): PoolType =>
     2: PoolType.Trade,
   }[poolTypeU8(poolType)]);
 
+export const castPoolType = (poolType: PoolType): PoolTypeAnchor =>
+  poolType === PoolType.NFT
+    ? PoolTypeAnchor.NFT
+    : poolType === PoolType.Token
+    ? PoolTypeAnchor.Token
+    : PoolTypeAnchor.Trade;
+
+// --------------------------------------- curve type
+
 export const CurveTypeAnchor = {
   Linear: { linear: {} },
   Exponential: { exponential: {} },
@@ -87,6 +98,13 @@ export const castCurveTypeAnchor = (curveType: CurveTypeAnchor): CurveType =>
     0: CurveType.Linear,
     1: CurveType.Exponential,
   }[curveTypeU8(curveType)]);
+
+export const castCurveType = (curveType: CurveType): CurveTypeAnchor =>
+  curveType === CurveType.Linear
+    ? CurveTypeAnchor.Linear
+    : CurveTypeAnchor.Exponential;
+
+// --------------------------------------- config
 
 export type TSwapConfigAnchor = {
   feeBps: number;
@@ -109,6 +127,17 @@ export const castPoolConfigAnchor = (config: PoolConfigAnchor): PoolConfig => ({
   honorRoyalties: config.honorRoyalties,
   mmFeeBps: config.mmFeeBps,
 });
+
+export const castPoolConfig = (config: PoolConfig): PoolConfigAnchor => ({
+  poolType: castPoolType(config.poolType),
+  curveType: castCurveType(config.curveType),
+  startingPrice: new BN(config.startingPrice.toString()),
+  delta: new BN(config.delta.toString()),
+  honorRoyalties: config.honorRoyalties,
+  mmFeeBps: config.mmFeeBps,
+});
+
+// --------------------------------------- rest
 
 export type PoolAnchor = {
   version: number;
