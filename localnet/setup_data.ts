@@ -17,6 +17,12 @@ At the top level (ie tensorswap/), run:
     TSWAP_FEE_ACC=$(solana address) \
         yarn ts-node localnet/setup_data.ts
     ```
+
+7. For running with the ingest_pdas scripts in api/src, make sure to create CollectionV2s with the mock collection's IDs.
+8. Run ingest_twhitelist_pdas.ts
+9. Run ingest_tswap_pdas.ts
+10. Run listen_tswap_pdas.ts
+
 */
 import {
   getAccount,
@@ -199,7 +205,8 @@ const idempotentTxs = async () => {
         feeBps: 500,
       },
     });
-    await buildAndSendTx({ ixs });
+    const sig = await buildAndSendTx({ ixs });
+    console.log(`init update tswap tx ${sig}`);
   }
 
   // Init whitelists.
