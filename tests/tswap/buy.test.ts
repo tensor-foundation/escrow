@@ -599,7 +599,7 @@ describe("tswap buy", () => {
     const [owner, buyer] = await makeNTraders(2);
 
     const expectedLamports = nftPoolConfig.startingPrice.toNumber();
-    const { buySig, wlNft } = await testMakePoolBuyNft({
+    const { buySig, wlNft, whitelist } = await testMakePoolBuyNft({
       tswap,
       owner,
       buyer,
@@ -633,6 +633,9 @@ describe("tswap buy", () => {
     );
     expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
       owner.publicKey.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
+      whitelist.toBase58()
     );
   });
 });

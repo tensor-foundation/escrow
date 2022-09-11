@@ -40,7 +40,7 @@ import {
   hexCode,
 } from "../common";
 import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/instruction";
-import { CurveType, PoolConfig, PoolType } from "../types";
+import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
 
 export const TensorswapIDL = IDL;
 
@@ -778,10 +778,6 @@ export class TensorSwapSDK {
     };
   }
 
-  async parseIx() {
-    return this.program.coder.instruction;
-  }
-
   // --------------------------------------- helper methods
 
   async getSolEscrowRent() {
@@ -914,7 +910,7 @@ export class TensorSwapSDK {
       | "Buyer"
       | "Seller"
       | "Owner"
-  ) {
+  ): ParsedAccount | undefined {
     // We use endsWith since composite nested accounts (eg shared.sol_escrow)
     // will prefix it as "Shared > Sol Escrow"
     return ix.formatted?.accounts.find((acc) => acc.name?.endsWith(name));

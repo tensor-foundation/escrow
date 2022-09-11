@@ -1,3 +1,4 @@
+import { PublicKey } from "@solana/web3.js";
 import Big from "big.js";
 
 //the side of the trade that the trader is taking
@@ -24,4 +25,12 @@ export type PoolConfig = {
   delta: Big;
   honorRoyalties: boolean;
   mmFeeBps: number | null; // null for non-trade pools
+};
+
+// Parsed account from a raw tx.
+export type ParsedAccount = {
+  name?: string | undefined;
+  pubkey: PublicKey;
+  isSigner: boolean;
+  isWritable: boolean;
 };

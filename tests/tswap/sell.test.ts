@@ -623,7 +623,7 @@ describe("tswap sell", () => {
       if (config === tradePoolConfig) temp = temp.sub(config.delta);
       const expectedLamports = temp.toNumber();
 
-      const { sellSig, wlNft } = await testMakePoolSellNft({
+      const { sellSig, wlNft, whitelist } = await testMakePoolSellNft({
         sellType: config === tradePoolConfig ? "trade" : "token",
         tswap,
         owner,
@@ -659,6 +659,9 @@ describe("tswap sell", () => {
       );
       expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
         owner.publicKey.toBase58()
+      );
+      expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
+        whitelist.toBase58()
       );
     }
   });

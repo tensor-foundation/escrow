@@ -239,6 +239,66 @@ describe("tswap withdraws", () => {
     }
   });
 
+  it("properly parses raw withdraw nft tx", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+    const { mint, ata } = await createAndFundATA(owner);
+    const {
+      whitelist,
+      proofs: [wlNft],
+    } = await makeWhitelist([mint]);
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+    await testDepositNft({
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+
+    const { withdrawSig } = await testWithdrawNft({
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+
+    const tx = (await TEST_PROVIDER.connection.getTransaction(withdrawSig, {
+      commitment: "confirmed",
+    }))!;
+    expect(tx).not.null;
+    const ixs = swapSdk.parseIxs(tx);
+    expect(ixs).length(1);
+
+    const ix = ixs[0];
+    expect(ix.ix.name).eq("withdrawNft");
+    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+      JSON.stringify(castPoolConfigAnchor(config))
+    );
+    expect(swapSdk.getSolAmount(ix)).null;
+    expect(swapSdk.getFeeAmount(ix)).null;
+
+    expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
+      wlNft.mint.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+      owner.publicKey.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
+      whitelist.toBase58()
+    );
+  });
+
   //#endregion
 
   //#region Withdraw SOL
@@ -378,63 +438,6 @@ describe("tswap withdraws", () => {
 
   it("properly parses raw withdraw sol tx", async () => {
     const [owner] = await makeNTraders(1);
-    const config = nftPoolConfig;
-    const { mint, ata } = await createAndFundATA(owner);
-    const {
-      whitelist,
-      proofs: [wlNft],
-    } = await makeWhitelist([mint]);
-    const { poolPda: pool } = await testMakePool({
-      tswap,
-      owner,
-      config,
-      whitelist,
-    });
-    await testDepositNft({
-      pool,
-      config,
-      owner,
-      ata,
-      wlNft,
-      whitelist,
-      commitment: "confirmed",
-    });
-
-    const { withdrawSig } = await testWithdrawNft({
-      pool,
-      config,
-      owner,
-      ata,
-      wlNft,
-      whitelist,
-      commitment: "confirmed",
-    });
-
-    const tx = (await TEST_PROVIDER.connection.getTransaction(withdrawSig, {
-      commitment: "confirmed",
-    }))!;
-    expect(tx).not.null;
-    const ixs = swapSdk.parseIxs(tx);
-    expect(ixs).length(1);
-
-    const ix = ixs[0];
-    expect(ix.ix.name).eq("withdrawNft");
-    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
-      JSON.stringify(castPoolConfigAnchor(config))
-    );
-    expect(swapSdk.getSolAmount(ix)).null;
-    expect(swapSdk.getFeeAmount(ix)).null;
-
-    expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
-      wlNft.mint.toBase58()
-    );
-    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
-      owner.publicKey.toBase58()
-    );
-  });
-
-  it("properly parses raw withdraw sol tx", async () => {
-    const [owner] = await makeNTraders(1);
     const config = tokenPoolConfig;
     const { mint } = await createAndFundATA(owner);
     const { whitelist } = await makeWhitelist([mint]);
@@ -481,6 +484,9 @@ describe("tswap withdraws", () => {
 
     expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
       owner.publicKey.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
+      whitelist.toBase58()
     );
   });
 

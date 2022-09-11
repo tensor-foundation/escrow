@@ -217,6 +217,9 @@ describe("tswap pool", () => {
           expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
             owner.publicKey.toBase58()
           );
+          expect(
+            swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()
+          ).eq(whitelist.toBase58());
         }
       })
     );
