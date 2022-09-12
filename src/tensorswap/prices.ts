@@ -1,4 +1,4 @@
-import { TakerSide, CurveType, PoolType, PoolConfig } from "../types";
+import { CurveType, PoolConfig, PoolType, TakerSide } from "../types";
 import Big from "big.js";
 import BN from "bn.js";
 
@@ -165,12 +165,14 @@ const _shiftPriceByDelta = (
   }
 };
 
+//takes into account pool type: for trade pool reduces starting price by 1 delta
 export const calcCurveTotalCount = ({
   desired,
   startPrice,
   normedCurveIncr,
   curveType,
   takerSide,
+  isTradePool = false,
 }: {
   desired: { count: number } | { total: BN };
   // These should be in native units (no decimals) .
@@ -178,24 +180,21 @@ export const calcCurveTotalCount = ({
   // For exp: this is in bps (1/100th of a percent, so 50% = 5000).
   normedCurveIncr: BN;
   curveType: CurveType;
+  // Reverse of pool side. Keeping for consistency with the rest of the app.
   takerSide: TakerSide;
-}) => {
+  isTradePool?: boolean;
+}): { total: BN; allowedCount: number } => {
   let total = new BN(0);
   let allowedCount = 0;
   let curPrice = startPrice;
-  // When the taker is buying, they want the price to decrease and vice versa
-  let sign = new BN(takerSide === TakerSide.Buy ? -1 : 1);
+
+  // When the taker is buying (pool is selling), price goes up. With each sale pools gets more expensive.
+  let sign = new BN(takerSide === TakerSide.Buy ? 1 : -1);
   const linFactor = normedCurveIncr.mul(sign);
   // 1 - curveIncrement or 1 + curveIncrement.
   const expFactorBps = new BN(HUNDRED_PCT_BPS).add(normedCurveIncr.mul(sign));
 
-  while (
-    (("count" in desired && allowedCount < desired.count) ||
-      ("total" in desired && total.lt(desired.total))) &&
-    curPrice.gt(new BN(0))
-  ) {
-    total = total.add(curPrice);
-    allowedCount++;
+  const _shiftPriceOnce = () => {
     switch (curveType) {
       case CurveType.Linear:
         curPrice = curPrice.add(linFactor);
@@ -207,6 +206,21 @@ export const calcCurveTotalCount = ({
       default:
         throw new Error(`unknown curve type ${curveType}`);
     }
+  };
+
+  //if trade pool & pool is buying (taker is selling) -> need to move one notch down
+  if (isTradePool && takerSide === TakerSide.Sell) {
+    _shiftPriceOnce();
+  }
+
+  while (
+    (("count" in desired && allowedCount < desired.count) ||
+      ("total" in desired && total.lte(desired.total.sub(curPrice)))) &&
+    curPrice.gt(new BN(0))
+  ) {
+    total = total.add(curPrice);
+    allowedCount++;
+    _shiftPriceOnce();
   }
 
   return { total, allowedCount };
