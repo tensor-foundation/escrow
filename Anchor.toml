@@ -3,8 +3,8 @@
 seeds = false
 skip-lint = false
 [programs.localnet]
-tensorswap = "EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA"
-tensor_whitelist = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6"
+tensorswap = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN"
+tensor_whitelist = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW"
 
 
 [registry]

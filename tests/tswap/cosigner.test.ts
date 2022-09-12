@@ -100,6 +100,7 @@ describe("tswap cosigner", () => {
       tswapPda,
     } = await swapSdk.initUpdateTSwap({
       owner: TEST_PROVIDER.publicKey,
+      newOwner: TEST_PROVIDER.publicKey,
       config: TSWAP_CONFIG,
       cosigner,
     });

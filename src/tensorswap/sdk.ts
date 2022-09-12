@@ -279,11 +279,13 @@ export class TensorSwapSDK {
   //main signature: owner
   async initUpdateTSwap({
     owner,
+    newOwner,
     config,
     feeVault = TSWAP_FEE_ACC,
     cosigner = owner,
   }: {
     owner: PublicKey;
+    newOwner: PublicKey;
     config: TSwapConfigAnchor;
     feeVault?: PublicKey;
     // Default to owner (ie anchor provider wallet).
@@ -291,13 +293,15 @@ export class TensorSwapSDK {
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
 
-    const builder = this.program.methods.initUpdateTswap(config).accounts({
-      tswap: tswapPda,
-      owner,
-      cosigner,
-      feeVault,
-      systemProgram: SystemProgram.programId,
-    });
+    const builder = this.program.methods
+      .initUpdateTswap(newOwner, config)
+      .accounts({
+        tswap: tswapPda,
+        owner,
+        cosigner,
+        feeVault,
+        systemProgram: SystemProgram.programId,
+      });
 
     return {
       builder,

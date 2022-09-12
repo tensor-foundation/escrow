@@ -10,7 +10,6 @@ import * as anchor from "@project-serum/anchor";
 import { AnchorProvider } from "@project-serum/anchor";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
-import BN from "bn.js";
 import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
 import { getLamports as _getLamports } from "../src/common";
 import { expect } from "chai";
@@ -26,6 +25,7 @@ export {
   TakerSide,
   HUNDRED_PCT_BPS,
   castPoolConfigAnchor,
+  stringifyPKsAndBNs,
 } from "../src";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
@@ -118,19 +118,6 @@ export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
   return { tree, root: tree.getRoot().toJSON().data, proofs };
 };
 
-export const stringifyPKsAndBNs = (i: any) => {
-  if (_isPk(i)) {
-    return (<PublicKey>i).toBase58();
-  } else if (i instanceof BN) {
-    return i.toString();
-  } else if (_parseType(i) === "array") {
-    return _stringifyPKsAndBNInArray(i);
-  } else if (_parseType(i) === "object") {
-    return _stringifyPKsAndBNsInObject(i);
-  }
-  return i;
-};
-
 // This passes the accounts' lamports before the provided `callback` function is called.
 // Useful for doing before/after lamports diffing.
 //
@@ -188,70 +175,6 @@ export const cartesian = <T extends any[][]>(...arr: T): MapCartesian<T>[] =>
     (a, b) => a.flatMap((c) => b.map((d) => [...c, d])),
     [[]]
   ) as MapCartesian<T>[];
-
-//#region Helper fns.
-
-const _isPk = (obj: any): boolean => {
-  return (
-    typeof obj === "object" &&
-    obj !== null &&
-    typeof obj["toBase58"] === "function"
-  );
-};
-
-const _stringifyPKsAndBNsInObject = (o: any) => {
-  const newO = { ...o };
-  for (const [k, v] of Object.entries(newO)) {
-    if (_isPk(v)) {
-      newO[k] = (<PublicKey>v).toBase58();
-    } else if (v instanceof BN) {
-      newO[k] = (v as BN).toString();
-    } else if (_parseType(v) === "array") {
-      newO[k] = _stringifyPKsAndBNInArray(v as any);
-    } else if (_parseType(v) === "object") {
-      newO[k] = _stringifyPKsAndBNsInObject(v);
-    } else {
-      newO[k] = v;
-    }
-  }
-  return newO;
-};
-
-const _stringifyPKsAndBNInArray = (a: any[]): any[] => {
-  const newA = [];
-  for (const i of a) {
-    if (_isPk(i)) {
-      newA.push(i.toBase58());
-    } else if (i instanceof BN) {
-      newA.push(i.toString());
-    } else if (_parseType(i) === "array") {
-      newA.push(_stringifyPKsAndBNInArray(i));
-    } else if (_parseType(i) === "object") {
-      newA.push(stringifyPKsAndBNs(i));
-    } else {
-      newA.push(i);
-    }
-  }
-  return newA;
-};
-
-const _parseType = <T>(v: T): string => {
-  if (v === null || v === undefined) {
-    return "null";
-  }
-  if (typeof v === "object") {
-    if (v instanceof Array) {
-      return "array";
-    }
-    if (v instanceof Date) {
-      return "date";
-    }
-    return "object";
-  }
-  return typeof v;
-};
-
-// #endregion
 
 //(!) provider used across all tests
 export const TEST_PROVIDER = anchor.AnchorProvider.local();

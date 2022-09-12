@@ -8,13 +8,14 @@ import { createFundedWallet, TSWAP_CONFIG } from "./common";
 chai.use(chaiAsPromised);
 
 describe("tswap init_update_tswap", () => {
-  it("pool adds the created unix timestamp (in seconds)", async () => {
+  it("properly checks for owner on further updates", async () => {
     const initialOwner = await createFundedWallet();
     const {
       tx: { ixs },
       tswapPda: tswap,
     } = await swapSdk.initUpdateTSwap({
       owner: initialOwner.publicKey,
+      newOwner: initialOwner.publicKey,
       feeVault: TSWAP_FEE_ACC,
       cosigner: initialOwner.publicKey,
       config: TSWAP_CONFIG,
@@ -34,6 +35,7 @@ describe("tswap init_update_tswap", () => {
       tx: { ixs: fakeIxs },
     } = await swapSdk.initUpdateTSwap({
       owner: randomOwner.publicKey,
+      newOwner: randomOwner.publicKey,
       feeVault: randomFeeAcct,
       cosigner: randomCosigner.publicKey,
       config: TSWAP_CONFIG,
@@ -45,10 +47,12 @@ describe("tswap init_update_tswap", () => {
       })
     ).rejectedWith(swapSdk.getErrorCodeHex("BadTSwapOwner"));
 
+    // Update cosigner + owner works.
     const {
       tx: { ixs: goodIxs },
     } = await swapSdk.initUpdateTSwap({
       owner: initialOwner.publicKey,
+      newOwner: randomOwner.publicKey,
       feeVault: randomFeeAcct,
       cosigner: randomCosigner.publicKey,
       config: TSWAP_CONFIG,
@@ -58,7 +62,7 @@ describe("tswap init_update_tswap", () => {
       extraSigners: [initialOwner, randomCosigner],
     });
     tswapAcc = await swapSdk.fetchTSwap(tswap);
-    expect(tswapAcc.owner.toBase58()).eq(initialOwner.publicKey.toBase58());
+    expect(tswapAcc.owner.toBase58()).eq(randomOwner.publicKey.toBase58());
     expect(tswapAcc.cosigner.toBase58()).eq(
       randomCosigner.publicKey.toBase58()
     );

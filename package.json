@@ -35,6 +35,8 @@
     "merkletreejs": "^0.2.32"
   },
   "devDependencies": {
+    "@ledgerhq/hw-app-solana": "^6.27.2",
+    "@ledgerhq/hw-transport-node-hid": "^6.27.2",
     "@types/big.js": "^6.1.5",
     "@types/chai": "^4.3.0",
     "@types/chai-as-promised": "^7.1.4",

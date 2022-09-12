@@ -9,19 +9,20 @@ pub use instructions::*;
 pub use merkle_proof::*;
 pub use state::*;
 
-declare_id!("EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA");
+declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
 
-// TODO: replace these (ideally root in cold wallet vs fee vault + cosigner)
-#[cfg(not(feature = "testing"))]
-static ROOT_AUTHORITY: &str = "CsuafJ4VM8v2NvBVrWyc3pEHrTtJXrSzmMacLdnwPqbj";
-static TENSOR_WHITELIST_ADDR: &str = "CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6";
+static TENSOR_WHITELIST_ADDR: &str = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW";
 
 #[program]
 pub mod tensorswap {
     use super::*;
 
-    pub fn init_update_tswap(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
-        instructions::init_update_tswap::handler(ctx, config)
+    pub fn init_update_tswap(
+        ctx: Context<InitUpdateTSwap>,
+        new_owner: Pubkey,
+        config: TSwapConfig,
+    ) -> Result<()> {
+        instructions::init_update_tswap::handler(ctx, new_owner, config)
     }
 
     pub fn init_pool(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {

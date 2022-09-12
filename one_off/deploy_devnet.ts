@@ -93,6 +93,7 @@ const initTswap = async () => {
     tx: { ixs },
   } = await swapSDK.initUpdateTSwap({
     owner: payer.publicKey,
+    newOwner: payer.publicKey,
     config: { feeBps: 500 },
   });
   const sig = await buildAndSendTx({ ixs, provider });

@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use vipers::throw_err;
 
-declare_id!("CyrMiKJphasn4kZLzMFG7cR9bZJ1rifGF37uSpJRxVi6");
+declare_id!("TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW");
 
 pub const CURRENT_WHITELIST_VERSION: u8 = 1;
 

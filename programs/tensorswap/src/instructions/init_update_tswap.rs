@@ -2,8 +2,6 @@
 use vipers::throw_err;
 
 use crate::*;
-#[cfg(not(feature = "testing"))]
-use std::str::FromStr;
 
 #[derive(Accounts)]
 pub struct InitUpdateTSwap<'info> {
@@ -18,7 +16,6 @@ pub struct InitUpdateTSwap<'info> {
     /// We ask also for a signature just to make sure this wallet can actually sign things
     pub cosigner: Signer<'info>,
 
-    #[cfg_attr(not(feature = "testing"), account(address = Pubkey::from_str(ROOT_AUTHORITY).unwrap()))]
     #[account(mut)]
     pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -37,12 +34,16 @@ impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
+pub fn handler(
+    ctx: Context<InitUpdateTSwap>,
+    new_owner: Pubkey,
+    config: TSwapConfig,
+) -> Result<()> {
     let tswap = &mut ctx.accounts.tswap;
 
     tswap.version = CURRENT_TSWAP_VERSION;
     tswap.bump = [unwrap_bump!(ctx, "tswap")];
-    tswap.owner = ctx.accounts.owner.key();
+    tswap.owner = new_owner;
     tswap.config = config;
     tswap.fee_vault = ctx.accounts.fee_vault.key();
     tswap.cosigner = ctx.accounts.cosigner.key();

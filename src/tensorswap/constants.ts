@@ -1,9 +1,13 @@
 import { PublicKey } from "@solana/web3.js";
 
 export const TENSORSWAP_ADDR = new PublicKey(
-  process.env.TENSORSWAP_ADDR || "EcBj1yGnNmya7uGjkrroX8jupyoJn29uTGEk5jv21WPA"
+  process.env.TENSORSWAP_ADDR || "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN"
 );
 
 export const TSWAP_FEE_ACC = new PublicKey(
-  process.env.TSWAP_FEE_ACC || "5u1vB9UeQSCzzwEhmKPhmQH1veWP9KZyZ8xFxFrmj8CK"
+  process.env.TSWAP_FEE_ACC || "EuCpcygKBc39MY4iNkGUXE161houE4GYt6v1nGJC1GVQ"
+);
+
+export const TSWAP_COSIGNER = new PublicKey(
+  process.env.TSWAP_COSIGNER || "ErF3DfenxKSC2JhdpDURPExFMVJAiFfVrdHY3FhTXSGJ"
 );

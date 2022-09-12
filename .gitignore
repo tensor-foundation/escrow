@@ -59,3 +59,9 @@ __pycache__/
 **/lib/jars/
 # We generate these dynamically: do not check in
 *.properties
+
+# Keys used to deploy
+cosigner.json
+initial_authority.json
+TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW.json
+TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN.json

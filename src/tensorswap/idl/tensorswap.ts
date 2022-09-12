@@ -36,6 +36,10 @@ export type Tensorswap = {
       ],
       "args": [
         {
+          "name": "newOwner",
+          "type": "publicKey"
+        },
+        {
           "name": "config",
           "type": {
             "defined": "TSwapConfig"
@@ -1195,6 +1199,10 @@ export const IDL: Tensorswap = {
         }
       ],
       "args": [
+        {
+          "name": "newOwner",
+          "type": "publicKey"
+        },
         {
           "name": "config",
           "type": {
