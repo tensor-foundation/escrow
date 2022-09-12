@@ -125,7 +125,9 @@ const _readKP = (file: string) =>
 
   // Init SDKs + connections.
   const conn = new Connection(
-    args.localnet ? "http://localhost:8899" : "https://mainnet-api.solana.com"
+    args.localnet
+      ? "http://localhost:8899"
+      : "https://api.mainnet-beta.solana.com"
   );
   const initAuthority = _readKP("initial_authority.json");
   const provider = new AnchorProvider(conn, new Wallet(initAuthority), {
