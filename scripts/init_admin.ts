@@ -171,15 +171,19 @@ const _readKP = (file: string) =>
       feePayer: provider.publicKey,
     });
     await provider.wallet.signTransaction(tx);
-    const sig = await provider.sendAndConfirm(tx);
+    const sig = await provider.sendAndConfirm(tx, undefined, {
+      commitment: "confirmed",
+    });
 
     console.log(
-      `upserted authority (owner: ${owner.toBase58()}, newOwner: ${newOwner.toBase58()}), sig: ${sig}`
+      `upserted authority (owner: ${owner.toBase58()}, newOwner: ${newOwner.toBase58()}), sig: ${sig}, waiting 5s for pda update...`
     );
+    await new Promise((res) => setTimeout(res, 5000));
+    const pda = findWhitelistAuthPDA({})[0];
     console.log(
-      stringifyPKsAndBNs(
-        await wlSdk.fetchAuthority(findWhitelistAuthPDA({})[0])
-      )
+      "pda",
+      pda.toBase58(),
+      stringifyPKsAndBNs(await wlSdk.fetchAuthority(pda, "confirmed"))
     );
   }
 
@@ -231,12 +235,18 @@ const _readKP = (file: string) =>
     // TODO: figuer out ledger.
     // await ledgerWallet.signTransaction(tx);
     await provider.wallet.signTransaction(tx);
-    const sig = await provider.sendAndConfirm(tx, [cosigner]);
+    const sig = await provider.sendAndConfirm(tx, [cosigner], {
+      commitment: "confirmed",
+    });
     console.log(
-      `upserted TSwap (owner: ${owner.toBase58()}, newOwner: ${newOwner.toBase58()}, cosigner: ${cosigner.publicKey.toBase58()}, fees: ${TSWAP_FEE_BPS}), sig: ${sig}`
+      `upserted TSwap (owner: ${owner.toBase58()}, newOwner: ${newOwner.toBase58()}, cosigner: ${cosigner.publicKey.toBase58()}, fees: ${TSWAP_FEE_BPS}), sig: ${sig}, waiting 5s for pda update...`
     );
+    await new Promise((res) => setTimeout(res, 5000));
+    const pda = findTSwapPDA({})[0];
     console.log(
-      stringifyPKsAndBNs(await swapSdk.fetchTSwap(findTSwapPDA({})[0]))
+      "pda",
+      pda.toBase58(),
+      stringifyPKsAndBNs(await swapSdk.fetchTSwap(pda, "confirmed"))
     );
   }
 
