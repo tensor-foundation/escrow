@@ -32,7 +32,7 @@ describe("prices helper functions", () => {
       { mmFeeBps: 0, expected: startingPrice, takerSide: TakerSide.Buy },
       { mmFeeBps: 250, expected: startingPrice, takerSide: TakerSide.Buy },
     ]) {
-      const actual = computeTakerDisplayPrice({
+      const { displayPrice: actual } = computeTakerDisplayPrice({
         config: {
           poolType: PoolType.Trade,
           curveType: CurveType.Linear,
@@ -76,9 +76,8 @@ describe("prices helper functions", () => {
         extraNFTsSelected: 0,
         slippage: 0,
       };
-      expect(computeTakerDisplayPrice(args).toString()).eq(
-        computeCurrentPrice(args).toString()
-      );
+      const { displayPrice: actual } = computeTakerDisplayPrice(args);
+      expect(actual.toString()).eq(computeCurrentPrice(args).toString());
     }
   });
 });

@@ -58,19 +58,22 @@ export type ComputePriceArgs = {
 // This is what should be displayed to the user.
 // In contrast, computeCurrentPrice is what should be passed to the ix itself
 // (doesn't take into account tswap/mm fees).
-export const computeTakerDisplayPrice = (args: ComputePriceArgs) => {
-  let takerPrice = computeCurrentPrice(args);
-  // For
+export const computeTakerDisplayPrice = (
+  args: ComputePriceArgs
+): { actualPrice: Big; displayPrice: Big } => {
+  let actualPrice = computeCurrentPrice(args);
+
+  let displayPrice = actualPrice;
   if (
     args.config.poolType === PoolType.Trade &&
     args.takerSide === TakerSide.Sell
   ) {
-    takerPrice = takerPrice.sub(
-      takerPrice.mul(args.config.mmFeeBps ?? 0).div(HUNDRED_PCT_BPS)
+    displayPrice = displayPrice.sub(
+      displayPrice.mul(args.config.mmFeeBps ?? 0).div(HUNDRED_PCT_BPS)
     );
   }
 
-  return takerPrice;
+  return { actualPrice, displayPrice };
 };
 
 // Computes the current price of a pool, optionally with slippage (so minPrice for Sell, maxPrice for Buy).
