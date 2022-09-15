@@ -465,6 +465,11 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "nftMetadata",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "nftEscrow",
           "isMut": true,
           "isSigner": false,
@@ -583,6 +588,11 @@ export type Tensorswap = {
               "isSigner": false
             },
             {
+              "name": "nftMetadata",
+              "isMut": false,
+              "isSigner": false
+            },
+            {
               "name": "solEscrow",
               "isMut": true,
               "isSigner": false
@@ -690,6 +700,11 @@ export type Tensorswap = {
             },
             {
               "name": "nftMint",
+              "isMut": false,
+              "isSigner": false
+            },
+            {
+              "name": "nftMetadata",
               "isMut": false,
               "isSigner": false
             },
@@ -1064,6 +1079,11 @@ export type Tensorswap = {
           "name": "mmFee",
           "type": "u64",
           "index": true
+        },
+        {
+          "name": "creatorsFee",
+          "type": "u64",
+          "index": true
         }
       ]
     }
@@ -1126,8 +1146,8 @@ export type Tensorswap = {
     },
     {
       "code": 6011,
-      "name": "RoyaltiesDisabled",
-      "msg": "royalties are disabled for now"
+      "name": "RoyaltiesEnabled",
+      "msg": "royalties are enabled always"
     },
     {
       "code": 6012,
@@ -1158,6 +1178,16 @@ export type Tensorswap = {
       "code": 6017,
       "name": "FeesNotAllowed",
       "msg": "fees not allowed for non-trade pools"
+    },
+    {
+      "code": 6018,
+      "name": "BadMetadata",
+      "msg": "metadata account does not match mint"
+    },
+    {
+      "code": 6019,
+      "name": "CreatorMismatch",
+      "msg": "provided creator address does not match metadata creator"
     }
   ]
 };
@@ -1629,6 +1659,11 @@ export const IDL: Tensorswap = {
           "isSigner": false
         },
         {
+          "name": "nftMetadata",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "nftEscrow",
           "isMut": true,
           "isSigner": false,
@@ -1747,6 +1782,11 @@ export const IDL: Tensorswap = {
               "isSigner": false
             },
             {
+              "name": "nftMetadata",
+              "isMut": false,
+              "isSigner": false
+            },
+            {
               "name": "solEscrow",
               "isMut": true,
               "isSigner": false
@@ -1854,6 +1894,11 @@ export const IDL: Tensorswap = {
             },
             {
               "name": "nftMint",
+              "isMut": false,
+              "isSigner": false
+            },
+            {
+              "name": "nftMetadata",
               "isMut": false,
               "isSigner": false
             },
@@ -2228,6 +2273,11 @@ export const IDL: Tensorswap = {
           "name": "mmFee",
           "type": "u64",
           "index": true
+        },
+        {
+          "name": "creatorsFee",
+          "type": "u64",
+          "index": true
         }
       ]
     }
@@ -2290,8 +2340,8 @@ export const IDL: Tensorswap = {
     },
     {
       "code": 6011,
-      "name": "RoyaltiesDisabled",
-      "msg": "royalties are disabled for now"
+      "name": "RoyaltiesEnabled",
+      "msg": "royalties are enabled always"
     },
     {
       "code": 6012,
@@ -2322,6 +2372,16 @@ export const IDL: Tensorswap = {
       "code": 6017,
       "name": "FeesNotAllowed",
       "msg": "fees not allowed for non-trade pools"
+    },
+    {
+      "code": 6018,
+      "name": "BadMetadata",
+      "msg": "metadata account does not match mint"
+    },
+    {
+      "code": 6019,
+      "name": "CreatorMismatch",
+      "msg": "provided creator address does not match metadata creator"
     }
   ]
 };

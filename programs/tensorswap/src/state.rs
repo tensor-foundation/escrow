@@ -1,4 +1,6 @@
+use mpl_token_metadata::state::Metadata;
 use spl_math::precise_number::PreciseNumber;
+use std::cmp::min;
 use std::fmt::Debug;
 use vipers::throw_err;
 
@@ -7,8 +9,7 @@ use crate::*;
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 1;
 
-// TODO: currently hardcoding, not to waste time passing in
-pub const TSWAP_FEE_BPS: u16 = 50; //0.5%
+pub const MAX_CREATORS_FEE_BPS: u16 = 90; // 0.9%
 
 pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
 pub const HUNDRED_PCT_BPS: u16 = 10000;
@@ -76,7 +77,7 @@ pub struct PoolConfig {
     pub starting_price: u64, //lamports
     pub delta: u64,          //lamports pr bps
 
-    // TODO: disabled for v1
+    // TODO: enabled for v1
     pub honor_royalties: bool,
 
     /// Trade pools only
@@ -139,6 +140,32 @@ impl Pool {
     pub fn calc_tswap_fee(&self, tswap_fee_bps: u16, current_price: u64) -> Result<u64> {
         let fee = unwrap_checked!({
             (tswap_fee_bps as u64)
+                .checked_mul(current_price)?
+                .checked_div(HUNDRED_PCT_BPS as u64)
+        });
+
+        Ok(fee)
+    }
+
+    pub fn calc_creators_fee(
+        &self,
+        side: TakerSide,
+        metadata: &Metadata,
+        current_price: u64,
+    ) -> Result<u64> {
+        // Royalties opted out.
+        if !self.config.honor_royalties {
+            return Ok(0);
+        }
+
+        // No creator fees for trade pools where taker buys (ie trade pool sells).
+        if side == TakerSide::Buy && self.config.pool_type == PoolType::Trade {
+            return Ok(0);
+        }
+
+        let creators_fee_bps = min(MAX_CREATORS_FEE_BPS, metadata.data.seller_fee_basis_points);
+        let fee = unwrap_checked!({
+            (creators_fee_bps as u64)
                 .checked_mul(current_price)?
                 .checked_div(HUNDRED_PCT_BPS as u64)
         });
@@ -237,6 +264,7 @@ pub enum Direction {
     Down,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum TakerSide {
     Buy,  // Buying from the pool.
     Sell, // Selling into the pool.
@@ -272,9 +300,10 @@ pub struct BuySellEvent {
     pub current_price: u64,
     #[index]
     pub tswap_fee: u64,
-    // Should be 0 for
     #[index]
     pub mm_fee: u64,
+    #[index]
+    pub creators_fee: u64,
 }
 
 // --------------------------------------- tests
@@ -307,7 +336,7 @@ mod tests {
                     curve_type,
                     starting_price,
                     delta,
-                    honor_royalties: false,
+                    honor_royalties: true,
                     mm_fee_bps,
                 },
                 taker_sell_count,

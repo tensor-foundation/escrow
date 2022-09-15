@@ -1,7 +1,6 @@
 //! User withdrawing SOL from their pool (all 3 types)
 use crate::*;
 use tensor_whitelist::Whitelist;
-use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
@@ -66,19 +65,6 @@ impl<'info> Validate<'info> for WithdrawSol<'info> {
 
 #[access_control(ctx.accounts.validate())]
 pub fn handler(ctx: Context<WithdrawSol>, lamports: u64) -> Result<()> {
-    // todo test
-    // Check we are not withdrawing into our rent.
-    let rent = Rent::get()?.minimum_balance(ctx.accounts.sol_escrow.to_account_info().data_len());
-    let lamports_excl_rent = unwrap_int!(ctx
-        .accounts
-        .sol_escrow
-        .to_account_info()
-        .lamports()
-        .checked_sub(rent));
-    if lamports > lamports_excl_rent {
-        throw_err!(InsufficientSolEscrowBalance);
-    }
-
     // do the transfer
     ctx.accounts.transfer_lamports_to_owner(lamports)?;
 

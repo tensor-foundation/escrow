@@ -1,6 +1,6 @@
 import { BN, LangErrorCode } from "@project-serum/anchor";
 import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
-import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {
   buildAndSendTx,
@@ -144,12 +144,37 @@ describe("tswap sell", () => {
     }
     // Now seller sells into pool.
     await buildAndSendTx({
-      provider: TEST_PROVIDER,
       ixs,
       extraSigners: [seller],
     });
     // Owner should have ATA now.
     expect((await getAccount(ownerAtaAcc)).amount.toString()).eq("1");
+  });
+
+  it("sell into token/trade pool works with royalties (both < & > 0.9%)", async () => {
+    const [owner, seller] = await makeNTraders(2);
+
+    // Intentionally do this serially (o/w balances will race).
+    for (const [royaltyBps, config] of cartesian(
+      [50, 1000],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      const creators = [{ address: Keypair.generate().publicKey, share: 100 }];
+
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports:
+          config === tokenPoolConfig
+            ? LAMPORTS_PER_SOL
+            : LAMPORTS_PER_SOL - 1234,
+        royaltyBps,
+        creators,
+      });
+    }
   });
 
   it("sell into nft pool fails", async () => {
@@ -269,7 +294,6 @@ describe("tswap sell", () => {
 
           await expect(
             buildAndSendTx({
-              provider: TEST_PROVIDER,
               ixs,
               extraSigners: [seller],
             })
@@ -285,7 +309,7 @@ describe("tswap sell", () => {
     const numSells = 5;
     const baseConfig = {
       startingPrice: new BN(2),
-      honorRoyalties: false,
+      honorRoyalties: true,
     };
     await Promise.all(
       cartesian(
@@ -387,6 +411,69 @@ describe("tswap sell", () => {
     );
   });
 
+  it("cannot sell when sol escrow eats into rent", async () => {
+    const [owner, seller] = await makeNTraders(2);
+    const { mint, ata } = await createAndFundATA(seller);
+    const {
+      proofs: [wlNft],
+      whitelist,
+    } = await makeWhitelist([mint]);
+
+    // o/w we need to subtract more to trigger insufficient sol balance
+    // b/c some balance is kept for MM.
+    const noMmTradeConfig = {
+      ...tradePoolConfig,
+      mmFeeBps: 0,
+    };
+
+    await Promise.all(
+      [tokenPoolConfig, noMmTradeConfig].map(async (config) => {
+        const { poolPda: pool } = await testMakePool({
+          tswap,
+          owner,
+          whitelist,
+          config,
+        });
+        const expectedLamports =
+          config === noMmTradeConfig
+            ? LAMPORTS_PER_SOL - 1234
+            : LAMPORTS_PER_SOL;
+        await testDepositSol({
+          pool,
+          config,
+          owner,
+          // Deposit 1 lamport less than required.
+          lamports: expectedLamports - 1,
+          whitelist,
+        });
+
+        const {
+          tx: { ixs },
+        } = await swapSdk.sellNft({
+          type: config === noMmTradeConfig ? "trade" : "token",
+          whitelist,
+          nftMint: wlNft.mint,
+          nftSellerAcc: ata,
+          owner: owner.publicKey,
+          seller: seller.publicKey,
+          config,
+          proof: wlNft.proof,
+          minPrice: new BN(expectedLamports),
+          cosigner: TEST_PROVIDER.publicKey,
+        });
+
+        // Selling into pool should trigger error.
+        await expect(
+          buildAndSendTx({
+            ixs,
+            extraSigners: [seller],
+            debug: true,
+          })
+        ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientSolEscrowBalance"));
+      })
+    );
+  });
+
   it("alternate deposits & sells", async () => {
     const numSells = 10;
     const [traderA, traderB] = await makeNTraders(2);
@@ -405,7 +492,7 @@ describe("tswap sell", () => {
               ? new BN(1_238_923_843 / numSells)
               : // 10.21% (prime #)
                 new BN(10_21),
-          honorRoyalties: false,
+          honorRoyalties: true,
           mmFeeBps: poolType === PoolTypeAnchor.Trade ? 0 : null,
         };
 
@@ -532,7 +619,7 @@ describe("tswap sell", () => {
       startingPrice: new BN(2_083_195_757),
       // 17.21% (prime #)
       delta: new BN(17_21),
-      honorRoyalties: false,
+      honorRoyalties: true,
       mmFeeBps: null,
     };
 
@@ -612,7 +699,7 @@ describe("tswap sell", () => {
     );
   });
 
-  it("properly parses raw sell tx", async () => {
+  it.only("properly parses raw sell tx", async () => {
     const [owner, seller] = await makeNTraders(2);
 
     for (const { config, name } of [
@@ -631,6 +718,7 @@ describe("tswap sell", () => {
         config,
         expectedLamports,
         commitment: "confirmed",
+        royaltyBps: 69,
       });
 
       const tx = (await TEST_PROVIDER.connection.getTransaction(sellSig, {
@@ -647,8 +735,9 @@ describe("tswap sell", () => {
       );
       expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
       expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-        Math.floor(expectedLamports * TSWAP_FEE) +
-          Math.floor((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4)
+        Math.trunc(expectedLamports * TSWAP_FEE) +
+          Math.trunc((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4) +
+          Math.trunc((expectedLamports * 69) / 1e4)
       );
 
       expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(

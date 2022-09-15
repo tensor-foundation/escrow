@@ -57,6 +57,18 @@ pub struct BuyNft<'info> {
     )]
     pub nft_mint: Box<Account<'info, Mint>>,
 
+    /// CHECK: assert_decode_metadata + seeds below
+    #[account(
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub nft_metadata: UncheckedAccount<'info>,
+
     /// Implicitly checked via transfer. Will fail if wrong account.
     /// This is closed below (dest = owner)
     #[account(
@@ -109,6 +121,7 @@ pub struct BuyNft<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+    // Remaining accounts = 0 to N creator accounts.
 }
 
 impl<'info> BuyNft<'info> {
@@ -171,8 +184,11 @@ pub fn handler<'a, 'b, 'c, 'info>(
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
+    let metadata = &assert_decode_metadata(&ctx.accounts.nft_mint, &ctx.accounts.nft_metadata)?;
+
     let current_price = pool.current_price(TakerSide::Buy)?;
     let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
+    let creators_fee = pool.calc_creators_fee(TakerSide::Buy, metadata, current_price)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -180,6 +196,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
         current_price,
         tswap_fee,
         mm_fee: 0, // no MM fee for buying
+        creators_fee,
     });
 
     if current_price > max_price {
@@ -193,6 +210,36 @@ pub fn handler<'a, 'b, 'c, 'info>(
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
     ctx.accounts
         .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
+
+    if creators_fee > 0 {
+        // send royalties: taken from AH's calculation:
+        // https://github.com/metaplex-foundation/metaplex-program-library/blob/2320b30ec91b729b153f0c0fe719f96d325b2358/auction-house/program/src/utils.rs#L366-L471
+        let mut remaining_fee = creators_fee;
+        let remaining_accounts = &mut ctx.remaining_accounts.iter();
+        match &metadata.data.creators {
+            Some(creators) => {
+                for creator in creators {
+                    let pct = creator.share as u64;
+                    let creator_fee =
+                        unwrap_checked!({ pct.checked_mul(creators_fee)?.checked_div(100) });
+                    remaining_fee = unwrap_int!(remaining_fee.checked_sub(creator_fee));
+                    let current_creator_info = next_account_info(remaining_accounts)?;
+                    require!(
+                        creator.address.eq(current_creator_info.key),
+                        CreatorMismatch
+                    );
+                    if creator_fee > 0 {
+                        ctx.accounts
+                            .transfer_lamports(current_creator_info, creator_fee)?;
+                    }
+                }
+            }
+            None => (),
+        }
+        // Return any dust to seller.
+        let actual_creators_fee = unwrap_int!(creators_fee.checked_sub(remaining_fee));
+        left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
+    }
 
     //transfer remainder to either seller/owner or the pool (if Trade pool)
     let destination = match pool.config.pool_type {

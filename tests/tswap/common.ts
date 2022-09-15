@@ -3,21 +3,23 @@ import {
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
+  Signer,
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
-  createInitializeMintInstruction,
-  createMintToInstruction,
   getAccount as _getAccount,
   getAssociatedTokenAddress,
-  getMinimumBalanceForRentExemptMint,
-  MINT_SIZE,
   TokenAccountNotFoundError,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import {
+  Metaplex,
+  keypairIdentity,
+  toBigNumber,
+} from "@metaplex-foundation/js";
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import {
@@ -29,9 +31,6 @@ import {
   TSWAP_FEE_ACC,
   computeCurrentPrice as computeCurrentPrice_,
   computeDepositAmount as computeDepositAmount_,
-  CurveType,
-  PoolType,
-  PoolConfig,
   TensorWhitelistSDK,
   PoolAnchor,
   castPoolConfigAnchor,
@@ -50,7 +49,6 @@ import {
 } from "../shared";
 import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
-import Big from "big.js";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -61,12 +59,13 @@ export const TSWAP_CONFIG: TSwapConfigAnchor = {
   feeBps: 500,
 };
 export const TSWAP_FEE = TSWAP_CONFIG.feeBps / 1e4;
+export const MAX_CREATORS_FEE = 90 / 1e4;
 
 export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
   curveType: CurveTypeAnchor.Linear,
   startingPrice: new BN(LAMPORTS_PER_SOL),
   delta: new BN(1234),
-  honorRoyalties: false,
+  honorRoyalties: true,
   mmFeeBps: null,
 };
 export const nftPoolConfig: PoolConfigAnchor = {
@@ -173,62 +172,77 @@ const _createATA = async (
   return { mint, owner, ata };
 };
 
-const _createAndFundATA = async (
-  provider: AnchorProvider,
-  amount: number,
-  owner?: Keypair,
-  mint?: Keypair
-): Promise<{ mint: PublicKey; ata: PublicKey; owner: Keypair }> => {
+export type CreatorInput = {
+  address: PublicKey;
+  share: number;
+  authority?: Signer;
+};
+
+const _createAndFundATA = async ({
+  provider,
+  owner,
+  mint,
+  royaltyBps,
+  creators,
+}: {
+  provider: AnchorProvider;
+  owner?: Keypair;
+  mint?: Keypair;
+  royaltyBps?: number;
+  creators?: CreatorInput[];
+}): Promise<{
+  mint: PublicKey;
+  ata: PublicKey;
+  owner: Keypair;
+  metadata: PublicKey;
+  masterEdition: PublicKey;
+}> => {
   const usedOwner = owner ?? (await _createFundedWallet(provider));
   const usedMint = mint ?? Keypair.generate();
-  const lamports = await getMinimumBalanceForRentExemptMint(
-    provider.connection
-  );
-  const createMintAccIx = SystemProgram.createAccount({
-    fromPubkey: usedOwner.publicKey,
-    newAccountPubkey: usedMint.publicKey,
-    space: MINT_SIZE,
-    lamports,
-    programId: TOKEN_PROGRAM_ID,
-  });
-  const createMintIx = createInitializeMintInstruction(
-    usedMint.publicKey,
-    0,
-    usedOwner.publicKey,
-    usedOwner.publicKey
-  );
-  const ata = await getAssociatedTokenAddress(
-    usedMint.publicKey,
-    usedOwner.publicKey
-  );
-  const createAtaIx = createAssociatedTokenAccountInstruction(
-    usedOwner.publicKey,
-    ata,
-    usedOwner.publicKey,
-    usedMint.publicKey
-  );
-  const mintIx = createMintToInstruction(
-    usedMint.publicKey,
-    ata,
-    usedOwner.publicKey,
-    amount
+
+  const mplex = new Metaplex(provider.connection).use(
+    keypairIdentity(usedOwner)
   );
 
-  const ixs = [createMintAccIx, createMintIx, createAtaIx];
-  if (amount > 0) {
-    ixs.push(mintIx);
-  }
+  const { metadataAddress, tokenAddress, masterEditionAddress } = await mplex
+    .nfts()
+    .create({
+      useNewMint: usedMint,
+      tokenOwner: usedOwner.publicKey,
+      uri: "https://www.tensor.trade",
+      name: "Whatever",
+      sellerFeeBasisPoints: royaltyBps ?? 0,
+      creators,
+      maxSupply: toBigNumber(1),
+    })
+    .run();
 
-  await buildAndSendTx({ provider, ixs, extraSigners: [usedOwner, usedMint] });
-  return { mint: usedMint.publicKey, ata, owner: usedOwner };
+  return {
+    mint: usedMint.publicKey,
+    ata: tokenAddress,
+    owner: usedOwner,
+    metadata: metadataAddress,
+    masterEdition: masterEditionAddress,
+  };
 };
 
 export const createFundedWallet = (sol?: number) =>
   _createFundedWallet(TEST_PROVIDER, sol);
 export const createATA = (mint: PublicKey, owner: Keypair) =>
   _createATA(TEST_PROVIDER, mint, owner);
-export const createAndFundATA = (owner?: Keypair, mint?: Keypair) =>
-  _createAndFundATA(TEST_PROVIDER, 1, owner, mint);
+export const createAndFundATA = (
+  owner?: Keypair,
+  mint?: Keypair,
+  royaltyBps?: number,
+  creators?: CreatorInput[]
+) =>
+  _createAndFundATA({
+    provider: TEST_PROVIDER,
+    owner,
+    mint,
+    royaltyBps,
+    creators,
+  });
 export const getAccount = (acct: PublicKey) =>
   _getAccount(TEST_PROVIDER.connection, acct);
 
@@ -237,12 +251,22 @@ export const getAccount = (acct: PublicKey) =>
 //#region Non-expect helper functions (no expects run).
 
 // Creates a mint + 2 ATAs. The `owner` will have the mint initially.
-export const makeMintTwoAta = async (owner: Keypair, other: Keypair) => {
-  const { mint, ata } = await createAndFundATA(owner);
+export const makeMintTwoAta = async (
+  owner: Keypair,
+  other: Keypair,
+  royaltyBps?: number,
+  creators?: CreatorInput[]
+) => {
+  const { mint, ata, metadata, masterEdition } = await createAndFundATA(
+    owner,
+    undefined,
+    royaltyBps,
+    creators
+  );
 
   const { ata: otherAta } = await createATA(mint, other);
 
-  return { mint, ata, otherAta };
+  return { mint, metadata, ata, otherAta, masterEdition };
 };
 
 export const makeNTraders = async (n: number, sol?: number) => {
@@ -359,7 +383,8 @@ export const testMakePool = async ({
     config.startingPrice.toNumber()
   );
   expect(accConfig.delta.toNumber()).eq(config.delta.toNumber());
-  expect(accConfig.honorRoyalties).eq(false);
+  // Royalties enforced atm.
+  expect(accConfig.honorRoyalties).eq(true);
   if (config.poolType === PoolTypeAnchor.Trade) {
     expect(accConfig.mmFeeBps).eq(config.mmFeeBps);
   } else {
@@ -628,6 +653,8 @@ export const testMakePoolBuyNft = async ({
   expectedLamports,
   maxLamports = expectedLamports,
   commitment,
+  royaltyBps,
+  creators,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -638,8 +665,15 @@ export const testMakePoolBuyNft = async ({
   // All expects will still use expectedLamports.
   maxLamports?: number;
   commitment?: Commitment;
+  royaltyBps?: number;
+  creators?: CreatorInput[];
 }) => {
-  const { mint, ata, otherAta } = await makeMintTwoAta(owner, buyer);
+  const { mint, ata, otherAta, metadata, masterEdition } = await makeMintTwoAta(
+    owner,
+    buyer,
+    royaltyBps,
+    creators
+  );
   const {
     proofs: [wlNft],
     whitelist,
@@ -698,12 +732,6 @@ export const testMakePoolBuyNft = async ({
           commitment,
         },
       });
-      console.log(
-        "lol2",
-        owner.publicKey.toBase58(),
-        buyer.publicKey.toBase58(),
-        wlNft.mint.toBase58()
-      );
 
       //NFT moved from escrow to trader
       const traderAcc = await getAccount(otherAta);
@@ -718,6 +746,20 @@ export const testMakePoolBuyNft = async ({
       //paid tswap fees (NB: fee account may be un-init before).
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
+      // Check creators' balances.
+      const isTrade = config.poolType === PoolTypeAnchor.Trade;
+      let creatorsFee = 0;
+      // Trade pools (when being bought from) charge no royalties.
+      if (!!creators?.length && royaltyBps && !isTrade) {
+        creatorsFee = Math.trunc(
+          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) * expectedLamports
+        );
+        for (const c of creators) {
+          const cBal = await getLamports(c.address);
+          expect(cBal).eq((creatorsFee * c.share) / 100);
+        }
+      }
+
       // Buyer pays full amount.
       const currBuyerLamports = await getLamports(buyer.publicKey);
       expect(currBuyerLamports! - prevBuyerLamports!).eq(-1 * expectedLamports);
@@ -725,14 +767,13 @@ export const testMakePoolBuyNft = async ({
       // Depending on the pool type:
       // (1) Trade = amount sent to escrow, NOT owner
       // (1) NFT = amount sent to owner, NOT escrow
-      const grossAmount = expectedLamports * (1 - TSWAP_FEE);
+      const grossAmount = expectedLamports * (1 - TSWAP_FEE) - creatorsFee;
       const expOwnerAmount =
-        (config.poolType === PoolTypeAnchor.Trade ? 0 : grossAmount) +
+        (isTrade ? 0 : grossAmount) +
         // The owner gets back the rent costs.
         (await swapSdk.getNftDepositReceiptRent()) +
         (await swapSdk.getTokenAcctRent());
-      const expEscrowAmount =
-        config.poolType === PoolTypeAnchor.Trade ? grossAmount : 0;
+      const expEscrowAmount = isTrade ? grossAmount : 0;
       // amount sent to owner's wallet
       const currSellerLamports = await getLamports(owner.publicKey);
       expect(currSellerLamports! - prevSellerLamports!).eq(expOwnerAmount);
@@ -761,6 +802,8 @@ export const testMakePoolBuyNft = async ({
         solEscrowPda,
         escrowPda,
         buySig,
+        metadata,
+        masterEdition,
       };
     }
   );
@@ -776,6 +819,8 @@ export const testMakePoolSellNft = async ({
   expectedLamports,
   minLamports = expectedLamports,
   commitment,
+  royaltyBps,
+  creators,
 }: {
   sellType: "trade" | "token";
   tswap: PublicKey;
@@ -787,8 +832,15 @@ export const testMakePoolSellNft = async ({
   // All expects will still use expectedLamports.
   minLamports?: number;
   commitment?: Commitment;
+  royaltyBps?: number;
+  creators?: CreatorInput[];
 }) => {
-  const { mint, ata } = await makeMintTwoAta(seller, owner);
+  const { mint, ata } = await makeMintTwoAta(
+    seller,
+    owner,
+    royaltyBps,
+    creators
+  );
   const {
     proofs: [wlNft],
     whitelist,
@@ -869,6 +921,18 @@ export const testMakePoolSellNft = async ({
       //paid tswap fees (NB: fee account may be un-init before).
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
+      // Check creators' balances.
+      let creatorsFee = 0;
+      if (!!creators?.length && royaltyBps) {
+        creatorsFee = Math.trunc(
+          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) * expectedLamports
+        );
+        for (const c of creators) {
+          const cBal = await getLamports(c.address);
+          expect(cBal).eq((creatorsFee * c.share) / 100);
+        }
+      }
+
       const mmFees = Math.trunc(
         (expectedLamports * (config.mmFeeBps ?? 0)) / 1e4
       );
@@ -889,7 +953,11 @@ export const testMakePoolSellNft = async ({
         // (1) TSwap fees
         // (2) MM fees (if trade pool)
         // (3) any rent paid by seller
-        expectedLamports - tswapFee - mmFees - expectedRentBySeller
+        expectedLamports -
+          tswapFee -
+          mmFees -
+          expectedRentBySeller -
+          creatorsFee
       );
 
       // buyer should not have balance change

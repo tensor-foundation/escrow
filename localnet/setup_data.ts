@@ -118,7 +118,7 @@ const BASE_CONFIG: PoolConfigAnchor = {
   curveType: CurveTypeAnchor.Linear,
   startingPrice: new BN(5 * LAMPORTS_PER_SOL),
   delta: new BN(0.25 * LAMPORTS_PER_SOL),
-  honorRoyalties: false,
+  honorRoyalties: true,
   mmFeeBps: null,
 };
 

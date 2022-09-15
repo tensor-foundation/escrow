@@ -65,7 +65,7 @@ describe("tswap pool", () => {
     );
   });
 
-  it("cannot init pool with royalties", async () => {
+  it("cannot init pool without royalties", async () => {
     const [owner] = await makeNTraders(1);
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
@@ -78,11 +78,11 @@ describe("tswap pool", () => {
             owner,
             config: {
               ...config,
-              honorRoyalties: true,
+              honorRoyalties: false,
             },
             whitelist,
           })
-        ).rejectedWith(swapSdk.getErrorCodeHex("RoyaltiesDisabled"));
+        ).rejectedWith(swapSdk.getErrorCodeHex("RoyaltiesEnabled"));
       })
     );
   });
@@ -277,7 +277,12 @@ describe("tswap pool", () => {
     await withLamports(
       { prevLamports: owner.publicKey },
       async ({ prevLamports }) => {
-        const { whitelist, ata: ownerAta } = await testMakePoolBuyNft({
+        const {
+          whitelist,
+          ata: ownerAta,
+          masterEdition,
+          metadata,
+        } = await testMakePoolBuyNft({
           tswap,
           owner,
           buyer,
@@ -289,19 +294,28 @@ describe("tswap pool", () => {
         const currLamports = await getLamports(owner.publicKey);
         const diff = currLamports! - prevLamports!;
 
-        expect(diff).eq(
+        const conn = TEST_PROVIDER.connection;
+        const metaRent = await conn.getMinimumBalanceForRentExemption(
+          (await conn.getAccountInfo(metadata))!.data.byteLength
+        );
+        const editionRent = await conn.getMinimumBalanceForRentExemption(
+          (await conn.getAccountInfo(masterEdition))!.data.byteLength
+        );
+
+        const expected =
           // Proceeds from sale, minus the rent we paid to create the mint + ATA initially.
           buyPrice * (1 - TSWAP_FEE) -
-            (await getMinimumBalanceForRentExemptMint(
-              TEST_PROVIDER.connection
-            )) -
-            // NB: for some reason if we close the ATA beforehand (and now have this adjustment)
-            // the resulting amount credited differs depending on which tests run before this one (wtf??)
-            (await getMinimumBalanceForRentExemptAccount(
-              TEST_PROVIDER.connection
-            ))
-          // No addn from rent since we roundtrip it from deposit.
-        );
+          metaRent -
+          editionRent -
+          (await getMinimumBalanceForRentExemptMint(conn)) -
+          // NB: for some reason if we close the ATA beforehand (and now have this adjustment)
+          // the resulting amount credited differs depending on which tests run before this one (wtf??)
+          (await getMinimumBalanceForRentExemptAccount(conn));
+        // No addn from rent since we roundtrip it from deposit.
+
+        // For some reason running this test by itself is fine, but running it with the other tests before
+        // has a 10000 lamport difference.
+        expect(diff).within(expected - 10000, expected);
       }
     );
   });

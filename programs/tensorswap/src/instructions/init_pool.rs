@@ -54,8 +54,8 @@ pub struct InitPool<'info> {
 
 impl<'info> InitPool<'info> {
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
-        if config.honor_royalties {
-            throw_err!(RoyaltiesDisabled);
+        if !config.honor_royalties {
+            throw_err!(RoyaltiesEnabled);
         }
 
         match config.pool_type {

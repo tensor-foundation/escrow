@@ -3,7 +3,6 @@ use crate::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::system_instruction;
 use tensor_whitelist::Whitelist;
-use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
@@ -71,12 +70,6 @@ impl<'info> DepositSol<'info> {
 
 impl<'info> Validate<'info> for DepositSol<'info> {
     fn validate(&self) -> Result<()> {
-        match self.pool.config.pool_type {
-            PoolType::Token | PoolType::Trade => {}
-            _ => {
-                throw_err!(WrongPoolType);
-            }
-        }
         Ok(())
     }
 }

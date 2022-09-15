@@ -5,4 +5,13 @@ set -e
 rm -rf .anchor
 anchor build -- --features testing
 bash scripts/cp_idl.sh
+
+# Build token metadata program for testing
+git submodule init
+git submodule update
+pushd deps/metaplex/token-metadata/program
+cargo build-bpf
+popd
+
+# Run tests
 anchor test --skip-build -- --features testing

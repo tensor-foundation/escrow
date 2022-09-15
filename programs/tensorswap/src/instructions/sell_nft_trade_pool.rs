@@ -38,6 +38,7 @@ pub struct SellNftTradePool<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+    // Remaining accounts = 0 to N creator accounts.
 }
 
 impl<'info> SellNftTradePool<'info> {
@@ -75,16 +76,23 @@ pub fn handler<'a, 'b, 'c, 'info>(
 ) -> Result<()> {
     let pool = &ctx.accounts.shared.pool;
 
+    let metadata = &assert_decode_metadata(
+        &ctx.accounts.shared.nft_mint,
+        &ctx.accounts.shared.nft_metadata,
+    )?;
+
     let current_price = pool.current_price(TakerSide::Sell)?;
     let tswap_fee = pool.calc_tswap_fee(ctx.accounts.shared.tswap.config.fee_bps, current_price)?;
     let mm_fee = pool.calc_mm_fee(current_price)?;
+    let creators_fee = pool.calc_creators_fee(TakerSide::Sell, metadata, current_price)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
     emit!(BuySellEvent {
         current_price,
         tswap_fee,
-        mm_fee
+        mm_fee,
+        creators_fee,
     });
 
     if current_price < min_price {
@@ -111,6 +119,14 @@ pub fn handler<'a, 'b, 'c, 'info>(
         &ctx.accounts.shared.fee_vault.to_account_info(),
         tswap_fee,
     )?;
+
+    // send royalties
+    let actual_creators_fee = ctx.accounts.shared.transfer_creators_fee_from_escrow(
+        metadata,
+        ctx.remaining_accounts,
+        creators_fee,
+    )?;
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
 
     // Owner/MM keeps some funds as their fee (no transfer necessary).
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));

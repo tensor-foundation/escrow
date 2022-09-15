@@ -1,3 +1,4 @@
+import { Metaplex } from "@metaplex-foundation/js";
 import { AccountClient, BN, Idl, Program, utils } from "@project-serum/anchor";
 import { AllAccountsMap } from "@project-serum/anchor/dist/cjs/program/namespace/types";
 import { AccountInfo, Connection, PublicKey } from "@solana/web3.js";
@@ -59,6 +60,11 @@ export const decodeAcct = <T extends Idl>(
     name: meta.name,
     account: meta.decoder(acct.data),
   };
+};
+
+export const fetchNft = async (conn: Connection, mint: PublicKey) => {
+  const mplex = new Metaplex(conn);
+  return await mplex.nfts().findByMint({ mintAddress: mint }).run();
 };
 
 //#region Stringify function.

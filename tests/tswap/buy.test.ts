@@ -1,5 +1,5 @@
 import { BN, LangErrorCode } from "@project-serum/anchor";
-import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {
   buildAndSendTx,
@@ -70,6 +70,28 @@ describe("tswap buy", () => {
         buyer,
         config: tradePoolConfig,
         expectedLamports: LAMPORTS_PER_SOL,
+      });
+    }
+  });
+
+  it("buy from nft/trade pool works with royalties (both < & > 0.9%)", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+
+    // Intentionally do this serially (o/w balances will race).
+    for (const [royaltyBps, config] of cartesian(
+      [50, 1000],
+      [nftPoolConfig, tradePoolConfig]
+    )) {
+      const creators = [{ address: Keypair.generate().publicKey, share: 100 }];
+
+      await testMakePoolBuyNft({
+        tswap,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        royaltyBps,
+        creators,
       });
     }
   });
@@ -386,7 +408,7 @@ describe("tswap buy", () => {
               ? new BN(1_238_923_843 / numBuys)
               : // 10.21% (prime #)
                 new BN(10_21),
-          honorRoyalties: false,
+          honorRoyalties: true,
           mmFeeBps: poolType === PoolTypeAnchor.Trade ? 0 : null,
         };
 
@@ -512,7 +534,7 @@ describe("tswap buy", () => {
       startingPrice: new BN(2_083_195_757),
       // 8.77% (prime #)
       delta: new BN(8_77),
-      honorRoyalties: false,
+      honorRoyalties: true,
       mmFeeBps: null,
     };
 
@@ -623,6 +645,52 @@ describe("tswap buy", () => {
     expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
     expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
       expectedLamports * TSWAP_FEE
+    );
+
+    expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
+      wlNft.mint.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Buyer")?.pubkey.toBase58()).eq(
+      buyer.publicKey.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
+      owner.publicKey.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
+      whitelist.toBase58()
+    );
+  });
+
+  it("properly parses raw buy tx", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+
+    const expectedLamports = nftPoolConfig.startingPrice.toNumber();
+    const { buySig, wlNft, whitelist } = await testMakePoolBuyNft({
+      tswap,
+      owner,
+      buyer,
+      config: nftPoolConfig,
+      expectedLamports,
+      commitment: "confirmed",
+      royaltyBps: 50,
+    });
+
+    const tx = (await TEST_PROVIDER.connection.getTransaction(buySig, {
+      commitment: "confirmed",
+    }))!;
+    expect(tx).not.null;
+    const ixs = swapSdk.parseIxs(tx);
+    expect(ixs).length(1);
+
+    const ix = ixs[0];
+    expect(ix.ix.name).eq("buyNft");
+    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
+      JSON.stringify(castPoolConfigAnchor(nftPoolConfig))
+    );
+    expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
+    expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
+      Math.trunc(expectedLamports * TSWAP_FEE) +
+        Math.trunc((expectedLamports * 50) / 1e4)
     );
 
     expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(

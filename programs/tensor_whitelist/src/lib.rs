@@ -41,7 +41,7 @@ pub mod tensor_whitelist {
         // set uuid (won't change after initialization)
         whitelist.uuid = uuid;
 
-        // set root hash (can't be empty)
+        // set root hash (can't be empty if we're initializing it for the first time)
         match root_hash {
             Some(root_hash) => {
                 whitelist.root_hash = root_hash;
@@ -54,7 +54,7 @@ pub mod tensor_whitelist {
             }
         }
 
-        // set name (can't be empty)
+        // set name (can't be empty if we're initializing it for the first time)
         match name {
             Some(name) => {
                 whitelist.name = name;

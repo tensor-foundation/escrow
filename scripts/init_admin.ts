@@ -20,8 +20,10 @@ import { hideBin } from "yargs/helpers";
 import { buildTx } from "@tensor-hq/tensor-common";
 import { stringifyPKsAndBNs } from "../src";
 
-const TSWAP_FEE_BPS = 0;
+// 0.1% TSWAP, 0.9% creator (in code).
+const TSWAP_FEE_BPS = 10;
 
+// TODO: look into https://github.com/solana-labs/wallet-adapter/tree/master/packages/wallets/ledger
 class LedgerWallet implements BaseWallet {
   path: string;
   solana: Solana;

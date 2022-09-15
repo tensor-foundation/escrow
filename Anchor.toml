@@ -6,6 +6,11 @@ skip-lint = false
 tensorswap = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN"
 tensor_whitelist = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW"
 
+# From https://github.com/armaniferrante/auction-house/blob/45518c16f00c68509e06432925403046f2b64463/Anchor.toml
+# Required for tests.
+[[test.genesis]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+program = "./deps/metaplex/token-metadata/target/deploy/mpl_token_metadata.so"
 
 [registry]
 url = "https://api.apr.dev"

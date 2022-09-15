@@ -6,6 +6,7 @@ import {
   SYSVAR_RENT_PUBKEY,
   TransactionResponse,
 } from "@solana/web3.js";
+import { Metaplex } from "@metaplex-foundation/js";
 import {
   AnchorProvider,
   BN,
@@ -35,6 +36,7 @@ import {
 import {
   decodeAcct,
   DiscMap,
+  fetchNft,
   genDiscToDecoderMap,
   getAccountRent,
   hexCode,
@@ -649,6 +651,7 @@ export class TensorSwapSDK {
     proof,
     maxPrice,
     cosigner,
+    metaCreators,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -659,6 +662,11 @@ export class TensorSwapSDK {
     proof: Buffer[];
     maxPrice: BN;
     cosigner?: PublicKey;
+    // If provided, skips RPC call to fetch on-chain metadata + creators.
+    metaCreators?: {
+      metadata: PublicKey;
+      creators: PublicKey[];
+    };
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -679,6 +687,17 @@ export class TensorSwapSDK {
 
     const tSwapAcc = await this.fetchTSwap(tswapPda);
 
+    // Fetch creators + metadata (if necessary).
+    let nftMetadata: PublicKey;
+    let creators: PublicKey[];
+    if (metaCreators) {
+      ({ metadata: nftMetadata, creators } = metaCreators);
+    } else {
+      const nft = await fetchNft(this.program.provider.connection, nftMint);
+      nftMetadata = nft.metadataAddress;
+      creators = nft.creators.map((c) => c.address);
+    }
+
     const builder = this.program.methods
       .buyNft(config as any, proof, maxPrice)
       .accounts({
@@ -687,6 +706,7 @@ export class TensorSwapSDK {
         pool: poolPda,
         whitelist,
         nftMint,
+        nftMetadata,
         nftBuyerAcc,
         nftEscrow: escrowPda,
         nftReceipt: receiptPda,
@@ -698,7 +718,14 @@ export class TensorSwapSDK {
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
-      });
+      })
+      .remainingAccounts(
+        creators.map((c) => ({
+          pubkey: c,
+          isWritable: true,
+          isSigner: false,
+        }))
+      );
 
     return {
       builder,
@@ -729,6 +756,7 @@ export class TensorSwapSDK {
     minPrice,
     // Weird how cosigner is necessary/cannot be non-null (composite accounts).
     cosigner,
+    metaCreators,
   }: {
     type: "trade" | "token";
     whitelist: PublicKey;
@@ -740,6 +768,11 @@ export class TensorSwapSDK {
     proof: Buffer[];
     minPrice: BN;
     cosigner: PublicKey;
+    // If provided, skips RPC call to fetch on-chain metadata + creators.
+    metaCreators?: {
+      metadata: PublicKey;
+      creators: PublicKey[];
+    };
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -756,12 +789,25 @@ export class TensorSwapSDK {
     const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
     const [receiptPda, receiptBump] = findNftDepositReceiptPDA({ nftMint });
     const tSwapAcc = await this.fetchTSwap(tswapPda);
+
+    // Fetch creators + metadata (if necessary).
+    let nftMetadata: PublicKey;
+    let creators: PublicKey[];
+    if (metaCreators) {
+      ({ metadata: nftMetadata, creators } = metaCreators);
+    } else {
+      const nft = await fetchNft(this.program.provider.connection, nftMint);
+      nftMetadata = nft.metadataAddress;
+      creators = nft.creators.map((c) => c.address);
+    }
+
     const shared = {
       tswap: tswapPda,
       feeVault: tSwapAcc.feeVault,
       pool: poolPda,
       whitelist,
       nftMint,
+      nftMetadata,
       nftSellerAcc,
       solEscrow: solEscrowPda,
       owner,
@@ -786,13 +832,21 @@ export class TensorSwapSDK {
             },
           };
 
-    const builder = method(config as any, proof, minPrice).accounts({
-      shared,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-      rent: SYSVAR_RENT_PUBKEY,
-      ...accounts,
-    });
+    const builder = method(config as any, proof, minPrice)
+      .accounts({
+        shared,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+        ...accounts,
+      })
+      .remainingAccounts(
+        creators.map((c) => ({
+          pubkey: c,
+          isSigner: false,
+          isWritable: true,
+        }))
+      );
 
     return {
       builder,
@@ -921,7 +975,7 @@ export class TensorSwapSDK {
       case "sellNftTokenPool":
         // todo: type
         const event = ix.events[0].data;
-        return event.mmFee.add(event.tswapFee);
+        return event.mmFee.add(event.tswapFee).add(event.creatorsFee);
       default:
         return null;
     }

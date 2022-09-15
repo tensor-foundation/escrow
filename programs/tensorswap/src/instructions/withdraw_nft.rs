@@ -59,6 +59,7 @@ pub struct WithdrawNft<'info> {
             nft_mint.key().as_ref(),
         ],
         bump,
+        token::mint = nft_mint, token::authority = tswap,
     )]
     pub nft_escrow: Box<Account<'info, TokenAccount>>,
 

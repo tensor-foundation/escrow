@@ -109,8 +109,8 @@ pub enum ErrorCode {
     ArithmeticError = 9,
     #[msg("this nft doesnt belong to this pool")]
     WrongPool = 10,
-    #[msg("royalties are disabled for now")]
-    RoyaltiesDisabled = 11,
+    #[msg("royalties are enabled always")]
+    RoyaltiesEnabled = 11,
     #[msg("specified price not within current price")]
     PriceMismatch = 12,
     #[msg("cannot close pool with nfts in escrow -- withdraw all before closing")]
@@ -123,4 +123,8 @@ pub enum ErrorCode {
     BadTSwapOwner = 16,
     #[msg("fees not allowed for non-trade pools")]
     FeesNotAllowed = 17,
+    #[msg("metadata account does not match mint")]
+    BadMetadata = 18,
+    #[msg("provided creator address does not match metadata creator")]
+    CreatorMismatch = 19,
 }
