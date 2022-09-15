@@ -186,7 +186,7 @@ export const calcCurveTotalCount = ({
   // Reverse of pool side. Keeping for consistency with the rest of the app.
   takerSide: TakerSide;
   isTradePool?: boolean;
-}): { total: BN; allowedCount: number } => {
+}): { total: BN; allowedCount: number; oneNotchDownStartPrice: BN } => {
   let total = new BN(0);
   let allowedCount = 0;
   let curPrice = startPrice;
@@ -212,8 +212,10 @@ export const calcCurveTotalCount = ({
   };
 
   //if trade pool & pool is buying (taker is selling) -> need to move one notch down
+  let oneNotchDownStartPrice = startPrice;
   if (isTradePool && takerSide === TakerSide.Sell) {
     _shiftPriceOnce();
+    oneNotchDownStartPrice = curPrice;
   }
 
   while (
@@ -226,5 +228,5 @@ export const calcCurveTotalCount = ({
     _shiftPriceOnce();
   }
 
-  return { total, allowedCount };
+  return { total, allowedCount, oneNotchDownStartPrice };
 };
