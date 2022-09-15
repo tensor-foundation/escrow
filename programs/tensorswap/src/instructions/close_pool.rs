@@ -41,6 +41,11 @@ pub struct ClosePool<'info> {
     pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// CHECK: has_one = whitelist in pool
+    #[account(
+        seeds = [&whitelist.uuid],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
     pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// CHECK: has_one = owner in pool

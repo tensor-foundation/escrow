@@ -18,4 +18,6 @@ testing = []
 
 [dependencies]
 anchor-lang = { version="0.25.0", features=["init-if-needed"] }
+anchor-spl = "0.25.0"
 vipers = "2.0.6"
+merkle_proof = {path='../../lib/merkle_proof'}

@@ -31,6 +31,68 @@ describe("tswap deposits", () => {
 
   //#region Deposit NFT
 
+  it("can deposit with long proof", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+    const { mint, ata } = await createAndFundATA(owner);
+    const {
+      whitelist,
+      proofs: [wlNft],
+      // Long proof!
+    } = await makeWhitelist([mint], 20_000);
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+    await testDepositNft({
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+  });
+
+  it("can deposit with REALLY long proof", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+    const { mint, ata } = await createAndFundATA(owner);
+    const {
+      whitelist,
+      proofs: [wlNft],
+    } = await makeWhitelist([mint]);
+
+    // Artificial proof (takes far less time to generate).
+    // 18 seems to be the cap.
+    // Fractal (w/ 100k mints) is around length 17.
+    wlNft.proof = Array(18)
+      .fill(null)
+      .map((_) => Buffer.from(Array(32).fill(0)));
+
+    const { poolPda: pool } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+    // NB rejected w/ invalid proof instead of transcation size limit.
+    await expect(
+      testDepositNft({
+        pool,
+        config,
+        owner,
+        ata,
+        wlNft,
+        whitelist,
+        commitment: "confirmed",
+      })
+    ).rejectedWith(swapSdk.getErrorCodeHex("InvalidProof"));
+  });
+
   it("deposit non-WL nft fails", async () => {
     const [owner] = await makeNTraders(1);
     const config = nftPoolConfig;

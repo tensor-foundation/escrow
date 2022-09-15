@@ -93,7 +93,8 @@ jobs:
           - glob: tests/tswap/sell.test.ts
           - glob: tests/tswap/tswap.test.ts
           - glob: tests/tswap/withdraw.test.ts
-          - glob: tests/twhitelist.spec.ts
+          - glob: tests/twhitelist/whitelist.test.ts
+          - glob: tests/twhitelist/mint_proof.test.ts
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/

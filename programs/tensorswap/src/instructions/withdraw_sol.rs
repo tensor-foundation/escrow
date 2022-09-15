@@ -29,6 +29,11 @@ pub struct WithdrawSol<'info> {
     pub pool: Box<Account<'info, Pool>>,
 
     /// CHECK: has_one = whitelist in pool
+    #[account(
+        seeds = [&whitelist.uuid],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
     pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// CHECK: has_one = escrow in pool

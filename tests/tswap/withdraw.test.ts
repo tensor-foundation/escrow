@@ -10,6 +10,7 @@ import {
   TEST_PROVIDER,
   withLamports,
 } from "../shared";
+import { testInitUpdateMintProof } from "../twhitelist/common";
 import {
   beforeHook,
   createAndFundATA,
@@ -85,6 +86,13 @@ describe("tswap withdraws", () => {
       config,
       owner,
       lamports: LAMPORTS_PER_SOL,
+    });
+
+    await testInitUpdateMintProof({
+      user: seller,
+      mint: wlNft.mint,
+      whitelist,
+      proof: wlNft.proof,
     });
 
     // Seller sells into pool.

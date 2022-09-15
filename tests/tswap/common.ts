@@ -49,6 +49,7 @@ import {
 } from "../shared";
 import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
+import { testInitUpdateMintProof } from "../twhitelist/common";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -277,8 +278,11 @@ export const makeNTraders = async (n: number, sol?: number) => {
   );
 };
 
-export const makeWhitelist = async (mints: PublicKey[]) => {
-  const { root, proofs } = generateTreeOfSize(100, mints);
+export const makeWhitelist = async (
+  mints: PublicKey[],
+  treeSize: number = 100
+) => {
+  const { root, proofs } = generateTreeOfSize(treeSize, mints);
   const uuid = wlSdk.genWhitelistUUID();
   const name = "hello_world";
   const {
@@ -655,6 +659,7 @@ export const testMakePoolBuyNft = async ({
   commitment,
   royaltyBps,
   creators,
+  treeSize,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -667,6 +672,7 @@ export const testMakePoolBuyNft = async ({
   commitment?: Commitment;
   royaltyBps?: number;
   creators?: CreatorInput[];
+  treeSize?: number;
 }) => {
   const { mint, ata, otherAta, metadata, masterEdition } = await makeMintTwoAta(
     owner,
@@ -677,7 +683,7 @@ export const testMakePoolBuyNft = async ({
   const {
     proofs: [wlNft],
     whitelist,
-  } = await makeWhitelist([mint]);
+  } = await makeWhitelist([mint], treeSize);
   const { poolPda: pool } = await testMakePool({
     tswap,
     owner,
@@ -756,7 +762,7 @@ export const testMakePoolBuyNft = async ({
         );
         for (const c of creators) {
           const cBal = await getLamports(c.address);
-          expect(cBal).eq((creatorsFee * c.share) / 100);
+          expect(cBal).eq(Math.trunc((creatorsFee * c.share) / 100));
         }
       }
 
@@ -821,6 +827,7 @@ export const testMakePoolSellNft = async ({
   commitment,
   royaltyBps,
   creators,
+  treeSize,
 }: {
   sellType: "trade" | "token";
   tswap: PublicKey;
@@ -834,6 +841,7 @@ export const testMakePoolSellNft = async ({
   commitment?: Commitment;
   royaltyBps?: number;
   creators?: CreatorInput[];
+  treeSize?: number;
 }) => {
   const { mint, ata } = await makeMintTwoAta(
     seller,
@@ -844,7 +852,8 @@ export const testMakePoolSellNft = async ({
   const {
     proofs: [wlNft],
     whitelist,
-  } = await makeWhitelist([mint]);
+  } = await makeWhitelist([mint], treeSize);
+
   const { poolPda } = await testMakePool({ tswap, owner, whitelist, config });
 
   await testDepositSol({
@@ -856,6 +865,15 @@ export const testMakePoolSellNft = async ({
   });
 
   const prevPoolAcc = await swapSdk.fetchPool(poolPda);
+
+  // Need to create mint proof first before being able to sell.
+  await testInitUpdateMintProof({
+    user: seller,
+    mint,
+    whitelist,
+    proof: wlNft.proof,
+    expectedProofLen: Math.trunc(Math.log2(treeSize ?? 100)) + 1,
+  });
 
   const {
     tx: { ixs },
@@ -924,12 +942,16 @@ export const testMakePoolSellNft = async ({
       // Check creators' balances.
       let creatorsFee = 0;
       if (!!creators?.length && royaltyBps) {
-        creatorsFee = Math.trunc(
+        const temp = Math.trunc(
           Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) * expectedLamports
         );
+
+        // Need to accumulate b/c of dust.
         for (const c of creators) {
           const cBal = await getLamports(c.address);
-          expect(cBal).eq((creatorsFee * c.share) / 100);
+          const expected = Math.trunc((temp * c.share) / 100);
+          expect(cBal).eq(expected);
+          creatorsFee += expected;
         }
       }
 

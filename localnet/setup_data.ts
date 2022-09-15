@@ -391,6 +391,23 @@ const oneTimeTxs = async () => {
     );
     const { coll, trader, depMints, depSol, ...poolConfig } = config;
     const whitelist = _findWhitelist(coll);
+
+    {
+      const {
+        tx: { ixs },
+        mintProofPda,
+      } = await wlSdk.initUpdateMintProof({
+        user: traderB.publicKey,
+        mint: mint.publicKey,
+        proof: _getProof(mint.publicKey).proof,
+        whitelist,
+      });
+      const sig = await buildAndSendTx({ ixs, extraSigners: [traderB] });
+      console.log(
+        `sig ${sig} for init mint proof ${mint.publicKey.toBase58()} pda ${mintProofPda.toBase58()}`
+      );
+    }
+
     const {
       tx: { ixs },
       poolPda,

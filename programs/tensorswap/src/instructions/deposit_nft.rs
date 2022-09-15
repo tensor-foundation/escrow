@@ -31,6 +31,11 @@ pub struct DepositNft<'info> {
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
+    #[account(
+        seeds = [&whitelist.uuid],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
     pub whitelist: Box<Account<'info, Whitelist>>,
 
     #[account(mut, token::mint = nft_mint, token::authority = owner)]

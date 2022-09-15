@@ -6,7 +6,6 @@ import {
   SYSVAR_RENT_PUBKEY,
   TransactionResponse,
 } from "@solana/web3.js";
-import { Metaplex } from "@metaplex-foundation/js";
 import {
   AnchorProvider,
   BN,
@@ -43,6 +42,7 @@ import {
 } from "../common";
 import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/instruction";
 import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
+import { findMintProofPDA } from "../tensor_whitelist";
 
 export const TensorswapIDL = IDL;
 
@@ -699,7 +699,9 @@ export class TensorSwapSDK {
     }
 
     const builder = this.program.methods
-      .buyNft(config as any, proof, maxPrice)
+      // TODO: Proofs disabled for buys for now until tx size limit increases.
+      // .buyNft(config as any, proof, maxPrice)
+      .buyNft(config as any, [], maxPrice)
       .accounts({
         tswap: tswapPda,
         feeVault: tSwapAcc.feeVault,
@@ -788,6 +790,7 @@ export class TensorSwapSDK {
     const ownerAtaAcc = await getAssociatedTokenAddress(nftMint, owner);
     const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
     const [receiptPda, receiptBump] = findNftDepositReceiptPDA({ nftMint });
+    const [mintProofPda] = findMintProofPDA({ mint: nftMint, whitelist });
     const tSwapAcc = await this.fetchTSwap(tswapPda);
 
     // Fetch creators + metadata (if necessary).
@@ -810,6 +813,7 @@ export class TensorSwapSDK {
       nftMetadata,
       nftSellerAcc,
       solEscrow: solEscrowPda,
+      mintProof: mintProofPda,
       owner,
       seller,
       cosigner,
@@ -832,7 +836,9 @@ export class TensorSwapSDK {
             },
           };
 
-    const builder = method(config as any, proof, minPrice)
+    // TODO: Proofs passed through PDA instead of ix b/c of tx limit size.
+    // const builder = method(config as any, proof, minPrice)
+    const builder = method(config as any, [], minPrice)
       .accounts({
         shared,
         tokenProgram: TOKEN_PROGRAM_ID,

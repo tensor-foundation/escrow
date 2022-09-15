@@ -41,6 +41,11 @@ pub struct InitPool<'info> {
     pub sol_escrow: Box<Account<'info, SolEscrow>>,
 
     /// Needed for pool seeds derivation / will be stored inside pool
+    #[account(
+        seeds = [&whitelist.uuid],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
     pub whitelist: Box<Account<'info, Whitelist>>,
 
     /// CHECK: used in seed derivation

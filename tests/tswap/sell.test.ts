@@ -15,6 +15,7 @@ import {
   TakerSide,
   castPoolConfigAnchor,
 } from "../shared";
+import { testInitUpdateMintProof } from "../twhitelist/common";
 import {
   beforeHook,
   computeCurrentPrice,
@@ -113,6 +114,13 @@ describe("tswap sell", () => {
       whitelist,
     });
 
+    await testInitUpdateMintProof({
+      user: seller,
+      mint,
+      whitelist,
+      proof: wlNft.proof,
+    });
+
     const {
       tx: { ixs },
       ownerAtaAcc,
@@ -159,7 +167,9 @@ describe("tswap sell", () => {
       [50, 1000],
       [tokenPoolConfig, tradePoolConfig]
     )) {
-      const creators = [{ address: Keypair.generate().publicKey, share: 100 }];
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
 
       await testMakePoolSellNft({
         sellType: config === tradePoolConfig ? "trade" : "token",
@@ -173,6 +183,33 @@ describe("tswap sell", () => {
             : LAMPORTS_PER_SOL - 1234,
         royaltyBps,
         creators,
+      });
+    }
+  });
+
+  // We add this test since <= v0.1.29 we passed in mint proof in the ix.
+  // > v0.1.29 we use a mint proof PDA.
+  it("sell nft with creators + long proof works", async () => {
+    for (const config of [tokenPoolConfig, tradePoolConfig]) {
+      const [owner, seller] = await makeNTraders(2);
+
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports:
+          config === tokenPoolConfig
+            ? LAMPORTS_PER_SOL
+            : LAMPORTS_PER_SOL - 1234,
+        royaltyBps: 50,
+        creators,
+        treeSize: 5_000,
       });
     }
   });
@@ -251,6 +288,13 @@ describe("tswap sell", () => {
         } = await makeWhitelist([mint]);
         await testMakePool({ tswap, owner, whitelist, config });
 
+        await testInitUpdateMintProof({
+          user: seller,
+          mint,
+          whitelist,
+          proof: wlNft.proof,
+        });
+
         // All:
         // 1) non-WL mint + bad ATA
         // 2) non-WL mint + good ATA
@@ -260,12 +304,16 @@ describe("tswap sell", () => {
           {
             currMint: badMint,
             currAta: badAta,
-            err: swapSdk.getErrorCodeHex("InvalidProof"),
+            // No mint proof acct.
+            // err: swapSdk.getErrorCodeHex("InvalidProof"),
+            err: hexCode(LangErrorCode.AccountNotInitialized),
           },
           {
             currMint: badMint,
             currAta: ata,
-            err: hexCode(LangErrorCode.ConstraintTokenMint),
+            // No mint proof acct.
+            // err: hexCode(LangErrorCode.ConstraintTokenMint),
+            err: hexCode(LangErrorCode.AccountNotInitialized),
           },
           {
             currMint: mint,
@@ -381,6 +429,13 @@ describe("tswap sell", () => {
         });
 
         for (const [idx, nft] of nfts.entries()) {
+          const proof = proofs.find((p) => p.mint === nft.mint)!.proof;
+          await testInitUpdateMintProof({
+            user: traderB,
+            mint: nft.mint,
+            whitelist,
+            proof,
+          });
           const {
             tx: { ixs },
           } = await swapSdk.sellNft({
@@ -391,7 +446,7 @@ describe("tswap sell", () => {
             owner: traderA.publicKey,
             seller: traderB.publicKey,
             config: currConfig,
-            proof: proofs.find((p) => p.mint === nft.mint)!.proof,
+            proof,
             minPrice: new BN(0),
             cosigner: TEST_PROVIDER.publicKey,
           });
@@ -445,6 +500,13 @@ describe("tswap sell", () => {
           // Deposit 1 lamport less than required.
           lamports: expectedLamports - 1,
           whitelist,
+        });
+
+        await testInitUpdateMintProof({
+          user: seller,
+          mint: wlNft.mint,
+          whitelist,
+          proof: wlNft.proof,
         });
 
         const {
@@ -565,6 +627,14 @@ describe("tswap sell", () => {
               1
             )[0];
 
+            const proof = proofs.find((p) => p.mint === targNft.mint)!.proof;
+            await testInitUpdateMintProof({
+              user: traderB,
+              mint: targNft.mint,
+              whitelist,
+              proof,
+            });
+
             const {
               tx: { ixs },
             } = await swapSdk.sellNft({
@@ -576,7 +646,7 @@ describe("tswap sell", () => {
               owner: traderA.publicKey,
               seller: traderB.publicKey,
               config: config,
-              proof: proofs.find((p) => p.mint === targNft.mint)!.proof,
+              proof,
               minPrice: currPrice,
               cosigner: TEST_PROVIDER.publicKey,
             });
@@ -665,6 +735,15 @@ describe("tswap sell", () => {
         takerSide: TakerSide.Sell,
       });
 
+      const proof = proofs.find((p) => p.mint === nft.mint)!.proof;
+      await testInitUpdateMintProof({
+        user: traderB,
+        mint: nft.mint,
+        whitelist,
+        proof,
+        expectedProofLen: 8,
+      });
+
       const {
         tx: { ixs },
       } = await swapSdk.sellNft({
@@ -675,7 +754,7 @@ describe("tswap sell", () => {
         owner: traderA.publicKey,
         seller: traderB.publicKey,
         config: config,
-        proof: proofs.find((p) => p.mint === nft.mint)!.proof,
+        proof,
         minPrice: currPrice,
         cosigner: TEST_PROVIDER.publicKey,
       });
@@ -699,7 +778,7 @@ describe("tswap sell", () => {
     );
   });
 
-  it.only("properly parses raw sell tx", async () => {
+  it("properly parses raw sell tx", async () => {
     const [owner, seller] = await makeNTraders(2);
 
     for (const { config, name } of [

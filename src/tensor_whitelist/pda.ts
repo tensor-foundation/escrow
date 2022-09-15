@@ -17,3 +17,18 @@ export const findWhitelistPDA = ({
     program ?? TENSOR_WHITELIST_ADDR
   );
 };
+
+export const findMintProofPDA = ({
+  program,
+  mint,
+  whitelist,
+}: {
+  program?: PublicKey;
+  mint: PublicKey;
+  whitelist: PublicKey;
+}) => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("mint_proof"), mint.toBytes(), whitelist.toBytes()],
+    program ?? TENSOR_WHITELIST_ADDR
+  );
+};

@@ -89,6 +89,49 @@ export type TensorWhitelist = {
           }
         }
       ]
+    },
+    {
+      "name": "initUpdateMintProof",
+      "accounts": [
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintProof",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -154,6 +197,32 @@ export type TensorWhitelist = {
           }
         ]
       }
+    },
+    {
+      "name": "mintProof",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proofLen",
+            "type": "u8"
+          },
+          {
+            "name": "proof",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                28
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -171,6 +240,16 @@ export type TensorWhitelist = {
       "code": 6002,
       "name": "MissingName",
       "msg": "missing name"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidProof",
+      "msg": "invalid merkle proof, token not whitelisted"
+    },
+    {
+      "code": 6004,
+      "name": "ProofTooLong",
+      "msg": "proof provided exceeds the limit of 32 hashes"
     }
   ]
 };
@@ -266,6 +345,49 @@ export const IDL: TensorWhitelist = {
           }
         }
       ]
+    },
+    {
+      "name": "initUpdateMintProof",
+      "accounts": [
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mintProof",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -331,6 +453,32 @@ export const IDL: TensorWhitelist = {
           }
         ]
       }
+    },
+    {
+      "name": "mintProof",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proofLen",
+            "type": "u8"
+          },
+          {
+            "name": "proof",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                28
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "errors": [
@@ -348,6 +496,16 @@ export const IDL: TensorWhitelist = {
       "code": 6002,
       "name": "MissingName",
       "msg": "missing name"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidProof",
+      "msg": "invalid merkle proof, token not whitelisted"
+    },
+    {
+      "code": 6004,
+      "name": "ProofTooLong",
+      "msg": "proof provided exceeds the limit of 32 hashes"
     }
   ]
 };

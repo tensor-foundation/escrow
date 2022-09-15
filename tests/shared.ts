@@ -26,6 +26,7 @@ export {
   HUNDRED_PCT_BPS,
   castPoolConfigAnchor,
   stringifyPKsAndBNs,
+  MAX_PROOF_LEN,
 } from "../src";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";

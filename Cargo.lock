@@ -861,6 +861,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "merkle_proof"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+]
+
+[[package]]
 name = "mpl-token-metadata"
 version = "1.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1462,6 +1469,8 @@ name = "tensor_whitelist"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "anchor-spl",
+ "merkle_proof",
  "vipers",
 ]
 
@@ -1471,6 +1480,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "merkle_proof",
  "mpl-token-metadata",
  "spl-math",
  "static_assertions",

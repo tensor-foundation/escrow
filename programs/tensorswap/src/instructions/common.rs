@@ -5,7 +5,7 @@ use mpl_token_metadata::{
     self,
     state::{Metadata, TokenMetadataAccount},
 };
-use tensor_whitelist::Whitelist;
+use tensor_whitelist::{self, MintProof, Whitelist};
 use vipers::throw_err;
 
 pub fn transfer_lamports_from_escrow<'info>(
@@ -85,7 +85,24 @@ pub struct SellNft<'info> {
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, also checked via has_one on pool
+    #[account(
+        seeds = [&whitelist.uuid],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
     pub whitelist: Box<Account<'info, Whitelist>>,
+
+    // TODO: fetching proof from mint_proof PDA b/c of tx size limit.
+    #[account(
+        seeds = [
+            b"mint_proof".as_ref(),
+            nft_mint.key().as_ref(),
+            whitelist.key().as_ref(),
+        ],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
+    pub mint_proof: Box<Account<'info, MintProof>>,
 
     #[account(mut, token::mint = nft_mint, token::authority = seller)]
     pub nft_seller_acc: Box<Account<'info, TokenAccount>>,
@@ -127,10 +144,15 @@ pub struct SellNft<'info> {
 }
 
 impl<'info> SellNft<'info> {
-    pub fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
+    // TODO: fetching proof from mint_proof PDA b/c of tx size limit.
+    // pub fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
+    pub fn validate_proof(&self) -> Result<()> {
         let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
+        let proof = &mut self.mint_proof.proof.to_vec();
+        proof.truncate(self.mint_proof.proof_len as usize);
+
         require!(
-            merkle_proof::verify_proof(proof, self.whitelist.root_hash, leaf.0),
+            merkle_proof::verify_proof(proof.clone(), self.whitelist.root_hash, leaf.0),
             InvalidProof
         );
         Ok(())

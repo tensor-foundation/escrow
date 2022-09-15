@@ -53,10 +53,12 @@ impl<'info> Validate<'info> for SellNftTokenPool<'info> {
     }
 }
 
-#[access_control(ctx.accounts.shared.validate_proof(proof); ctx.accounts.validate())]
+// TODO: proof fetched from mint_proof PDA.
+// #[access_control(ctx.accounts.shared.validate_proof(proof); ctx.accounts.validate())]
+#[access_control(ctx.accounts.shared.validate_proof(); ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, SellNftTokenPool<'info>>,
-    proof: Vec<[u8; 32]>,
+    _proof: Vec<[u8; 32]>,
     // Min vs exact so we can add slippage later.
     min_price: u64,
 ) -> Result<()> {

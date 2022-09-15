@@ -1,7 +1,7 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { TensorWhitelistSDK } from "../src";
+import { TensorWhitelistSDK } from "../../src";
 import {
   buildAndSendTx,
   generateTreeOfSize,
@@ -9,14 +9,15 @@ import {
   TEST_PROVIDER,
   waitMS,
   wlSdk,
-} from "./shared";
+} from "../shared";
 
 chai.use(chaiAsPromised);
 
-describe("tensor_whitelist", () => {
+describe("tensor_whitelist WL auth and create", () => {
   let authPda: PublicKey;
 
-  it("inits authority", async () => {
+  // inits authority
+  before(async () => {
     authPda = await testInitWLAuthority();
   });
 
@@ -64,6 +65,8 @@ describe("tensor_whitelist", () => {
     authAcc = await wlSdk.fetchAuthority(authPda);
     expect(authAcc.owner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());
   });
+
+  // ---------------------------- Whitelist creation
 
   it("inits/updates whitelist", async () => {
     //fail init'ing a whitelist w/o name or root hash

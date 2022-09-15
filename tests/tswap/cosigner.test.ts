@@ -24,6 +24,7 @@ import {
 } from "./common";
 import { BN } from "bn.js";
 import { LangErrorCode } from "@project-serum/anchor";
+import { testInitUpdateMintProof } from "../twhitelist/common";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -124,49 +125,52 @@ describe("tswap cosigner", () => {
       proofs: [wlSell, wlBuy],
       whitelist,
     } = await makeWhitelist([mintSell, mintBuy]));
-  });
 
-  it("init pool cosign", async () => {
     // Init pool.
-    const {
-      tx: { ixs },
-    } = await swapSdk.initPool({
-      owner: owner.publicKey,
-      whitelist,
-      config,
-      cosigner,
-    });
-    await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
-  });
+    // Needs to go here for other txs.
+    {
+      const {
+        tx: { ixs },
+      } = await swapSdk.initPool({
+        owner: owner.publicKey,
+        whitelist,
+        config,
+        cosigner,
+      });
+      await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
+    }
 
-  it("deposit nft cosign", async () => {
     // Deposit NFT
-    const {
-      tx: { ixs },
-    } = await swapSdk.depositNft({
-      owner: owner.publicKey,
-      whitelist,
-      config,
-      nftSource: ownerBuyAta,
-      nftMint: wlBuy.mint,
-      proof: wlBuy.proof,
-      cosigner,
-    });
-    await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
-  });
+    // Needs to go here for buy tx.
+    {
+      const {
+        tx: { ixs },
+      } = await swapSdk.depositNft({
+        owner: owner.publicKey,
+        whitelist,
+        config,
+        nftSource: ownerBuyAta,
+        nftMint: wlBuy.mint,
+        proof: wlBuy.proof,
+        cosigner,
+      });
+      await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
+    }
 
-  it("deposit sol cosign", async () => {
     // Deposit SOL
-    const {
-      tx: { ixs },
-    } = await swapSdk.depositSol({
-      owner: owner.publicKey,
-      whitelist,
-      config,
-      lamports: new BN(LAMPORTS_PER_SOL - 1234),
-      cosigner,
-    });
-    await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
+    // Needs to go here for sell tx.
+    {
+      const {
+        tx: { ixs },
+      } = await swapSdk.depositSol({
+        owner: owner.publicKey,
+        whitelist,
+        config,
+        lamports: new BN(LAMPORTS_PER_SOL - 1234),
+        cosigner,
+      });
+      await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
+    }
   });
 
   it("buy nft cosign", async () => {
@@ -189,6 +193,15 @@ describe("tswap cosigner", () => {
 
   it("sell nft cosign", async () => {
     // Sell NFT.
+
+    // Need to create mint proof first before being able to sell.
+    await testInitUpdateMintProof({
+      user: seller,
+      mint: mintSell,
+      whitelist,
+      proof: wlSell.proof,
+    });
+
     const {
       tx: { ixs },
     } = await swapSdk.sellNft({

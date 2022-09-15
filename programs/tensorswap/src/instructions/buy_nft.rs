@@ -41,6 +41,11 @@ pub struct BuyNft<'info> {
     pub pool: Box<Account<'info, Pool>>,
 
     /// Needed for pool seeds derivation, has_one = whitelist on pool
+    #[account(
+        seeds = [&whitelist.uuid],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
     pub whitelist: Box<Account<'info, Whitelist>>,
 
     #[account(
@@ -125,14 +130,16 @@ pub struct BuyNft<'info> {
 }
 
 impl<'info> BuyNft<'info> {
-    fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
-        let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
-        require!(
-            merkle_proof::verify_proof(proof, self.whitelist.root_hash, leaf.0),
-            InvalidProof
-        );
-        Ok(())
-    }
+    // TODO: Disable proofs for now until tx size limits increase.
+    // This is fine since we validate proof on deposit/sell.
+    // fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
+    //     let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
+    //     require!(
+    //         merkle_proof::verify_proof(proof, self.whitelist.root_hash, leaf.0),
+    //         InvalidProof
+    //     );
+    //     Ok(())
+    // }
 
     fn transfer_nft_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         CpiContext::new(
@@ -175,10 +182,13 @@ impl<'info> Validate<'info> for BuyNft<'info> {
     }
 }
 
-#[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
+// TODO: Disable proofs for now until tx size limits increase.
+// This is fine since we validate proof on deposit/sell.
+// #[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
+#[access_control(ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
-    proof: Vec<[u8; 32]>,
+    _proof: Vec<[u8; 32]>,
     // Max vs exact so we can add slippage later.
     max_price: u64,
 ) -> Result<()> {

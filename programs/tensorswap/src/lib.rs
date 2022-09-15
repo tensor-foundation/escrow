@@ -2,11 +2,9 @@ use anchor_lang::prelude::*;
 use vipers::prelude::*;
 
 pub mod instructions;
-pub mod merkle_proof;
 pub mod state;
 
 pub use instructions::*;
-pub use merkle_proof::*;
 pub use state::*;
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");

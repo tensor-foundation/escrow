@@ -578,6 +578,11 @@ export type Tensorswap = {
               ]
             },
             {
+              "name": "mintProof",
+              "isMut": false,
+              "isSigner": false
+            },
+            {
               "name": "nftSellerAcc",
               "isMut": true,
               "isSigner": false
@@ -692,6 +697,11 @@ export type Tensorswap = {
               "docs": [
                 "Needed for pool seeds derivation, also checked via has_one on pool"
               ]
+            },
+            {
+              "name": "mintProof",
+              "isMut": false,
+              "isSigner": false
             },
             {
               "name": "nftSellerAcc",
@@ -1772,6 +1782,11 @@ export const IDL: Tensorswap = {
               ]
             },
             {
+              "name": "mintProof",
+              "isMut": false,
+              "isSigner": false
+            },
+            {
               "name": "nftSellerAcc",
               "isMut": true,
               "isSigner": false
@@ -1886,6 +1901,11 @@ export const IDL: Tensorswap = {
               "docs": [
                 "Needed for pool seeds derivation, also checked via has_one on pool"
               ]
+            },
+            {
+              "name": "mintProof",
+              "isMut": false,
+              "isSigner": false
             },
             {
               "name": "nftSellerAcc",

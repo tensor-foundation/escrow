@@ -7,7 +7,11 @@ import {
 } from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
 import { TENSOR_WHITELIST_ADDR } from "./constants";
-import { findWhitelistAuthPDA, findWhitelistPDA } from "./pda";
+import {
+  findMintProofPDA,
+  findWhitelistAuthPDA,
+  findWhitelistPDA,
+} from "./pda";
 import { v4 } from "uuid";
 import MerkleTree from "merkletreejs";
 import keccak256 from "keccak256";
@@ -15,6 +19,7 @@ import {
   decodeAcct,
   DiscMap,
   genDiscToDecoderMap,
+  hexCode,
   removeNullBytes,
 } from "../common";
 
@@ -34,6 +39,11 @@ export type WhitelistAnchor = {
   name: number[];
 };
 
+export type MintProofAnchor = {
+  proofLen: number;
+  proof: number[][];
+};
+
 export type TensorWhitelistPdaAnchor = AuthorityAnchor | WhitelistAnchor;
 
 export type TaggedTensorWhitelistPdaAnchor =
@@ -44,6 +54,10 @@ export type TaggedTensorWhitelistPdaAnchor =
   | {
       name: "whitelist";
       account: WhitelistAnchor;
+    }
+  | {
+      name: "mintProof";
+      account: MintProofAnchor;
     };
 
 export class TensorWhitelistSDK {
@@ -79,6 +93,13 @@ export class TensorWhitelistSDK {
       whitelist,
       commitment
     )) as WhitelistAnchor;
+  }
+
+  async fetchMintProof(mintProof: PublicKey, commitment?: Commitment) {
+    return (await this.program.account.mintProof.fetch(
+      mintProof,
+      commitment
+    )) as MintProofAnchor;
   }
 
   // --------------------------------------- account methods
@@ -144,7 +165,48 @@ export class TensorWhitelistSDK {
     };
   }
 
+  // --------------------------------------- mint proof methods
+
+  //main signature: user
+  async initUpdateMintProof({
+    user,
+    mint,
+    whitelist,
+    proof,
+  }: {
+    user: PublicKey;
+    mint: PublicKey;
+    whitelist: PublicKey;
+    proof: Buffer[];
+  }) {
+    const [mintProofPda] = findMintProofPDA({ mint, whitelist });
+
+    const builder = this.program.methods.initUpdateMintProof(proof).accounts({
+      whitelist,
+      mint,
+      user,
+      mintProof: mintProofPda,
+      systemProgram: SystemProgram.programId,
+    });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      mintProofPda,
+    };
+  }
+
   // --------------------------------------- helper methods
+
+  getError(
+    name: typeof IDL["errors"][number]["name"]
+  ): typeof IDL["errors"][number] {
+    return this.program.idl.errors.find((e) => e.name === name)!;
+  }
+
+  getErrorCodeHex(name: typeof IDL["errors"][number]["name"]): string {
+    return hexCode(this.getError(name).code);
+  }
 
   static uuidToBuffer = (uuid: string) => {
     return Buffer.from(uuid.replaceAll("-", "")).toJSON().data;
