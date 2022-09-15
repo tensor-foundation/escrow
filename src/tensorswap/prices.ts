@@ -194,8 +194,8 @@ export const calcCurveTotalCount = ({
   // When the taker is buying (pool is selling), price goes up. With each sale pools gets more expensive.
   let sign = new BN(takerSide === TakerSide.Buy ? 1 : -1);
   const linFactor = normedCurveIncr.mul(sign);
-  // 1 - curveIncrement or 1 + curveIncrement.
-  const expFactorBps = new BN(HUNDRED_PCT_BPS).add(normedCurveIncr.mul(sign));
+  //always add, never sub, or price will be wrong on the way down
+  const expFactorBps = new BN(HUNDRED_PCT_BPS).add(normedCurveIncr);
 
   const _shiftPriceOnce = () => {
     switch (curveType) {
@@ -203,8 +203,13 @@ export const calcCurveTotalCount = ({
         curPrice = curPrice.add(linFactor);
         break;
       case CurveType.Exponential:
-        // Multiply then divide to avoid early truncation by BN!
-        curPrice = curPrice.mul(expFactorBps).div(new BN(HUNDRED_PCT_BPS));
+        if (takerSide === TakerSide.Buy) {
+          //taker buys = pool sells = price goes up
+          curPrice = curPrice.mul(expFactorBps).div(new BN(HUNDRED_PCT_BPS));
+        } else {
+          //taker sells = pool buys = price goes down
+          curPrice = curPrice.div(expFactorBps).mul(new BN(HUNDRED_PCT_BPS));
+        }
         break;
       default:
         throw new Error(`unknown curve type ${curveType}`);
