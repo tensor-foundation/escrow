@@ -58,10 +58,10 @@ export type ComputePriceArgs = {
 // This is what should be displayed to the user ((!) no slippage, since slippage is only used for rounding errors).
 // In contrast, computeCurrentPrice is what should be passed to the ix itself
 // (doesn't take into account tswap/mm fees).
-export const computeTakerDisplayPrice = (
-  args: Omit<ComputePriceArgs, "slippage">
-) => {
-  return computeTakerWithMMFeesPrice(args);
+export const computeTakerDisplayPrice = (args: ComputePriceArgs) => {
+  // Do not include slippage.
+  const { slippage, ...restArgs } = args;
+  return computeTakerWithMMFeesPrice(restArgs);
 };
 
 // This includes MM fees (when taker is selling).
