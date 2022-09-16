@@ -45,7 +45,6 @@ describe("prices helper functions", () => {
         takerBuyCount: 0,
         takerSide,
         extraNFTsSelected: 0,
-        slippage: 0,
       });
 
       expect(price.toString()).eq(expected.toString());
@@ -74,7 +73,6 @@ describe("prices helper functions", () => {
         takerBuyCount: 0,
         takerSide,
         extraNFTsSelected: 0,
-        slippage: 0,
       };
       const price = computeTakerWithMMFeesPrice(args);
       expect(price.toString()).eq(computeCurrentPrice(args).toString());

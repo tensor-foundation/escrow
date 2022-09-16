@@ -59,9 +59,8 @@ export type ComputePriceArgs = {
 // In contrast, computeCurrentPrice is what should be passed to the ix itself
 // (doesn't take into account tswap/mm fees).
 export const computeTakerDisplayPrice = (args: ComputePriceArgs) => {
-  // Do not include slippage.
-  const { slippage, ...restArgs } = args;
-  return computeTakerWithMMFeesPrice(restArgs);
+  // Explicitly set slippage to 0.
+  return computeTakerWithMMFeesPrice({ ...args, slippage: 0 });
 };
 
 // This includes MM fees (when taker is selling).
