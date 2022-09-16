@@ -55,25 +55,33 @@ export type ComputePriceArgs = {
   slippage?: number;
 };
 
-// This is what should be displayed to the user.
+// This is what should be displayed to the user ((!) no slippage, since slippage is only used for rounding errors).
 // In contrast, computeCurrentPrice is what should be passed to the ix itself
 // (doesn't take into account tswap/mm fees).
-export const computeTakerDisplayPrice = (
-  args: ComputePriceArgs
-): { actualPrice: Big; displayPrice: Big } => {
-  let actualPrice = computeCurrentPrice(args);
+export const computerTakerDisplayPrice = (
+  args: Omit<ComputePriceArgs, "slippage">
+) => {
+  return computeTakerWithMMFeesPrice(args);
+};
 
-  let displayPrice = actualPrice;
+// This includes MM fees (when taker is selling).
+// This should be used when computing deposit amounts + display (see computeTakerDisplayPrice) and nothing else.
+// In contrast, computeCurrentPrice is what should be passed to the ix itself
+// (doesn't take into account tswap/mm fees).
+export const computeTakerWithMMFeesPrice = (args: ComputePriceArgs): Big => {
+  let currentPrice = computeCurrentPrice(args);
+
+  let priceWithMMFees = currentPrice;
   if (
     args.config.poolType === PoolType.Trade &&
     args.takerSide === TakerSide.Sell
   ) {
-    displayPrice = displayPrice.sub(
-      displayPrice.mul(args.config.mmFeeBps ?? 0).div(HUNDRED_PCT_BPS)
+    priceWithMMFees = priceWithMMFees.sub(
+      priceWithMMFees.mul(args.config.mmFeeBps ?? 0).div(HUNDRED_PCT_BPS)
     );
   }
 
-  return { actualPrice, displayPrice };
+  return priceWithMMFees;
 };
 
 // Computes the current price of a pool, optionally with slippage (so minPrice for Sell, maxPrice for Buy).

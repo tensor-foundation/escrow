@@ -3,7 +3,7 @@ import Big from "big.js";
 import { expect } from "chai";
 import {
   computeCurrentPrice,
-  computeTakerDisplayPrice,
+  computeTakerWithMMFeesPrice,
   CurveType,
   PoolType,
   TakerSide,
@@ -32,7 +32,7 @@ describe("prices helper functions", () => {
       { mmFeeBps: 0, expected: startingPrice, takerSide: TakerSide.Buy },
       { mmFeeBps: 250, expected: startingPrice, takerSide: TakerSide.Buy },
     ]) {
-      const { displayPrice: actual } = computeTakerDisplayPrice({
+      const price = computeTakerWithMMFeesPrice({
         config: {
           poolType: PoolType.Trade,
           curveType: CurveType.Linear,
@@ -48,7 +48,7 @@ describe("prices helper functions", () => {
         slippage: 0,
       });
 
-      expect(actual.toString()).eq(expected.toString());
+      expect(price.toString()).eq(expected.toString());
     }
   });
 
@@ -76,8 +76,8 @@ describe("prices helper functions", () => {
         extraNFTsSelected: 0,
         slippage: 0,
       };
-      const { displayPrice: actual } = computeTakerDisplayPrice(args);
-      expect(actual.toString()).eq(computeCurrentPrice(args).toString());
+      const price = computeTakerWithMMFeesPrice(args);
+      expect(price.toString()).eq(computeCurrentPrice(args).toString());
     }
   });
 });
