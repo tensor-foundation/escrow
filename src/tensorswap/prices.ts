@@ -22,7 +22,7 @@ export const computeDepositAmount = ({
   // We could analytically compute this summation, but we choose to iterate to reduce amount of code.
   for (let count = 0; count < nftCount; count++) {
     amount = amount.add(
-      computeCurrentPrice({
+      computeTakerWithMMFeesPrice({
         config,
         takerSellCount: currentTakerSellCount + count,
         takerBuyCount: currentTakerBuyCount,
