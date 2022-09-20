@@ -21,6 +21,7 @@ export enum CurveType {
 export type PoolConfig = {
   poolType: PoolType;
   curveType: CurveType;
+  // TODO: THESE SHOULD BE BNs, OTHERWISE WE'LL RUN INTO ALL SORTS OF RUN TIME ERRORS.
   startingPrice: Big;
   delta: Big;
   honorRoyalties: boolean;

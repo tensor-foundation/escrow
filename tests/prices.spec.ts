@@ -1,10 +1,13 @@
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import Big from "big.js";
+import BN from "bn.js";
 import { expect } from "chai";
 import {
   computeCurrentPrice,
   computeTakerWithMMFeesPrice,
+  computeTotalAmountCount,
   CurveType,
+  PoolConfig,
   PoolType,
   TakerSide,
 } from "../src";
@@ -77,5 +80,54 @@ describe("prices helper functions", () => {
       const price = computeTakerWithMMFeesPrice(args);
       expect(price.toString()).eq(computeCurrentPrice(args).toString());
     }
+  });
+
+  // todo: add more computeTotalAmountCount tests.
+  it("computeTotalAmountCount works for selling into trade pool", async () => {
+    // Compute amount for 3 NFTs selling into trade pool (most complex).
+    const baseConfig = {
+      desired: { count: 3 },
+      config: {
+        poolType: PoolType.Trade,
+        curveType: CurveType.Linear,
+        startingPrice: new Big(2 * LAMPORTS_PER_SOL),
+        delta: new Big(0.1 * LAMPORTS_PER_SOL),
+        mmFeeBps: 340,
+        honorRoyalties: true,
+      },
+      takerBuyCount: 0,
+      takerSellCount: 0,
+      takerSide: TakerSide.Sell,
+      extraNFTsSelected: 0,
+    };
+    let { totalAmount, allowedCount, initialPrice } =
+      computeTotalAmountCount(baseConfig);
+    // 1.9*0.966 + 1.8*0.966 + 1.7*0.966
+    expect(totalAmount.toNumber()).eq(5.2164 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(3);
+    // 1.9*0.966
+    expect(initialPrice.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+
+    // 0.0001 lamport less than required for 3.
+    ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
+      ...baseConfig,
+      desired: { total: new BN(5.2163 * LAMPORTS_PER_SOL) },
+    }));
+    // 1.9*0.966 + 1.8*0.966
+    expect(totalAmount.toNumber()).eq(3.5742 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(2);
+    // 1.9*0.966
+    expect(initialPrice.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+
+    // 0.0001 lamport more than required for 3.
+    ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
+      ...baseConfig,
+      desired: { total: new BN(5.2165 * LAMPORTS_PER_SOL) },
+    }));
+    // 1.9*0.966 + 1.8*0.966 + 1.7*0.966
+    expect(totalAmount.toNumber()).eq(5.2164 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(3);
+    // 1.9*0.966
+    expect(initialPrice.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
   });
 });
