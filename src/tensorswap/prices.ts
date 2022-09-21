@@ -35,8 +35,11 @@ export const computeTakerDisplayPrice = (args: ComputePriceArgs) => {
 // This should be used when computing deposit amounts + display (see computeTakerDisplayPrice) and nothing else.
 // In contrast, computeCurrentPrice is what should be passed to the ix itself
 // (doesn't take into account tswap/mm fees).
-export const computeTakerWithMMFeesPrice = (args: ComputePriceArgs): Big => {
+export const computeTakerWithMMFeesPrice = (
+  args: ComputePriceArgs
+): Big | null => {
   let currentPrice = computeCurrentPrice(args);
+  if (currentPrice === null) return null;
 
   let priceWithMMFees = currentPrice;
   if (
@@ -55,6 +58,7 @@ export const computeTakerWithMMFeesPrice = (args: ComputePriceArgs): Big => {
 // optionally with slippage (so minPrice for Sell, maxPrice for Buy).
 // Note even w/ 0 slippage this price will differ from the on-chain current price
 // for Exponential curves b/c of rounding differences.
+// Will return null if price is neagtive (ie cannot sell anymore).
 export const computeCurrentPrice = ({
   config,
   takerSellCount,
@@ -63,7 +67,7 @@ export const computeCurrentPrice = ({
   extraNFTsSelected,
   // Default small tolerance for exponential curves.
   slippage = config.curveType === CurveType.Linear ? 0 : EXPO_SLIPPAGE,
-}: ComputePriceArgs): Big => {
+}: ComputePriceArgs): Big | null => {
   let basePrice = (() => {
     switch (config.poolType) {
       case PoolType.Token:
@@ -109,6 +113,8 @@ export const computeCurrentPrice = ({
     }
   })();
 
+  if (basePrice.lt(0)) return null;
+
   basePrice = basePrice.mul(
     1 + (takerSide === TakerSide.Buy ? 1 : -1) * slippage
   );
@@ -144,7 +150,6 @@ const _shiftPriceByDelta = (
         case "down":
           return startingPrice.sub(delta.mul(times));
       }
-      break;
   }
 };
 
@@ -161,15 +166,16 @@ export const computeTotalAmountCount = (
   let allowedCount = 0;
 
   const currPriceArgs = { ...priceArgs };
-  const initialPrice = new BN(
-    computeTakerWithMMFeesPrice(currPriceArgs).round().toString()
-  );
+  const initTakerPrice = computeTakerWithMMFeesPrice(currPriceArgs);
+  const initialPrice = initTakerPrice
+    ? new BN(initTakerPrice.round().toString())
+    : null;
   let currPrice = initialPrice;
 
   while (
+    currPrice !== null &&
     (("count" in desired && allowedCount < desired.count) ||
-      ("total" in desired && totalAmount.lte(desired.total.sub(currPrice)))) &&
-    currPrice.gt(new BN(0))
+      ("total" in desired && totalAmount.lte(desired.total.sub(currPrice))))
   ) {
     totalAmount = totalAmount.add(currPrice);
     allowedCount += 1;
@@ -178,10 +184,25 @@ export const computeTotalAmountCount = (
     } else {
       currPriceArgs.takerSellCount++;
     }
-    currPrice = new BN(
-      computeTakerWithMMFeesPrice(currPriceArgs).round().toString()
-    );
+
+    const temp = computeTakerWithMMFeesPrice(currPriceArgs);
+    // Need to round decimals since we only deal in BNs/lamports.
+    currPrice = temp ? new BN(temp.round().toString()) : null;
   }
 
   return { totalAmount, allowedCount, initialPrice };
+};
+
+// Use this for figuring out deposit amount, since this handles slippage in the correct
+// direction for expo pools (need to deposit a bit more than necessary b/c of rounding errors).
+export const computeDepositAmount = (
+  args: ComputePriceArgs & {
+    desired: { count: number } | { total: BN };
+  }
+) => {
+  return computeTotalAmountCount({
+    ...args,
+    slippage:
+      args.config.curveType === CurveType.Linear ? 0 : -1 * EXPO_SLIPPAGE,
+  });
 };

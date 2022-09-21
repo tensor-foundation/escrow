@@ -2,6 +2,7 @@ import { BN, LangErrorCode } from "@project-serum/anchor";
 import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
+import { computeTotalAmountCount } from "../../src";
 import {
   buildAndSendTx,
   cartesian,
@@ -712,7 +713,10 @@ describe("tswap sell", () => {
     await testMakePool({ tswap, owner: traderA, whitelist, config });
 
     // deposit enough SOL.
-    const depositAmount = computeDepositAmount({ config, nftCount: numSells });
+    const depositAmount = computeDepositAmount({
+      config,
+      nftCount: numSells,
+    });
     const {
       tx: { ixs },
     } = await swapSdk.depositSol({

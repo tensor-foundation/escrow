@@ -309,8 +309,12 @@ export const computeDepositAmount = ({
   new BN(
     computeDepositAmount_({
       config: castPoolConfigAnchor(config),
-      nftCount,
-    }).toNumber()
+      desired: { count: nftCount },
+      takerSide: TakerSide.Sell,
+      takerBuyCount: 0,
+      takerSellCount: 0,
+      extraNFTsSelected: 0,
+    }).totalAmount.toNumber()
   );
 
 export const computeCurrentPrice = ({
@@ -334,7 +338,7 @@ export const computeCurrentPrice = ({
       takerSide,
       extraNFTsSelected: 0,
       slippage,
-    }).toNumber()
+    })!.toNumber()
   );
 
 //#endregion

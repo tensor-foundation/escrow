@@ -68,10 +68,11 @@ jobs:
 
       - run: anchor --version
       - run: chmod +x ~/.cargo/bin/anchor
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: anchor-binary
           path: ~/.cargo/bin/anchor
+          retention-days: 1
 
       - uses: ./.github/actions/git-diff/
 

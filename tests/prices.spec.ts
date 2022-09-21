@@ -7,7 +7,6 @@ import {
   computeTakerWithMMFeesPrice,
   computeTotalAmountCount,
   CurveType,
-  PoolConfig,
   PoolType,
   TakerSide,
 } from "../src";
@@ -50,7 +49,7 @@ describe("prices helper functions", () => {
         extraNFTsSelected: 0,
       });
 
-      expect(price.toString()).eq(expected.toString());
+      expect(price!.toString()).eq(expected.toString());
     }
   });
 
@@ -78,7 +77,7 @@ describe("prices helper functions", () => {
         extraNFTsSelected: 0,
       };
       const price = computeTakerWithMMFeesPrice(args);
-      expect(price.toString()).eq(computeCurrentPrice(args).toString());
+      expect(price!.toString()).eq(computeCurrentPrice(args)!.toString());
     }
   });
 
@@ -106,7 +105,7 @@ describe("prices helper functions", () => {
     expect(totalAmount.toNumber()).eq(5.2164 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(3);
     // 1.9*0.966
-    expect(initialPrice.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
 
     // 0.0001 lamport less than required for 3.
     ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
@@ -117,7 +116,7 @@ describe("prices helper functions", () => {
     expect(totalAmount.toNumber()).eq(3.5742 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(2);
     // 1.9*0.966
-    expect(initialPrice.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
 
     // 0.0001 lamport more than required for 3.
     ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
@@ -128,7 +127,7 @@ describe("prices helper functions", () => {
     expect(totalAmount.toNumber()).eq(5.2164 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(3);
     // 1.9*0.966
-    expect(initialPrice.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
 
     // ---- non-zero taker counts
 
@@ -142,7 +141,7 @@ describe("prices helper functions", () => {
     expect(totalAmount.toNumber()).eq(4.6368 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(3);
     // 1.7*0.966
-    expect(initialPrice.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
 
     // With total now
     ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
@@ -155,6 +154,50 @@ describe("prices helper functions", () => {
     expect(totalAmount.toNumber()).eq(3.1878 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(2);
     // 1.7*0.966
-    expect(initialPrice.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
+  });
+
+  it("computeTotalAmountCount behaves fine with 0 and negative prices", async () => {
+    // Compute amount for 3 NFTs selling into trade pool (most complex).
+    const baseConfig = {
+      desired: { total: new BN(2 * LAMPORTS_PER_SOL) },
+      config: {
+        poolType: PoolType.Token,
+        curveType: CurveType.Linear,
+        startingPrice: new Big(0.1 * LAMPORTS_PER_SOL),
+        delta: new Big(0.1 * LAMPORTS_PER_SOL),
+        mmFeeBps: null,
+        honorRoyalties: true,
+      },
+      takerBuyCount: 0,
+      takerSellCount: 0,
+      takerSide: TakerSide.Sell,
+      extraNFTsSelected: 0,
+    };
+
+    // No sells: 0.1 start price, can sell twice.
+    let { totalAmount, allowedCount, initialPrice } =
+      computeTotalAmountCount(baseConfig);
+    expect(totalAmount.toNumber()).eq(0.1 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(2);
+    expect(initialPrice!.toNumber()).eq(0.1 * LAMPORTS_PER_SOL);
+
+    // 1 sell, 0 current price, 1 more sell.
+    ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
+      ...baseConfig,
+      takerSellCount: 1,
+    }));
+    expect(totalAmount.toNumber()).eq(0 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(1);
+    expect(initialPrice!.toNumber()).eq(0);
+
+    // 2 sells, null current price, no more sells.
+    ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
+      ...baseConfig,
+      takerSellCount: 2,
+    }));
+    expect(totalAmount.toNumber()).eq(0 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(0);
+    expect(initialPrice).null;
   });
 });
