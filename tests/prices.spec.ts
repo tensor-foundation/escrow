@@ -129,5 +129,32 @@ describe("prices helper functions", () => {
     expect(allowedCount).eq(3);
     // 1.9*0.966
     expect(initialPrice.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+
+    // ---- non-zero taker counts
+
+    ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
+      ...baseConfig,
+      // Start price should now be 2 - 2*0.1 = 1.8
+      takerSellCount: 5,
+      takerBuyCount: 3,
+    }));
+    // 1.7*0.966 + 1.6*0.966 + 1.5*0.966
+    expect(totalAmount.toNumber()).eq(4.6368 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(3);
+    // 1.7*0.966
+    expect(initialPrice.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
+
+    // With total now
+    ({ totalAmount, allowedCount, initialPrice } = computeTotalAmountCount({
+      ...baseConfig,
+      desired: { total: new BN(4 * LAMPORTS_PER_SOL) },
+      // Start price should now be 2 - 2*0.1 = 1.8
+      takerSellCount: 5,
+      takerBuyCount: 3,
+    }));
+    expect(totalAmount.toNumber()).eq(3.1878 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(2);
+    // 1.7*0.966
+    expect(initialPrice.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
   });
 });
