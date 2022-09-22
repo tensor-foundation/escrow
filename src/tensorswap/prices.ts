@@ -156,12 +156,15 @@ const _shiftPriceByDelta = (
 // Use this to figure out:
 // (1) desired = count  - how much SOL lamports (totalAmount) required to sell/buy `count`
 // (2) desired = total  - how many NFTs (allowedCount) one can sell/buy with `total`
-export const computeTotalAmountCount = (
-  args: ComputePriceArgs & {
-    desired: { count: number } | { total: BN };
-  }
-) => {
-  const { desired, ...priceArgs } = args;
+export const computeTotalAmountCount = ({
+  desired,
+  maxCount = 1000,
+  ...priceArgs
+}: ComputePriceArgs & {
+  desired: { count: number } | { total: BN };
+  // Necessary since for a sell exponential curve, this can be infinity.
+  maxCount?: number;
+}) => {
   let totalAmount = new BN(0);
   let allowedCount = 0;
 
@@ -174,12 +177,13 @@ export const computeTotalAmountCount = (
 
   while (
     currPrice !== null &&
+    allowedCount < maxCount &&
     (("count" in desired && allowedCount < desired.count) ||
       ("total" in desired && totalAmount.lte(desired.total.sub(currPrice))))
   ) {
     totalAmount = totalAmount.add(currPrice);
     allowedCount += 1;
-    if (args.takerSide === TakerSide.Buy) {
+    if (priceArgs.takerSide === TakerSide.Buy) {
       currPriceArgs.takerBuyCount++;
     } else {
       currPriceArgs.takerSellCount++;
