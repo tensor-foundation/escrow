@@ -11,7 +11,6 @@ use tensor_whitelist::Whitelist;
 pub struct WithdrawNft<'info> {
     #[account(
         seeds = [], bump = tswap.bump[0],
-        has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
@@ -86,8 +85,6 @@ pub struct WithdrawNft<'info> {
     /// Tied to the pool because used to verify pool seeds
     #[account(mut)]
     pub owner: Signer<'info>,
-    /// CHECK: has_one = cosigner in tswap
-    pub cosigner: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,

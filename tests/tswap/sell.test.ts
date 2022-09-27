@@ -2,7 +2,7 @@ import { BN, LangErrorCode } from "@project-serum/anchor";
 import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
-import { computeTotalAmountCount } from "../../src";
+import { computeMakerAmountCount } from "../../src";
 import {
   buildAndSendTx,
   cartesian,
@@ -135,7 +135,6 @@ describe("tswap sell", () => {
       config,
       proof: wlNft.proof,
       minPrice: new BN(LAMPORTS_PER_SOL),
-      cosigner: TEST_PROVIDER.publicKey,
     });
 
     // Ensure ATA is closed to begin with.
@@ -338,7 +337,6 @@ describe("tswap sell", () => {
                 ? LAMPORTS_PER_SOL
                 : LAMPORTS_PER_SOL - 1234
             ),
-            cosigner: TEST_PROVIDER.publicKey,
           });
 
           await expect(
@@ -449,7 +447,6 @@ describe("tswap sell", () => {
             config: currConfig,
             proof,
             minPrice: new BN(0),
-            cosigner: TEST_PROVIDER.publicKey,
           });
 
           const promise = buildAndSendTx({
@@ -522,7 +519,6 @@ describe("tswap sell", () => {
           config,
           proof: wlNft.proof,
           minPrice: new BN(expectedLamports),
-          cosigner: TEST_PROVIDER.publicKey,
         });
 
         // Selling into pool should trigger error.
@@ -649,7 +645,6 @@ describe("tswap sell", () => {
               config: config,
               proof,
               minPrice: currPrice,
-              cosigner: TEST_PROVIDER.publicKey,
             });
             await buildAndSendTx({
               ixs,
@@ -760,7 +755,6 @@ describe("tswap sell", () => {
         config: config,
         proof,
         minPrice: currPrice,
-        cosigner: TEST_PROVIDER.publicKey,
       });
       await buildAndSendTx({
         ixs,

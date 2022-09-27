@@ -14,7 +14,7 @@ use vipers::throw_err;
 pub struct BuyNft<'info> {
     #[account(
         seeds = [], bump = tswap.bump[0],
-        has_one = fee_vault, has_one = cosigner,
+        has_one = fee_vault,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
@@ -119,8 +119,6 @@ pub struct BuyNft<'info> {
 
     #[account(mut)]
     pub buyer: Signer<'info>,
-    /// CHECK: has_one = cosigner in tswap
-    pub cosigner: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,

@@ -104,10 +104,7 @@ pub mod tensor_whitelist {
             *elem = [0; 32];
         }
 
-        // mint_proof.proof = proof.as_slice().try_into().unwrap();
-        (&mut mint_proof.proof[0..proof.len()]).copy_from_slice(proof.as_slice());
-        // (&mut mint_proof.proof[..mint_proof.proof_len]).copy_from_slice(proof.as_slice());
-        // (&mut mint_proof.proof[mint_proof.len..]).copy_from_slice(proof.as_slice());
+        mint_proof.proof[0..proof.len()].copy_from_slice(proof.as_slice());
 
         Ok(())
     }

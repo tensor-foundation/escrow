@@ -9,7 +9,6 @@ use vipers::throw_err;
 pub struct InitPool<'info> {
     #[account(
         seeds = [], bump = tswap.bump[0],
-        has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
@@ -51,8 +50,6 @@ pub struct InitPool<'info> {
     /// CHECK: used in seed derivation
     #[account(mut)]
     pub owner: Signer<'info>,
-    /// CHECK: has_one = cosigner in tswap
-    pub cosigner: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }

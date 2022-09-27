@@ -30,10 +30,10 @@ import {
   TSwapConfigAnchor,
   TSWAP_FEE_ACC,
   computeCurrentPrice as computeCurrentPrice_,
-  computeDepositAmount as computeDepositAmount_,
   TensorWhitelistSDK,
   PoolAnchor,
   castPoolConfigAnchor,
+  computeMakerAmountCount,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -307,7 +307,7 @@ export const computeDepositAmount = ({
   nftCount: number;
 }): BN =>
   new BN(
-    computeDepositAmount_({
+    computeMakerAmountCount({
       config: castPoolConfigAnchor(config),
       desired: { count: nftCount },
       takerSide: TakerSide.Sell,
@@ -895,7 +895,6 @@ export const testMakePoolSellNft = async ({
     config,
     proof: wlNft.proof,
     minPrice: new BN(minLamports),
-    cosigner: TEST_PROVIDER.publicKey,
   });
 
   const _checkDestAcc = async (amount: string) => {

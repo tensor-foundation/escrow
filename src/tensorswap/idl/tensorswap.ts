@@ -79,11 +79,6 @@ export type Tensorswap = {
           "isSigner": true
         },
         {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -124,11 +119,6 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
           "isSigner": true
         },
         {
@@ -193,11 +183,6 @@ export type Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
           "isSigner": true
         },
         {
@@ -287,11 +272,6 @@ export type Tensorswap = {
           ]
         },
         {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -350,11 +330,6 @@ export type Tensorswap = {
           "isSigner": true
         },
         {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -403,11 +378,6 @@ export type Tensorswap = {
           "docs": [
             "Tied to the pool because used to verify pool seeds"
           ]
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -496,11 +466,6 @@ export type Tensorswap = {
         {
           "name": "buyer",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
           "isSigner": true
         },
         {
@@ -610,11 +575,6 @@ export type Tensorswap = {
             {
               "name": "seller",
               "isMut": true,
-              "isSigner": true
-            },
-            {
-              "name": "cosigner",
-              "isMut": false,
               "isSigner": true
             }
           ]
@@ -731,11 +691,6 @@ export type Tensorswap = {
             {
               "name": "seller",
               "isMut": true,
-              "isSigner": true
-            },
-            {
-              "name": "cosigner",
-              "isMut": false,
               "isSigner": true
             }
           ]
@@ -1283,11 +1238,6 @@ export const IDL: Tensorswap = {
           "isSigner": true
         },
         {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -1328,11 +1278,6 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
           "isSigner": true
         },
         {
@@ -1397,11 +1342,6 @@ export const IDL: Tensorswap = {
         {
           "name": "owner",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
           "isSigner": true
         },
         {
@@ -1491,11 +1431,6 @@ export const IDL: Tensorswap = {
           ]
         },
         {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -1554,11 +1489,6 @@ export const IDL: Tensorswap = {
           "isSigner": true
         },
         {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
           "name": "systemProgram",
           "isMut": false,
           "isSigner": false
@@ -1607,11 +1537,6 @@ export const IDL: Tensorswap = {
           "docs": [
             "Tied to the pool because used to verify pool seeds"
           ]
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
-          "isSigner": true
         },
         {
           "name": "systemProgram",
@@ -1700,11 +1625,6 @@ export const IDL: Tensorswap = {
         {
           "name": "buyer",
           "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "cosigner",
-          "isMut": false,
           "isSigner": true
         },
         {
@@ -1814,11 +1734,6 @@ export const IDL: Tensorswap = {
             {
               "name": "seller",
               "isMut": true,
-              "isSigner": true
-            },
-            {
-              "name": "cosigner",
-              "isMut": false,
               "isSigner": true
             }
           ]
@@ -1935,11 +1850,6 @@ export const IDL: Tensorswap = {
             {
               "name": "seller",
               "isMut": true,
-              "isSigner": true
-            },
-            {
-              "name": "cosigner",
-              "isMut": false,
               "isSigner": true
             }
           ]

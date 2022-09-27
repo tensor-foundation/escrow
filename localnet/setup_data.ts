@@ -422,7 +422,6 @@ const oneTimeTxs = async () => {
       config: poolConfig,
       // Sell into trade pool is 1 tick lower.
       minPrice: config.startingPrice.sub(new BN(0.5 * LAMPORTS_PER_SOL)),
-      cosigner: TEST_PROVIDER.publicKey,
     });
     const sig = await buildAndSendTx({ ixs, extraSigners: [traderB] });
     console.log(

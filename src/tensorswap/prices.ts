@@ -35,9 +35,7 @@ export const computeTakerDisplayPrice = (args: ComputePriceArgs) => {
 // This should be used when computing deposit amounts + display (see computeTakerDisplayPrice) and nothing else.
 // In contrast, computeCurrentPrice is what should be passed to the ix itself
 // (doesn't take into account tswap/mm fees).
-export const computeTakerWithMMFeesPrice = (
-  args: ComputePriceArgs
-): Big | null => {
+const computeTakerWithMMFeesPrice = (args: ComputePriceArgs): Big | null => {
   let currentPrice = computeCurrentPrice(args);
   if (currentPrice === null) return null;
 
@@ -153,10 +151,13 @@ const _shiftPriceByDelta = (
   }
 };
 
-// Use this to figure out:
+// Use this to figure out (from the maker perspective):
 // (1) desired = count  - how much SOL lamports (totalAmount) required to sell/buy `count`
 // (2) desired = total  - how many NFTs (allowedCount) one can sell/buy with `total`
-export const computeTotalAmountCount = ({
+// What's sepcial about this fn is we always use negative noise slippage (by default) in the case of
+// exponential fns.
+// This ensures that the maker deposits more than enough (for rounding issues).
+export const computeMakerAmountCount = ({
   desired,
   maxCount = 1000,
   ...priceArgs
@@ -168,7 +169,14 @@ export const computeTotalAmountCount = ({
   let totalAmount = new BN(0);
   let allowedCount = 0;
 
-  const currPriceArgs = { ...priceArgs };
+  const currPriceArgs = {
+    ...priceArgs,
+    slippage:
+      priceArgs.slippage ??
+      (priceArgs.config.curveType === CurveType.Linear
+        ? 0
+        : -1 * EXPO_SLIPPAGE),
+  };
   const initTakerPrice = computeTakerWithMMFeesPrice(currPriceArgs);
   const initialPrice = initTakerPrice
     ? new BN(initTakerPrice.round().toString())
@@ -195,18 +203,4 @@ export const computeTotalAmountCount = ({
   }
 
   return { totalAmount, allowedCount, initialPrice };
-};
-
-// Use this for figuring out deposit amount, since this handles slippage in the correct
-// direction for expo pools (need to deposit a bit more than necessary b/c of rounding errors).
-export const computeDepositAmount = (
-  args: ComputePriceArgs & {
-    desired: { count: number } | { total: BN };
-  }
-) => {
-  return computeTotalAmountCount({
-    ...args,
-    slippage:
-      args.config.curveType === CurveType.Linear ? 0 : -1 * EXPO_SLIPPAGE,
-  });
 };

@@ -320,12 +320,10 @@ export class TensorSwapSDK {
     owner,
     whitelist,
     config,
-    cosigner,
   }: {
     owner: PublicKey;
     whitelist: PublicKey;
     config: PoolConfigAnchor;
-    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -345,7 +343,6 @@ export class TensorSwapSDK {
       solEscrow: solEscrowPda,
       whitelist,
       owner,
-      cosigner,
       systemProgram: SystemProgram.programId,
     });
 
@@ -366,12 +363,10 @@ export class TensorSwapSDK {
     owner,
     whitelist,
     config,
-    cosigner,
   }: {
     owner: PublicKey;
     whitelist: PublicKey;
     config: PoolConfigAnchor;
-    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -391,7 +386,6 @@ export class TensorSwapSDK {
       solEscrow: solEscrowPda,
       whitelist,
       owner,
-      cosigner,
       systemProgram: SystemProgram.programId,
     });
 
@@ -417,7 +411,6 @@ export class TensorSwapSDK {
     owner,
     config,
     proof,
-    cosigner,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -425,7 +418,6 @@ export class TensorSwapSDK {
     owner: PublicKey;
     config: PoolConfigAnchor;
     proof: Buffer[];
-    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -454,7 +446,6 @@ export class TensorSwapSDK {
         nftEscrow: escrowPda,
         nftReceipt: receiptPda,
         owner,
-        cosigner,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -480,13 +471,11 @@ export class TensorSwapSDK {
     owner,
     config,
     lamports,
-    cosigner,
   }: {
     whitelist: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
     lamports: BN;
-    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -509,7 +498,6 @@ export class TensorSwapSDK {
         whitelist,
         solEscrow: solEscrowPda,
         owner,
-        cosigner,
         systemProgram: SystemProgram.programId,
       });
 
@@ -532,14 +520,12 @@ export class TensorSwapSDK {
     nftDest,
     owner,
     config,
-    cosigner,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
     nftDest: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
-    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -566,7 +552,6 @@ export class TensorSwapSDK {
       nftEscrow: escrowPda,
       nftReceipt: receiptPda,
       owner,
-      cosigner,
       tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
@@ -593,13 +578,11 @@ export class TensorSwapSDK {
     owner,
     config,
     lamports,
-    cosigner,
   }: {
     whitelist: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
     lamports: BN;
-    cosigner?: PublicKey;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -622,7 +605,6 @@ export class TensorSwapSDK {
         whitelist,
         solEscrow: solEscrowPda,
         owner,
-        cosigner,
         systemProgram: SystemProgram.programId,
       });
 
@@ -650,7 +632,6 @@ export class TensorSwapSDK {
     config,
     proof,
     maxPrice,
-    cosigner,
     metaCreators,
   }: {
     whitelist: PublicKey;
@@ -661,7 +642,6 @@ export class TensorSwapSDK {
     config: PoolConfigAnchor;
     proof: Buffer[];
     maxPrice: BN;
-    cosigner?: PublicKey;
     // If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
@@ -715,7 +695,6 @@ export class TensorSwapSDK {
         solEscrow: solEscrowPda,
         owner,
         buyer,
-        cosigner,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
@@ -756,8 +735,6 @@ export class TensorSwapSDK {
     config,
     proof,
     minPrice,
-    // Weird how cosigner is necessary/cannot be non-null (composite accounts).
-    cosigner,
     metaCreators,
   }: {
     type: "trade" | "token";
@@ -769,7 +746,6 @@ export class TensorSwapSDK {
     config: PoolConfigAnchor;
     proof: Buffer[];
     minPrice: BN;
-    cosigner: PublicKey;
     // If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
@@ -816,7 +792,6 @@ export class TensorSwapSDK {
       mintProof: mintProofPda,
       owner,
       seller,
-      cosigner,
     };
 
     const { method, accounts } =

@@ -60,7 +60,7 @@ pub fn assert_decode_metadata<'info>(
 pub struct SellNft<'info> {
     #[account(
         seeds = [], bump = tswap.bump[0],
-        has_one = fee_vault, has_one = cosigner,
+        has_one = fee_vault,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
@@ -139,8 +139,6 @@ pub struct SellNft<'info> {
 
     #[account(mut)]
     pub seller: Signer<'info>,
-    /// CHECK: has_one = cosigner in tswap
-    pub cosigner: Signer<'info>,
 }
 
 impl<'info> SellNft<'info> {

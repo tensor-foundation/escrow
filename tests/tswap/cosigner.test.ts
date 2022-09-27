@@ -58,34 +58,39 @@ describe("tswap cosigner", () => {
     extraSigners?: Keypair[];
   }) => {
     // Test faking a cosigner.
-    if (checkFakeCosigner) {
-      const fakeCosigner = Keypair.generate();
-      const fakeCosignerIxs = ixs.map((ix) => ({
-        ...ix,
-        keys: ix.keys.map((k) =>
-          k.pubkey.equals(cosigner)
-            ? { ...k, pubkey: fakeCosigner.publicKey }
-            : k
-        ),
-      }));
-      await expect(
-        buildAndSendTx({
-          ixs: fakeCosignerIxs,
-          extraSigners: [...extraSigners, fakeCosigner],
-        })
-      ).rejectedWith(hexCode(LangErrorCode.ConstraintHasOne));
-    }
+    // if (checkFakeCosigner) {
+    //   const fakeCosigner = Keypair.generate();
+    //   const fakeCosignerIxs = ixs.map((ix) => ({
+    //     ...ix,
+    //     keys: ix.keys.map((k) =>
+    //       k.pubkey.equals(cosigner)
+    //         ? { ...k, pubkey: fakeCosigner.publicKey }
+    //         : k
+    //     ),
+    //   }));
+    //   await expect(
+    //     buildAndSendTx({
+    //       ixs: fakeCosignerIxs,
+    //       extraSigners: [...extraSigners, fakeCosigner],
+    //     })
+    //   ).rejectedWith(hexCode(LangErrorCode.ConstraintHasOne));
+    // }
 
-    // Without cosigner signing off.
-    await expect(buildAndSendTx({ ixs, extraSigners })).rejectedWith(
-      "Signature verification failed"
-    );
-
-    // Succeeds now when true cosigner signs off.
+    // Without cosigner signing off works now.
     return await buildAndSendTx({
       ixs,
-      extraSigners: [...extraSigners, cosignerKp],
+      extraSigners,
     });
+
+    // await expect(buildAndSendTx({ ixs, extraSigners })).rejectedWith(
+    //   "Signature verification failed"
+    // );
+
+    // // Succeeds now when true cosigner signs off.
+    // return await buildAndSendTx({
+    //   ixs,
+    //   extraSigners: [...extraSigners, cosignerKp],
+    // });
   };
 
   before(async () => {
@@ -107,7 +112,8 @@ describe("tswap cosigner", () => {
     });
     tswap = tswapPda;
     // Can't check fake cosigner failing since cosigner has not been init'ed yet.
-    await testWithWithoutCosigner({ ixs, checkFakeCosigner: false });
+    // await testWithWithoutCosigner({ ixs, checkFakeCosigner: false });
+    await buildAndSendTx({ ixs, extraSigners: [cosignerKp] });
 
     // Initialize a bunch of addn accts.
     [owner, seller, buyer] = await makeNTraders(3);
@@ -135,7 +141,6 @@ describe("tswap cosigner", () => {
         owner: owner.publicKey,
         whitelist,
         config,
-        cosigner,
       });
       await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
     }
@@ -152,7 +157,6 @@ describe("tswap cosigner", () => {
         nftSource: ownerBuyAta,
         nftMint: wlBuy.mint,
         proof: wlBuy.proof,
-        cosigner,
       });
       await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
     }
@@ -167,7 +171,6 @@ describe("tswap cosigner", () => {
         whitelist,
         config,
         lamports: new BN(LAMPORTS_PER_SOL - 1234),
-        cosigner,
       });
       await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
     }
@@ -186,7 +189,6 @@ describe("tswap cosigner", () => {
       buyer: buyer.publicKey,
       nftBuyerAcc: buyerAta,
       maxPrice: new BN(LAMPORTS_PER_SOL),
-      cosigner,
     });
     await testWithWithoutCosigner({ ixs, extraSigners: [buyer] });
   });
@@ -214,7 +216,6 @@ describe("tswap cosigner", () => {
       seller: seller.publicKey,
       nftSellerAcc: sellerAta,
       minPrice: new BN(LAMPORTS_PER_SOL - 1234),
-      cosigner,
     });
     await testWithWithoutCosigner({ ixs, extraSigners: [seller] });
   });
@@ -229,7 +230,6 @@ describe("tswap cosigner", () => {
       config,
       nftDest: ownerSellAta,
       nftMint: wlSell.mint,
-      cosigner,
     });
     await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
   });
@@ -243,7 +243,6 @@ describe("tswap cosigner", () => {
       whitelist,
       config,
       lamports: new BN(LAMPORTS_PER_SOL * (1 - TSWAP_FEE)),
-      cosigner,
     });
     await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
   });
@@ -256,7 +255,6 @@ describe("tswap cosigner", () => {
       owner: owner.publicKey,
       whitelist,
       config,
-      cosigner,
     });
     await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
   });

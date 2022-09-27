@@ -8,7 +8,6 @@ use tensor_whitelist::{self, Whitelist};
 pub struct DepositNft<'info> {
     #[account(
         seeds = [], bump = tswap.bump[0],
-        has_one = cosigner,
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
@@ -72,8 +71,6 @@ pub struct DepositNft<'info> {
     /// CHECK: has_one = owner in pool
     #[account(mut)]
     pub owner: Signer<'info>,
-    /// CHECK: has_one = cosigner in tswap
-    pub cosigner: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
