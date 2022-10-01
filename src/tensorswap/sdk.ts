@@ -133,8 +133,8 @@ export const castPoolConfigAnchor = (config: PoolConfigAnchor): PoolConfig => ({
 export const castPoolConfig = (config: PoolConfig): PoolConfigAnchor => ({
   poolType: castPoolType(config.poolType),
   curveType: castCurveType(config.curveType),
-  startingPrice: new BN(config.startingPrice.toString()),
-  delta: new BN(config.delta.toString()),
+  startingPrice: new BN(config.startingPrice.round().toString()),
+  delta: new BN(config.delta.round().toString()),
   honorRoyalties: config.honorRoyalties,
   mmFeeBps: config.mmFeeBps,
 });
