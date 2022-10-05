@@ -940,7 +940,9 @@ export class TensorSwapSDK {
       case "buyNft":
       case "sellNftTradePool":
       case "sellNftTokenPool":
-        return ix.events[0].data.currentPrice;
+        // NB: the actual sell price includes the "MM fee" (really a spread).
+        const event = ix.events[0].data;
+        return event.currentPrice.sub(event.mmFee);
       case "depositSol":
       case "withdrawSol":
         return (ix.ix.data as WithdrawDepositSolData).lamports;
@@ -954,9 +956,8 @@ export class TensorSwapSDK {
       case "buyNft":
       case "sellNftTradePool":
       case "sellNftTokenPool":
-        // todo: type
         const event = ix.events[0].data;
-        return event.mmFee.add(event.tswapFee).add(event.creatorsFee);
+        return event.tswapFee.add(event.creatorsFee);
       default:
         return null;
     }

@@ -810,10 +810,12 @@ describe("tswap sell", () => {
       expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
         JSON.stringify(castPoolConfigAnchor(config))
       );
-      expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
+      expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(
+        expectedLamports -
+          Math.trunc((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4)
+      );
       expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
         Math.trunc(expectedLamports * TSWAP_FEE) +
-          Math.trunc((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4) +
           Math.trunc((expectedLamports * 69) / 1e4)
       );
 
