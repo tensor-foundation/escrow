@@ -17,6 +17,10 @@ import {
   Program,
 } from "@project-serum/anchor";
 import Big from "big.js";
+import {
+  IDL as IDL_v0_1_32,
+  Tensorswap as Tensorswap_v0_1_32,
+} from "./idl/tensorswap_v0.1.32";
 import { IDL, Tensorswap } from "./idl/tensorswap";
 import { TENSORSWAP_ADDR, TSWAP_FEE_ACC } from "./constants";
 import {
@@ -44,7 +48,13 @@ import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/i
 import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
 import { findMintProofPDA } from "../tensor_whitelist";
 
+export const TensorswapIDL_v0_1_32 = IDL_v0_1_32;
+// https://solscan.io/tx/5ZWevmR3TLzUEVsPyE9bdUBqseeBdVMuELG45L15dx8rnXVCQZE2n1V1EbqEuGEaF6q4fND7rT7zwW8ZXjP1uC5s
+// TODO: find exact slot + ix when the upgrade happened
+export const TensorswapIDL_v0_1_32_EffSlot = 150855169;
 export const TensorswapIDL = IDL;
+// https://solscan.io/tx/5aswB2admCErRwPNgM3DeaYcbVYjAjpHuKVFAZenaSGEm8PKL8R2BmqsGFWdGfMR25NPrVSNKix18ZgLtVpHyXUJ
+export const TensorswapIDL_EffSlot = 153016663;
 
 // --------------------------------------- pool type
 
@@ -229,12 +239,18 @@ export class TensorSwapSDK {
     provider,
     coder,
   }: {
-    idl?: any; //todo better typing
+    idl?: typeof IDL | typeof IDL_v0_1_32;
     addr?: PublicKey;
     provider?: AnchorProvider;
     coder?: Coder;
   }) {
-    this.program = new Program<Tensorswap>(idl, addr, provider, coder);
+    this.program = new Program<Tensorswap>(
+      // yucky but w/e
+      idl as typeof IDL,
+      addr,
+      provider,
+      coder
+    );
     this.discMap = genDiscToDecoderMap(this.program);
     this.coder = new BorshCoder(idl);
     this.eventParser = new EventParser(addr, this.coder);
