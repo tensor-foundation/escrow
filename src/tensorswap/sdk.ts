@@ -17,11 +17,6 @@ import {
   Program,
 } from "@project-serum/anchor";
 import Big from "big.js";
-import {
-  IDL as IDL_v0_1_32,
-  Tensorswap as Tensorswap_v0_1_32,
-} from "./idl/tensorswap_v0.1.32";
-import { IDL, Tensorswap } from "./idl/tensorswap";
 import { TENSORSWAP_ADDR, TSWAP_FEE_ACC } from "./constants";
 import {
   findNftDepositReceiptPDA,
@@ -48,13 +43,25 @@ import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/i
 import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
 import { findMintProofPDA } from "../tensor_whitelist";
 
+// ---------------------------------------- Versioned IDLs for backwards compat when parsing.
+
+import {
+  IDL as IDL_v0_1_32,
+  Tensorswap as Tensorswap_v0_1_32,
+} from "./idl/tensorswap_v0.1.32";
+import {
+  IDL as IDL_latest,
+  Tensorswap as Tensorswap_latest,
+} from "./idl/tensorswap";
+
 export const TensorswapIDL_v0_1_32 = IDL_v0_1_32;
 // https://solscan.io/tx/5ZWevmR3TLzUEVsPyE9bdUBqseeBdVMuELG45L15dx8rnXVCQZE2n1V1EbqEuGEaF6q4fND7rT7zwW8ZXjP1uC5s
 // TODO: find exact slot + ix when the upgrade happened
 export const TensorswapIDL_v0_1_32_EffSlot = 150855169;
-export const TensorswapIDL = IDL;
+export const TensorswapIDL_latest = IDL_latest;
 // https://solscan.io/tx/5aswB2admCErRwPNgM3DeaYcbVYjAjpHuKVFAZenaSGEm8PKL8R2BmqsGFWdGfMR25NPrVSNKix18ZgLtVpHyXUJ
-export const TensorswapIDL_EffSlot = 153016663;
+export const TensorswapIDL_latest_EffSlot = 153016663;
+export type TensorswapIDL = Tensorswap_v0_1_32 | Tensorswap_latest;
 
 // --------------------------------------- pool type
 
@@ -207,11 +214,11 @@ export type TaggedTensorSwapPdaAnchor =
       account: NftDepositReceiptAnchor;
     };
 
-export type TensorSwapEventAnchor = Event<typeof IDL["events"][number]>;
+export type TensorSwapEventAnchor = Event<typeof IDL_latest["events"][number]>;
 
 // ------------- Types for parsed ixs from raw tx.
 
-export type TSwapIxName = typeof IDL["instructions"][number]["name"];
+export type TSwapIxName = typeof IDL_latest["instructions"][number]["name"];
 export type TSwapIx = Omit<Instruction, "name"> & { name: TSwapIxName };
 export type ParsedTSwapIx = {
   ixIdx: number;
@@ -227,26 +234,26 @@ export type WithdrawDepositSolData = TSwapIxData & { lamports: BN };
 
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TensorSwapSDK {
-  program: Program<Tensorswap>;
-  discMap: DiscMap<Tensorswap>;
+  program: Program<TensorswapIDL>;
+  discMap: DiscMap<TensorswapIDL>;
   coder: BorshCoder;
   eventParser: EventParser;
 
   //can build ixs without provider, but need provider for
   constructor({
-    idl = IDL,
+    idl = IDL_latest,
     addr = TENSORSWAP_ADDR,
     provider,
     coder,
   }: {
-    idl?: typeof IDL | typeof IDL_v0_1_32;
+    idl?: TensorswapIDL;
     addr?: PublicKey;
     provider?: AnchorProvider;
     coder?: Coder;
   }) {
-    this.program = new Program<Tensorswap>(
+    this.program = new Program<TensorswapIDL>(
       // yucky but w/e
-      idl as typeof IDL,
+      idl as typeof IDL_latest,
       addr,
       provider,
       coder
@@ -885,12 +892,12 @@ export class TensorSwapSDK {
   }
 
   getError(
-    name: typeof IDL["errors"][number]["name"]
-  ): typeof IDL["errors"][number] {
+    name: typeof IDL_latest["errors"][number]["name"]
+  ): typeof IDL_latest["errors"][number] {
     return this.program.idl.errors.find((e) => e.name === name)!;
   }
 
-  getErrorCodeHex(name: typeof IDL["errors"][number]["name"]): string {
+  getErrorCodeHex(name: typeof IDL_latest["errors"][number]["name"]): string {
     return hexCode(this.getError(name).code);
   }
 
