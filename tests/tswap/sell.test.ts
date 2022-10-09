@@ -787,16 +787,17 @@ describe("tswap sell", () => {
       if (config === tradePoolConfig) temp = temp.sub(config.delta);
       const expectedLamports = temp.toNumber();
 
-      const { sellSig, wlNft, whitelist } = await testMakePoolSellNft({
-        sellType: config === tradePoolConfig ? "trade" : "token",
-        tswap,
-        owner,
-        seller,
-        config,
-        expectedLamports,
-        commitment: "confirmed",
-        royaltyBps: 69,
-      });
+      const { sellSig, wlNft, whitelist, poolPda, solEscrowPda, nftReceipt } =
+        await testMakePoolSellNft({
+          sellType: config === tradePoolConfig ? "trade" : "token",
+          tswap,
+          owner,
+          seller,
+          config,
+          expectedLamports,
+          commitment: "confirmed",
+          royaltyBps: 69,
+        });
 
       const tx = (await TEST_PROVIDER.connection.getTransaction(sellSig, {
         commitment: "confirmed",
@@ -819,6 +820,17 @@ describe("tswap sell", () => {
           Math.trunc((expectedLamports * 69) / 1e4)
       );
 
+      if (config === tradePoolConfig)
+        expect(
+          swapSdk.getAccountByName(ix, "Nft Receipt")?.pubkey.toBase58()
+        ).eq(nftReceipt.toBase58());
+
+      expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+        poolPda.toBase58()
+      );
+      expect(swapSdk.getAccountByName(ix, "Sol Escrow")?.pubkey.toBase58()).eq(
+        solEscrowPda.toBase58()
+      );
       expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
         wlNft.mint.toBase58()
       );

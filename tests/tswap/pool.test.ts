@@ -180,7 +180,7 @@ describe("tswap pool", () => {
 
     await Promise.all(
       [tokenPoolConfig, tradePoolConfig, nftPoolConfig].map(async (config) => {
-        const { sig: initSig } = await testMakePool({
+        const { sig: initSig, poolPda } = await testMakePool({
           tswap,
           owner,
           config,
@@ -214,6 +214,9 @@ describe("tswap pool", () => {
           expect(swapSdk.getSolAmount(ix)).null;
           expect(swapSdk.getFeeAmount(ix)).null;
 
+          expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+            poolPda.toBase58()
+          );
           expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
             owner.publicKey.toBase58()
           );

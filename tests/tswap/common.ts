@@ -497,7 +497,7 @@ export const testDepositNft = async ({
   expect(receipt.nftMint.toBase58()).eq(wlNft.mint.toBase58());
   expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
 
-  return { depSig };
+  return { depSig, receiptPda };
 };
 
 // CANNOT be run async w/ same pool (sol escrow balance check).
@@ -544,7 +544,7 @@ export const testDepositSol = async ({
         buy: 0,
       });
 
-      return { depSig };
+      return { depSig, solEscrowPda };
     }
   );
 };
@@ -600,7 +600,7 @@ export const testWithdrawNft = async ({
     ACCT_NOT_EXISTS_ERR
   );
 
-  return { withdrawSig };
+  return { withdrawSig, receiptPda };
 };
 
 // CANNOT be run async w/ same pool (sol escrow balance check).
@@ -647,7 +647,7 @@ export const testWithdrawSol = async ({
         buy: 0,
       });
 
-      return { withdrawSig };
+      return { withdrawSig, solEscrowPda };
     }
   );
 };
@@ -1015,7 +1015,15 @@ export const testMakePoolSellNft = async ({
         );
       }
 
-      return { sellSig, poolPda, wlNft, whitelist, ownerAtaAcc };
+      return {
+        sellSig,
+        poolPda,
+        wlNft,
+        whitelist,
+        ownerAtaAcc,
+        solEscrowPda,
+        nftReceipt,
+      };
     }
   );
 };

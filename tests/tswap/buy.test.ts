@@ -645,59 +645,16 @@ describe("tswap buy", () => {
     const [owner, buyer] = await makeNTraders(2);
 
     const expectedLamports = nftPoolConfig.startingPrice.toNumber();
-    const { buySig, wlNft, whitelist } = await testMakePoolBuyNft({
-      tswap,
-      owner,
-      buyer,
-      config: nftPoolConfig,
-      expectedLamports,
-      commitment: "confirmed",
-    });
-
-    const tx = (await TEST_PROVIDER.connection.getTransaction(buySig, {
-      commitment: "confirmed",
-    }))!;
-    expect(tx).not.null;
-    const ixs = swapSdk.parseIxs(tx);
-    expect(ixs).length(1);
-
-    const ix = ixs[0];
-    expect(ix.ix.name).eq("buyNft");
-    expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
-      JSON.stringify(castPoolConfigAnchor(nftPoolConfig))
-    );
-    expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
-    expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-      expectedLamports * TSWAP_FEE
-    );
-
-    expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
-      wlNft.mint.toBase58()
-    );
-    expect(swapSdk.getAccountByName(ix, "Buyer")?.pubkey.toBase58()).eq(
-      buyer.publicKey.toBase58()
-    );
-    expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
-      owner.publicKey.toBase58()
-    );
-    expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
-      whitelist.toBase58()
-    );
-  });
-
-  it("properly parses raw buy tx", async () => {
-    const [owner, buyer] = await makeNTraders(2);
-
-    const expectedLamports = nftPoolConfig.startingPrice.toNumber();
-    const { buySig, wlNft, whitelist } = await testMakePoolBuyNft({
-      tswap,
-      owner,
-      buyer,
-      config: nftPoolConfig,
-      expectedLamports,
-      commitment: "confirmed",
-      royaltyBps: 50,
-    });
+    const { buySig, wlNft, whitelist, pool, solEscrowPda } =
+      await testMakePoolBuyNft({
+        tswap,
+        owner,
+        buyer,
+        config: nftPoolConfig,
+        expectedLamports,
+        commitment: "confirmed",
+        royaltyBps: 50,
+      });
 
     const tx = (await TEST_PROVIDER.connection.getTransaction(buySig, {
       commitment: "confirmed",
@@ -717,6 +674,12 @@ describe("tswap buy", () => {
         Math.trunc((expectedLamports * 50) / 1e4)
     );
 
+    expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+      pool.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Sol Escrow")?.pubkey.toBase58()).eq(
+      solEscrowPda.toBase58()
+    );
     expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
       wlNft.mint.toBase58()
     );

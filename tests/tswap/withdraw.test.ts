@@ -270,7 +270,7 @@ describe("tswap withdraws", () => {
       commitment: "confirmed",
     });
 
-    const { withdrawSig } = await testWithdrawNft({
+    const { withdrawSig, receiptPda } = await testWithdrawNft({
       pool,
       config,
       owner,
@@ -295,6 +295,12 @@ describe("tswap withdraws", () => {
     expect(swapSdk.getSolAmount(ix)).null;
     expect(swapSdk.getFeeAmount(ix)).null;
 
+    expect(swapSdk.getAccountByName(ix, "Nft Receipt")?.pubkey.toBase58()).eq(
+      receiptPda.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+      pool.toBase58()
+    );
     expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
       wlNft.mint.toBase58()
     );
@@ -465,7 +471,7 @@ describe("tswap withdraws", () => {
       commitment: "confirmed",
     });
 
-    const { withdrawSig } = await testWithdrawSol({
+    const { withdrawSig, solEscrowPda } = await testWithdrawSol({
       pool,
       config,
       owner,
@@ -489,6 +495,12 @@ describe("tswap withdraws", () => {
     expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(amount);
     expect(swapSdk.getFeeAmount(ix)).null;
 
+    expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+      pool.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Sol Escrow")?.pubkey.toBase58()).eq(
+      solEscrowPda.toBase58()
+    );
     expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
       owner.publicKey.toBase58()
     );

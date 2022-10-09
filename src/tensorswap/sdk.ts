@@ -998,7 +998,7 @@ export class TensorSwapSDK {
       | "Pool"
       | "Nft Escrow"
       | "Whitelist"
-      | "NftReceipt"
+      | "Nft Receipt"
       | "Buyer"
       | "Seller"
       | "Owner"

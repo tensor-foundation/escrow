@@ -173,7 +173,7 @@ describe("tswap deposits", () => {
       config,
       whitelist,
     });
-    const { depSig } = await testDepositNft({
+    const { depSig, receiptPda } = await testDepositNft({
       pool,
       config,
       owner,
@@ -198,6 +198,12 @@ describe("tswap deposits", () => {
     expect(swapSdk.getSolAmount(ix)).null;
     expect(swapSdk.getFeeAmount(ix)).null;
 
+    expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+      pool.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Nft Receipt")?.pubkey.toBase58()).eq(
+      receiptPda.toBase58()
+    );
     expect(swapSdk.getAccountByName(ix, "Nft Mint")?.pubkey.toBase58()).eq(
       wlNft.mint.toBase58()
     );
@@ -248,7 +254,7 @@ describe("tswap deposits", () => {
     });
     const amount = 137391932;
 
-    const { depSig } = await testDepositSol({
+    const { depSig, solEscrowPda } = await testDepositSol({
       pool,
       config,
       owner,
@@ -272,6 +278,12 @@ describe("tswap deposits", () => {
     expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(amount);
     expect(swapSdk.getFeeAmount(ix)).null;
 
+    expect(swapSdk.getAccountByName(ix, "Sol Escrow")?.pubkey.toBase58()).eq(
+      solEscrowPda.toBase58()
+    );
+    expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+      pool.toBase58()
+    );
     expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
       owner.publicKey.toBase58()
     );
