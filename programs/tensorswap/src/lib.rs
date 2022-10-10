@@ -81,6 +81,10 @@ pub mod tensorswap {
     ) -> Result<()> {
         instructions::sell_nft_trade_pool::handler(ctx, proof, min_price)
     }
+
+    pub fn realloc_pool(ctx: Context<ReallocPool>, _config: PoolConfig) -> Result<()> {
+        instructions::realloc_pool::handler(ctx)
+    }
 }
 
 #[error_code]

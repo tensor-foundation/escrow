@@ -747,6 +747,52 @@ export type Tensorswap = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "reallocPool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation / will be stored inside pool"
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tswapOwner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -962,6 +1008,26 @@ export type Tensorswap = {
             "type": {
               "option": "u16"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "takerSellCount",
+            "type": "u32"
+          },
+          {
+            "name": "takerBuyCount",
+            "type": "u32"
+          },
+          {
+            "name": "accumulatedMmProfit",
+            "type": "u64"
           }
         ]
       }
@@ -1906,6 +1972,52 @@ export const IDL: Tensorswap = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "reallocPool",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Needed for pool seeds derivation / will be stored inside pool"
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tswapOwner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -2121,6 +2233,26 @@ export const IDL: Tensorswap = {
             "type": {
               "option": "u16"
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolStats",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "takerSellCount",
+            "type": "u32"
+          },
+          {
+            "name": "takerBuyCount",
+            "type": "u32"
+          },
+          {
+            "name": "accumulatedMmProfit",
+            "type": "u64"
           }
         ]
       }

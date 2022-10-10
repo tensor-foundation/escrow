@@ -9,6 +9,7 @@ pub mod sell_nft_token_pool;
 pub mod sell_nft_trade_pool;
 pub mod withdraw_nft;
 pub mod withdraw_sol;
+pub mod realloc_pool;
 
 pub use buy_nft::*;
 pub use close_pool::*;
@@ -21,3 +22,4 @@ pub use sell_nft_token_pool::*;
 pub use sell_nft_trade_pool::*;
 pub use withdraw_nft::*;
 pub use withdraw_sol::*;
+pub use realloc_pool::*;

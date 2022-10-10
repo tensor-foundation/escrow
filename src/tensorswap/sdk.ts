@@ -424,6 +424,47 @@ export class TensorSwapSDK {
     };
   }
 
+  // async reallocPool({
+  //   owner,
+  //   owner,
+  //   whitelist,
+  //   config,
+  // }: {
+  //   owner: PublicKey;
+  //   tswapOwner: PublicKey;
+  //   whitelist: PublicKey;
+  //   config: PoolConfigAnchor;
+  // }) {
+  //   const [tswapPda, tswapBump] = findTSwapPDA({});
+  //   const [poolPda, poolBump] = findPoolPDA({
+  //     tswap: tswapPda,
+  //     owner,
+  //     whitelist,
+  //     delta: config.delta,
+  //     startingPrice: config.startingPrice,
+  //     poolType: poolTypeU8(config.poolType),
+  //     curveType: curveTypeU8(config.curveType),
+  //   });
+  //
+  //   const builder = this.program.methods.reallocPool(config as any).accounts({
+  //     tswap: tswapPda,
+  //     pool: poolPda,
+  //     whitelist,
+  //     owner,
+  //     tswapOwner,
+  //     systemProgram: SystemProgram.programId,
+  //   });
+  //
+  //   return {
+  //     builder,
+  //     tx: { ixs: [await builder.instruction()], extraSigners: [] },
+  //     tswapPda,
+  //     tswapBump,
+  //     poolPda,
+  //     poolBump,
+  //   };
+  // }
+
   // --------------------------------------- deposit/withdraw methods
 
   // main signature: owner

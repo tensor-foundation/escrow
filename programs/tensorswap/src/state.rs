@@ -90,6 +90,19 @@ impl PoolConfig {
     pub const SIZE: usize = (2 * 1) + (2 * 8) + 1 + 3;
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, Default)]
+pub struct PoolStats {
+    pub taker_sell_count: u32,
+    pub taker_buy_count: u32,
+    pub accumulated_mm_profit: u64,
+}
+
+impl PoolStats {
+    // 2 u32s + 1 u64
+    #[allow(clippy::identity_op)]
+    pub const SIZE: usize = (2 * 4) + 8;
+}
+
 #[account]
 pub struct Pool {
     pub version: u8,
@@ -115,9 +128,10 @@ pub struct Pool {
 }
 
 impl Pool {
-    // 3 u8s + 1 i64 + config + 4 keys + 3 u32s
+    // 3 u8s + 1 i64 + config + 5 keys + 3 u32s + stats + 64 for the future
     #[allow(clippy::identity_op)]
-    pub const SIZE: usize = (3 * 1) + 8 + PoolConfig::SIZE + (4 * 32) + (3 * 4);
+    pub const SIZE: usize =
+        (3 * 1) + 8 + PoolConfig::SIZE + (5 * 32) + (3 * 4) + PoolStats::SIZE + 64;
 
     pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {
         [b"sol_escrow", pool_key.as_ref(), &self.sol_escrow_bump]
