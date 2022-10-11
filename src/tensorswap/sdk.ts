@@ -63,16 +63,18 @@ import {
   Tensorswap as Tensorswap_latest,
 } from "./idl/tensorswap";
 
-// https://solscan.io/tx/5ZWevmR3TLzUEVsPyE9bdUBqseeBdVMuELG45L15dx8rnXVCQZE2n1V1EbqEuGEaF6q4fND7rT7zwW8ZXjP1uC5s
+// rollout 1.3: https://solscan.io/tx/5ZWevmR3TLzUEVsPyE9bdUBqseeBdVMuELG45L15dx8rnXVCQZE2n1V1EbqEuGEaF6q4fND7rT7zwW8ZXjP1uC5s
 export const TensorswapIDL_v0_1_32 = IDL_v0_1_32;
 export const TensorswapIDL_v0_1_32_EffSlot = 150855169;
 
-// https://solscan.io/tx/5aswB2admCErRwPNgM3DeaYcbVYjAjpHuKVFAZenaSGEm8PKL8R2BmqsGFWdGfMR25NPrVSNKix18ZgLtVpHyXUJ
+// rollout 2.0: https://solscan.io/tx/5aswB2admCErRwPNgM3DeaYcbVYjAjpHuKVFAZenaSGEm8PKL8R2BmqsGFWdGfMR25NPrVSNKix18ZgLtVpHyXUJ
 export const TensorswapIDL_v0_2_0 = IDL_v0_2_0;
 export const TensorswapIDL_v0_2_0_EffSlot = 153016663;
 
+// rollout 3.0: https://solscan.io/tx/2NjcKJov7cm7Fa1PqEADMgjiFBS6UXAzXoaiLinCU35stFUAgVyLBniaPyLExPoz18TKis5ch9YxfBs7yAkbjXXn
 export const TensorswapIDL_latest = IDL_latest;
-export const TensorswapIDL_latest_EffSlot = 123; //todo v2 change when we actually upgrade
+export const TensorswapIDL_latest_EffSlot = 154762923;
+
 export type TensorswapIDL =
   | Tensorswap_v0_1_32
   | Tensorswap_v0_2_0
