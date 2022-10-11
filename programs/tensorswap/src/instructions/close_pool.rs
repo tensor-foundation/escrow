@@ -23,6 +23,7 @@ pub struct ClosePool<'info> {
         ],
         bump = pool.bump[0],
         has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
+        has_one = nft_authority @ crate::ErrorCode::WrongAuthority,
         close = owner,
     )]
     pub pool: Box<Account<'info, Pool>>,
@@ -52,6 +53,15 @@ pub struct ClosePool<'info> {
     pub owner: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+
+    #[account(
+        mut,
+        seeds = [b"nft_auth".as_ref(), &nft_authority.random_seed],
+        bump = nft_authority.bump[0],
+        has_one = pool @ crate::ErrorCode::WrongAuthority,
+        close = owner,
+    )]
+    pub nft_authority: Box<Account<'info, NftAuthority>>,
 }
 
 impl<'info> Validate<'info> for ClosePool<'info> {

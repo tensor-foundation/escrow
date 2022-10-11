@@ -5,7 +5,7 @@ use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 #[derive(Accounts)]
-#[instruction(config: PoolConfig)]
+#[instruction(config: PoolConfig, auth_seeds: [u8; 32])]
 pub struct InitPool<'info> {
     #[account(
         seeds = [], bump = tswap.bump[0],
@@ -52,6 +52,14 @@ pub struct InitPool<'info> {
     pub owner: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+
+    #[account(
+        init, payer = owner,
+        seeds = [b"nft_auth".as_ref(), &auth_seeds],
+        bump,
+        space = 8 + NftAuthority::SIZE
+    )]
+    pub nft_authority: Box<Account<'info, NftAuthority>>,
 }
 
 impl<'info> InitPool<'info> {
@@ -95,9 +103,7 @@ impl<'info> Validate<'info> for InitPool<'info> {
 }
 
 #[access_control(ctx.accounts.validate_pool_type(config); ctx.accounts.validate())]
-pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
-    // todo: test whitelist fails for unverified stuff
-
+pub fn handler(ctx: Context<InitPool>, config: PoolConfig, auth_seeds: [u8; 32]) -> Result<()> {
     let whitelist = &ctx.accounts.whitelist;
 
     let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
@@ -115,10 +121,12 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
         throw_err!(BadWhitelist);
     }
 
-    //3/3: make sure whitelist is verified (todo might rethink for v2)
+    //3/3: make sure whitelist is verified
     if !whitelist.verified {
         throw_err!(WhitelistNotVerified);
     }
+
+    // --------------------------------------- serialize pool
 
     let pool = &mut ctx.accounts.pool;
 
@@ -136,6 +144,21 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
     pool.taker_buy_count = 0;
     pool.taker_sell_count = 0;
     pool.nfts_held = 0;
+
+    pool.stats = PoolStats::default();
+
+    //2-way link between the authority and the pool
+    pool.nft_authority = ctx.accounts.nft_authority.key();
+
+    // --------------------------------------- serialize authority
+
+    let auth = &mut ctx.accounts.nft_authority;
+
+    auth.random_seed = auth_seeds;
+    auth.bump = [unwrap_bump!(ctx, "nft_authority")];
+
+    //2-way link between the authority and the pool
+    auth.pool = ctx.accounts.pool.key();
 
     Ok(())
 }

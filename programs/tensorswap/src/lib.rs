@@ -23,8 +23,12 @@ pub mod tensorswap {
         instructions::init_update_tswap::handler(ctx, new_owner, config)
     }
 
-    pub fn init_pool(ctx: Context<InitPool>, config: PoolConfig) -> Result<()> {
-        instructions::init_pool::handler(ctx, config)
+    pub fn init_pool(
+        ctx: Context<InitPool>,
+        config: PoolConfig,
+        auth_seeds: [u8; 32],
+    ) -> Result<()> {
+        instructions::init_pool::handler(ctx, config, auth_seeds)
     }
 
     pub fn close_pool(ctx: Context<ClosePool>, _config: PoolConfig) -> Result<()> {
@@ -82,8 +86,33 @@ pub mod tensorswap {
         instructions::sell_nft_trade_pool::handler(ctx, proof, min_price)
     }
 
+    pub fn edit_pool(
+        ctx: Context<EditPool>,
+        _old_config: PoolConfig,
+        new_config: PoolConfig,
+    ) -> Result<()> {
+        instructions::edit_pool::handler(ctx, new_config)
+    }
+
     pub fn realloc_pool(ctx: Context<ReallocPool>, _config: PoolConfig) -> Result<()> {
         instructions::realloc_pool::handler(ctx)
+    }
+
+    // --------------------------------------- todo v2 temp
+
+    pub fn migrate_pool_v1_to_v2(
+        ctx: Context<MigratePoolV1ToV2>,
+        _config: PoolConfig,
+        auth_seeds: [u8; 32],
+    ) -> Result<()> {
+        instructions::temp_migrate_pool_v1_to_v2::handler(ctx, auth_seeds)
+    }
+
+    pub fn migrate_receipt_v1_to_v2(
+        ctx: Context<MigrateReceiptV1ToV2>,
+        _config: PoolConfig,
+    ) -> Result<()> {
+        instructions::temp_migrate_receipt_v1_to_v2::handler(ctx)
     }
 }
 
@@ -129,4 +158,10 @@ pub enum ErrorCode {
     BadMetadata = 18,
     #[msg("provided creator address does not match metadata creator")]
     CreatorMismatch = 19,
+    #[msg("wrong pool version provided")]
+    WrongPoolVersion = 20,
+    #[msg("new pool should not match old pool")]
+    PoolsAreTheSame = 21,
+    #[msg("wrong nft authority account provided")]
+    WrongAuthority = 22,
 }

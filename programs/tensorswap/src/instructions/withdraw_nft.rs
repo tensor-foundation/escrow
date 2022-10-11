@@ -75,8 +75,10 @@ pub struct WithdrawNft<'info> {
         ],
         bump = nft_receipt.bump,
         close = owner,
-        //can't buy an NFT that's associated with a different pool
-        constraint = nft_receipt.pool == pool.key() @ crate::ErrorCode::WrongPool,
+        //can't withdraw an NFT that's associated with a different pool
+        constraint = (pool.version == 1 && nft_receipt.nft_authority == pool.key()) ||
+        (pool.version == 2 && nft_receipt.nft_authority == pool.nft_authority && pool.nft_authority != Pubkey::default())
+        @ crate::ErrorCode::WrongPool,
         // redundant but extra safety
         constraint = nft_receipt.nft_escrow == nft_escrow.key() @ crate::ErrorCode::WrongMint,
     )]

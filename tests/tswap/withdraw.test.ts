@@ -51,13 +51,21 @@ describe("tswap withdraws", () => {
           proofs: [wlNft],
           whitelist,
         } = await makeWhitelist([mint]);
-        const { poolPda: pool } = await testMakePool({
+        const { poolPda: pool, nftAuthPda } = await testMakePool({
           tswap,
           owner,
           config,
           whitelist,
         });
-        await testDepositNft({ pool, config, owner, ata, wlNft, whitelist });
+        await testDepositNft({
+          pool,
+          config,
+          owner,
+          ata,
+          wlNft,
+          whitelist,
+          nftAuthPda,
+        });
         await testWithdrawNft({ pool, config, owner, ata, wlNft, whitelist });
       })
     );
@@ -144,7 +152,7 @@ describe("tswap withdraws", () => {
     });
 
     // Need to deposit in another pool to avoid "AccountNotInitialized" error for escrow.
-    const { poolPda: nftPool } = await testMakePool({
+    const { poolPda: nftPool, nftAuthPda } = await testMakePool({
       tswap,
       owner,
       config: nftPoolConfig,
@@ -152,6 +160,7 @@ describe("tswap withdraws", () => {
     });
     await testDepositNft({
       pool: nftPool,
+      nftAuthPda,
       config: nftPoolConfig,
       owner,
       ata,
@@ -193,19 +202,20 @@ describe("tswap withdraws", () => {
       } = await makeWhitelist([mintA, mintB]);
 
       // Deposit into 2 pools.
-      const { poolPda: poolA } = await testMakePool({
+      const { poolPda: poolA, nftAuthPda: nftAuthPdaA } = await testMakePool({
         tswap,
         owner: traderA,
         config,
         whitelist,
       });
-      const { poolPda: poolB } = await testMakePool({
+      const { poolPda: poolB, nftAuthPda: nftAuthPdaB } = await testMakePool({
         tswap,
         owner: traderB,
         config,
         whitelist,
       });
       await testDepositNft({
+        nftAuthPda: nftAuthPdaA,
         pool: poolA,
         config,
         owner: traderA,
@@ -214,6 +224,7 @@ describe("tswap withdraws", () => {
         whitelist,
       });
       await testDepositNft({
+        nftAuthPda: nftAuthPdaB,
         pool: poolB,
         config,
         owner: traderB,
@@ -254,13 +265,14 @@ describe("tswap withdraws", () => {
       whitelist,
       proofs: [wlNft],
     } = await makeWhitelist([mint]);
-    const { poolPda: pool } = await testMakePool({
+    const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
       owner,
       config,
       whitelist,
     });
     await testDepositNft({
+      nftAuthPda,
       pool,
       config,
       owner,

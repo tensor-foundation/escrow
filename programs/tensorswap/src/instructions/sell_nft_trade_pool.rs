@@ -111,7 +111,16 @@ pub fn handler<'a, 'b, 'c, 'info>(
     //create nft receipt for trade pool
     let receipt_state = &mut ctx.accounts.nft_receipt;
     receipt_state.bump = unwrap_bump!(ctx, "nft_receipt");
-    receipt_state.pool = pool.key();
+
+    // todo v2: temp
+    if pool.version == 1 {
+        receipt_state.nft_authority = pool.key();
+    } else if pool.version == 2 && pool.nft_authority != Pubkey::default() {
+        receipt_state.nft_authority = pool.nft_authority;
+    } else {
+        throw_err!(WrongPoolVersion);
+    }
+
     receipt_state.nft_mint = ctx.accounts.shared.nft_mint.key();
     receipt_state.nft_escrow = ctx.accounts.nft_escrow.key();
 
@@ -143,6 +152,16 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let pool = &mut ctx.accounts.shared.pool;
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_add(1));
     pool.taker_sell_count = unwrap_int!(pool.taker_sell_count.checked_add(1));
+    // todo v2 temp
+    if pool.version == 2 {
+        pool.stats.taker_sell_count = unwrap_int!(pool.stats.taker_sell_count.checked_add(1));
+        //record a MM profit of 1/2 MM fee
+        pool.stats.accumulated_mm_profit = unwrap_checked!({
+            pool.stats
+                .accumulated_mm_profit
+                .checked_add(mm_fee.checked_div(2)?)
+        });
+    }
 
     Ok(())
 }

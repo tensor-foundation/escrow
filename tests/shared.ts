@@ -10,7 +10,11 @@ import * as anchor from "@project-serum/anchor";
 import { AnchorProvider } from "@project-serum/anchor";
 import { MerkleTree } from "merkletreejs";
 import keccak256 from "keccak256";
-import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
+import {
+  TensorswapIDL_latest,
+  TensorSwapSDK,
+  TensorWhitelistSDK,
+} from "../src";
 import { getLamports as _getLamports } from "../src/common";
 import { expect } from "chai";
 import { backOff } from "exponential-backoff";
@@ -192,6 +196,7 @@ export const testInitWLAuthority = async () => {
     TEST_PROVIDER.publicKey,
     TEST_PROVIDER.publicKey
   );
+
   await buildAndSendTx({ ixs });
 
   let authAcc = await wlSdk.fetchAuthority(authPda);

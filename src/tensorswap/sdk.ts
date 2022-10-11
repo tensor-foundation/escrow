@@ -19,6 +19,7 @@ import {
 import Big from "big.js";
 import { TENSORSWAP_ADDR, TSWAP_FEE_ACC } from "./constants";
 import {
+  findNftAuthorityPDA,
   findNftDepositReceiptPDA,
   findNftEscrowPDA,
   findPoolPDA,
@@ -42,26 +43,40 @@ import {
 import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/instruction";
 import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
 import { findMintProofPDA } from "../tensor_whitelist";
+import { v4 } from "uuid";
 
 // ---------------------------------------- Versioned IDLs for backwards compat when parsing.
-
+//v1
 import {
   IDL as IDL_v0_1_32,
   Tensorswap as Tensorswap_v0_1_32,
 } from "./idl/tensorswap_v0.1.32";
+//v2 (remove cosigner)
+//todo later can specify exact 2.x.x version
+import {
+  IDL as IDL_v0_2_0,
+  Tensorswap as Tensorswap_v0_2_0,
+} from "./idl/tensorswap_v0.2.0";
+//v3 (editable pools)
 import {
   IDL as IDL_latest,
   Tensorswap as Tensorswap_latest,
 } from "./idl/tensorswap";
 
-export const TensorswapIDL_v0_1_32 = IDL_v0_1_32;
 // https://solscan.io/tx/5ZWevmR3TLzUEVsPyE9bdUBqseeBdVMuELG45L15dx8rnXVCQZE2n1V1EbqEuGEaF6q4fND7rT7zwW8ZXjP1uC5s
-// TODO: find exact slot + ix when the upgrade happened
+export const TensorswapIDL_v0_1_32 = IDL_v0_1_32;
 export const TensorswapIDL_v0_1_32_EffSlot = 150855169;
-export const TensorswapIDL_latest = IDL_latest;
+
 // https://solscan.io/tx/5aswB2admCErRwPNgM3DeaYcbVYjAjpHuKVFAZenaSGEm8PKL8R2BmqsGFWdGfMR25NPrVSNKix18ZgLtVpHyXUJ
-export const TensorswapIDL_latest_EffSlot = 153016663;
-export type TensorswapIDL = Tensorswap_v0_1_32 | Tensorswap_latest;
+export const TensorswapIDL_v0_2_0 = IDL_v0_2_0;
+export const TensorswapIDL_v0_2_0_EffSlot = 153016663;
+
+export const TensorswapIDL_latest = IDL_latest;
+export const TensorswapIDL_latest_EffSlot = 123; //todo v2 change when we actually upgrade
+export type TensorswapIDL =
+  | Tensorswap_v0_1_32
+  | Tensorswap_v0_2_0
+  | Tensorswap_latest;
 
 // --------------------------------------- pool type
 
@@ -158,6 +173,12 @@ export const castPoolConfig = (config: PoolConfig): PoolConfigAnchor => ({
 
 // --------------------------------------- rest
 
+export type PoolStatsAnchor = {
+  takerSellCount: number;
+  takerBuyCount: number;
+  accumulatedMmProfit: BN;
+};
+
 export type PoolAnchor = {
   version: number;
   bump: number[];
@@ -171,6 +192,9 @@ export type PoolAnchor = {
   takerSellCount: number;
   takerBuyCount: number;
   nftsHeld: number;
+  //v2
+  nftAuthority: PublicKey;
+  stats: PoolStatsAnchor;
 };
 
 export type SolEscrowAnchor = {};
@@ -185,16 +209,23 @@ export type TSwapAnchor = {
 
 export type NftDepositReceiptAnchor = {
   bump: number;
-  pool: PublicKey;
+  nftAuthority: PublicKey;
   nftMint: PublicKey;
   nftEscrow: PublicKey;
+};
+
+export type NftAuthorityAnchor = {
+  randomSeed: number[];
+  bump: number[];
+  pool: PublicKey;
 };
 
 export type TensorSwapPdaAnchor =
   | PoolAnchor
   | SolEscrowAnchor
   | TSwapAnchor
-  | NftDepositReceiptAnchor;
+  | NftDepositReceiptAnchor
+  | NftAuthorityAnchor;
 
 export type TaggedTensorSwapPdaAnchor =
   | {
@@ -212,6 +243,10 @@ export type TaggedTensorSwapPdaAnchor =
   | {
       name: "nftDepositReceipt";
       account: NftDepositReceiptAnchor;
+    }
+  | {
+      name: "nftAuthority";
+      account: NftAuthorityAnchor;
     };
 
 export type TensorSwapEventAnchor = Event<typeof IDL_latest["events"][number]>;
@@ -287,10 +322,17 @@ export class TensorSwapSDK {
   }
 
   async fetchSolEscrow(escrow: PublicKey, commitment?: Commitment) {
-    return this.program.account.solEscrow.fetch(
+    return (await this.program.account.solEscrow.fetch(
       escrow,
       commitment
-    ) as SolEscrowAnchor;
+    )) as SolEscrowAnchor;
+  }
+
+  async fetchNftAuthority(authority: PublicKey, commitment?: Commitment) {
+    return (await this.program.account.nftAuthority.fetch(
+      authority,
+      commitment
+    )) as NftAuthorityAnchor;
   }
 
   // --------------------------------------- account methods
@@ -343,10 +385,12 @@ export class TensorSwapSDK {
     owner,
     whitelist,
     config,
+    customAuthSeed,
   }: {
     owner: PublicKey;
     whitelist: PublicKey;
     config: PoolConfigAnchor;
+    customAuthSeed?: number[];
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -360,18 +404,31 @@ export class TensorSwapSDK {
     });
     const [solEscrowPda, solEscrowBump] = findSolEscrowPDA({ pool: poolPda });
 
-    const builder = this.program.methods.initPool(config as any).accounts({
-      tswap: tswapPda,
-      pool: poolPda,
-      solEscrow: solEscrowPda,
-      whitelist,
-      owner,
-      systemProgram: SystemProgram.programId,
-    });
+    const authSeed =
+      customAuthSeed ?? TensorSwapSDK.uuidToBuffer(v4().toString());
+    if (authSeed.length != 32) {
+      throw new Error("bad auth seed, expect it to be length 32");
+    }
+    const [nftAuthPda, nftAuthBump] = findNftAuthorityPDA({ authSeed });
+
+    const builder = this.program.methods
+      .initPool(config as any, authSeed)
+      .accounts({
+        tswap: tswapPda,
+        pool: poolPda,
+        solEscrow: solEscrowPda,
+        nftAuthority: nftAuthPda,
+        whitelist,
+        owner,
+        systemProgram: SystemProgram.programId,
+      });
 
     return {
       builder,
       tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      authSeed,
+      nftAuthPda,
+      nftAuthBump,
       tswapPda,
       tswapBump,
       poolPda,
@@ -403,10 +460,13 @@ export class TensorSwapSDK {
     });
     const [solEscrowPda, solEscrowBump] = findSolEscrowPDA({ pool: poolPda });
 
+    const poolAcc = await this.fetchPool(poolPda);
+
     const builder = this.program.methods.closePool(config as any).accounts({
       tswap: tswapPda,
       pool: poolPda,
       solEscrow: solEscrowPda,
+      nftAuthority: poolAcc.nftAuthority,
       whitelist,
       owner,
       systemProgram: SystemProgram.programId,
@@ -415,6 +475,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      nftAuthPda: poolAcc.nftAuthority,
       tswapPda,
       tswapBump,
       poolPda,
@@ -424,46 +485,79 @@ export class TensorSwapSDK {
     };
   }
 
-  // async reallocPool({
-  //   owner,
-  //   owner,
-  //   whitelist,
-  //   config,
-  // }: {
-  //   owner: PublicKey;
-  //   tswapOwner: PublicKey;
-  //   whitelist: PublicKey;
-  //   config: PoolConfigAnchor;
-  // }) {
-  //   const [tswapPda, tswapBump] = findTSwapPDA({});
-  //   const [poolPda, poolBump] = findPoolPDA({
-  //     tswap: tswapPda,
-  //     owner,
-  //     whitelist,
-  //     delta: config.delta,
-  //     startingPrice: config.startingPrice,
-  //     poolType: poolTypeU8(config.poolType),
-  //     curveType: curveTypeU8(config.curveType),
-  //   });
-  //
-  //   const builder = this.program.methods.reallocPool(config as any).accounts({
-  //     tswap: tswapPda,
-  //     pool: poolPda,
-  //     whitelist,
-  //     owner,
-  //     tswapOwner,
-  //     systemProgram: SystemProgram.programId,
-  //   });
-  //
-  //   return {
-  //     builder,
-  //     tx: { ixs: [await builder.instruction()], extraSigners: [] },
-  //     tswapPda,
-  //     tswapBump,
-  //     poolPda,
-  //     poolBump,
-  //   };
-  // }
+  //main signature: owner
+  async editPool({
+    owner,
+    whitelist,
+    oldConfig,
+    //(!) if the user edits the pool but doesn't touch the SP, we set new SP = current price of old pool
+    newConfig,
+  }: {
+    owner: PublicKey;
+    whitelist: PublicKey;
+    oldConfig: PoolConfigAnchor;
+    newConfig: PoolConfigAnchor;
+  }) {
+    const [tswapPda, tswapBump] = findTSwapPDA({});
+    const [oldPoolPda, oldPoolBump] = findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: oldConfig.delta,
+      startingPrice: oldConfig.startingPrice,
+      poolType: poolTypeU8(oldConfig.poolType),
+      curveType: curveTypeU8(oldConfig.curveType),
+    });
+
+    const [oldSolEscrowPda, oldSolEscrowBump] = findSolEscrowPDA({
+      pool: oldPoolPda,
+    });
+
+    const [newPoolPda, newPoolBump] = findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: newConfig.delta,
+      startingPrice: newConfig.startingPrice,
+      poolType: poolTypeU8(newConfig.poolType),
+      curveType: curveTypeU8(newConfig.curveType),
+    });
+    const [newSolEscrowPda, newSolEscrowBump] = findSolEscrowPDA({
+      pool: newPoolPda,
+    });
+
+    const poolAcc = await this.fetchPool(oldPoolPda);
+
+    const builder = this.program.methods
+      .editPool(oldConfig as any, newConfig as any)
+      .accounts({
+        tswap: tswapPda,
+        oldPool: oldPoolPda,
+        newPool: newPoolPda,
+        oldSolEscrow: oldSolEscrowPda,
+        newSolEscrow: newSolEscrowPda,
+        nftAuthority: poolAcc.nftAuthority,
+        whitelist,
+        owner,
+        systemProgram: SystemProgram.programId,
+      });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      nftAuthPda: poolAcc.nftAuthority,
+      tswapPda,
+      tswapBump,
+      oldPoolPda,
+      oldPoolBump,
+      oldSolEscrowPda,
+      oldSolEscrowBump,
+      newPoolPda,
+      newPoolBump,
+      newSolEscrowPda,
+      newSolEscrowBump,
+    };
+  }
 
   // --------------------------------------- deposit/withdraw methods
 
@@ -910,6 +1004,200 @@ export class TensorSwapSDK {
     };
   }
 
+  // --------------------------------------- todo v2 temp - will be deleted
+
+  async migratePoolV1ToV2({
+    owner,
+    whitelist,
+    config,
+    tswapOwner,
+  }: {
+    owner: PublicKey;
+    tswapOwner: PublicKey;
+    whitelist: PublicKey;
+    config: PoolConfigAnchor;
+  }) {
+    const [tswapPda, tswapBump] = findTSwapPDA({});
+    const [poolPda, poolBump] = findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+
+    const authSeed = TensorSwapSDK.uuidToBuffer(v4().toString());
+    const [nftAuthPda, nftAuthBump] = findNftAuthorityPDA({ authSeed });
+
+    const builder = this.program.methods
+      .migratePoolV1ToV2(config as any, authSeed)
+      .accounts({
+        tswap: tswapPda,
+        pool: poolPda,
+        whitelist,
+        owner,
+        tswapOwner,
+        nftAuthority: nftAuthPda,
+        systemProgram: SystemProgram.programId,
+      });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      authSeed,
+      nftAuthPda,
+      nftAuthBump,
+      tswapPda,
+      tswapBump,
+      poolPda,
+      poolBump,
+    };
+  }
+
+  async migrateReceiptV1ToV2({
+    owner,
+    tswapOwner,
+    whitelist,
+    config,
+    nftMint,
+  }: {
+    owner: PublicKey;
+    tswapOwner: PublicKey;
+    whitelist: PublicKey;
+    config: PoolConfigAnchor;
+    nftMint: PublicKey;
+  }) {
+    const [tswapPda, tswapBump] = findTSwapPDA({});
+    const [poolPda, poolBump] = findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+
+    const [receiptPda, receiptBump] = findNftDepositReceiptPDA({
+      nftMint,
+    });
+
+    const poolAcc = await this.fetchPool(poolPda);
+
+    const builder = this.program.methods
+      .migrateReceiptV1ToV2(config as any)
+      .accounts({
+        tswap: tswapPda,
+        pool: poolPda,
+        whitelist,
+        owner,
+        tswapOwner,
+        nftAuthority: poolAcc.nftAuthority,
+        systemProgram: SystemProgram.programId,
+        nftMint,
+        nftReceipt: receiptPda,
+      });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      nftAuthPda: poolAcc.nftAuthority,
+      tswapPda,
+      tswapBump,
+      poolPda,
+      poolBump,
+      receiptPda,
+      receiptBump,
+    };
+  }
+
+  //needed for migration tests
+  async reallocPool({
+    owner,
+    tswapOwner,
+    whitelist,
+    config,
+  }: {
+    owner: PublicKey;
+    tswapOwner: PublicKey;
+    whitelist: PublicKey;
+    config: PoolConfigAnchor;
+  }) {
+    const [tswapPda, tswapBump] = findTSwapPDA({});
+    const [poolPda, poolBump] = findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+
+    const builder = this.program.methods.reallocPool(config as any).accounts({
+      tswap: tswapPda,
+      pool: poolPda,
+      whitelist,
+      owner,
+      tswapOwner,
+      systemProgram: SystemProgram.programId,
+    });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      tswapPda,
+      tswapBump,
+      poolPda,
+      poolBump,
+    };
+  }
+
+  //needed for migration tests
+  async initPoolV1({
+    owner,
+    whitelist,
+    config,
+  }: {
+    owner: PublicKey;
+    whitelist: PublicKey;
+    config: PoolConfigAnchor;
+  }) {
+    const [tswapPda, tswapBump] = findTSwapPDA({});
+    const [poolPda, poolBump] = findPoolPDA({
+      tswap: tswapPda,
+      owner,
+      whitelist,
+      delta: config.delta,
+      startingPrice: config.startingPrice,
+      poolType: poolTypeU8(config.poolType),
+      curveType: curveTypeU8(config.curveType),
+    });
+    const [solEscrowPda, solEscrowBump] = findSolEscrowPDA({ pool: poolPda });
+
+    const builder = this.program.methods.initPool(config as any).accounts({
+      tswap: tswapPda,
+      pool: poolPda,
+      solEscrow: solEscrowPda,
+      whitelist,
+      owner,
+      systemProgram: SystemProgram.programId,
+    });
+
+    return {
+      builder,
+      tx: { ixs: [await builder.instruction()], extraSigners: [] },
+      tswapPda,
+      tswapBump,
+      poolPda,
+      poolBump,
+      solEscrowPda,
+      solEscrowBump,
+    };
+  }
+
   // --------------------------------------- helper methods
 
   async getSolEscrowRent() {
@@ -1043,9 +1331,14 @@ export class TensorSwapSDK {
       | "Buyer"
       | "Seller"
       | "Owner"
+      | "Nft Authority"
   ): ParsedAccount | undefined {
     // We use endsWith since composite nested accounts (eg shared.sol_escrow)
     // will prefix it as "Shared > Sol Escrow"
     return ix.formatted?.accounts.find((acc) => acc.name?.endsWith(name));
   }
+
+  static uuidToBuffer = (uuid: string) => {
+    return Buffer.from(uuid.replaceAll("-", "")).toJSON().data;
+  };
 }

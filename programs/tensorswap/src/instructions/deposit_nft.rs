@@ -2,6 +2,7 @@
 use crate::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 use tensor_whitelist::{self, Whitelist};
+use vipers::throw_err;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -117,7 +118,16 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
     //create nft receipt
     let receipt = &mut ctx.accounts.nft_receipt;
     receipt.bump = *ctx.bumps.get("nft_receipt").unwrap();
-    receipt.pool = pool.key();
+
+    // todo v2: temp
+    if pool.version == 1 {
+        receipt.nft_authority = pool.key();
+    } else if pool.version == 2 && pool.nft_authority != Pubkey::default() {
+        receipt.nft_authority = pool.nft_authority;
+    } else {
+        throw_err!(WrongPoolVersion);
+    }
+
     receipt.nft_mint = ctx.accounts.nft_mint.key();
     receipt.nft_escrow = ctx.accounts.nft_escrow.key();
 

@@ -2,19 +2,18 @@ import { BN, LangErrorCode } from "@project-serum/anchor";
 import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
-import { computeMakerAmountCount } from "../../src";
 import {
   buildAndSendTx,
   cartesian,
-  INTEGER_OVERFLOW_ERR,
-  swapSdk,
-  TEST_PROVIDER,
+  castPoolConfigAnchor,
   CurveTypeAnchor,
+  hexCode,
+  INTEGER_OVERFLOW_ERR,
   PoolConfigAnchor,
   PoolTypeAnchor,
-  hexCode,
+  swapSdk,
   TakerSide,
-  castPoolConfigAnchor,
+  TEST_PROVIDER,
 } from "../shared";
 import { testInitUpdateMintProof } from "../twhitelist/common";
 import {

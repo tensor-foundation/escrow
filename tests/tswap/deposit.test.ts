@@ -40,13 +40,14 @@ describe("tswap deposits", () => {
       proofs: [wlNft],
       // Long proof!
     } = await makeWhitelist([mint], 20_000);
-    const { poolPda: pool } = await testMakePool({
+    const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
       owner,
       config,
       whitelist,
     });
     await testDepositNft({
+      nftAuthPda,
       pool,
       config,
       owner,
@@ -73,7 +74,7 @@ describe("tswap deposits", () => {
       .fill(null)
       .map((_) => Buffer.from(Array(32).fill(0)));
 
-    const { poolPda: pool } = await testMakePool({
+    const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
       owner,
       config,
@@ -82,6 +83,7 @@ describe("tswap deposits", () => {
     // NB rejected w/ invalid proof instead of transcation size limit.
     await expect(
       testDepositNft({
+        nftAuthPda,
         pool,
         config,
         owner,
@@ -167,13 +169,14 @@ describe("tswap deposits", () => {
       whitelist,
       proofs: [wlNft],
     } = await makeWhitelist([mint]);
-    const { poolPda: pool } = await testMakePool({
+    const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
       owner,
       config,
       whitelist,
     });
     const { depSig, receiptPda } = await testDepositNft({
+      nftAuthPda,
       pool,
       config,
       owner,

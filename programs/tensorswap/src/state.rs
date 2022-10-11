@@ -7,7 +7,7 @@ use vipers::throw_err;
 use crate::*;
 
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
-pub const CURRENT_POOL_VERSION: u8 = 1;
+pub const CURRENT_POOL_VERSION: u8 = 2;
 
 pub const MAX_CREATORS_FEE_BPS: u16 = 90; // 0.9%
 
@@ -35,11 +35,8 @@ pub struct TSwap {
     pub bump: [u8; 1],
     pub config: TSwapConfig,
 
-    // TODO: for v1 keeping it super naive - just a pk we control
     pub owner: Pubkey,
-    // TODO: for v1 keeping it super naive - just a pk we control
     pub fee_vault: Pubkey,
-    // TODO: for v1 keeping it super naive - just a pk we control
     pub cosigner: Pubkey,
 }
 
@@ -74,12 +71,9 @@ pub struct PoolConfig {
     pub pool_type: PoolType,
     // TODO: later can be made into a dyn Trait
     pub curve_type: CurveType,
-    pub starting_price: u64, //lamports
-    pub delta: u64,          //lamports pr bps
-
-    // TODO: enabled for v1
-    pub honor_royalties: bool,
-
+    pub starting_price: u64,   //lamports
+    pub delta: u64,            //lamports pr bps
+    pub honor_royalties: bool, // always enabled
     /// Trade pools only
     pub mm_fee_bps: Option<u16>,
 }
@@ -125,6 +119,11 @@ pub struct Pool {
     pub taker_sell_count: u32, //how many times a taker has SOLD into the pool
     pub taker_buy_count: u32, //how many times a taker has BOUGHT from the pool
     pub nfts_held: u32,
+
+    //v2
+    pub nft_authority: Pubkey,
+    //all stats incorporate both 1)carried over and 2)current data
+    pub stats: PoolStats,
 }
 
 impl Pool {
@@ -291,13 +290,26 @@ pub enum TakerSide {
 #[account]
 pub struct NftDepositReceipt {
     pub bump: u8,
-    pub pool: Pubkey,
+    pub nft_authority: Pubkey,
     pub nft_mint: Pubkey,
     pub nft_escrow: Pubkey,
 }
 
 impl NftDepositReceipt {
     pub const SIZE: usize = 1 + 32 * 3;
+}
+
+// --------------------------------------- authority
+
+#[account]
+pub struct NftAuthority {
+    pub random_seed: [u8; 32],
+    pub bump: [u8; 1],
+    pub pool: Pubkey,
+}
+
+impl NftAuthority {
+    pub const SIZE: usize = 1 + 32 + 32;
 }
 
 // --------------------------------------- escrows
@@ -357,6 +369,8 @@ mod tests {
                 taker_buy_count,
                 nfts_held: 0,
                 sol_escrow: Pubkey::default(),
+                stats: PoolStats::default(),
+                nft_authority: Pubkey::default(),
             }
         }
     }

@@ -4,30 +4,28 @@ import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
-  generateTreeOfSize,
-  swapSdk,
-  TEST_PROVIDER,
-  wlSdk,
-  hexCode,
+  castPoolConfigAnchor,
   CurveTypeAnchor,
+  hexCode,
   PoolConfigAnchor,
   PoolTypeAnchor,
+  swapSdk,
   TakerSide,
-  castPoolConfigAnchor,
+  TEST_PROVIDER,
 } from "../shared";
 import {
   beforeHook,
+  computeCurrentPrice,
   getAccount,
   makeMintTwoAta,
   makeNTraders,
   makeWhitelist,
   nftPoolConfig,
-  testMakePoolBuyNft,
   testDepositNft,
   testMakePool,
+  testMakePoolBuyNft,
   tokenPoolConfig,
   tradePoolConfig,
-  computeCurrentPrice,
   TSWAP_FEE,
 } from "./common";
 
@@ -194,7 +192,7 @@ describe("tswap buy", () => {
           proofs: [wlNft],
           whitelist,
         } = await makeWhitelist([mint]);
-        const { poolPda } = await testMakePool({
+        const { poolPda, nftAuthPda } = await testMakePool({
           tswap,
           owner,
           whitelist,
@@ -203,6 +201,7 @@ describe("tswap buy", () => {
 
         await testDepositNft({
           pool: poolPda,
+          nftAuthPda,
           owner,
           config,
           ata,
@@ -347,19 +346,20 @@ describe("tswap buy", () => {
       } = await makeWhitelist([mintA, mintB]);
 
       // Deposit into 2 pools.
-      const { poolPda: poolA } = await testMakePool({
+      const { poolPda: poolA, nftAuthPda: nftAuthPdaA } = await testMakePool({
         tswap,
         owner: traderA,
         config,
         whitelist,
       });
-      const { poolPda: poolB } = await testMakePool({
+      const { poolPda: poolB, nftAuthPda: nftAuthPdaB } = await testMakePool({
         tswap,
         owner: traderB,
         config,
         whitelist,
       });
       await testDepositNft({
+        nftAuthPda: nftAuthPdaA,
         pool: poolA,
         config,
         owner: traderA,
@@ -368,6 +368,7 @@ describe("tswap buy", () => {
         whitelist,
       });
       await testDepositNft({
+        nftAuthPda: nftAuthPdaB,
         pool: poolB,
         config,
         owner: traderB,
