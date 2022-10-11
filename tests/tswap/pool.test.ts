@@ -209,6 +209,16 @@ describe("tswap pool", () => {
           commitment: "confirmed",
         });
 
+        // Edit/move stuff back so we can use the old pool/config again.
+        await testEditPool({
+          tswap,
+          owner,
+          newConfig: config,
+          oldConfig: newConfig,
+          whitelist,
+          commitment: "confirmed",
+        });
+
         const { sig: closeSig } = await testClosePool({
           owner,
           config,
