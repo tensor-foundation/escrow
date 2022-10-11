@@ -169,6 +169,7 @@ describe("tswap deposits", () => {
       whitelist,
       proofs: [wlNft],
     } = await makeWhitelist([mint]);
+
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
       owner,

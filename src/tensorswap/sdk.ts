@@ -267,6 +267,10 @@ export type ParsedTSwapIx = {
   formatted: InstructionDisplay | null;
 };
 export type TSwapIxData = { config: PoolConfigAnchor };
+export type EditPoolIxData = {
+  oldConfig: PoolConfigAnchor;
+  newConfig: PoolConfigAnchor;
+};
 export type WithdrawDepositSolData = TSwapIxData & { lamports: BN };
 
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
@@ -1280,16 +1284,34 @@ export class TensorSwapSDK {
   }
 
   getPoolConfig(ix: ParsedTSwapIx): PoolConfig | null {
+    // No "default": this ensures we explicitly think about how to handle new ixs.
     switch (ix.ix.name) {
       case "initUpdateTswap":
         return null;
-      default:
+      case "editPool": {
+        const config = (ix.ix.data as EditPoolIxData).newConfig;
+        return castPoolConfigAnchor(config);
+      }
+      case "initPool":
+      case "closePool":
+      case "depositNft":
+      case "withdrawNft":
+      case "depositSol":
+      case "withdrawSol":
+      case "buyNft":
+      case "sellNftTokenPool":
+      case "sellNftTradePool":
+      case "reallocPool":
+      case "migratePoolV1ToV2":
+      case "migrateReceiptV1ToV2": {
         const config = (ix.ix.data as TSwapIxData).config;
         return castPoolConfigAnchor(config);
+      }
     }
   }
 
   getSolAmount(ix: ParsedTSwapIx): BN | null {
+    // No "default": this ensures we explicitly think about how to handle new ixs.
     switch (ix.ix.name) {
       case "buyNft":
       case "sellNftTradePool":
@@ -1300,19 +1322,38 @@ export class TensorSwapSDK {
       case "depositSol":
       case "withdrawSol":
         return (ix.ix.data as WithdrawDepositSolData).lamports;
-      default:
+      case "initUpdateTswap":
+      case "initPool":
+      case "closePool":
+      case "depositNft":
+      case "withdrawNft":
+      case "editPool":
+      case "reallocPool":
+      case "migratePoolV1ToV2":
+      case "migrateReceiptV1ToV2":
         return null;
     }
   }
 
   getFeeAmount(ix: ParsedTSwapIx): BN | null {
     switch (ix.ix.name) {
+      // No "default": this ensures we explicitly think about how to handle new ixs.
       case "buyNft":
       case "sellNftTradePool":
       case "sellNftTokenPool":
         const event = ix.events[0].data;
         return event.tswapFee.add(event.creatorsFee);
-      default:
+      case "initUpdateTswap":
+      case "initPool":
+      case "closePool":
+      case "depositNft":
+      case "withdrawNft":
+      case "depositSol":
+      case "withdrawSol":
+      case "editPool":
+      case "reallocPool":
+      case "migratePoolV1ToV2":
+      case "migrateReceiptV1ToV2":
         return null;
     }
   }

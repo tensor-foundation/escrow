@@ -181,7 +181,7 @@ describe("tswap pool", () => {
     );
   });
 
-  it("properly parses raw init/close pool tx", async () => {
+  it("properly parses raw init/edit/close pool tx", async () => {
     const [owner] = await makeNTraders(1);
     const { mint } = await createAndFundATA(owner);
     const { whitelist } = await makeWhitelist([mint]);
@@ -199,6 +199,15 @@ describe("tswap pool", () => {
           whitelist,
           commitment: "confirmed",
         });
+        const newConfig = { ...config, delta: new BN(0) };
+        const { sig: editSig } = await testEditPool({
+          tswap,
+          owner,
+          newConfig,
+          oldConfig: config,
+          whitelist,
+          commitment: "confirmed",
+        });
 
         const { sig: closeSig } = await testClosePool({
           owner,
@@ -209,6 +218,7 @@ describe("tswap pool", () => {
 
         for (const { sig, name } of [
           { sig: initSig, name: "initPool" },
+          { sig: editSig, name: "editPool" },
           { sig: closeSig, name: "closePool" },
         ]) {
           const tx = (await TEST_PROVIDER.connection.getTransaction(sig, {
@@ -221,7 +231,9 @@ describe("tswap pool", () => {
           const ix = ixs[0];
           expect(ix.ix.name).eq(name);
           expect(JSON.stringify(swapSdk.getPoolConfig(ix))).eq(
-            JSON.stringify(castPoolConfigAnchor(config))
+            JSON.stringify(
+              castPoolConfigAnchor(name === "editPool" ? newConfig : config)
+            )
           );
           expect(swapSdk.getSolAmount(ix)).null;
           expect(swapSdk.getFeeAmount(ix)).null;
