@@ -102,6 +102,9 @@ impl<'info> DepositNft<'info> {
 
 impl<'info> Validate<'info> for DepositNft<'info> {
     fn validate(&self) -> Result<()> {
+        if self.pool.version == 1 {
+            throw_err!(WrongPoolVersion);
+        }
         Ok(())
     }
 }
@@ -118,16 +121,7 @@ pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
     //create nft receipt
     let receipt = &mut ctx.accounts.nft_receipt;
     receipt.bump = *ctx.bumps.get("nft_receipt").unwrap();
-
-    // todo v2: temp
-    if pool.version == 1 {
-        receipt.nft_authority = pool.key();
-    } else if pool.version == 2 && pool.nft_authority != Pubkey::default() {
-        receipt.nft_authority = pool.nft_authority;
-    } else {
-        throw_err!(WrongPoolVersion);
-    }
-
+    receipt.nft_authority = pool.nft_authority;
     receipt.nft_mint = ctx.accounts.nft_mint.key();
     receipt.nft_escrow = ctx.accounts.nft_escrow.key();
 

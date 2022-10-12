@@ -97,23 +97,6 @@ pub mod tensorswap {
     pub fn realloc_pool(ctx: Context<ReallocPool>, _config: PoolConfig) -> Result<()> {
         instructions::realloc_pool::handler(ctx)
     }
-
-    // --------------------------------------- todo v2 temp
-
-    pub fn migrate_pool_v1_to_v2(
-        ctx: Context<MigratePoolV1ToV2>,
-        _config: PoolConfig,
-        auth_seeds: [u8; 32],
-    ) -> Result<()> {
-        instructions::temp_migrate_pool_v1_to_v2::handler(ctx, auth_seeds)
-    }
-
-    pub fn migrate_receipt_v1_to_v2(
-        ctx: Context<MigrateReceiptV1ToV2>,
-        _config: PoolConfig,
-    ) -> Result<()> {
-        instructions::temp_migrate_receipt_v1_to_v2::handler(ctx)
-    }
 }
 
 #[error_code]

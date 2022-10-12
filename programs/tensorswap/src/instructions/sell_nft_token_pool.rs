@@ -48,6 +48,9 @@ impl<'info> Validate<'info> for SellNftTokenPool<'info> {
                 throw_err!(WrongPoolType);
             }
         }
+        if self.shared.pool.version == 1 {
+            throw_err!(WrongPoolVersion);
+        }
 
         Ok(())
     }
@@ -118,10 +121,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     //update pool accounting
     let pool = &mut ctx.accounts.shared.pool;
     pool.taker_sell_count = unwrap_int!(pool.taker_sell_count.checked_add(1));
-    // todo v2 temp
-    if pool.version == 2 {
-        pool.stats.taker_sell_count = unwrap_int!(pool.stats.taker_sell_count.checked_add(1));
-    }
+    pool.stats.taker_sell_count = unwrap_int!(pool.stats.taker_sell_count.checked_add(1));
 
     Ok(())
 }

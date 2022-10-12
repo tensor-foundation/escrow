@@ -96,8 +96,7 @@ pub struct BuyNft<'info> {
         bump = nft_receipt.bump,
         close = owner,
         //can't buy an NFT that's associated with a different pool
-        constraint = (pool.version == 1 && nft_receipt.nft_authority == pool.key()) ||
-        (pool.version == 2 && nft_receipt.nft_authority == pool.nft_authority && pool.nft_authority != Pubkey::default())
+        constraint = nft_receipt.nft_authority == pool.nft_authority && pool.nft_authority != Pubkey::default()
         @ crate::ErrorCode::WrongPool,
         // redundant but extra safety
         constraint = nft_receipt.nft_escrow == nft_escrow.key() @ crate::ErrorCode::WrongMint,
@@ -178,6 +177,9 @@ impl<'info> BuyNft<'info> {
 
 impl<'info> Validate<'info> for BuyNft<'info> {
     fn validate(&self) -> Result<()> {
+        if self.pool.version == 1 {
+            throw_err!(WrongPoolVersion);
+        }
         Ok(())
     }
 }
@@ -282,18 +284,15 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let pool = &mut ctx.accounts.pool;
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_sub(1));
     pool.taker_buy_count = unwrap_int!(pool.taker_buy_count.checked_add(1));
-    // todo v2 temp
-    if pool.version == 2 {
-        pool.stats.taker_buy_count = unwrap_int!(pool.stats.taker_buy_count.checked_add(1));
-        //record a MM profit of 1/2 MM fee
-        if pool.config.pool_type == PoolType::Trade {
-            let mm_fee = pool.calc_mm_fee(current_price)?;
-            pool.stats.accumulated_mm_profit = unwrap_checked!({
-                pool.stats
-                    .accumulated_mm_profit
-                    .checked_add(mm_fee.checked_div(2)?)
-            });
-        }
+    pool.stats.taker_buy_count = unwrap_int!(pool.stats.taker_buy_count.checked_add(1));
+    //record a MM profit of 1/2 MM fee
+    if pool.config.pool_type == PoolType::Trade {
+        let mm_fee = pool.calc_mm_fee(current_price)?;
+        pool.stats.accumulated_mm_profit = unwrap_checked!({
+            pool.stats
+                .accumulated_mm_profit
+                .checked_add(mm_fee.checked_div(2)?)
+        });
     }
 
     Ok(())

@@ -9,8 +9,6 @@ pub mod init_update_tswap;
 pub mod realloc_pool;
 pub mod sell_nft_token_pool;
 pub mod sell_nft_trade_pool;
-pub mod temp_migrate_pool_v1_to_v2;
-pub mod temp_migrate_receipt_v1_to_v2;
 pub mod withdraw_nft;
 pub mod withdraw_sol;
 
@@ -25,7 +23,5 @@ pub use init_update_tswap::*;
 pub use realloc_pool::*;
 pub use sell_nft_token_pool::*;
 pub use sell_nft_trade_pool::*;
-pub use temp_migrate_pool_v1_to_v2::*;
-pub use temp_migrate_receipt_v1_to_v2::*;
 pub use withdraw_nft::*;
 pub use withdraw_sol::*;
