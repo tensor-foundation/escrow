@@ -192,6 +192,7 @@ describe("tswap pool", () => {
           sig: initSig,
           poolPda,
           nftAuthPda,
+          solEscrowPda,
         } = await testMakePool({
           tswap,
           owner,
@@ -200,7 +201,11 @@ describe("tswap pool", () => {
           commitment: "confirmed",
         });
         const newConfig = { ...config, delta: new BN(0) };
-        const { sig: editSig } = await testEditPool({
+        const {
+          sig: editSig,
+          newPoolPda,
+          newSolEscrowPda,
+        } = await testEditPool({
           tswap,
           owner,
           newConfig,
@@ -248,9 +253,28 @@ describe("tswap pool", () => {
           expect(swapSdk.getSolAmount(ix)).null;
           expect(swapSdk.getFeeAmount(ix)).null;
 
-          expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
-            poolPda.toBase58()
-          );
+          if (name === "editPool") {
+            expect(
+              swapSdk.getAccountByName(ix, "Old Pool")?.pubkey.toBase58()
+            ).eq(poolPda.toBase58());
+            expect(
+              swapSdk.getAccountByName(ix, "New Pool")?.pubkey.toBase58()
+            ).eq(newPoolPda.toBase58());
+            expect(
+              swapSdk.getAccountByName(ix, "Old Sol Escrow")?.pubkey.toBase58()
+            ).eq(solEscrowPda.toBase58());
+            expect(
+              swapSdk.getAccountByName(ix, "New Sol Escrow")?.pubkey.toBase58()
+            ).eq(newSolEscrowPda.toBase58());
+          } else {
+            expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
+              poolPda.toBase58()
+            );
+            expect(
+              swapSdk.getAccountByName(ix, "Sol Escrow")?.pubkey.toBase58()
+            ).eq(solEscrowPda.toBase58());
+          }
+
           expect(swapSdk.getAccountByName(ix, "Owner")?.pubkey.toBase58()).eq(
             owner.publicKey.toBase58()
           );

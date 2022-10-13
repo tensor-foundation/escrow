@@ -1217,7 +1217,10 @@ export class TensorSwapSDK {
     name:
       | "Nft Mint"
       | "Sol Escrow"
+      | "Old Sol Escrow"
+      | "New Sol Escrow"
       | "Pool"
+      | "Old Pool"
       | "New Pool"
       | "Nft Escrow"
       | "Whitelist"

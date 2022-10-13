@@ -428,7 +428,7 @@ export const testMakePool = async ({
   expect(authAcc.pool.toBase58()).eq(poolPda.toBase58());
   expect(authAcc.randomSeed).deep.eq(authSeed);
 
-  return { poolPda, sig, nftAuthPda, authSeed };
+  return { poolPda, sig, nftAuthPda, authSeed, solEscrowPda };
 };
 
 // Can be run async.

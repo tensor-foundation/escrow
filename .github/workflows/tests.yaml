@@ -16,8 +16,8 @@ env:
 jobs:
   test-rust:
     name: Rust Tests
-    # runs-on: [self-hosted, linux, x64] 
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64] 
+    # runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v2
@@ -44,8 +44,8 @@ jobs:
 
   setup-anchor-cli:
     name: Setup Anchor cli
-    # runs-on: [self-hosted, linux, x64] 
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64] 
+    # runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v2
@@ -83,8 +83,8 @@ jobs:
     # so we need to download the anchor artifact from above.
     needs: setup-anchor-cli
     name: Test ${{ matrix.node.glob }}
-    # runs-on: [self-hosted, linux, x64] 
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64] 
+    # runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy: 
       fail-fast: false
