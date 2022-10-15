@@ -59,25 +59,36 @@ import {
 } from "./idl/tensorswap_v0.2.0";
 //v3 (editable pools)
 import {
+  IDL as IDL_v0_3_0,
+  Tensorswap as Tensorswap_v0_3_0,
+} from "./idl/tensorswap_v0.3.0";
+
+//v3.5 (removed v1 -> v2 migration ixs)
+import {
   IDL as IDL_latest,
   Tensorswap as Tensorswap_latest,
 } from "./idl/tensorswap";
 
-// rollout 1.3: https://solscan.io/tx/5ZWevmR3TLzUEVsPyE9bdUBqseeBdVMuELG45L15dx8rnXVCQZE2n1V1EbqEuGEaF6q4fND7rT7zwW8ZXjP1uC5s
+// rollout 0.1.32: https://solscan.io/tx/5ZWevmR3TLzUEVsPyE9bdUBqseeBdVMuELG45L15dx8rnXVCQZE2n1V1EbqEuGEaF6q4fND7rT7zwW8ZXjP1uC5s
 export const TensorswapIDL_v0_1_32 = IDL_v0_1_32;
 export const TensorswapIDL_v0_1_32_EffSlot = 150855169;
 
-// rollout 2.0: https://solscan.io/tx/5aswB2admCErRwPNgM3DeaYcbVYjAjpHuKVFAZenaSGEm8PKL8R2BmqsGFWdGfMR25NPrVSNKix18ZgLtVpHyXUJ
+// rollout 0.2.0: https://solscan.io/tx/5aswB2admCErRwPNgM3DeaYcbVYjAjpHuKVFAZenaSGEm8PKL8R2BmqsGFWdGfMR25NPrVSNKix18ZgLtVpHyXUJ
 export const TensorswapIDL_v0_2_0 = IDL_v0_2_0;
 export const TensorswapIDL_v0_2_0_EffSlot = 153016663;
 
-// rollout 3.0: https://solscan.io/tx/2NjcKJov7cm7Fa1PqEADMgjiFBS6UXAzXoaiLinCU35stFUAgVyLBniaPyLExPoz18TKis5ch9YxfBs7yAkbjXXn
+// rollout 0.3.0: https://solscan.io/tx/2NjcKJov7cm7Fa1PqEADMgjiFBS6UXAzXoaiLinCU35stFUAgVyLBniaPyLExPoz18TKis5ch9YxfBs7yAkbjXXn
+export const TensorswapIDL_v0_3_0 = IDL_v0_3_0;
+export const TensorswapIDL_v0_3_0_EffSlot = 154762923;
+
+// rollout 0.3.5: https://solscan.io/tx/2NjcKJov7cm7Fa1PqEADMgjiFBS6UXAzXoaiLinCU35stFUAgVyLBniaPyLExPoz18TKis5ch9YxfBs7yAkbjXXn
 export const TensorswapIDL_latest = IDL_latest;
-export const TensorswapIDL_latest_EffSlot = 154762923;
+export const TensorswapIDL_latest_EffSlot = 154963721;
 
 export type TensorswapIDL =
   | Tensorswap_v0_1_32
   | Tensorswap_v0_2_0
+  | Tensorswap_v0_3_0
   | Tensorswap_latest;
 
 // Use this function to figure out which IDL to use based on the slot # of historical txs.
@@ -85,7 +96,8 @@ export const triageIDL = (slot: number | bigint): TensorswapIDL | null => {
   //cba to parse really old txs, this was before public launch
   if (slot < TensorswapIDL_v0_1_32_EffSlot) return null;
   if (slot < TensorswapIDL_v0_2_0_EffSlot) return TensorswapIDL_v0_1_32;
-  if (slot < TensorswapIDL_latest_EffSlot) return TensorswapIDL_v0_2_0;
+  if (slot < TensorswapIDL_v0_3_0_EffSlot) return TensorswapIDL_v0_2_0;
+  if (slot < TensorswapIDL_latest_EffSlot) return TensorswapIDL_v0_3_0;
   return TensorswapIDL_latest;
 };
 
