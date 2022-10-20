@@ -15,7 +15,7 @@ import {
 } from "../shared";
 import {
   beforeHook,
-  computeCurrentPrice,
+  computeTakerPrice,
   getAccount,
   makeMintTwoAta,
   makeNTraders,
@@ -484,7 +484,7 @@ describe("tswap buy", () => {
 
           // Buy.
           while (buyCount < numBuys && buyWhenDepCount[buyCount] === depCount) {
-            const currPrice = computeCurrentPrice({
+            const currPrice = computeTakerPrice({
               config,
               buyCount,
               sellCount: 0,
@@ -603,7 +603,7 @@ describe("tswap buy", () => {
 
     // buy NFTs (sequentially).
     for (const [buyCount, nft] of nfts.entries()) {
-      const currPrice = computeCurrentPrice({
+      const currPrice = computeTakerPrice({
         config,
         buyCount,
         sellCount: 0,

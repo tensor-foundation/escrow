@@ -18,8 +18,10 @@ import {
   withLamports,
 } from "../shared";
 import {
+  adjustSellMinLamports,
   beforeHook,
   createAndFundATA,
+  defaultSellExpectedLamports,
   makeMintTwoAta,
   makeNTraders,
   makeWhitelist,
@@ -419,25 +421,26 @@ describe("tswap pool", () => {
 
   it("close pool fails if someone sold nfts into it", async () => {
     const [owner, seller] = await makeNTraders(2);
-    // for (const config of [tokenPoolConfig, tradePoolConfig]) {
-    for (const config of [tradePoolConfig]) {
-      // Cannot run async.
-      const { whitelist } = await testMakePoolSellNft({
-        sellType: config === tradePoolConfig ? "trade" : "token",
-        tswap,
-        owner,
-        seller,
-        config,
-        expectedLamports:
-          config === tokenPoolConfig
-            ? LAMPORTS_PER_SOL
-            : LAMPORTS_PER_SOL - 1234,
-      });
+    // Only works for trade pool o/w nft goes directly to buyer.
+    const config = tradePoolConfig;
+    const isToken = false;
+    const expectedLamports = defaultSellExpectedLamports(isToken);
+    const minLamports = adjustSellMinLamports(isToken, expectedLamports);
 
-      await expect(testClosePool({ owner, whitelist, config })).rejectedWith(
-        swapSdk.getErrorCodeHex("ExistingNfts")
-      );
-    }
+    // Cannot run async.
+    const { whitelist } = await testMakePoolSellNft({
+      sellType: config === tradePoolConfig ? "trade" : "token",
+      tswap,
+      owner,
+      seller,
+      config,
+      expectedLamports,
+      minLamports,
+    });
+
+    await expect(testClosePool({ owner, whitelist, config })).rejectedWith(
+      swapSdk.getErrorCodeHex("ExistingNfts")
+    );
   });
 
   //#endregion
@@ -844,6 +847,7 @@ describe("tswap pool", () => {
         ata: otherAtaA,
         config,
         expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
         nftAuthPda,
         owner,
         poolPda: pool,
@@ -889,6 +893,7 @@ describe("tswap pool", () => {
         ata: otherAtaA,
         config,
         expectedLamports: LAMPORTS_PER_SOL * 1.1,
+        minLamports: LAMPORTS_PER_SOL * 1.1 * 0.75,
         nftAuthPda,
         owner,
         poolPda: pool,
@@ -906,6 +911,7 @@ describe("tswap pool", () => {
         ata: otherAtaB,
         config,
         expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
         nftAuthPda,
         owner,
         poolPda: pool,

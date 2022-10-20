@@ -3,12 +3,12 @@ import Big from "big.js";
 import BN from "bn.js";
 import { expect } from "chai";
 import {
-  computeCurrentPrice,
   computeMakerAmountCount,
+  computeTakerDisplayPrice,
+  computeTakerPrice,
   CurveType,
   PoolType,
   TakerSide,
-  computeTakerDisplayPrice,
 } from "../src";
 import { cartesian } from "./shared";
 
@@ -53,7 +53,7 @@ describe("prices helper functions", () => {
     }
   });
 
-  it("computeTakerDisplayPrice is equal to computeCurrentPrice for NFT/token pools", async () => {
+  it("computeTakerDisplayPrice is equal to computeTakerPrice for NFT/token pools", async () => {
     const startingPrice = new Big(2 * LAMPORTS_PER_SOL);
     const delta = new Big(0.1 * LAMPORTS_PER_SOL);
     const mmFeeBps = 250;
@@ -77,7 +77,7 @@ describe("prices helper functions", () => {
         extraNFTsSelected: 0,
       };
       const price = computeTakerDisplayPrice(args);
-      expect(price!.toString()).eq(computeCurrentPrice(args)!.toString());
+      expect(price!.toString()).eq(computeTakerPrice(args)!.toString());
     }
   });
 

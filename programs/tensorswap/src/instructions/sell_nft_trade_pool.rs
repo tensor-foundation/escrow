@@ -100,7 +100,8 @@ pub fn handler<'a, 'b, 'c, 'info>(
         creators_fee,
     });
 
-    if current_price < min_price {
+    // Need to include mm_fee to prevent someone editing the MM fee from rugging the seller.
+    if unwrap_int!(current_price.checked_sub(mm_fee)) < min_price {
         throw_err!(PriceMismatch);
     }
 

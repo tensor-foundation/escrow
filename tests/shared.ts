@@ -1,4 +1,6 @@
 // Common helper functions b/w tensor_whitelist & tensorswap.
+import * as anchor from "@project-serum/anchor";
+import { AnchorProvider } from "@project-serum/anchor";
 import {
   ConfirmOptions,
   PublicKey,
@@ -6,31 +8,25 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { buildTx } from "@tensor-hq/tensor-common/dist/solana_contrib";
-import * as anchor from "@project-serum/anchor";
-import { AnchorProvider } from "@project-serum/anchor";
-import { MerkleTree } from "merkletreejs";
-import keccak256 from "keccak256";
-import {
-  TensorswapIDL_latest,
-  TensorSwapSDK,
-  TensorWhitelistSDK,
-} from "../src";
-import { getLamports as _getLamports } from "../src/common";
 import { expect } from "chai";
 import { backOff } from "exponential-backoff";
+import keccak256 from "keccak256";
+import { MerkleTree } from "merkletreejs";
+import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
+import { getLamports as _getLamports } from "../src/common";
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export {
-  TSWAP_FEE_ACC,
-  hexCode,
-  CurveTypeAnchor,
-  PoolTypeAnchor,
-  PoolConfigAnchor,
-  PoolAnchor,
-  TakerSide,
-  HUNDRED_PCT_BPS,
   castPoolConfigAnchor,
-  stringifyPKsAndBNs,
+  CurveTypeAnchor,
+  hexCode,
+  HUNDRED_PCT_BPS,
   MAX_PROOF_LEN,
+  PoolAnchor,
+  PoolConfigAnchor,
+  PoolTypeAnchor,
+  stringifyPKsAndBNs,
+  TakerSide,
+  TSWAP_FEE_ACC,
 } from "../src";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";

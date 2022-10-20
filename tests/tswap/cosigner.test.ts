@@ -215,7 +215,7 @@ describe("tswap cosigner", () => {
       config,
       seller: seller.publicKey,
       nftSellerAcc: sellerAta,
-      minPrice: new BN(LAMPORTS_PER_SOL - 1234),
+      minPrice: new BN(Math.trunc((LAMPORTS_PER_SOL - 1234) * 0.97)),
     });
     await testWithWithoutCosigner({ ixs, extraSigners: [seller] });
   });

@@ -24,7 +24,7 @@ import BN from "bn.js";
 import chai, { expect } from "chai";
 import {
   castPoolConfigAnchor,
-  computeCurrentPrice as computeCurrentPrice_,
+  computeTakerPrice as computeTakerPrice_,
   computeMakerAmountCount,
   CurveTypeAnchor,
   PoolAnchor,
@@ -46,6 +46,7 @@ import {
   testInitWLAuthority,
   withLamports,
   wlSdk,
+  HUNDRED_PCT_BPS,
 } from "../shared";
 import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
@@ -329,7 +330,7 @@ export const computeDepositAmount = ({
     }).totalAmount.toNumber()
   );
 
-export const computeCurrentPrice = ({
+export const computeTakerPrice = ({
   config,
   buyCount,
   sellCount,
@@ -343,7 +344,7 @@ export const computeCurrentPrice = ({
   slippage?: number;
 }): BN =>
   new BN(
-    computeCurrentPrice_({
+    computeTakerPrice_({
       config: castPoolConfigAnchor(config),
       takerBuyCount: buyCount,
       takerSellCount: sellCount,
@@ -352,6 +353,24 @@ export const computeCurrentPrice = ({
       slippage,
     })!.toNumber()
   );
+
+export const defaultSellExpectedLamports = (isToken: boolean) => {
+  // Selling is 1 tick lower than start price for trade pools.
+  return isToken ? LAMPORTS_PER_SOL : LAMPORTS_PER_SOL - 1234;
+};
+
+export const adjustSellMinLamports = (
+  isToken: boolean,
+  expectedLamports: number
+) => {
+  // Min price needs to be adjusted for MM fees for trade pools.
+  return isToken
+    ? expectedLamports
+    : expectedLamports -
+        Math.trunc(
+          (expectedLamports * tradePoolConfig.mmFeeBps!) / HUNDRED_PCT_BPS
+        );
+};
 
 //#endregion
 
@@ -1036,6 +1055,7 @@ export const testSellNft = async ({
   owner: Keypair;
   seller: Keypair;
   config: PoolConfigAnchor;
+  // Expected value for the current/base price.
   expectedLamports: number;
   // If specified, uses this as the minPrice for the sell instr.
   // All expects will still use expectedLamports.

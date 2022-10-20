@@ -17,10 +17,12 @@ import {
 } from "../shared";
 import { testInitUpdateMintProof } from "../twhitelist/common";
 import {
+  adjustSellMinLamports,
   beforeHook,
-  computeCurrentPrice,
   computeDepositAmount,
+  computeTakerPrice,
   createAndFundATA,
+  defaultSellExpectedLamports,
   getAccount,
   makeMintTwoAta,
   makeNTraders,
@@ -53,17 +55,20 @@ describe("tswap sell", () => {
       ],
       [tokenPoolConfig, tradePoolConfig]
     )) {
+      const expectedLamports = defaultSellExpectedLamports(
+        config === tokenPoolConfig
+      );
       await testMakePoolSellNft({
         sellType: config === tradePoolConfig ? "trade" : "token",
         tswap,
         owner,
         seller,
         config,
-        // Selling is 1 tick lower than start price for trade pools.
-        expectedLamports:
-          config === tokenPoolConfig
-            ? LAMPORTS_PER_SOL
-            : LAMPORTS_PER_SOL - 1234,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(
+          config === tokenPoolConfig,
+          expectedLamports
+        ),
       });
     }
   });
@@ -76,17 +81,17 @@ describe("tswap sell", () => {
       [tokenPoolConfig, tradePoolConfig],
       [0.99 * LAMPORTS_PER_SOL, 0.01 * LAMPORTS_PER_SOL]
     )) {
+      const isToken = config === tokenPoolConfig;
       await testMakePoolSellNft({
         sellType: config === tradePoolConfig ? "trade" : "token",
         tswap,
         owner,
         seller,
         config,
-        expectedLamports:
-          config === tokenPoolConfig
-            ? LAMPORTS_PER_SOL
-            : LAMPORTS_PER_SOL - 1234,
-        minLamports: config === tokenPoolConfig ? price : price - 1234,
+        expectedLamports: defaultSellExpectedLamports(isToken),
+        minLamports: isToken
+          ? price
+          : adjustSellMinLamports(isToken, price - 1234),
       });
     }
   });
@@ -170,16 +175,17 @@ describe("tswap sell", () => {
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
 
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
+
       await testMakePoolSellNft({
         sellType: config === tradePoolConfig ? "trade" : "token",
         tswap,
         owner,
         seller,
         config,
-        expectedLamports:
-          config === tokenPoolConfig
-            ? LAMPORTS_PER_SOL
-            : LAMPORTS_PER_SOL - 1234,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(isToken, expectedLamports),
         royaltyBps,
         creators,
       });
@@ -195,6 +201,8 @@ describe("tswap sell", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
 
       await testMakePoolSellNft({
         sellType: config === tradePoolConfig ? "trade" : "token",
@@ -202,10 +210,8 @@ describe("tswap sell", () => {
         owner,
         seller,
         config,
-        expectedLamports:
-          config === tokenPoolConfig
-            ? LAMPORTS_PER_SOL
-            : LAMPORTS_PER_SOL - 1234,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(isToken, expectedLamports),
         royaltyBps: 50,
         creators,
         treeSize: 5_000,
@@ -272,6 +278,24 @@ describe("tswap sell", () => {
     );
   });
 
+  it("sell at price higher than price post MM fees but lower than base price fails", async () => {
+    const [owner, seller] = await makeNTraders(2);
+    const expectedLamports = defaultSellExpectedLamports(false);
+
+    await expect(
+      testMakePoolSellNft({
+        sellType: "trade",
+        tswap,
+        owner,
+        seller,
+        config: tradePoolConfig,
+        expectedLamports,
+        // 1 higher than the expected minLamports.
+        minLamports: adjustSellMinLamports(false, expectedLamports) + 1,
+      })
+    ).rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
+  });
+
   it("sell non-WL nft fails", async () => {
     await Promise.all(
       [tradePoolConfig, tokenPoolConfig].map(async (config) => {
@@ -332,9 +356,10 @@ describe("tswap sell", () => {
             config,
             proof: wlNft.proof,
             minPrice: new BN(
-              config === tokenPoolConfig
-                ? LAMPORTS_PER_SOL
-                : LAMPORTS_PER_SOL - 1234
+              adjustSellMinLamports(
+                config === tokenPoolConfig,
+                defaultSellExpectedLamports(config === tokenPoolConfig)
+              )
             ),
           });
 
@@ -581,7 +606,7 @@ describe("tswap sell", () => {
 
         // deposit # nfts times.
         for (const _ of nfts) {
-          const currDeposit = computeCurrentPrice({
+          const currDeposit = computeTakerPrice({
             config,
             buyCount: 0,
             sellCount: depCount,
@@ -609,7 +634,7 @@ describe("tswap sell", () => {
             sellCount < numSells &&
             sellWhenDepCount[sellCount] === depCount
           ) {
-            const currPrice = computeCurrentPrice({
+            const currPrice = computeTakerPrice({
               config,
               buyCount: 0,
               sellCount,
@@ -726,7 +751,7 @@ describe("tswap sell", () => {
 
     // sell NFTs (sequentially).
     for (const [sellCount, nft] of nfts.entries()) {
-      const currPrice = computeCurrentPrice({
+      const currPrice = computeTakerPrice({
         config,
         buyCount: 0,
         sellCount,
@@ -782,9 +807,9 @@ describe("tswap sell", () => {
       { config: tradePoolConfig, name: "sellNftTradePool" },
       { config: tokenPoolConfig, name: "sellNftTokenPool" },
     ]) {
-      let temp = config.startingPrice;
-      if (config === tradePoolConfig) temp = temp.sub(config.delta);
-      const expectedLamports = temp.toNumber();
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
+      const minLamports = adjustSellMinLamports(isToken, expectedLamports);
 
       const { sellSig, wlNft, whitelist, poolPda, solEscrowPda, nftReceipt } =
         await testMakePoolSellNft({
@@ -794,6 +819,7 @@ describe("tswap sell", () => {
           seller,
           config,
           expectedLamports,
+          minLamports,
           commitment: "confirmed",
           royaltyBps: 69,
         });
