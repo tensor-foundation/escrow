@@ -2,8 +2,6 @@ import { Metaplex } from "@metaplex-foundation/js";
 import { AccountClient, BN, Idl, Program, utils } from "@project-serum/anchor";
 import { AllAccountsMap } from "@project-serum/anchor/dist/cjs/program/namespace/types";
 import { AccountInfo, Connection, PublicKey } from "@solana/web3.js";
-import { TensorswapIDL } from "./tensorswap";
-import { TensorWhitelist } from "./tensor_whitelist/idl/tensor_whitelist";
 
 export const getAccountRent = (conn: Connection, acct: AccountClient) => {
   return conn.getMinimumBalanceForRentExemption(acct.size);
@@ -28,11 +26,11 @@ export type DiscMap<T extends Idl> = Record<
   { decoder: Decoder; name: keyof AllAccountsMap<T> }
 >;
 
-export const genDiscToDecoderMap = <T extends TensorswapIDL | TensorWhitelist>(
+export const genDiscToDecoderMap = <T extends Idl>(
   program: Program<T>
 ): DiscMap<T> => {
   return Object.fromEntries(
-    program.idl.accounts.map((acc) => {
+    program.idl.accounts?.map((acc) => {
       const name = acc.name as keyof AllAccountsMap<T>;
       const capName = name.at(0)!.toUpperCase() + name.slice(1);
 
