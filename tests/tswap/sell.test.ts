@@ -196,10 +196,7 @@ describe("tswap sell", () => {
     const [owner, seller] = await makeNTraders(2);
 
     // Intentionally do this serially (o/w balances will race).
-    for (const [royaltyBps, config] of cartesian(
-      [50, 1000],
-      [tokenPoolConfig, tradePoolConfig]
-    )) {
+    for (const [royaltyBps, config] of cartesian([50], [tokenPoolConfig])) {
       //want tiny royalties to cause error
       const creators = Array(5)
         .fill(null)

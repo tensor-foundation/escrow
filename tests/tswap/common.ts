@@ -907,10 +907,6 @@ export const testBuyNft = async ({
         }
 
         creatorsFee = Math.trunc(
-          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) * expectedLamports
-        );
-
-        creatorsFee = Math.trunc(
           Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) *
             expectedLamports *
             (1 - skippedCreators / 100)

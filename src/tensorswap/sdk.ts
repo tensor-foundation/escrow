@@ -52,7 +52,6 @@ import {
   Tensorswap as Tensorswap_v0_1_32,
 } from "./idl/tensorswap_v0.1.32";
 //v2 (remove cosigner)
-//todo later can specify exact 2.x.x version
 import {
   IDL as IDL_v0_2_0,
   Tensorswap as Tensorswap_v0_2_0,
@@ -273,6 +272,22 @@ export type TaggedTensorSwapPdaAnchor =
     };
 
 export type TensorSwapEventAnchor = Event<typeof IDL_latest["events"][number]>;
+
+export type AccountSuffix =
+  | "Nft Mint"
+  | "Sol Escrow"
+  | "Old Sol Escrow"
+  | "New Sol Escrow"
+  | "Pool"
+  | "Old Pool"
+  | "New Pool"
+  | "Nft Escrow"
+  | "Whitelist"
+  | "Nft Receipt"
+  | "Buyer"
+  | "Seller"
+  | "Owner"
+  | "Nft Authority";
 
 // ------------- Types for parsed ixs from raw tx.
 
@@ -1226,21 +1241,7 @@ export class TensorSwapSDK {
   // shared.sol_escrow -> "Shared > Sol Escrow"
   getAccountByName(
     ix: ParsedTSwapIx,
-    name:
-      | "Nft Mint"
-      | "Sol Escrow"
-      | "Old Sol Escrow"
-      | "New Sol Escrow"
-      | "Pool"
-      | "Old Pool"
-      | "New Pool"
-      | "Nft Escrow"
-      | "Whitelist"
-      | "Nft Receipt"
-      | "Buyer"
-      | "Seller"
-      | "Owner"
-      | "Nft Authority"
+    name: AccountSuffix
   ): ParsedAccount | undefined {
     // We use endsWith since composite nested accounts (eg shared.sol_escrow)
     // will prefix it as "Shared > Sol Escrow"

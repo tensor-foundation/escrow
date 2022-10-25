@@ -1,6 +1,6 @@
 [package]
 name = "tensorswap"
-version = "0.3.9"
+version = "0.3.11"
 description = "Created with Anchor"
 edition = "2021"
 
