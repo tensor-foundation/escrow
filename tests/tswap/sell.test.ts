@@ -192,6 +192,37 @@ describe("tswap sell", () => {
     }
   });
 
+  it("sell into token/trade pool works with royalties (check for InsufficientFundsForRent)", async () => {
+    const [owner, seller] = await makeNTraders(2);
+
+    // Intentionally do this serially (o/w balances will race).
+    for (const [royaltyBps, config] of cartesian(
+      [50, 1000],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      //want tiny royalties to cause error
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 1 }));
+      creators[0].share = 96;
+
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
+
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(isToken, expectedLamports),
+        royaltyBps,
+        creators,
+      });
+    }
+  });
+
   // We add this test since <= v0.1.29 we passed in mint proof in the ix.
   // > v0.1.29 we use a mint proof PDA.
   it("sell nft with creators + long proof works", async () => {

@@ -177,15 +177,27 @@ impl<'info> SellNft<'info> {
         match &metadata.data.creators {
             Some(creators) => {
                 for creator in creators {
-                    let pct = creator.share as u64;
-                    let creator_fee =
-                        unwrap_checked!({ pct.checked_mul(creators_fee)?.checked_div(100) });
-                    remaining_fee = unwrap_int!(remaining_fee.checked_sub(creator_fee));
                     let current_creator_info = next_account_info(iter)?;
                     require!(
                         creator.address.eq(current_creator_info.key),
                         CreatorMismatch
                     );
+
+                    let rent = Rent::get()?.minimum_balance(current_creator_info.data_len());
+
+                    let pct = creator.share as u64;
+                    let creator_fee =
+                        unwrap_checked!({ pct.checked_mul(creators_fee)?.checked_div(100) });
+
+                    //prevents InsufficientFundsForRent, where creator acc doesn't have enough fee
+                    //https://explorer.solana.com/tx/vY5nYA95ELVrs9SU5u7sfU2ucHj4CRd3dMCi1gWrY7MSCBYQLiPqzABj9m8VuvTLGHb9vmhGaGY7mkqPa1NLAFE
+                    if unwrap_int!(current_creator_info.lamports().checked_add(creator_fee)) < rent
+                    {
+                        //skip current creator, we can't pay them
+                        continue;
+                    }
+
+                    remaining_fee = unwrap_int!(remaining_fee.checked_sub(creator_fee));
                     if creator_fee > 0 {
                         self.transfer_lamports_from_escrow(current_creator_info, creator_fee)?;
                     }

@@ -892,27 +892,50 @@ export const testBuyNft = async ({
       //paid tswap fees (NB: fee account may be un-init before).
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
-      // Check creators' balances.
       const isTrade = config.poolType === PoolTypeAnchor.Trade;
+
+      // Check creators' balances.
       let creatorsFee = 0;
       // Trade pools (when being bought from) charge no royalties.
       if (!!creators?.length && royaltyBps && !isTrade) {
+        //skip creators when royalties not enough to cover rent
+        let skippedCreators = 0;
+        for (const c of creators) {
+          if (c.share <= 1) {
+            skippedCreators++;
+          }
+        }
+
         creatorsFee = Math.trunc(
           Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) * expectedLamports
         );
+
+        creatorsFee = Math.trunc(
+          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) *
+            expectedLamports *
+            (1 - skippedCreators / 100)
+        );
+
         for (const c of creators) {
           const cBal = await getLamports(c.address);
-          expect(cBal).eq(Math.trunc((creatorsFee * c.share) / 100));
+          //only run the test if share > 1, else it's skipped
+          if (c.share > 1) {
+            expect(cBal).eq(
+              Math.trunc(
+                ((creatorsFee / (1 - skippedCreators / 100)) * c.share) / 100
+              )
+            );
+          }
         }
       }
 
       // Buyer pays full amount.
       const currBuyerLamports = await getLamports(buyer.publicKey);
       expect(currBuyerLamports! - prevBuyerLamports!).eq(-1 * expectedLamports);
-
       // Depending on the pool type:
       // (1) Trade = amount sent to escrow, NOT owner
       // (1) NFT = amount sent to owner, NOT escrow
+
       const grossAmount = expectedLamports * (1 - TSWAP_FEE) - creatorsFee;
       const expOwnerAmount =
         (isTrade ? 0 : grossAmount) +
@@ -920,9 +943,11 @@ export const testBuyNft = async ({
         (await swapSdk.getNftDepositReceiptRent()) +
         (await swapSdk.getTokenAcctRent());
       const expEscrowAmount = isTrade ? grossAmount : 0;
+
       // amount sent to owner's wallet
       const currSellerLamports = await getLamports(owner.publicKey);
       expect(currSellerLamports! - prevSellerLamports!).eq(expOwnerAmount);
+
       // amount sent to escrow
       const currSolEscrowLamports = await getLamports(solEscrowPda);
       expect(currSolEscrowLamports! - prevEscrowLamports!).eq(expEscrowAmount);
@@ -1139,25 +1164,31 @@ export const testSellNft = async ({
       //paid tswap fees (NB: fee account may be un-init before).
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
+      const mmFees = Math.trunc(
+        (expectedLamports * (config.mmFeeBps ?? 0)) / 1e4
+      );
+
       // Check creators' balances.
       let creatorsFee = 0;
       if (!!creators?.length && royaltyBps) {
+        //skip creators when royalties not enough to cover rent
+        let skippedCreators = 0;
         const temp = Math.trunc(
-          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) * expectedLamports
+          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) *
+            expectedLamports *
+            (1 - skippedCreators / 100)
         );
 
         // Need to accumulate b/c of dust.
         for (const c of creators) {
           const cBal = await getLamports(c.address);
-          const expected = Math.trunc((temp * c.share) / 100);
-          expect(cBal).eq(expected);
-          creatorsFee += expected;
+          if (c.share > 1) {
+            const expected = Math.trunc((temp * c.share) / 100);
+            expect(cBal).eq(expected);
+            creatorsFee += expected;
+          }
         }
       }
-
-      const mmFees = Math.trunc(
-        (expectedLamports * (config.mmFeeBps ?? 0)) / 1e4
-      );
 
       //paid full amount to seller
       const expectedRentBySeller =

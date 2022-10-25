@@ -96,6 +96,32 @@ describe("tswap buy", () => {
     }
   });
 
+  it("buy from nft/trade pool works with royalties (check for InsufficientFundsForRent)", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+
+    // Intentionally do this serially (o/w balances will race).
+    for (const [royaltyBps, config] of cartesian(
+      [50, 1000],
+      [nftPoolConfig, tradePoolConfig]
+    )) {
+      //want tiny royalties to cause error
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 1 }));
+      creators[0].share = 96;
+
+      await testMakePoolBuyNft({
+        tswap,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        royaltyBps,
+        creators,
+      });
+    }
+  });
+
   // TODO: proof ignored (so this works).
   it("buy from nft pool works with 5 creators (max) and large proofs", async () => {
     const [owner, buyer] = await makeNTraders(2);
