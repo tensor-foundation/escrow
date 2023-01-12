@@ -1,6 +1,6 @@
 {
   "name": "@tensor-hq/tensorswap-ts",
-  "version": "0.3.11",
+  "version": "1.0.6",
   "description": "Anchor/JS SDK for interacting with the tensorswap Solana program.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,12 +24,13 @@
     "upgrade:anchor": "yarn upgrade @project-serum/anchor --latest --check-files"
   },
   "dependencies": {
-    "@metaplex-foundation/js": "^0.15.0",
+    "@metaplex-foundation/js": "^0.17.5",
     "@metaplex-foundation/mpl-token-metadata": "^2.2.4",
     "@project-serum/anchor": "^0.25.0",
+    "@saberhq/solana-contrib": "^1.14.11",
     "@solana/spl-token": "0.2.0",
     "@solana/web3.js": "^1.33.0",
-    "@tensor-hq/tensor-common": "^0.1.36",
+    "@tensor-hq/tensor-common": "0.1.80",
     "@types/bn.js": "^5.1.0",
     "big.js": "^6.2.1",
     "bn.js": "^5.2.0",

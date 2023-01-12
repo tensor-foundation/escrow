@@ -16,10 +16,10 @@ import chaiAsPromised from "chai-as-promised";
 import {
   makeMintTwoAta,
   makeNTraders,
-  makeWhitelist,
+  makeProofWhitelist,
   tradePoolConfig,
   TSWAP_CONFIG,
-  TSWAP_FEE,
+  TSWAP_FEE_PCT,
   WhitelistedNft,
 } from "./common";
 import { BN } from "bn.js";
@@ -106,7 +106,7 @@ describe("tswap cosigner", () => {
       tswapPda,
     } = await swapSdk.initUpdateTSwap({
       owner: TEST_PROVIDER.publicKey,
-      newOwner: TEST_PROVIDER.publicKey,
+      newCosigner: TEST_PROVIDER.publicKey,
       config: TSWAP_CONFIG,
       cosigner,
     });
@@ -130,7 +130,7 @@ describe("tswap cosigner", () => {
     ({
       proofs: [wlSell, wlBuy],
       whitelist,
-    } = await makeWhitelist([mintSell, mintBuy]));
+    } = await makeProofWhitelist([mintSell, mintBuy]));
 
     // Init pool.
     // Needs to go here for other txs.
@@ -184,7 +184,6 @@ describe("tswap cosigner", () => {
       owner: owner.publicKey,
       whitelist,
       nftMint: mintBuy,
-      proof: wlBuy.proof,
       config,
       buyer: buyer.publicKey,
       nftBuyerAcc: buyerAta,
@@ -211,7 +210,6 @@ describe("tswap cosigner", () => {
       owner: owner.publicKey,
       whitelist,
       nftMint: mintSell,
-      proof: wlSell.proof,
       config,
       seller: seller.publicKey,
       nftSellerAcc: sellerAta,
@@ -242,7 +240,7 @@ describe("tswap cosigner", () => {
       owner: owner.publicKey,
       whitelist,
       config,
-      lamports: new BN(LAMPORTS_PER_SOL * (1 - TSWAP_FEE)),
+      lamports: new BN(LAMPORTS_PER_SOL * (1 - TSWAP_FEE_PCT)),
     });
     await testWithWithoutCosigner({ ixs, extraSigners: [owner] });
   });

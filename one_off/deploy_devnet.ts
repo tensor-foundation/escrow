@@ -8,7 +8,7 @@ import {
 } from "../tests/shared";
 import { AnchorProvider } from "@project-serum/anchor";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
-import { makeWhitelist } from "../tests/tswap/common";
+import { makeProofWhitelist } from "../tests/tswap/common";
 import * as path from "path";
 import * as anchor from "@project-serum/anchor";
 import { MerkleTree } from "merkletreejs";
@@ -75,7 +75,7 @@ const initWhitelistForDonkeys = async () => {
     tx: { ixs },
     whitelistPda,
   } = await wlSdk.initUpdateWhitelist({
-    owner: payer.publicKey,
+    cosigner: payer.publicKey,
     uuid: Buffer.from(uuid).toJSON().data,
     rootHash: root,
     name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
@@ -93,7 +93,7 @@ const initTswap = async () => {
     tx: { ixs },
   } = await swapSDK.initUpdateTSwap({
     owner: payer.publicKey,
-    newOwner: payer.publicKey,
+    newCosigner: payer.publicKey,
     config: { feeBps: 500 },
   });
   const sig = await buildAndSendTx({ ixs, provider });

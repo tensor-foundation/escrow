@@ -8,8 +8,8 @@ At the top level (ie tensorswap/), run:
 2. `solana-test-validator`
 3. `anchor deploy --provider.cluster localnet`, note down program IDs (also `anchor keys list`)
 4. Modify program IDs in `lib.rs` `declare_id!`s and `Anchor.toml` for both programs
-5. 
-6. 
+5.
+6.
     ```
     ANCHOR_WALLET=~/.config/solana/id.json \
     TENSORSWAP_ADDR=<tswap program id> \
@@ -220,7 +220,7 @@ const idempotentTxs = async () => {
       const {
         tx: { ixs },
       } = await wlSdk.initUpdateWhitelist({
-        owner: TEST_PROVIDER.publicKey,
+        cosigner: TEST_PROVIDER.publicKey,
         uuid: TensorWhitelistSDK.uuidToBuffer(uuid),
         rootHash: tree.root,
         name: TensorWhitelistSDK.nameToBuffer(name),
@@ -369,7 +369,6 @@ const oneTimeTxs = async () => {
       whitelist,
       nftMint: mint.publicKey,
       nftBuyerAcc: ata,
-      proof: _getProof(mint.publicKey).proof,
       owner: traderA.publicKey,
       buyer: traderB.publicKey,
       config: poolConfig,
@@ -416,7 +415,6 @@ const oneTimeTxs = async () => {
       whitelist,
       nftMint: mint.publicKey,
       nftSellerAcc: ata,
-      proof: _getProof(mint.publicKey).proof,
       owner: traderA.publicKey,
       seller: traderB.publicKey,
       config: poolConfig,

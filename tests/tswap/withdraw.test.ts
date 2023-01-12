@@ -17,7 +17,7 @@ import {
   createATA,
   makeMintTwoAta,
   makeNTraders,
-  makeWhitelist,
+  makeProofWhitelist,
   nftPoolConfig,
   testDepositNft,
   testDepositSol,
@@ -27,7 +27,7 @@ import {
   testWithdrawSol,
   tokenPoolConfig,
   tradePoolConfig,
-  TSWAP_FEE,
+  TSWAP_FEE_PCT,
 } from "./common";
 
 describe("tswap withdraws", () => {
@@ -50,7 +50,7 @@ describe("tswap withdraws", () => {
         const {
           proofs: [wlNft],
           whitelist,
-        } = await makeWhitelist([mint]);
+        } = await makeProofWhitelist([mint]);
         const { poolPda: pool, nftAuthPda } = await testMakePool({
           tswap,
           owner,
@@ -81,7 +81,7 @@ describe("tswap withdraws", () => {
     const {
       proofs: [wlNft],
       whitelist,
-    } = await makeWhitelist([mint]);
+    } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
       owner,
@@ -114,7 +114,6 @@ describe("tswap withdraws", () => {
       owner: owner.publicKey,
       seller: seller.publicKey,
       config,
-      proof: wlNft.proof,
       // Fine to go lower.
       minPrice: new BN(LAMPORTS_PER_SOL / 2),
     });
@@ -143,7 +142,7 @@ describe("tswap withdraws", () => {
     const {
       proofs: [wlNft],
       whitelist,
-    } = await makeWhitelist([mint]);
+    } = await makeProofWhitelist([mint]);
     const { poolPda: tokenPool } = await testMakePool({
       tswap,
       owner,
@@ -199,7 +198,7 @@ describe("tswap withdraws", () => {
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
-      } = await makeWhitelist([mintA, mintB]);
+      } = await makeProofWhitelist([mintA, mintB]);
 
       // Deposit into 2 pools.
       const { poolPda: poolA, nftAuthPda: nftAuthPdaA } = await testMakePool({
@@ -264,7 +263,7 @@ describe("tswap withdraws", () => {
     const {
       whitelist,
       proofs: [wlNft],
-    } = await makeWhitelist([mint]);
+    } = await makeProofWhitelist([mint]);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
       owner,
@@ -336,7 +335,7 @@ describe("tswap withdraws", () => {
     )) {
       // Create pool + ATAs.
       const { mint } = await createAndFundATA(owner);
-      const { whitelist } = await makeWhitelist([mint]);
+      const { whitelist } = await makeProofWhitelist([mint]);
       const { poolPda: pool } = await testMakePool({
         tswap,
         owner,
@@ -381,7 +380,7 @@ describe("tswap withdraws", () => {
       expectedLamports: LAMPORTS_PER_SOL,
     });
 
-    const funds = LAMPORTS_PER_SOL * (1 - TSWAP_FEE);
+    const funds = LAMPORTS_PER_SOL * (1 - TSWAP_FEE_PCT);
 
     await withLamports(
       { prevLamports: owner.publicKey },
@@ -408,7 +407,7 @@ describe("tswap withdraws", () => {
     )) {
       // Create pool + ATAs.
       const { mint } = await createAndFundATA(owner);
-      const { whitelist } = await makeWhitelist([mint]);
+      const { whitelist } = await makeProofWhitelist([mint]);
       const { poolPda: pool } = await testMakePool({
         tswap,
         owner,
@@ -432,7 +431,7 @@ describe("tswap withdraws", () => {
           // +1 lamport dips into rent.
           lamports: lamports + 1,
         })
-      ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientSolEscrowBalance"));
+      ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientTswapAccBalance"));
     }
   });
 
@@ -442,7 +441,7 @@ describe("tswap withdraws", () => {
 
     // Create pool + ATAs.
     const { mint } = await createAndFundATA(owner);
-    const { whitelist } = await makeWhitelist([mint]);
+    const { whitelist } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
       owner,
@@ -465,7 +464,7 @@ describe("tswap withdraws", () => {
     const [owner] = await makeNTraders(1);
     const config = tokenPoolConfig;
     const { mint } = await createAndFundATA(owner);
-    const { whitelist } = await makeWhitelist([mint]);
+    const { whitelist } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
       owner,

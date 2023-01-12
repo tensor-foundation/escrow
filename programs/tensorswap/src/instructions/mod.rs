@@ -1,3 +1,4 @@
+pub mod advanced_ordering;
 pub mod buy_nft;
 pub mod close_pool;
 pub mod common;
@@ -6,12 +7,14 @@ pub mod deposit_sol;
 pub mod edit_pool;
 pub mod init_pool;
 pub mod init_update_tswap;
+pub mod margin;
 pub mod realloc_pool;
 pub mod sell_nft_token_pool;
 pub mod sell_nft_trade_pool;
 pub mod withdraw_nft;
 pub mod withdraw_sol;
 
+pub use advanced_ordering::*;
 pub use buy_nft::*;
 pub use close_pool::*;
 pub use common::*;
@@ -20,6 +23,7 @@ pub use deposit_sol::*;
 pub use edit_pool::*;
 pub use init_pool::*;
 pub use init_update_tswap::*;
+pub use margin::*;
 pub use realloc_pool::*;
 pub use sell_nft_token_pool::*;
 pub use sell_nft_trade_pool::*;

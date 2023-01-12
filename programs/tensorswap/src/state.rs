@@ -1,22 +1,50 @@
+use std::{cmp, cmp::min, fmt::Debug};
+
 use mpl_token_metadata::state::Metadata;
 use spl_math::precise_number::PreciseNumber;
-use std::cmp::min;
-use std::fmt::Debug;
 use vipers::throw_err;
 
 use crate::*;
 
+#[constant]
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
+
+//version history (these don't match with IDL version):
+// v2 = added edit pools functionality
+#[constant]
 pub const CURRENT_POOL_VERSION: u8 = 2;
 
+#[constant]
 pub const MAX_CREATORS_FEE_BPS: u16 = 90; // 0.9%
-
-pub const MAX_MM_FEES_BPS: u16 = 2500; //25%
+#[constant]
+pub const MAX_MM_FEES_BPS: u16 = 9900; //99%
+#[constant]
 pub const HUNDRED_PCT_BPS: u16 = 10000;
+#[constant]
 pub const MAX_DELTA_BPS: u16 = 9999; //99%
 
 //how many ticks is the spread between a buy and sell for a trade pool
+#[constant]
 pub const SPREAD_TICKS: u8 = 1;
+
+// --------------------------------------- fees
+
+//standard fee for tswap txs = 0.1%
+#[constant]
+pub const STANDARD_FEE_BPS: u16 = 10;
+
+//fixed fee applied on top of initial snipe value
+//eg if user wants to snipe for 100, we charge 1.5% on top
+//(!) should always >= STANDARD_FEE_BPS
+#[constant]
+pub const SNIPE_FEE_BPS: u16 = 150;
+//needed so that we don't get drained for creating PDAs (0.01 sol)
+#[constant]
+pub const SNIPE_MIN_FEE: u64 = 10_000_000;
+
+//profit share, so eg if we snipe for 90 instead of 100 and profit share is 20%, we take home 20% * (100-90) = 2
+#[constant]
+pub const SNIPE_PROFIT_SHARE_BPS: u16 = 2000;
 
 // --------------------------------------- tswap
 
@@ -33,8 +61,10 @@ impl TSwapConfig {
 pub struct TSwap {
     pub version: u8,
     pub bump: [u8; 1],
+    /// @DEPRECATED, use constant above instead
     pub config: TSwapConfig,
 
+    //More security sensitive than cosigner
     pub owner: Pubkey,
     pub fee_vault: Pubkey,
     pub cosigner: Pubkey,
@@ -97,40 +127,77 @@ impl PoolStats {
     pub const SIZE: usize = (2 * 4) + 8;
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, Default)]
+pub struct Frozen {
+    pub amount: u64,
+    pub time: i64,
+}
+
+impl Frozen {
+    #[allow(clippy::identity_op)]
+    pub const SIZE: usize = 8 + 8;
+}
+
 #[account]
 pub struct Pool {
     pub version: u8,
     pub bump: [u8; 1],
     pub sol_escrow_bump: [u8; 1],
-    pub created_unix_seconds: i64, //unix timestamp in seconds when pool was created
-    /// Config & calc
+    /// Unix timestamp in seconds when pool was created
+    pub created_unix_seconds: i64,
     pub config: PoolConfig,
-
-    /// Ownership & belonging
     pub tswap: Pubkey,
     pub owner: Pubkey,
-    /// Collection stuff
     pub whitelist: Pubkey,
-    /// Used by Trade / Token pools only
+    /// Used by Trade / Token pools only, but always initiated
     /// Amount to spend is implied by balance - rent
-    pub sol_escrow: Pubkey, //always initialized regardless of type
-
-    /// Accounting
-    pub taker_sell_count: u32, //how many times a taker has SOLD into the pool
-    pub taker_buy_count: u32, //how many times a taker has BOUGHT from the pool
+    /// (!) for margin accounts this should always be empty EXCEPT when we move frozen amount in
+    pub sol_escrow: Pubkey,
+    /// How many times a taker has SOLD into the pool
+    pub taker_sell_count: u32,
+    /// How many times a taker has BOUGHT from the pool
+    pub taker_buy_count: u32,
     pub nfts_held: u32,
 
-    //v2
+    //v0.3
     pub nft_authority: Pubkey,
-    //all stats incorporate both 1)carried over and 2)current data
+    /// All stats incorporate both 1)carried over and 2)current data
     pub stats: PoolStats,
+
+    //v1.0
+    /// If margin account present, means it's a marginated pool (currently bids only)
+    pub margin: Option<Pubkey>,
+    /// Offchain actor signs off to make sure an offchain condition is met (eg trait present)
+    pub is_cosigned: bool,
+    /// Order type for indexing ease (anchor enums annoying, so using a u8)
+    /// 0 = standard, 1 = sniping (in the future eg 2 = take profit, etc)
+    pub order_type: u8,
+    /// Order is being executed by an offchain party and can't be modified at this time
+    /// incl. deposit/withdraw/edit/close/buy/sell
+    pub frozen: Option<Frozen>,
+    /// Last time a buy or sell order has been executed
+    pub last_transacted_seconds: i64,
+
+    // (!) make sure aligns with last number in SIZE
+    pub _reserved: [u8; 4],
 }
 
 impl Pool {
-    // 3 u8s + 1 i64 + config + 5 keys + 3 u32s + stats + 64 for the future
     #[allow(clippy::identity_op)]
-    pub const SIZE: usize =
-        (3 * 1) + 8 + PoolConfig::SIZE + (5 * 32) + (3 * 4) + PoolStats::SIZE + 64;
+    pub const SIZE: usize = (3 * 1)
+        + 8
+        + PoolConfig::SIZE
+        + (5 * 32)
+        + (3 * 4)
+        + PoolStats::SIZE
+        //(!) option takes up 1 extra byte
+        + 32 + 1
+        + 1
+        + 1
+        //(!) option takes up 1 extra byte
+        + Frozen::SIZE + 1
+        + 8
+        + 4;
 
     pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {
         [b"sol_escrow", pool_key.as_ref(), &self.sol_escrow_bump]
@@ -150,10 +217,36 @@ impl Pool {
         Ok(fee)
     }
 
-    pub fn calc_tswap_fee(&self, tswap_fee_bps: u16, current_price: u64) -> Result<u64> {
+    pub fn calc_tswap_fee(&self, current_price: u64) -> Result<u64> {
+        let fee_bps = match self.order_type {
+            0 => STANDARD_FEE_BPS,
+            1 => SNIPE_FEE_BPS,
+            _ => unimplemented!(),
+        };
+
         let fee = unwrap_checked!({
-            (tswap_fee_bps as u64)
+            (fee_bps as u64)
                 .checked_mul(current_price)?
+                .checked_div(HUNDRED_PCT_BPS as u64)
+        });
+
+        //for sniping we have a min base fee so that we don't get drained
+        if self.order_type == 1 {
+            return Ok(cmp::max(fee, SNIPE_MIN_FEE));
+        }
+
+        Ok(fee)
+    }
+
+    pub fn calc_tswap_profit_share(&self, original_price: u64, actual_price: u64) -> Result<u64> {
+        let fee_bps = match self.order_type {
+            1 => SNIPE_PROFIT_SHARE_BPS,
+            _ => unimplemented!(),
+        };
+
+        let fee = unwrap_checked!({
+            (fee_bps as u64)
+                .checked_mul(original_price.checked_sub(actual_price)?)?
                 .checked_div(HUNDRED_PCT_BPS as u64)
         });
 
@@ -283,6 +376,25 @@ pub enum TakerSide {
     Sell, // Selling into the pool.
 }
 
+// TODO: if size ever changes, be sure to update APPROX_SOL_MARGIN_RENT in tensor-infra
+#[account]
+pub struct MarginAccount {
+    pub owner: Pubkey,
+    pub name: [u8; 32],
+    pub nr: u16,
+    pub bump: [u8; 1],
+    //needed to know if we can close margin account
+    pub pools_attached: u32,
+    //(!) this is important - otherwise rent will be miscalculated by anchor client-side
+    pub _reserved: [u8; 64],
+}
+
+impl MarginAccount {
+    // 1 pk + 32;1 + 1 u16 + 1 u8 + 1 u32 + 64 for the future
+    #[allow(clippy::identity_op)]
+    pub const SIZE: usize = 32 + 32 + 2 + 1 + 4 + 64;
+}
+
 // --------------------------------------- receipts
 
 /// Represents NFTs deposited into our protocol.
@@ -301,6 +413,7 @@ impl NftDepositReceipt {
 
 // --------------------------------------- authority
 
+/// Connector between a pool and all the NFTs in it, to be able to re-attach them to a different pool if needed
 #[account]
 pub struct NftAuthority {
     pub random_seed: [u8; 32],
@@ -336,8 +449,9 @@ pub struct BuySellEvent {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
+
+    use super::*;
 
     impl Pool {
         pub fn new(
@@ -371,6 +485,12 @@ mod tests {
                 sol_escrow: Pubkey::default(),
                 stats: PoolStats::default(),
                 nft_authority: Pubkey::default(),
+                order_type: 0,
+                frozen: None,
+                margin: None,
+                is_cosigned: false,
+                last_transacted_seconds: 0,
+                _reserved: [0; 4],
             }
         }
     }
@@ -424,19 +544,9 @@ mod tests {
         );
 
         assert_eq!(
-            p.calc_tswap_fee(1000, LAMPORTS_PER_SOL).unwrap(),
-            LAMPORTS_PER_SOL / 10
+            p.calc_tswap_fee(LAMPORTS_PER_SOL).unwrap(),
+            LAMPORTS_PER_SOL * STANDARD_FEE_BPS as u64 / 10000
         );
-
-        assert_eq!(
-            p.calc_tswap_fee(123, LAMPORTS_PER_SOL).unwrap(),
-            LAMPORTS_PER_SOL * 123 / 10000
-        );
-
-        //if price too small, fee will start to look weird, but who cares at these levels
-        assert_eq!(p.calc_tswap_fee(2499, 10).unwrap(), 2); //2.499
-        assert_eq!(p.calc_tswap_fee(2499, 100).unwrap(), 24); //24.99
-        assert_eq!(p.calc_tswap_fee(2499, 1000).unwrap(), 249); //249.9
     }
 
     // --------------------------------------- linear

@@ -1466,17 +1466,18 @@ dependencies = [
 
 [[package]]
 name = "tensor_whitelist"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
  "merkle_proof",
+ "mpl-token-metadata",
  "vipers",
 ]
 
 [[package]]
 name = "tensorswap"
-version = "0.3.11"
+version = "1.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

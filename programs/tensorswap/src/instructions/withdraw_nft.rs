@@ -1,11 +1,12 @@
 //! User withdrawing an NFT from their Trade pool
-use crate::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer},
 };
 use tensor_whitelist::Whitelist;
 use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -120,8 +121,11 @@ impl<'info> WithdrawNft<'info> {
 
 impl<'info> Validate<'info> for WithdrawNft<'info> {
     fn validate(&self) -> Result<()> {
-        if self.pool.version == 1 {
+        if self.pool.version != CURRENT_POOL_VERSION {
             throw_err!(WrongPoolVersion);
+        }
+        if self.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
         }
         Ok(())
     }

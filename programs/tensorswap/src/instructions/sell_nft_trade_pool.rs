@@ -1,12 +1,12 @@
 //! User selling an NFT into a Trade pool
 //! We separate this from Token pool since the NFT will go into an NFT escrow w/ a receipt.
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
-use crate::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 use vipers::throw_err;
 
+use crate::*;
+
 #[derive(Accounts)]
-// #[instruction(config: PoolConfig)]
 pub struct SellNftTradePool<'info> {
     shared: SellNft<'info>,
 
@@ -38,7 +38,8 @@ pub struct SellNftTradePool<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    // Remaining accounts = 0 to N creator accounts.
+    // remaining accounts:
+    // 1. 0 to N creator accounts.
 }
 
 impl<'info> SellNftTradePool<'info> {
@@ -62,23 +63,25 @@ impl<'info> Validate<'info> for SellNftTradePool<'info> {
                 throw_err!(WrongPoolType);
             }
         }
-        if self.shared.pool.version == 1 {
+        if self.shared.pool.version != CURRENT_POOL_VERSION {
             throw_err!(WrongPoolVersion);
+        }
+        if self.shared.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
         }
 
         Ok(())
     }
 }
 
-// TODO: proof fetched from mint_proof PDA.
-// #[access_control(ctx.accounts.shared.validate_proof(proof); ctx.accounts.validate())]
-#[access_control(ctx.accounts.shared.validate_proof(); ctx.accounts.validate())]
+#[access_control(ctx.accounts.shared.verify_whitelist(); ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, SellNftTradePool<'info>>,
-    _proof: Vec<[u8; 32]>,
     // Min vs exact so we can add slippage later.
     min_price: u64,
 ) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter();
+
     let pool = &ctx.accounts.shared.pool;
 
     let metadata = &assert_decode_metadata(
@@ -87,7 +90,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     )?;
 
     let current_price = pool.current_price(TakerSide::Sell)?;
-    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.shared.tswap.config.fee_bps, current_price)?;
+    let tswap_fee = pool.calc_tswap_fee(current_price)?;
     let mm_fee = pool.calc_mm_fee(current_price)?;
     let creators_fee = pool.calc_creators_fee(TakerSide::Sell, metadata, current_price)?;
 
@@ -127,9 +130,10 @@ pub fn handler<'a, 'b, 'c, 'info>(
     )?;
 
     // send royalties
-    let actual_creators_fee = ctx.accounts.shared.transfer_creators_fee_from_escrow(
+    let actual_creators_fee = ctx.accounts.shared.transfer_creators_fee(
+        &ctx.accounts.shared.sol_escrow.to_account_info(),
         metadata,
-        ctx.remaining_accounts,
+        remaining_accounts_iter,
         creators_fee,
     )?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
@@ -154,6 +158,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
             .accumulated_mm_profit
             .checked_add(mm_fee.checked_div(2)?)
     });
+    pool.last_transacted_seconds = Clock::get()?.unix_timestamp;
 
     Ok(())
 }

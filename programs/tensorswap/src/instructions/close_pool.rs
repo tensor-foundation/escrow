@@ -1,7 +1,8 @@
 //! User (owner) closing their pool and reclaims rent (+ SOL escrow)
-use crate::*;
 use tensor_whitelist::Whitelist;
 use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -29,6 +30,7 @@ pub struct ClosePool<'info> {
     pub pool: Box<Account<'info, Pool>>,
 
     /// CHECK: has_one = escrow in pool
+    /// (!) if the order is marginated this won't return any funds to the user, since margin isn't auto-closed
     #[account(
         mut,
         seeds=[
@@ -69,12 +71,19 @@ impl<'info> Validate<'info> for ClosePool<'info> {
         if self.pool.nfts_held > 0 {
             throw_err!(ExistingNfts);
         }
-
+        if self.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
+        }
+        //can't close a marginated pool, need to detach first
+        //this is needed because we need to reduce the counter on the margin acc to be able to close it later
+        if self.pool.margin.is_some() {
+            throw_err!(PoolMarginated);
+        }
         Ok(())
     }
 }
 
-#[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<ClosePool>) -> Result<()> {
+#[access_control(_ctx.accounts.validate())]
+pub fn handler<'info>(_ctx: Context<'_, '_, '_, 'info, ClosePool<'info>>) -> Result<()> {
     Ok(())
 }

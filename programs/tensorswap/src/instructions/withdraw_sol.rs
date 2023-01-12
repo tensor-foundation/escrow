@@ -1,6 +1,8 @@
 //! User withdrawing SOL from their pool (all 3 types)
-use crate::*;
 use tensor_whitelist::Whitelist;
+use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
@@ -54,21 +56,31 @@ pub struct WithdrawSol<'info> {
 }
 
 impl<'info> WithdrawSol<'info> {
-    fn transfer_lamports_to_owner(&self, lamports: u64) -> Result<()> {
-        transfer_lamports_from_escrow(&self.sol_escrow, &self.owner.to_account_info(), lamports)
+    fn transfer_lamports(&self, lamports: u64) -> Result<()> {
+        transfer_lamports_from_tswap(
+            &self.sol_escrow.to_account_info(),
+            &self.owner.to_account_info(),
+            lamports,
+        )
     }
 }
 
 impl<'info> Validate<'info> for WithdrawSol<'info> {
     fn validate(&self) -> Result<()> {
+        if self.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
+        }
+        if self.pool.margin.is_some() {
+            throw_err!(PoolMarginated);
+        }
         Ok(())
     }
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<WithdrawSol>, lamports: u64) -> Result<()> {
-    // do the transfer
-    ctx.accounts.transfer_lamports_to_owner(lamports)?;
-
-    Ok(())
+pub fn handler<'info>(
+    ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>,
+    lamports: u64,
+) -> Result<()> {
+    ctx.accounts.transfer_lamports(lamports)
 }

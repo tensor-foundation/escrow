@@ -1,13 +1,13 @@
 //! User buying an NFT from an NFT/Trade pool
-use crate::*;
-use anchor_lang::solana_program::program::invoke;
-use anchor_lang::solana_program::system_instruction;
+use anchor_lang::solana_program::{program::invoke, system_instruction};
 use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer},
 };
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -125,21 +125,11 @@ pub struct BuyNft<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    // Remaining accounts = 0 to N creator accounts.
+    // remaining accounts:
+    // 1. 0 to N creator accounts.
 }
 
 impl<'info> BuyNft<'info> {
-    // TODO: Disable proofs for now until tx size limits increase.
-    // This is fine since we validate proof on deposit/sell.
-    // fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
-    //     let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
-    //     require!(
-    //         merkle_proof::verify_proof(proof, self.whitelist.root_hash, leaf.0),
-    //         InvalidProof
-    //     );
-    //     Ok(())
-    // }
-
     fn transfer_nft_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         CpiContext::new(
             self.token_program.to_account_info(),
@@ -177,20 +167,20 @@ impl<'info> BuyNft<'info> {
 
 impl<'info> Validate<'info> for BuyNft<'info> {
     fn validate(&self) -> Result<()> {
-        if self.pool.version == 1 {
+        if self.pool.version != CURRENT_POOL_VERSION {
             throw_err!(WrongPoolVersion);
+        }
+        if self.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
         }
         Ok(())
     }
 }
 
-// TODO: Disable proofs for now until tx size limits increase.
-// This is fine since we validate proof on deposit/sell.
-// #[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
+// TODO: Disable proofs for now until tx size limits increase. This is fine since we validate proof on deposit/sell.
 #[access_control(ctx.accounts.validate())]
 pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
-    _proof: Vec<[u8; 32]>,
     // Max vs exact so we can add slippage later.
     max_price: u64,
 ) -> Result<()> {
@@ -199,7 +189,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let metadata = &assert_decode_metadata(&ctx.accounts.nft_mint, &ctx.accounts.nft_metadata)?;
 
     let current_price = pool.current_price(TakerSide::Buy)?;
-    let tswap_fee = pool.calc_tswap_fee(ctx.accounts.tswap.config.fee_bps, current_price)?;
+    let tswap_fee = pool.calc_tswap_fee(current_price)?;
     let creators_fee = pool.calc_creators_fee(TakerSide::Buy, metadata, current_price)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
@@ -306,6 +296,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
                 .checked_add(mm_fee.checked_div(2)?)
         });
     }
+    pool.last_transacted_seconds = Clock::get()?.unix_timestamp;
 
     Ok(())
 }

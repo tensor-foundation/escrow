@@ -1,8 +1,9 @@
 //! User depositing NFTs into their NFT/Trade pool (to sell NFTs)
-use crate::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use tensor_whitelist::{self, Whitelist};
+use tensor_whitelist::{self, FullMerkleProof, Whitelist, ZERO_ARRAY};
 use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
@@ -76,16 +77,37 @@ pub struct DepositNft<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+
+    //can't deserialize directly coz Anchor traits not implemented
+    /// CHECK: assert_decode_metadata + seeds below
+    #[account(
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub nft_metadata: UncheckedAccount<'info>,
 }
 
 impl<'info> DepositNft<'info> {
-    fn validate_proof(&self, proof: Vec<[u8; 32]>) -> Result<()> {
-        let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
-        require!(
-            merkle_proof::verify_proof(proof, self.whitelist.root_hash, leaf.0),
-            InvalidProof
-        );
-        Ok(())
+    fn verify_whitelist(&self, proof: Vec<[u8; 32]>) -> Result<()> {
+        //prioritize merkle tree if proof present
+        if self.whitelist.root_hash != ZERO_ARRAY {
+            let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
+            self.whitelist.verify_whitelist(
+                None,
+                Some(FullMerkleProof {
+                    proof,
+                    leaf: leaf.0,
+                }),
+            )
+        } else {
+            let metadata = &assert_decode_metadata(&self.nft_mint, &self.nft_metadata)?;
+            self.whitelist.verify_whitelist(Some(metadata), None)
+        }
     }
 
     fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
@@ -102,14 +124,17 @@ impl<'info> DepositNft<'info> {
 
 impl<'info> Validate<'info> for DepositNft<'info> {
     fn validate(&self) -> Result<()> {
-        if self.pool.version == 1 {
+        if self.pool.version != CURRENT_POOL_VERSION {
             throw_err!(WrongPoolVersion);
+        }
+        if self.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
         }
         Ok(())
     }
 }
 
-#[access_control(ctx.accounts.validate_proof(proof); ctx.accounts.validate())]
+#[access_control(ctx.accounts.verify_whitelist(proof); ctx.accounts.validate())]
 pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
     // do the transfer
     token::transfer(ctx.accounts.transfer_ctx(), 1)?;

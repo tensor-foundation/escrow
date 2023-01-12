@@ -1,8 +1,9 @@
 // Common helper functions b/w tensor_whitelist & tensorswap.
 import * as anchor from "@project-serum/anchor";
-import { AnchorProvider } from "@project-serum/anchor";
+import { AnchorProvider, Wallet } from "@project-serum/anchor";
 import {
   ConfirmOptions,
+  Keypair,
   PublicKey,
   Signer,
   TransactionInstruction,
@@ -14,6 +15,11 @@ import keccak256 from "keccak256";
 import { MerkleTree } from "merkletreejs";
 import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
 import { getLamports as _getLamports } from "../src/common";
+import {
+  SingleConnectionBroadcaster,
+  SolanaProvider,
+  TransactionEnvelope,
+} from "@saberhq/solana-contrib";
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export {
   castPoolConfigAnchor,
@@ -184,21 +190,53 @@ export const wlSdk = new TensorWhitelistSDK({ provider: TEST_PROVIDER });
 
 //#region Shared test functions.
 
+//keeping this outside the fn so that it's constant for all tests
+const tlistOwner = Keypair.generate();
+
 export const testInitWLAuthority = async () => {
   const {
     tx: { ixs },
     authPda,
-  } = await wlSdk.initUpdateAuthority(
-    TEST_PROVIDER.publicKey,
-    TEST_PROVIDER.publicKey
-  );
+  } = await wlSdk.initUpdateAuthority({
+    cosigner: TEST_PROVIDER.publicKey,
+    owner: tlistOwner.publicKey,
+    newCosigner: TEST_PROVIDER.publicKey,
+    newOwner: tlistOwner.publicKey,
+  });
 
-  await buildAndSendTx({ ixs });
+  await buildAndSendTx({ ixs, extraSigners: [tlistOwner] });
 
   let authAcc = await wlSdk.fetchAuthority(authPda);
-  expect(authAcc.owner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());
+  expect(authAcc.cosigner.toBase58()).to.eq(TEST_PROVIDER.publicKey.toBase58());
 
-  return authPda;
+  return { authPda, tlistOwner };
 };
 
 //#endregion
+
+//useful for debugging
+export const simulateTxTable = async (ixs: TransactionInstruction[]) => {
+  const broadcaster = new SingleConnectionBroadcaster(TEST_PROVIDER.connection);
+  const wallet = new Wallet(Keypair.generate());
+  const provider = new SolanaProvider(
+    TEST_PROVIDER.connection,
+    broadcaster,
+    wallet
+  );
+  const tx = new TransactionEnvelope(provider, ixs);
+  console.log(await tx.simulateTable());
+};
+
+export const calcMinRent = async (address: PublicKey) => {
+  const acc = await TEST_PROVIDER.connection.getAccountInfo(address);
+  if (acc) {
+    console.log(
+      "min rent is",
+      await TEST_PROVIDER.connection.getMinimumBalanceForRentExemption(
+        acc.data.length
+      )
+    );
+  } else {
+    console.log("acc not found");
+  }
+};

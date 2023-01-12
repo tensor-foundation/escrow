@@ -164,7 +164,7 @@ const _readKP = (file: string) =>
     // WL only needs initial authority to sign off.
     const {
       tx: { ixs },
-    } = await wlSdk.initUpdateAuthority(owner, newOwner);
+    } = await wlSdk.initUpdateAuthority({ owner, newOwner });
 
     const { tx } = await buildTx({
       connections: [provider.connection],

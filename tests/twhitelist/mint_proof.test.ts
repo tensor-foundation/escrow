@@ -20,7 +20,7 @@ describe("tensor_whitelist mint proofs", () => {
 
   // inits authority
   before(async () => {
-    authPda = await testInitWLAuthority();
+    ({ authPda } = await testInitWLAuthority());
   });
 
   it("init update mint proof", async () => {
@@ -40,7 +40,7 @@ describe("tensor_whitelist mint proofs", () => {
       tx: { ixs },
       whitelistPda,
     } = await wlSdk.initUpdateWhitelist({
-      owner: TEST_PROVIDER.publicKey,
+      cosigner: TEST_PROVIDER.publicKey,
       uuid: uuidBuffer,
       rootHash: root,
       name: nameBuffer,
@@ -71,7 +71,7 @@ describe("tensor_whitelist mint proofs", () => {
         proof,
       });
       await expect(buildAndSendTx({ ixs })).rejectedWith(
-        wlSdk.getErrorCodeHex("InvalidProof")
+        wlSdk.getErrorCodeHex("FailedMerkleProofVerification")
       );
     }
 
@@ -105,7 +105,7 @@ describe("tensor_whitelist mint proofs", () => {
       const {
         tx: { ixs },
       } = await wlSdk.initUpdateWhitelist({
-        owner: TEST_PROVIDER.publicKey,
+        cosigner: TEST_PROVIDER.publicKey,
         uuid: uuidBuffer,
         rootHash: root,
       });

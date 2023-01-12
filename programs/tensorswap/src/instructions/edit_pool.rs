@@ -1,8 +1,10 @@
 //! User editing a pool, which actually 1)closes old one, 2)inits new one, 3)shifts nft authority
-use crate::*;
 use std::str::FromStr;
+
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction(old_config: PoolConfig, new_config: PoolConfig)]
@@ -96,8 +98,11 @@ pub struct EditPool<'info> {
 impl<'info> Validate<'info> for EditPool<'info> {
     fn validate(&self) -> Result<()> {
         //editing is only enabled for v2 pools (can't check new_pool since it's 0)
-        if self.old_pool.version != 2 {
+        if self.old_pool.version != CURRENT_POOL_VERSION {
             throw_err!(WrongPoolVersion);
+        }
+        if self.old_pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
         }
         Ok(())
     }
@@ -117,8 +122,8 @@ impl<'info> EditPool<'info> {
         let rent = Rent::get()?.minimum_balance(self.old_sol_escrow.to_account_info().data_len());
         let lamports_to_move = current_lamports.checked_sub(rent).unwrap();
 
-        transfer_lamports_from_escrow(
-            &self.old_sol_escrow,
+        transfer_lamports_from_tswap(
+            &self.old_sol_escrow.to_account_info(),
             &self.new_sol_escrow.to_account_info(),
             lamports_to_move,
         )
@@ -126,7 +131,11 @@ impl<'info> EditPool<'info> {
 }
 
 #[access_control(ctx.accounts.validate(); ctx.accounts.validate_pool_type(new_config))]
-pub fn handler(ctx: Context<EditPool>, new_config: PoolConfig) -> Result<()> {
+pub fn handler(
+    ctx: Context<EditPool>,
+    new_config: PoolConfig,
+    is_cosigned: Option<bool>,
+) -> Result<()> {
     let whitelist = &ctx.accounts.whitelist;
 
     let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
@@ -174,6 +183,26 @@ pub fn handler(ctx: Context<EditPool>, new_config: PoolConfig) -> Result<()> {
 
     //2-way link between the authority and the pool
     new_pool.nft_authority = ctx.accounts.nft_authority.key();
+
+    //need to be able to adjust this boolean when broad order <--> narrow (trait specific)
+    match is_cosigned {
+        Some(is_cosigned) => {
+            //require that both old and new pools are Bids
+            if new_pool.config.pool_type != PoolType::Token
+                || old_pool.config.pool_type != PoolType::Token
+            {
+                throw_err!(WrongPoolType);
+            }
+            new_pool.is_cosigned = is_cosigned;
+        }
+        None => {
+            new_pool.is_cosigned = old_pool.is_cosigned;
+        }
+    }
+    new_pool.order_type = old_pool.order_type;
+    //technically you can't edit frozen pools, but won't hurt
+    new_pool.frozen = old_pool.frozen;
+    new_pool.margin = old_pool.margin;
 
     // --------------------------------------- update authority
 

@@ -24,7 +24,7 @@ import {
   defaultSellExpectedLamports,
   makeMintTwoAta,
   makeNTraders,
-  makeWhitelist,
+  makeProofWhitelist,
   nftPoolConfig,
   testBuyNft,
   testClosePool,
@@ -38,7 +38,7 @@ import {
   tokenPoolConfig,
   tradePoolConfig,
   TSWAP_CONFIG,
-  TSWAP_FEE,
+  TSWAP_FEE_PCT,
 } from "./common";
 import { castPoolTypeAnchor, PoolType } from "../../src";
 
@@ -58,7 +58,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeWhitelist([mint]);
+        const { whitelist } = await makeProofWhitelist([mint]);
 
         const { poolPda } = await testMakePool({
           tswap,
@@ -80,7 +80,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeWhitelist([mint]);
+        const { whitelist } = await makeProofWhitelist([mint]);
 
         await expect(
           testMakePool({
@@ -102,7 +102,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeWhitelist([mint]);
+        const { whitelist } = await makeProofWhitelist([mint]);
 
         await expect(
           testMakePool({
@@ -125,7 +125,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeWhitelist([mint]);
+        const { whitelist } = await makeProofWhitelist([mint]);
 
         await expect(
           testMakePool({
@@ -146,7 +146,7 @@ describe("tswap pool", () => {
     const [owner] = await makeNTraders(1);
     const config = tradePoolConfig;
     const { mint } = await createAndFundATA(owner);
-    const { whitelist } = await makeWhitelist([mint]);
+    const { whitelist } = await makeProofWhitelist([mint]);
 
     await expect(
       testMakePool({
@@ -162,8 +162,8 @@ describe("tswap pool", () => {
 
     await Promise.all(
       [
-        { mmFeeBps: 2500, fail: false },
-        { mmFeeBps: 2501, fail: true },
+        { mmFeeBps: 9900, fail: false },
+        { mmFeeBps: 9901, fail: true },
       ].map(async ({ mmFeeBps, fail }) => {
         const promise = testMakePool({
           tswap,
@@ -186,7 +186,7 @@ describe("tswap pool", () => {
   it("properly parses raw init/edit/close pool tx", async () => {
     const [owner] = await makeNTraders(1);
     const { mint } = await createAndFundATA(owner);
-    const { whitelist } = await makeWhitelist([mint]);
+    const { whitelist } = await makeProofWhitelist([mint]);
 
     await Promise.all(
       [tokenPoolConfig, tradePoolConfig, nftPoolConfig].map(async (config) => {
@@ -302,7 +302,7 @@ describe("tswap pool", () => {
       [0, 69 * LAMPORTS_PER_SOL]
     )) {
       const { mint } = await createAndFundATA(owner);
-      const { whitelist } = await makeWhitelist([mint]);
+      const { whitelist } = await makeProofWhitelist([mint]);
 
       await withLamports(
         { prevLamports: owner.publicKey },
@@ -370,7 +370,7 @@ describe("tswap pool", () => {
 
         const expected =
           // Proceeds from sale, minus the rent we paid to create the mint + ATA initially.
-          buyPrice * (1 - TSWAP_FEE) -
+          buyPrice * (1 - TSWAP_FEE_PCT) -
           metaRent -
           editionRent -
           (await getMinimumBalanceForRentExemptMint(conn)) -
@@ -394,7 +394,7 @@ describe("tswap pool", () => {
         const {
           proofs: [wlNft],
           whitelist,
-        } = await makeWhitelist([mint]);
+        } = await makeProofWhitelist([mint]);
 
         const { poolPda: pool, nftAuthPda } = await testMakePool({
           tswap,
@@ -453,7 +453,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeWhitelist([mint]);
+        const { whitelist } = await makeProofWhitelist([mint]);
 
         // --------------------------------------- init new pool
         const { poolPda } = await testMakePool({
@@ -512,7 +512,7 @@ describe("tswap pool", () => {
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
-      } = await makeWhitelist([mintA, mintB]);
+      } = await makeProofWhitelist([mintA, mintB]);
 
       //make pool + deposit 1st nft + make 1st buy
       const { poolPda: pool, nftAuthPda } = await testMakePool({
@@ -599,7 +599,7 @@ describe("tswap pool", () => {
       );
       expect(await getLamports(newSolEscrowPda2)).eq(
         (await swapSdk.getSolEscrowRent()) +
-          3 * LAMPORTS_PER_SOL * (1 - TSWAP_CONFIG.feeBps / 10000)
+          3 * LAMPORTS_PER_SOL * (1 - TSWAP_CONFIG.feeBps / HUNDRED_PCT_BPS)
       );
     }
   });
@@ -610,7 +610,7 @@ describe("tswap pool", () => {
     const {
       whitelist,
       proofs: [wlNft],
-    } = await makeWhitelist([mint]);
+    } = await makeProofWhitelist([mint]);
     const config = tokenPoolConfig;
 
     //create pool
@@ -650,7 +650,7 @@ describe("tswap pool", () => {
       ata,
       config: newConfig,
       expectedLamports: newPrice,
-      mint,
+      nftMint: mint,
       nftAuthPda,
       owner,
       poolPda: newPoolPda,
@@ -661,13 +661,90 @@ describe("tswap pool", () => {
     });
   });
 
+  it("editing isCosigned works", async () => {
+    const [owner, seller] = await makeNTraders(2);
+    const { mint, ata } = await makeMintTwoAta(seller, owner);
+    const {
+      whitelist,
+      proofs: [wlNft],
+    } = await makeProofWhitelist([mint]);
+    const config = tokenPoolConfig;
+
+    //create pool
+    const { poolPda: pool, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+
+    //deposit sol
+    const depositedLamports = 2 * LAMPORTS_PER_SOL;
+    await testDepositSol({
+      pool,
+      whitelist,
+      owner,
+      config,
+      lamports: depositedLamports,
+    });
+
+    //edit pool
+    const newPrice = depositedLamports; //initial was 1 SOL
+    const newConfig = {
+      ...config,
+      startingPrice: new BN(newPrice),
+    };
+
+    const { newPoolPda } = await testEditPool({
+      tswap,
+      owner,
+      newConfig,
+      oldConfig: config,
+      whitelist,
+      isCosigned: true,
+    });
+
+    //fails w/o cosigner
+    await expect(
+      testSellNft({
+        ata,
+        config: newConfig,
+        expectedLamports: newPrice,
+        nftMint: mint,
+        nftAuthPda,
+        owner,
+        poolPda: newPoolPda,
+        sellType: "token",
+        seller,
+        whitelist,
+        wlNft,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadCosigner"));
+
+    //succeeds with
+    await testSellNft({
+      ata,
+      config: newConfig,
+      expectedLamports: newPrice,
+      nftMint: mint,
+      nftAuthPda,
+      owner,
+      poolPda: newPoolPda,
+      sellType: "token",
+      seller,
+      whitelist,
+      wlNft,
+      isCosigned: true,
+    });
+  });
+
   it("edited pool sells nft ok", async () => {
     const [owner, buyer] = await makeNTraders(2);
     const { mint, ata, otherAta } = await makeMintTwoAta(owner, buyer);
     const {
       whitelist,
       proofs: [wlNft],
-    } = await makeWhitelist([mint]);
+    } = await makeProofWhitelist([mint]);
     const config = nftPoolConfig;
 
     //create pool
@@ -722,7 +799,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeWhitelist([mint]);
+        const { whitelist } = await makeProofWhitelist([mint]);
 
         // --------------------------------------- init new pool
         const { poolPda } = await testMakePool({
@@ -797,7 +874,7 @@ describe("tswap pool", () => {
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
-      } = await makeWhitelist([mintA, mintB]);
+      } = await makeProofWhitelist([mintA, mintB]);
 
       //make pool + deposit 1st nft + make 1st buy
       const { poolPda: pool, nftAuthPda } = await testMakePool({
@@ -843,7 +920,7 @@ describe("tswap pool", () => {
       //since the pool sold 1 nft before, the price went up by 1 delta, but the purchase price is 1 notch lower, ie it's the same
       const mmProfit2 = mmProfit1 + (LAMPORTS_PER_SOL * 0.25) / 2;
       const { poolAcc: poolAcc2 } = await testSellNft({
-        mint: mintA,
+        nftMint: mintA,
         ata: otherAtaA,
         config,
         expectedLamports: LAMPORTS_PER_SOL,
@@ -889,7 +966,7 @@ describe("tswap pool", () => {
       //taker sells 2
       const mmProfit5 = mmProfit4 + (LAMPORTS_PER_SOL * 1.1 * 0.25) / 2;
       const { poolAcc: poolAcc5 } = await testSellNft({
-        mint: mintA,
+        nftMint: mintA,
         ata: otherAtaA,
         config,
         expectedLamports: LAMPORTS_PER_SOL * 1.1,
@@ -907,7 +984,7 @@ describe("tswap pool", () => {
       //taker sells 3
       const mmProfit6 = mmProfit5 + (LAMPORTS_PER_SOL * 0.25) / 2;
       const { poolAcc: poolAcc6 } = await testSellNft({
-        mint: mintB,
+        nftMint: mintB,
         ata: otherAtaB,
         config,
         expectedLamports: LAMPORTS_PER_SOL,
@@ -929,7 +1006,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
         const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeWhitelist([mint]);
+        const { whitelist } = await makeProofWhitelist([mint]);
 
         //creates pool once
         const { authSeed, nftAuthPda } = await testMakePool({

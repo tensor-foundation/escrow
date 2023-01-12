@@ -1,8 +1,9 @@
 //! User depositing SOL into their Token/Trade pool (to purchase NFTs)
-use crate::*;
-use anchor_lang::solana_program::program::invoke;
-use anchor_lang::solana_program::system_instruction;
+use anchor_lang::solana_program::{program::invoke, system_instruction};
 use tensor_whitelist::Whitelist;
+use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction( config: PoolConfig)]
@@ -72,14 +73,20 @@ impl<'info> DepositSol<'info> {
 
 impl<'info> Validate<'info> for DepositSol<'info> {
     fn validate(&self) -> Result<()> {
+        if self.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
+        }
+        if self.pool.margin.is_some() {
+            throw_err!(PoolMarginated);
+        }
         Ok(())
     }
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
-    // do the transfer
-    ctx.accounts.transfer_lamports(lamports)?;
-
-    Ok(())
+pub fn handler<'info>(
+    ctx: Context<'_, '_, '_, 'info, DepositSol<'info>>,
+    lamports: u64,
+) -> Result<()> {
+    ctx.accounts.transfer_lamports(lamports)
 }

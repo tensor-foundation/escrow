@@ -1,6 +1,6 @@
 [package]
 name = "tensorswap"
-version = "0.3.11"
+version = "1.0.0"
 description = "Created with Anchor"
 edition = "2021"
 
@@ -24,4 +24,4 @@ vipers = "2.0.6"
 spl-math = { version = "0.1.0", features = [ "no-entrypoint" ] }
 tensor_whitelist = { path = '../tensor_whitelist', features = ["cpi"] }
 static_assertions = "1.1.0"
-merkle_proof = {path='../../lib/merkle_proof'}
+merkle_proof = {path= '../../lib/merkle_proof' }

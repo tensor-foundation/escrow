@@ -24,12 +24,18 @@ import BN from "bn.js";
 import chai, { expect } from "chai";
 import {
   castPoolConfigAnchor,
-  computeTakerPrice as computeTakerPrice_,
   computeMakerAmountCount,
+  computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
+  findMarginPDA,
+  OrderType,
   PoolAnchor,
   PoolConfigAnchor,
   PoolTypeAnchor,
+  SNIPE_FEE_BPS,
+  SNIPE_MIN_FEE,
+  SNIPE_PROFIT_SHARE_BPS,
+  STANDARD_FEE_BPS,
   TakerSide,
   TensorWhitelistSDK,
   TSWAP_FEE_ACC,
@@ -38,19 +44,25 @@ import {
 import {
   ACCT_NOT_EXISTS_ERR,
   buildAndSendTx,
+  calcMinRent,
   generateTreeOfSize,
   getLamports,
-  stringifyPKsAndBNs,
+  HUNDRED_PCT_BPS,
   swapSdk,
   TEST_PROVIDER,
   testInitWLAuthority,
   withLamports,
   wlSdk,
-  HUNDRED_PCT_BPS,
 } from "../shared";
-import { AnchorProvider } from "@project-serum/anchor";
+import { AnchorProvider, Wallet } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
 import { testInitUpdateMintProof } from "../twhitelist/common";
+import { isNullLike, MINUTES } from "@tensor-hq/tensor-common";
+import {
+  SingleConnectionBroadcaster,
+  SolanaProvider,
+  TransactionEnvelope,
+} from "@saberhq/solana-contrib";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -61,9 +73,9 @@ chai.use(chaiAsPromised);
 export const CURRENT_POOL_VERSION = 2;
 
 export const TSWAP_CONFIG: TSwapConfigAnchor = {
-  feeBps: 500,
+  feeBps: STANDARD_FEE_BPS,
 };
-export const TSWAP_FEE = TSWAP_CONFIG.feeBps / 1e4;
+export const TSWAP_FEE_PCT = TSWAP_CONFIG.feeBps / 1e4;
 export const MAX_CREATORS_FEE = 90 / 1e4;
 
 export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
@@ -93,6 +105,8 @@ export type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
 
 //#region Test fixtures.
 
+export const TEST_COSIGNER = Keypair.generate();
+
 export const beforeHook = async () => {
   // WL authority
   await testInitWLAuthority();
@@ -106,25 +120,17 @@ export const beforeHook = async () => {
     newOwner: TEST_PROVIDER.publicKey,
     feeVault: TSWAP_FEE_ACC,
     config: TSWAP_CONFIG,
+    cosigner: TEST_COSIGNER.publicKey,
   });
 
-  await buildAndSendTx({ ixs });
+  await buildAndSendTx({ ixs, extraSigners: [TEST_COSIGNER] });
 
   const swapAcc = await swapSdk.fetchTSwap(tswapPda);
   expect(swapAcc.version).eq(1);
   expect(swapAcc.owner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
-  expect(swapAcc.cosigner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
+  expect(swapAcc.cosigner.toBase58()).eq(TEST_COSIGNER.publicKey.toBase58());
   expect(swapAcc.feeVault.toBase58()).eq(TSWAP_FEE_ACC.toBase58());
-  expect((swapAcc.config as TSwapConfigAnchor).feeBps).eq(TSWAP_FEE * 1e4);
-
-  // Initialize fees.
-
-  console.log(
-    "debug accs",
-    stringifyPKsAndBNs({
-      tswapPda,
-    })
-  );
+  expect((swapAcc.config as TSwapConfigAnchor).feeBps).eq(TSWAP_FEE_PCT * 1e4);
 
   return { tswapPda };
 };
@@ -198,12 +204,16 @@ const _createAndFundATA = async ({
   mint,
   royaltyBps,
   creators,
+  collection,
+  collectionVerified,
 }: {
   provider: AnchorProvider;
   owner?: Keypair;
   mint?: Keypair;
   royaltyBps?: number;
   creators?: CreatorInput[];
+  collection?: Keypair;
+  collectionVerified?: boolean;
 }): Promise<{
   mint: PublicKey;
   ata: PublicKey;
@@ -218,6 +228,24 @@ const _createAndFundATA = async ({
     keypairIdentity(usedOwner)
   );
 
+  //create a verified collection
+  if (collection) {
+    await mplex.nfts().create({
+      useNewMint: collection,
+      tokenOwner: usedOwner.publicKey,
+      uri: "https://www.tensor.trade",
+      name: "Whatever",
+      sellerFeeBasisPoints: royaltyBps ?? 0,
+      isCollection: true,
+      collectionIsSized: true,
+    });
+
+    // console.log(
+    //   "coll",
+    //   await mplex.nfts().findByMint({ mintAddress: collection.publicKey })
+    // );
+  }
+
   const { metadataAddress, tokenAddress, masterEditionAddress } = await mplex
     .nfts()
     .create({
@@ -228,8 +256,20 @@ const _createAndFundATA = async ({
       sellerFeeBasisPoints: royaltyBps ?? 0,
       creators,
       maxSupply: toBigNumber(1),
-    })
-    .run();
+      collection: collection?.publicKey,
+    });
+
+  if (collection && collectionVerified) {
+    await mplex.nfts().verifyCollection({
+      mintAddress: usedMint.publicKey,
+      collectionMintAddress: collection.publicKey,
+    });
+  }
+
+  // console.log(
+  //   "nft",
+  //   await mplex.nfts().findByMint({ mintAddress: usedMint.publicKey })
+  // );
 
   return {
     mint: usedMint.publicKey,
@@ -248,7 +288,9 @@ export const createAndFundATA = (
   owner?: Keypair,
   mint?: Keypair,
   royaltyBps?: number,
-  creators?: CreatorInput[]
+  creators?: CreatorInput[],
+  collection?: Keypair,
+  collectionVerified?: boolean
 ) =>
   _createAndFundATA({
     provider: TEST_PROVIDER,
@@ -256,6 +298,8 @@ export const createAndFundATA = (
     mint,
     royaltyBps,
     creators,
+    collection,
+    collectionVerified,
   });
 export const getAccount = (acct: PublicKey) =>
   _getAccount(TEST_PROVIDER.connection, acct);
@@ -269,13 +313,17 @@ export const makeMintTwoAta = async (
   owner: Keypair,
   other: Keypair,
   royaltyBps?: number,
-  creators?: CreatorInput[]
+  creators?: CreatorInput[],
+  collection?: Keypair,
+  collectionVerified?: boolean
 ) => {
   const { mint, ata, metadata, masterEdition } = await createAndFundATA(
     owner,
     undefined,
     royaltyBps,
-    creators
+    creators,
+    collection,
+    collectionVerified
   );
 
   const { ata: otherAta } = await createATA(mint, other);
@@ -291,7 +339,7 @@ export const makeNTraders = async (n: number, sol?: number) => {
   );
 };
 
-export const makeWhitelist = async (
+export const makeProofWhitelist = async (
   mints: PublicKey[],
   treeSize: number = 100
 ) => {
@@ -302,14 +350,73 @@ export const makeWhitelist = async (
     tx: { ixs },
     whitelistPda,
   } = await wlSdk.initUpdateWhitelist({
-    owner: TEST_PROVIDER.publicKey,
+    cosigner: TEST_PROVIDER.publicKey,
     uuid: TensorWhitelistSDK.uuidToBuffer(uuid),
     rootHash: root,
-    name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
+    name: TensorWhitelistSDK.nameToBuffer(name),
   });
   await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
 
   return { proofs, whitelist: whitelistPda };
+};
+
+export const makeFvcWhitelist = async (fvc: PublicKey) => {
+  const uuid = wlSdk.genWhitelistUUID();
+  const name = "hello_world";
+  const {
+    tx: { ixs },
+    whitelistPda,
+  } = await wlSdk.initUpdateWhitelist({
+    cosigner: TEST_PROVIDER.publicKey,
+    uuid: TensorWhitelistSDK.uuidToBuffer(uuid),
+    name: TensorWhitelistSDK.nameToBuffer(name),
+    fvc,
+  });
+  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+
+  return { fvc, whitelist: whitelistPda };
+};
+
+export const makeVocWhitelist = async (voc: PublicKey) => {
+  const uuid = wlSdk.genWhitelistUUID();
+  const name = "hello_world";
+  const {
+    tx: { ixs },
+    whitelistPda,
+  } = await wlSdk.initUpdateWhitelist({
+    cosigner: TEST_PROVIDER.publicKey,
+    uuid: TensorWhitelistSDK.uuidToBuffer(uuid),
+    name: TensorWhitelistSDK.nameToBuffer(name),
+    voc,
+  });
+  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+
+  return { voc, whitelist: whitelistPda };
+};
+
+export const makeEverythingWhitelist = async (
+  mints: PublicKey[],
+  treeSize: number = 100,
+  voc?: PublicKey,
+  fvc?: PublicKey
+) => {
+  const { root, proofs } = generateTreeOfSize(treeSize, mints);
+  const uuid = wlSdk.genWhitelistUUID();
+  const name = "hello_world";
+  const {
+    tx: { ixs },
+    whitelistPda,
+  } = await wlSdk.initUpdateWhitelist({
+    cosigner: TEST_PROVIDER.publicKey,
+    uuid: TensorWhitelistSDK.uuidToBuffer(uuid),
+    rootHash: root,
+    name: TensorWhitelistSDK.nameToBuffer(name),
+    voc,
+    fvc,
+  });
+  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+
+  return { proofs, whitelist: whitelistPda, voc, fvc };
 };
 
 export const computeDepositAmount = ({
@@ -359,6 +466,11 @@ export const defaultSellExpectedLamports = (isToken: boolean) => {
   return isToken ? LAMPORTS_PER_SOL : LAMPORTS_PER_SOL - 1234;
 };
 
+export const calcSnipeFee = (bid: number) =>
+  Math.max(Math.round(bid * (SNIPE_FEE_BPS / HUNDRED_PCT_BPS)), SNIPE_MIN_FEE);
+
+export const calcSnipeBidWithFee = (bid: number) => bid + calcSnipeFee(bid);
+
 export const adjustSellMinLamports = (
   isToken: boolean,
   expectedLamports: number
@@ -376,6 +488,224 @@ export const adjustSellMinLamports = (
 
 //#region Helper fns with expect statements.
 
+export const testMakeMargin = async ({ owner }: { owner: Keypair }) => {
+  const name = "hello_world";
+  const nameBuffer = TensorWhitelistSDK.nameToBuffer(name);
+  const {
+    tx: { ixs },
+    marginPda,
+    marginBump,
+    marginNr,
+  } = await swapSdk.initMarginAcc({
+    owner: owner.publicKey,
+    name: nameBuffer,
+  });
+  await buildAndSendTx({
+    ixs,
+    provider: TEST_PROVIDER,
+    extraSigners: [owner],
+  });
+  //state
+  const marginAcc = await swapSdk.fetchMarginAccount(marginPda);
+  expect(marginAcc.owner.toBase58()).to.eq(owner.publicKey.toBase58());
+  expect(marginAcc.name).to.deep.eq(nameBuffer);
+  expect(marginAcc.nr).to.eq(marginNr);
+  expect(marginAcc.bump).to.deep.eq([marginBump]);
+  //rent
+  const lamports = await getLamports(marginPda);
+  const rent = await swapSdk.getMarginAccountRent();
+  expect(lamports).to.eq(rent);
+
+  return { marginPda, marginBump, marginNr, marginRent: rent, marginAcc, ixs };
+};
+
+export const testAttachPoolToMargin = async ({
+  owner,
+  config,
+  whitelist,
+  marginNr,
+  poolsAttached = 1,
+}: {
+  owner: Keypair;
+  config: PoolConfigAnchor;
+  whitelist: PublicKey;
+  marginNr: number;
+  poolsAttached?: number;
+}) => {
+  const {
+    tx: { ixs },
+    poolPda,
+    marginPda,
+  } = await swapSdk.attachPoolMargin({
+    config,
+    marginNr,
+    owner: owner.publicKey,
+    whitelist,
+  });
+  await buildAndSendTx({ ixs, extraSigners: [owner] });
+
+  const pool = await swapSdk.fetchPool(poolPda);
+  expect(pool.margin!.toBase58()).to.eq(marginPda.toBase58());
+
+  const margin = await swapSdk.fetchMarginAccount(marginPda);
+  expect(margin.poolsAttached).to.eq(poolsAttached);
+
+  return { marginPda };
+};
+
+export const testDetachPoolFromMargin = async ({
+  owner,
+  config,
+  whitelist,
+  marginNr,
+  poolsAttached = 0,
+  amount,
+}: {
+  owner: Keypair;
+  config: PoolConfigAnchor;
+  whitelist: PublicKey;
+  marginNr: number;
+  poolsAttached?: number;
+  amount?: BN;
+}) => {
+  const {
+    tx: { ixs },
+    poolPda,
+    marginPda,
+  } = await swapSdk.detachPoolMargin({
+    config,
+    marginNr,
+    owner: owner.publicKey,
+    whitelist,
+    amount,
+  });
+  await buildAndSendTx({ ixs, extraSigners: [owner] });
+
+  const pool = await swapSdk.fetchPool(poolPda);
+  expect(pool.margin).to.be.null;
+
+  const margin = await swapSdk.fetchMarginAccount(marginPda);
+  expect(margin.poolsAttached).to.eq(poolsAttached);
+};
+
+export const testDepositIntoMargin = async ({
+  owner,
+  marginNr,
+  marginPda,
+  amount,
+  expectedLamports = amount,
+}: {
+  owner: Keypair;
+  marginNr: number;
+  marginPda: PublicKey;
+  amount: number;
+  expectedLamports?: number;
+}) => {
+  const {
+    tx: { ixs },
+  } = await swapSdk.depositMarginAcc({
+    owner: owner.publicKey,
+    marginNr: marginNr,
+    amount: new BN(Math.round(amount)),
+  });
+  await buildAndSendTx({
+    ixs,
+    provider: TEST_PROVIDER,
+    extraSigners: [owner],
+  });
+  const marginRent = await swapSdk.getMarginAccountRent();
+  const lamports = await getLamports(marginPda);
+  expect(lamports).to.eq(Math.round(marginRent + expectedLamports));
+};
+
+export const testWithdrawFromMargin = async ({
+  owner,
+  marginNr,
+  marginPda,
+  amount,
+  expectedLamports = 0,
+}: {
+  owner: Keypair;
+  marginNr: number;
+  marginPda: PublicKey;
+  amount: number;
+  expectedLamports?: number;
+}) => {
+  const {
+    tx: { ixs },
+  } = await swapSdk.withdrawMarginAcc({
+    owner: owner.publicKey,
+    marginNr: marginNr,
+    amount: new BN(Math.round(amount)),
+  });
+  await buildAndSendTx({
+    ixs,
+    provider: TEST_PROVIDER,
+    extraSigners: [owner],
+  });
+  const marginRent = await swapSdk.getMarginAccountRent();
+  const lamports = await getLamports(marginPda);
+  expect(lamports).to.eq(Math.round(marginRent + expectedLamports));
+};
+
+export const testSetFreeze = async ({
+  owner,
+  config,
+  whitelist,
+  marginNr,
+  fullBidAmount,
+  freeze,
+  cosigner,
+  skipMarginBalanceCheck = false,
+}: {
+  owner: PublicKey;
+  config: PoolConfigAnchor;
+  whitelist: PublicKey;
+  marginNr: number;
+  fullBidAmount: number;
+  freeze: boolean;
+  cosigner?: Keypair;
+  skipMarginBalanceCheck?: boolean;
+}) => {
+  const {
+    poolPda,
+    solEscrowPda,
+    marginPda,
+    tx: { ixs },
+  } = await swapSdk.setPoolFreeze({
+    whitelist,
+    owner,
+    config,
+    marginNr,
+    freeze,
+    cosigner: cosigner ? cosigner.publicKey : TEST_COSIGNER.publicKey,
+  });
+  await buildAndSendTx({ ixs, extraSigners: [cosigner ?? TEST_COSIGNER] });
+  const pool = await swapSdk.fetchPool(poolPda);
+  const escrowBalance = await getLamports(solEscrowPda);
+  const marginBalance = await getLamports(marginPda);
+  if (freeze) {
+    expect(pool.frozen!.amount.toString()).to.eq(fullBidAmount.toString());
+    expect(pool.frozen!.time.toNumber()).to.be.gt(
+      (+new Date() - MINUTES) / 1000
+    );
+    expect(escrowBalance).to.eq(
+      fullBidAmount + (await swapSdk.getSolEscrowRent())
+    );
+    if (!skipMarginBalanceCheck) {
+      expect(marginBalance).to.eq(await swapSdk.getMarginAccountRent());
+    }
+  } else {
+    expect(pool.frozen).to.be.null;
+    expect(escrowBalance).to.eq(await swapSdk.getSolEscrowRent());
+    if (!skipMarginBalanceCheck) {
+      expect(marginBalance).to.eq(
+        fullBidAmount + (await swapSdk.getMarginAccountRent())
+      );
+    }
+  }
+};
+
 // Can be run async.
 export const testMakePool = async ({
   tswap,
@@ -383,6 +713,8 @@ export const testMakePool = async ({
   whitelist,
   config,
   commitment,
+  isCosigned = false,
+  orderType = OrderType.Standard,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -390,6 +722,8 @@ export const testMakePool = async ({
   config: PoolConfigAnchor;
   commitment?: Commitment;
   customAuthSeed?: number[];
+  isCosigned?: boolean;
+  orderType?: OrderType;
 }) => {
   const {
     tx: { ixs },
@@ -401,7 +735,10 @@ export const testMakePool = async ({
     owner: owner.publicKey,
     whitelist,
     config,
+    orderType,
+    isCosigned,
   });
+
   const sig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
@@ -416,12 +753,18 @@ export const testMakePool = async ({
   expect(poolAcc.takerBuyCount).eq(0);
   expect(poolAcc.takerSellCount).eq(0);
   expect(poolAcc.nftsHeld).eq(0);
-  //v2
+  //v0.3
   expect(poolAcc.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
   //stats
   expect(poolAcc.stats.takerBuyCount).eq(0);
   expect(poolAcc.stats.takerSellCount).eq(0);
   expect(poolAcc.stats.accumulatedMmProfit.toNumber()).eq(0);
+  //v1.0
+  //token only
+  expect(poolAcc.isCosigned).to.eq(isCosigned);
+  expect(poolAcc.orderType).to.eq(orderType);
+  expect(poolAcc.frozen).to.be.null;
+  expect(poolAcc.margin).to.be.null;
 
   const accConfig = poolAcc.config as PoolConfigAnchor;
   expect(Object.keys(config.poolType)[0] in accConfig.poolType).true;
@@ -503,6 +846,7 @@ export const testEditPool = async ({
   oldConfig,
   newConfig,
   commitment,
+  isCosigned = null,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -510,6 +854,7 @@ export const testEditPool = async ({
   oldConfig: PoolConfigAnchor;
   newConfig: PoolConfigAnchor;
   commitment?: Commitment;
+  isCosigned?: null | boolean;
 }) => {
   const {
     tx: { ixs },
@@ -523,6 +868,7 @@ export const testEditPool = async ({
     whitelist,
     oldConfig,
     newConfig,
+    isCosigned,
   });
 
   //collect data from old pool which we're about to close
@@ -533,6 +879,10 @@ export const testEditPool = async ({
   const prevNfts = oldPool.nftsHeld;
   const prevDepositedLamports =
     (await getLamports(oldSolEscrowPda))! - (await swapSdk.getSolEscrowRent());
+  const prevCosigned = oldPool.isCosigned;
+  const prevOrderType = oldPool.orderType;
+  const prevFrozen = oldPool.frozen;
+  const prevMargin = oldPool.margin;
 
   const sig = await buildAndSendTx({
     ixs,
@@ -555,7 +905,7 @@ export const testEditPool = async ({
   expect(newPoolAcc.takerBuyCount).eq(0);
   expect(newPoolAcc.takerSellCount).eq(0);
   expect(newPoolAcc.nftsHeld).eq(prevNfts);
-  //v2 - check new pool is pointing to authority
+  //v0.3 - check new pool is pointing to authority
   expect(newPoolAcc.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
   //stats
   expect(newPoolAcc.stats.takerBuyCount).eq(prevBuys);
@@ -592,6 +942,12 @@ export const testEditPool = async ({
   const authAcc = await swapSdk.fetchNftAuthority(nftAuthPda);
   expect(authAcc.pool.toBase58()).eq(newPoolPda.toBase58());
 
+  //v1
+  expect(newPoolAcc.isCosigned).to.eq(isCosigned ?? prevCosigned);
+  expect(newPoolAcc.orderType).to.eq(prevOrderType);
+  expect(newPoolAcc.frozen).to.eq(prevFrozen);
+  expect(newPoolAcc.margin).to.deep.eq(prevMargin);
+
   return {
     sig,
     oldPoolPda,
@@ -610,29 +966,39 @@ export const testDepositNft = async ({
   owner,
   ata,
   wlNft,
+  nftMint,
   whitelist,
   commitment,
+  nftMetadata,
 }: {
   pool: PublicKey;
   nftAuthPda: PublicKey;
   config: PoolConfigAnchor;
   owner: Keypair;
   ata: PublicKey;
-  wlNft: WhitelistedNft;
+  wlNft?: WhitelistedNft;
+  nftMint?: PublicKey;
   whitelist: PublicKey;
   commitment?: Commitment;
+  nftMetadata?: PublicKey;
 }) => {
+  if (!wlNft?.mint && !nftMint) {
+    throw new Error("nft mint missing");
+  }
+  const mint = wlNft?.mint ?? nftMint!;
+
   let {
     tx: { ixs },
     receiptPda,
     escrowPda,
   } = await swapSdk.depositNft({
     whitelist,
-    nftMint: wlNft.mint,
+    nftMint: mint,
     nftSource: ata,
     owner: owner.publicKey,
     config,
-    proof: wlNft.proof,
+    proof: wlNft?.proof,
+    nftMetadata,
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
 
@@ -652,7 +1018,7 @@ export const testDepositNft = async ({
 
   const receipt = await swapSdk.fetchReceipt(receiptPda);
   expect(receipt.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
-  expect(receipt.nftMint.toBase58()).eq(wlNft.mint.toBase58());
+  expect(receipt.nftMint.toBase58()).eq(mint.toBase58());
   expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
 
   return { depSig, receiptPda };
@@ -684,6 +1050,7 @@ export const testDepositSol = async ({
     lamports: new BN(lamports),
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
+
   return await withLamports(
     { prevEscrowLamports: solEscrowPda },
     async ({ prevEscrowLamports }) => {
@@ -787,6 +1154,7 @@ export const testWithdrawSol = async ({
     lamports: new BN(lamports),
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
+
   return await withLamports(
     { prevEscrowLamports: solEscrowPda },
     async ({ prevEscrowLamports }) => {
@@ -852,7 +1220,6 @@ export const testBuyNft = async ({
     owner: owner.publicKey,
     buyer: buyer.publicKey,
     config,
-    proof: wlNft.proof,
     maxPrice: new BN(maxLamports),
   });
 
@@ -888,7 +1255,7 @@ export const testBuyNft = async ({
       );
 
       const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
-      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE);
+      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE_PCT);
       //paid tswap fees (NB: fee account may be un-init before).
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
@@ -932,7 +1299,7 @@ export const testBuyNft = async ({
       // (1) Trade = amount sent to escrow, NOT owner
       // (1) NFT = amount sent to owner, NOT escrow
 
-      const grossAmount = expectedLamports * (1 - TSWAP_FEE) - creatorsFee;
+      const grossAmount = expectedLamports * (1 - TSWAP_FEE_PCT) - creatorsFee;
       const expOwnerAmount =
         (isTrade ? 0 : grossAmount) +
         // The owner gets back the rent costs.
@@ -958,6 +1325,13 @@ export const testBuyNft = async ({
       //receipt should have gotten closed
       await expect(swapSdk.fetchReceipt(receiptPda)).rejectedWith(
         ACCT_NOT_EXISTS_ERR
+      );
+      //transacted within last 60s & greater than before
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gte(
+        +new Date() / 1000 - 60
+      );
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gte(
+        prevPoolAcc.lastTransactedSeconds.toNumber()
       );
 
       return {
@@ -1006,7 +1380,7 @@ export const testMakePoolBuyNft = async ({
   const {
     proofs: [wlNft],
     whitelist,
-  } = await makeWhitelist([mint], treeSize);
+  } = await makeProofWhitelist([mint], treeSize);
   const { poolPda: pool, nftAuthPda } = await testMakePool({
     tswap,
     owner,
@@ -1049,7 +1423,7 @@ export const testMakePoolBuyNft = async ({
 };
 
 export const testSellNft = async ({
-  mint,
+  nftMint,
   whitelist,
   wlNft,
   ata,
@@ -1065,13 +1439,16 @@ export const testSellNft = async ({
   royaltyBps,
   creators,
   treeSize,
+  isCosigned = false,
+  marginNr = null,
+  isSniping = false,
 }: {
   sellType: "trade" | "token";
-  mint: PublicKey;
+  nftMint?: PublicKey;
   whitelist: PublicKey;
   poolPda: PublicKey;
-  nftAuthPda: PublicKey;
-  wlNft: WhitelistedNft;
+  nftAuthPda?: PublicKey;
+  wlNft?: WhitelistedNft;
   ata: PublicKey;
   owner: Keypair;
   seller: Keypair;
@@ -1085,17 +1462,27 @@ export const testSellNft = async ({
   royaltyBps?: number;
   creators?: CreatorInput[];
   treeSize?: number;
+  isCosigned?: boolean;
+  marginNr?: null | number;
+  isSniping?: boolean;
 }) => {
+  if (!wlNft?.mint && !nftMint) {
+    throw new Error("missing mint");
+  }
+  const mint = wlNft?.mint ?? nftMint!;
+
   const prevPoolAcc = await swapSdk.fetchPool(poolPda);
 
-  // Need to create mint proof first before being able to sell.
-  await testInitUpdateMintProof({
-    user: seller,
-    mint,
-    whitelist,
-    proof: wlNft.proof,
-    expectedProofLen: Math.trunc(Math.log2(treeSize ?? 100)) + 1,
-  });
+  if (wlNft?.proof) {
+    // Need to create mint proof first before being able to sell.
+    await testInitUpdateMintProof({
+      user: seller,
+      mint,
+      whitelist,
+      proof: wlNft.proof,
+      expectedProofLen: Math.trunc(Math.log2(treeSize ?? 100)) + 1,
+    });
+  }
 
   const {
     tx: { ixs },
@@ -1103,16 +1490,19 @@ export const testSellNft = async ({
     escrowPda: nftEscrow,
     ownerAtaAcc,
     receiptPda: nftReceipt,
+    marginPda,
   } = await swapSdk.sellNft({
     type: sellType,
     whitelist,
-    nftMint: wlNft.mint,
+    nftMint: mint,
     nftSellerAcc: ata,
     owner: owner.publicKey,
     seller: seller.publicKey,
     config,
-    proof: wlNft.proof,
     minPrice: new BN(minLamports),
+    isCosigned,
+    cosigner: TEST_COSIGNER.publicKey,
+    marginNr,
   });
 
   const _checkDestAcc = async (amount: string) => {
@@ -1132,12 +1522,15 @@ export const testSellNft = async ({
       prevSellerLamports: seller.publicKey,
       prevBuyerLamports: owner.publicKey,
       prevEscrowLamports: solEscrowPda,
+      //have to pass something for the case when margin doesn't exist
+      prevMarginLamports: marginPda ?? solEscrowPda,
     },
     async ({
       prevFeeAccLamports,
       prevSellerLamports,
       prevBuyerLamports,
       prevEscrowLamports,
+      prevMarginLamports,
     }) => {
       // Trader initially has mint.
       let traderAcc = await getAccount(ata);
@@ -1146,7 +1539,7 @@ export const testSellNft = async ({
 
       const sellSig = await buildAndSendTx({
         ixs,
-        extraSigners: [seller],
+        extraSigners: isCosigned ? [seller, TEST_COSIGNER] : [seller],
         opts: { commitment },
       });
 
@@ -1156,7 +1549,11 @@ export const testSellNft = async ({
       await _checkDestAcc("1");
 
       const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
-      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE);
+      const tswapFee = Math.trunc(
+        isSniping
+          ? calcSnipeFee(expectedLamports)
+          : expectedLamports * TSWAP_FEE_PCT
+      );
       //paid tswap fees (NB: fee account may be un-init before).
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
@@ -1214,10 +1611,17 @@ export const testSellNft = async ({
       expect(currBuyerLamports! - prevBuyerLamports!).equal(0);
 
       // Sol escrow should have the NFT cost deducted (minus mm fees owner gets back).
-      const currEscrowLamports = await getLamports(solEscrowPda);
-      expect(currEscrowLamports! - prevEscrowLamports!).eq(
-        -1 * (expectedLamports - mmFees)
-      );
+      if (!isNullLike(marginNr)) {
+        const currMarginLamports = await getLamports(marginPda!);
+        expect(currMarginLamports! - prevMarginLamports!).eq(
+          -1 * (expectedLamports - mmFees)
+        );
+      } else {
+        const currEscrowLamports = await getLamports(solEscrowPda);
+        expect(currEscrowLamports! - prevEscrowLamports!).eq(
+          -1 * (expectedLamports - mmFees)
+        );
+      }
 
       const poolAcc = await swapSdk.fetchPool(poolPda);
       expectPoolAccounting(poolAcc, prevPoolAcc, {
@@ -1226,11 +1630,18 @@ export const testSellNft = async ({
         sell: 1,
         buy: 0,
       });
+      //transacted within last 60s & greated than before
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gt(
+        +new Date() / 1000 - 60
+      );
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gte(
+        prevPoolAcc.lastTransactedSeconds.toNumber()
+      );
 
       if (sellType === "trade") {
         const receipt = await swapSdk.fetchReceipt(nftReceipt);
-        expect(receipt.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
-        expect(receipt.nftMint.toBase58()).eq(wlNft.mint.toBase58());
+        expect(receipt.nftAuthority.toBase58()).eq(nftAuthPda!.toBase58());
+        expect(receipt.nftMint.toBase58()).eq(mint.toBase58());
         expect(receipt.nftEscrow.toBase58()).eq(nftEscrow.toBase58());
       } else {
         // No receipt: goes directly to owner.
@@ -1266,6 +1677,7 @@ export const testMakePoolSellNft = async ({
   royaltyBps,
   creators,
   treeSize,
+  isCosigned = false,
 }: {
   sellType: "trade" | "token";
   tswap: PublicKey;
@@ -1280,6 +1692,7 @@ export const testMakePoolSellNft = async ({
   royaltyBps?: number;
   creators?: CreatorInput[];
   treeSize?: number;
+  isCosigned?: boolean;
 }) => {
   const { mint, ata } = await makeMintTwoAta(
     seller,
@@ -1290,13 +1703,14 @@ export const testMakePoolSellNft = async ({
   const {
     proofs: [wlNft],
     whitelist,
-  } = await makeWhitelist([mint], treeSize);
+  } = await makeProofWhitelist([mint], treeSize);
 
   const { poolPda, nftAuthPda } = await testMakePool({
     tswap,
     owner,
     whitelist,
     config,
+    isCosigned,
   });
 
   await testDepositSol({
@@ -1311,7 +1725,7 @@ export const testMakePoolSellNft = async ({
     ...(await testSellNft({
       whitelist,
       wlNft,
-      mint,
+      nftMint: mint,
       ata,
       nftAuthPda,
       poolPda,
@@ -1325,11 +1739,175 @@ export const testMakePoolSellNft = async ({
       royaltyBps,
       creators,
       treeSize,
+      isCosigned,
     })),
     poolPda,
     wlNft,
     whitelist,
   };
+};
+
+export const testTakeSnipe = async ({
+  nftMint,
+  whitelist,
+  wlNft,
+  ata,
+  poolPda,
+  owner,
+  seller,
+  config,
+  initialBidAmount,
+  actualSnipeAmount,
+  commitment,
+  treeSize,
+  marginNr,
+  frozen,
+  cosigner = TEST_COSIGNER,
+}: {
+  nftMint?: PublicKey;
+  whitelist: PublicKey;
+  poolPda: PublicKey;
+  wlNft?: WhitelistedNft;
+  ata: PublicKey;
+  owner: Keypair;
+  seller: Keypair;
+  config: PoolConfigAnchor;
+  // Expected value for the current/base price.
+  initialBidAmount: number;
+  actualSnipeAmount: number;
+  commitment?: Commitment;
+  treeSize?: number;
+  marginNr: number;
+  // Whether we're "taking" a frozen order
+  frozen: boolean;
+  cosigner?: Keypair;
+}) => {
+  if (!wlNft?.mint && !nftMint) {
+    throw new Error("missing mint");
+  }
+  const mint = wlNft?.mint ?? nftMint!;
+
+  const prevPoolAcc = await swapSdk.fetchPool(poolPda);
+
+  if (wlNft?.proof) {
+    // Need to create mint proof first before being able to sell.
+    await testInitUpdateMintProof({
+      user: seller,
+      mint,
+      whitelist,
+      proof: wlNft.proof,
+      expectedProofLen: Math.trunc(Math.log2(treeSize ?? 100)) + 1,
+    });
+  }
+
+  const {
+    tx: { ixs },
+    solEscrowPda,
+    marginPda,
+    ownerAtaAcc,
+  } = await swapSdk.takeSnipe({
+    whitelist,
+    nftMint: mint,
+    marginNr,
+    config,
+    owner: owner.publicKey,
+    seller: seller.publicKey,
+    nftSellerAcc: ata,
+    actualPrice: new BN(actualSnipeAmount),
+    cosigner: cosigner.publicKey,
+  });
+
+  const _checkDestAcc = async (amount: string) => {
+    // Owner should have ATA b/c we call makeMintTwoAta.
+    expect((await getAccount(ownerAtaAcc)).amount.toString()).eq(amount);
+  };
+
+  return await withLamports(
+    {
+      prevFeeAccLamports: TSWAP_FEE_ACC,
+      prevSellerLamports: seller.publicKey,
+      prevBuyerLamports: owner.publicKey,
+      prevEscrowLamports: solEscrowPda,
+      prevMarginLamports: marginPda,
+    },
+    async ({
+      prevFeeAccLamports,
+      prevSellerLamports,
+      prevBuyerLamports,
+      prevEscrowLamports,
+      prevMarginLamports,
+    }) => {
+      // Trader initially has mint.
+      let traderAcc = await getAccount(ata);
+      expect(traderAcc.amount.toString()).eq("1");
+      await _checkDestAcc("0");
+
+      const snipeSig = await buildAndSendTx({
+        ixs,
+        extraSigners: [seller, cosigner],
+        opts: { commitment },
+      });
+
+      //NFT moved from trader to escrow
+      traderAcc = await getAccount(ata);
+      expect(traderAcc.amount.toString()).eq("0");
+      await _checkDestAcc("1");
+
+      const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
+
+      //snipe fee sent correctly
+      const snipeBaseFee = Math.trunc(calcSnipeFee(initialBidAmount));
+      const snipeProfitFee = Math.trunc(
+        ((initialBidAmount - actualSnipeAmount) * SNIPE_PROFIT_SHARE_BPS) /
+          HUNDRED_PCT_BPS
+      );
+      const totalSnipeFee = snipeBaseFee + snipeProfitFee;
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(totalSnipeFee);
+
+      //seller paid correctly
+      const currSellerLamports = await getLamports(seller.publicKey);
+      expect(currSellerLamports! - prevSellerLamports!).eq(actualSnipeAmount);
+
+      //rest moved to margin account
+      const actualPaidBySniper = actualSnipeAmount + totalSnipeFee;
+      //uploaded by sniper less what they actually paid
+      const remainder = initialBidAmount + snipeBaseFee - actualPaidBySniper;
+      const currMarginLamports = await getLamports(marginPda);
+      expect(currMarginLamports! - prevMarginLamports!).eq(
+        frozen ? remainder : -1 * actualPaidBySniper
+      );
+
+      // buyer should not have balance change
+      const currBuyerLamports = await getLamports(owner.publicKey);
+      expect(currBuyerLamports! - prevBuyerLamports!).equal(0);
+
+      // Sol escrow should have the NFT cost deducted (minus mm fees owner gets back).
+      const currEscrowLamports = await getLamports(solEscrowPda);
+      expect(currEscrowLamports! - prevEscrowLamports!).eq(
+        //for non-frozen orders we never use the escrow
+        frozen ? -1 * (initialBidAmount + snipeBaseFee) : 0
+      );
+
+      const poolAcc = await swapSdk.fetchPool(poolPda);
+      expectPoolAccounting(poolAcc, prevPoolAcc, {
+        // NFTs held does not change for Token pool (goes directly to owner).
+        nfts: 0,
+        sell: 1,
+        buy: 0,
+      });
+      // either way we unfreeze the order in the end
+      expect(poolAcc.frozen).to.be.null;
+
+      return {
+        sellSig: snipeSig,
+        poolPda,
+        poolAcc,
+        wlNft,
+        whitelist,
+        solEscrowPda,
+      };
+    }
+  );
 };
 
 //#endregion

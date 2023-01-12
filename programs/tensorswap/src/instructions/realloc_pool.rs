@@ -1,13 +1,15 @@
-use crate::*;
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig)]
 pub struct ReallocPool<'info> {
     #[account(
-        seeds = [], bump = tswap.bump[0],
-        constraint = tswap_owner.key() == tswap.owner
+        seeds = [],
+        bump = tswap.bump[0],
+        has_one = cosigner
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
@@ -24,7 +26,7 @@ pub struct ReallocPool<'info> {
         bump = pool.bump[0],
         has_one = tswap, has_one = owner, has_one = whitelist,
         realloc = 8 + Pool::SIZE,
-        realloc::payer = tswap_owner,
+        realloc::payer = cosigner,
         realloc::zero = false,
     )]
     pub pool: Box<Account<'info, Pool>>,
@@ -41,7 +43,7 @@ pub struct ReallocPool<'info> {
     pub owner: AccountInfo<'info>,
 
     #[account(mut)]
-    pub tswap_owner: Signer<'info>,
+    pub cosigner: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }

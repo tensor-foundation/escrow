@@ -19,14 +19,14 @@ import {
   getAccount,
   makeMintTwoAta,
   makeNTraders,
-  makeWhitelist,
+  makeProofWhitelist,
   nftPoolConfig,
   testDepositNft,
   testMakePool,
   testMakePoolBuyNft,
   tokenPoolConfig,
   tradePoolConfig,
-  TSWAP_FEE,
+  TSWAP_FEE_PCT,
 } from "./common";
 
 describe("tswap buy", () => {
@@ -214,7 +214,7 @@ describe("tswap buy", () => {
         const {
           proofs: [wlNft],
           whitelist,
-        } = await makeWhitelist([mint]);
+        } = await makeProofWhitelist([mint]);
         const { poolPda, nftAuthPda } = await testMakePool({
           tswap,
           owner,
@@ -265,7 +265,6 @@ describe("tswap buy", () => {
             owner: owner.publicKey,
             buyer: buyer.publicKey,
             config,
-            proof: wlNft.proof,
             maxPrice: new BN(LAMPORTS_PER_SOL),
           });
 
@@ -366,7 +365,7 @@ describe("tswap buy", () => {
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
-      } = await makeWhitelist([mintA, mintB]);
+      } = await makeProofWhitelist([mintA, mintB]);
 
       // Deposit into 2 pools.
       const { poolPda: poolA, nftAuthPda: nftAuthPdaA } = await testMakePool({
@@ -412,7 +411,6 @@ describe("tswap buy", () => {
         nftBuyerAcc: ataB,
         whitelist,
         nftMint: wlNftB.mint,
-        proof: wlNftB.proof,
         maxPrice: new BN(LAMPORTS_PER_SOL),
       });
       await expect(
@@ -429,7 +427,6 @@ describe("tswap buy", () => {
         nftBuyerAcc: ataA,
         whitelist,
         nftMint: wlNftA.mint,
-        proof: wlNftA.proof,
         maxPrice: new BN(LAMPORTS_PER_SOL),
       });
       await expect(
@@ -473,7 +470,7 @@ describe("tswap buy", () => {
         );
 
         //prepare tree & pool
-        const { proofs, whitelist } = await makeWhitelist(
+        const { proofs, whitelist } = await makeProofWhitelist(
           nfts.map((nft) => nft.mint)
         );
         await testMakePool({ tswap, owner: traderA, whitelist, config });
@@ -530,7 +527,6 @@ describe("tswap buy", () => {
               owner: traderA.publicKey,
               buyer: traderB.publicKey,
               config: config,
-              proof: proofs.find((p) => p.mint === targNft.mint)!.proof,
               maxPrice: currPrice,
             });
             await buildAndSendTx({
@@ -599,7 +595,7 @@ describe("tswap buy", () => {
     );
 
     //prepare tree & pool
-    const { proofs, whitelist } = await makeWhitelist(
+    const { proofs, whitelist } = await makeProofWhitelist(
       nfts.map((nft) => nft.mint)
     );
     await testMakePool({ tswap, owner: traderA, whitelist, config });
@@ -642,7 +638,6 @@ describe("tswap buy", () => {
         owner: traderA.publicKey,
         buyer: traderB.publicKey,
         config: config,
-        proof: proofs.find((p) => p.mint === nft.mint)!.proof,
         maxPrice: currPrice,
       });
       await buildAndSendTx({
@@ -694,7 +689,7 @@ describe("tswap buy", () => {
     );
     expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
     expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-      Math.trunc(expectedLamports * TSWAP_FEE) +
+      Math.trunc(expectedLamports * TSWAP_FEE_PCT) +
         Math.trunc((expectedLamports * 50) / 1e4)
     );
 

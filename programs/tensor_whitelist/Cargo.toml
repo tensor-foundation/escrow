@@ -1,6 +1,6 @@
 [package]
 name = "tensor_whitelist"
-version = "0.1.0"
+version = "0.2.0"
 description = "Created with Anchor"
 edition = "2021"
 
@@ -20,4 +20,5 @@ testing = []
 anchor-lang = { version="0.25.0", features=["init-if-needed"] }
 anchor-spl = "0.25.0"
 vipers = "2.0.6"
-merkle_proof = {path='../../lib/merkle_proof'}
+merkle_proof = {path= '../../lib/merkle_proof' }
+mpl-token-metadata = { version="1.3.6", features = [ "no-entrypoint" ] }

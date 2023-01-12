@@ -3,11 +3,17 @@ import { AccountClient, BN, Idl, Program, utils } from "@project-serum/anchor";
 import { AllAccountsMap } from "@project-serum/anchor/dist/cjs/program/namespace/types";
 import { AccountInfo, Connection, PublicKey } from "@solana/web3.js";
 
-export const getAccountRent = (conn: Connection, acct: AccountClient) => {
+export const getAccountRent = (
+  conn: Connection,
+  acct: AccountClient
+): Promise<number> => {
   return conn.getMinimumBalanceForRentExemption(acct.size);
 };
 
-export const getLamports = async (conn: Connection, acct: PublicKey) => {
+export const getLamports = async (
+  conn: Connection,
+  acct: PublicKey
+): Promise<number | undefined> => {
   return (await conn.getAccountInfo(acct))?.lamports;
 };
 
@@ -62,7 +68,7 @@ export const decodeAcct = <T extends Idl>(
 
 export const fetchNft = async (conn: Connection, mint: PublicKey) => {
   const mplex = new Metaplex(conn);
-  return await mplex.nfts().findByMint({ mintAddress: mint }).run();
+  return await mplex.nfts().findByMint({ mintAddress: mint });
 };
 
 //#region Stringify function.

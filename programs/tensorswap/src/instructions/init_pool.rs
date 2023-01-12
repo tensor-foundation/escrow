@@ -1,8 +1,10 @@
 //! User creating a (empty) pool to trade NFTs (buy, sell or both)
-use crate::*;
 use std::str::FromStr;
+
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
+
+use crate::*;
 
 #[derive(Accounts)]
 #[instruction(config: PoolConfig, auth_seeds: [u8; 32])]
@@ -103,7 +105,13 @@ impl<'info> Validate<'info> for InitPool<'info> {
 }
 
 #[access_control(ctx.accounts.validate_pool_type(config); ctx.accounts.validate())]
-pub fn handler(ctx: Context<InitPool>, config: PoolConfig, auth_seeds: [u8; 32]) -> Result<()> {
+pub fn handler<'info>(
+    ctx: Context<'_, '_, '_, 'info, InitPool<'info>>,
+    config: PoolConfig,
+    auth_seeds: [u8; 32],
+    is_cosigned: bool,
+    order_type: u8,
+) -> Result<()> {
     let whitelist = &ctx.accounts.whitelist;
 
     let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
@@ -149,6 +157,17 @@ pub fn handler(ctx: Context<InitPool>, config: PoolConfig, auth_seeds: [u8; 32])
 
     //2-way link between the authority and the pool
     pool.nft_authority = ctx.accounts.nft_authority.key();
+
+    if is_cosigned && config.pool_type != PoolType::Token {
+        throw_err!(WrongPoolType);
+    }
+    pool.is_cosigned = is_cosigned;
+    pool.order_type = order_type;
+    //in the future might decide we want to allow creation of frozen orders, but dont see the need rn
+    pool.frozen = None;
+    //all pools start off as non-marginated, and can be attached later
+    pool.margin = None;
+    pool.last_transacted_seconds = Clock::get()?.unix_timestamp;
 
     // --------------------------------------- serialize authority
 

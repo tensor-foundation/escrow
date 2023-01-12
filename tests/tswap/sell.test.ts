@@ -24,17 +24,21 @@ import {
   createAndFundATA,
   defaultSellExpectedLamports,
   getAccount,
+  makeFvcWhitelist,
   makeMintTwoAta,
   makeNTraders,
-  makeWhitelist,
+  makeProofWhitelist,
+  makeVocWhitelist,
   nftPoolConfig,
   testDepositSol,
   testMakePool,
   testMakePoolSellNft,
+  testSellNft,
   tokenPoolConfig,
   tradePoolConfig,
-  TSWAP_FEE,
+  TSWAP_FEE_PCT,
 } from "./common";
+import { castPoolTypeAnchor, PoolType } from "../../src";
 
 describe("tswap sell", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -73,6 +77,81 @@ describe("tswap sell", () => {
     }
   });
 
+  it("sell into cosigned token pool", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const [{ owner, seller }, config] of cartesian(
+      [
+        { owner: traderA, seller: traderB },
+        { owner: traderB, seller: traderA },
+      ],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      const expectedLamports = defaultSellExpectedLamports(
+        config === tokenPoolConfig
+      );
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(
+          config === tokenPoolConfig,
+          expectedLamports
+        ),
+        // TODO snipe: currently cosigning only for token pools
+        isCosigned: config === tradePoolConfig ? false : true,
+      });
+    }
+  });
+
+  it("fails to sell into a cosigned pool without cosigner", async () => {
+    const [owner, seller] = await makeNTraders(2);
+    const config = tokenPoolConfig;
+    const { mint, ata } = await makeMintTwoAta(seller, owner);
+    const {
+      proofs: [wlNft],
+      whitelist,
+    } = await makeProofWhitelist([mint], 100);
+
+    const { poolPda, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      whitelist,
+      config,
+      isCosigned: true, //<--make a cosigned pool
+    });
+
+    await testDepositSol({
+      pool: poolPda,
+      config,
+      owner,
+      lamports: LAMPORTS_PER_SOL,
+      whitelist,
+    });
+
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft,
+        nftMint: mint,
+        ata,
+        nftAuthPda,
+        poolPda,
+        sellType: "token",
+        owner,
+        seller,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL,
+        treeSize: 100,
+        isCosigned: false, //<-- but not passing in the cosigner when trying to sell
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadCosigner"));
+  });
+
   it("sell at lower min price works (a steal!)", async () => {
     const [owner, seller] = await makeNTraders(2);
 
@@ -104,7 +183,7 @@ describe("tswap sell", () => {
     const {
       proofs: [wlNft],
       whitelist,
-    } = await makeWhitelist([mint]);
+    } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
       owner,
@@ -137,7 +216,6 @@ describe("tswap sell", () => {
       owner: owner.publicKey,
       seller: seller.publicKey,
       config,
-      proof: wlNft.proof,
       minPrice: new BN(LAMPORTS_PER_SOL),
     });
 
@@ -324,7 +402,7 @@ describe("tswap sell", () => {
     ).rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
   });
 
-  it("sell non-WL nft fails", async () => {
+  it("sell non-WL nft fails (MP)", async () => {
     await Promise.all(
       [tradePoolConfig, tokenPoolConfig].map(async (config) => {
         const [owner, seller] = await makeNTraders(2);
@@ -336,7 +414,7 @@ describe("tswap sell", () => {
         const {
           proofs: [wlNft],
           whitelist,
-        } = await makeWhitelist([mint]);
+        } = await makeProofWhitelist([mint]);
         await testMakePool({ tswap, owner, whitelist, config });
 
         await testInitUpdateMintProof({
@@ -355,16 +433,12 @@ describe("tswap sell", () => {
           {
             currMint: badMint,
             currAta: badAta,
-            // No mint proof acct.
-            // err: swapSdk.getErrorCodeHex("InvalidProof"),
             err: hexCode(LangErrorCode.AccountNotInitialized),
           },
           {
             currMint: badMint,
             currAta: ata,
-            // No mint proof acct.
-            // err: hexCode(LangErrorCode.ConstraintTokenMint),
-            err: hexCode(LangErrorCode.AccountNotInitialized),
+            err: hexCode(LangErrorCode.ConstraintTokenMint),
           },
           {
             currMint: mint,
@@ -382,7 +456,6 @@ describe("tswap sell", () => {
             owner: owner.publicKey,
             seller: seller.publicKey,
             config,
-            proof: wlNft.proof,
             minPrice: new BN(
               adjustSellMinLamports(
                 config === tokenPoolConfig,
@@ -400,6 +473,222 @@ describe("tswap sell", () => {
         }
       })
     );
+  });
+
+  it("sell nft whitelisted using FVC", async () => {
+    for (const config of [tokenPoolConfig, tradePoolConfig]) {
+      const [owner, seller] = await makeNTraders(2);
+      const creator = Keypair.generate();
+      const creators = [
+        { address: creator.publicKey, share: 100, authority: creator },
+      ];
+      const { mint, ata } = await makeMintTwoAta(
+        seller,
+        owner,
+        10000,
+        creators
+      );
+      const { whitelist } = await makeFvcWhitelist(creator.publicKey);
+
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
+
+      const { poolPda, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+      });
+
+      await testDepositSol({
+        pool: poolPda,
+        config,
+        owner,
+        lamports: expectedLamports,
+        whitelist,
+      });
+
+      await testSellNft({
+        whitelist,
+        nftMint: mint,
+        ata,
+        nftAuthPda,
+        poolPda,
+        sellType: isToken ? "token" : "trade",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(isToken, expectedLamports),
+        royaltyBps: 10000,
+        creators,
+      });
+    }
+  });
+
+  it("fail to sell an FVC-whitelisted NFT with unverified creator", async () => {
+    for (const config of [tokenPoolConfig, tradePoolConfig]) {
+      const [owner, seller] = await makeNTraders(2);
+      const creator = Keypair.generate();
+      const creators = [
+        { address: creator.publicKey, share: 100 }, //unverified
+      ];
+      const { mint, ata } = await makeMintTwoAta(
+        seller,
+        owner,
+        10000,
+        creators
+      );
+      const { whitelist } = await makeFvcWhitelist(creator.publicKey);
+
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
+
+      const { poolPda, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+      });
+
+      await testDepositSol({
+        pool: poolPda,
+        config,
+        owner,
+        lamports: expectedLamports,
+        whitelist,
+      });
+
+      await expect(
+        testSellNft({
+          whitelist,
+          nftMint: mint,
+          ata,
+          nftAuthPda,
+          poolPda,
+          sellType: isToken ? "token" : "trade",
+          owner,
+          seller,
+          config,
+          expectedLamports,
+          minLamports: adjustSellMinLamports(isToken, expectedLamports),
+          royaltyBps: 10000,
+          creators,
+        })
+      ).to.be.rejectedWith("0x1777");
+    }
+  });
+
+  it("sell nft whitelisted using VOC", async () => {
+    for (const config of [tokenPoolConfig, tradePoolConfig]) {
+      const [owner, seller] = await makeNTraders(2);
+      const collection = Keypair.generate();
+      const { mint, ata } = await makeMintTwoAta(
+        seller,
+        owner,
+        10000,
+        undefined,
+        collection,
+        true
+      );
+      const { whitelist } = await makeVocWhitelist(collection.publicKey);
+
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
+
+      const { poolPda, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+      });
+
+      await testDepositSol({
+        pool: poolPda,
+        config,
+        owner,
+        lamports: expectedLamports,
+        whitelist,
+      });
+
+      await testSellNft({
+        whitelist,
+        nftMint: mint,
+        ata,
+        nftAuthPda,
+        poolPda,
+        sellType: isToken ? "token" : "trade",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(isToken, expectedLamports),
+      });
+    }
+  });
+
+  it("fail to sell a MP-whitelisted NFT into a VOC pool", async () => {
+    for (const config of [tokenPoolConfig, tradePoolConfig]) {
+      const [owner, seller] = await makeNTraders(2);
+      const collection = Keypair.generate();
+      const { mint, ata } = await makeMintTwoAta(
+        seller,
+        owner,
+        10000,
+        undefined
+        //intentionally NOT adding collection, ie mint doesn't belong to it
+      );
+      const { whitelist } = await makeVocWhitelist(collection.publicKey);
+
+      const isToken = config === tokenPoolConfig;
+      const expectedLamports = defaultSellExpectedLamports(isToken);
+
+      //make a proof to pass in even though we're not actually using merkle-based whitelisting
+      const {
+        proofs: [wlNft],
+        whitelist: whitelist2,
+      } = await makeProofWhitelist([mint]);
+
+      await testInitUpdateMintProof({
+        user: seller,
+        mint,
+        whitelist: whitelist2, //<-- note we're using the MP whitelist
+        proof: wlNft.proof,
+        expectedProofLen: Math.trunc(Math.log2(100)) + 1,
+      });
+
+      const { poolPda, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist, //<-- note we're using the VOC whitelist
+        config,
+      });
+
+      await testDepositSol({
+        pool: poolPda,
+        config,
+        owner,
+        lamports: expectedLamports,
+        whitelist,
+      });
+
+      await expect(
+        testSellNft({
+          whitelist, //<-- note we're using the VOC whitelist
+          nftMint: mint,
+          ata,
+          nftAuthPda,
+          poolPda,
+          sellType: isToken ? "token" : "trade",
+          owner,
+          seller,
+          config,
+          expectedLamports,
+          minLamports: adjustSellMinLamports(isToken, expectedLamports),
+          treeSize: 100,
+        })
+      ).to.be.rejectedWith("0x1776");
+    }
   });
 
   it("sell below 0 is not possible", async () => {
@@ -455,7 +744,7 @@ describe("tswap sell", () => {
         );
 
         //prepare tree & pool
-        const { proofs, whitelist } = await makeWhitelist(
+        const { proofs, whitelist } = await makeProofWhitelist(
           nfts.map((nft) => nft.mint)
         );
         await testMakePool({
@@ -497,7 +786,6 @@ describe("tswap sell", () => {
             owner: traderA.publicKey,
             seller: traderB.publicKey,
             config: currConfig,
-            proof,
             minPrice: new BN(0),
           });
 
@@ -522,7 +810,7 @@ describe("tswap sell", () => {
     const {
       proofs: [wlNft],
       whitelist,
-    } = await makeWhitelist([mint]);
+    } = await makeProofWhitelist([mint]);
 
     // o/w we need to subtract more to trigger insufficient sol balance
     // b/c some balance is kept for MM.
@@ -569,7 +857,6 @@ describe("tswap sell", () => {
           owner: owner.publicKey,
           seller: seller.publicKey,
           config,
-          proof: wlNft.proof,
           minPrice: new BN(expectedLamports),
         });
 
@@ -580,7 +867,7 @@ describe("tswap sell", () => {
             extraSigners: [seller],
             debug: true,
           })
-        ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientSolEscrowBalance"));
+        ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientTswapAccBalance"));
       })
     );
   });
@@ -620,7 +907,7 @@ describe("tswap sell", () => {
         );
 
         //prepare tree & pool
-        const { proofs, whitelist } = await makeWhitelist(
+        const { proofs, whitelist } = await makeProofWhitelist(
           nfts.map((nft) => nft.mint)
         );
         await testMakePool({ tswap, owner: traderA, whitelist, config });
@@ -695,7 +982,6 @@ describe("tswap sell", () => {
               owner: traderA.publicKey,
               seller: traderB.publicKey,
               config: config,
-              proof,
               minPrice: currPrice,
             });
             await buildAndSendTx({
@@ -754,7 +1040,7 @@ describe("tswap sell", () => {
     );
 
     //prepare tree & pool
-    const { proofs, whitelist } = await makeWhitelist(
+    const { proofs, whitelist } = await makeProofWhitelist(
       nfts.map((nft) => nft.mint)
     );
     await testMakePool({ tswap, owner: traderA, whitelist, config });
@@ -805,7 +1091,6 @@ describe("tswap sell", () => {
         owner: traderA.publicKey,
         seller: traderB.publicKey,
         config: config,
-        proof,
         minPrice: currPrice,
       });
       await buildAndSendTx({
@@ -869,7 +1154,7 @@ describe("tswap sell", () => {
           Math.trunc((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4)
       );
       expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-        Math.trunc(expectedLamports * TSWAP_FEE) +
+        Math.trunc(expectedLamports * TSWAP_FEE_PCT) +
           Math.trunc((expectedLamports * 69) / 1e4)
       );
 
