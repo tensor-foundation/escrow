@@ -103,7 +103,7 @@ export const TensorswapIDL_v0_2_0_EffSlot = 153016663;
 export const TensorswapIDL_v0_3_0 = IDL_v0_3_0;
 export const TensorswapIDL_v0_3_0_EffSlot = 154762923;
 
-// rollout 0.3.5: https://solscan.io/tx/2NjcKJov7cm7Fa1PqEADMgjiFBS6UXAzXoaiLinCU35stFUAgVyLBniaPyLExPoz18TKis5ch9YxfBs7yAkbjXXn
+// rollout 0.3.5: https://solscan.io/tx/3YruQxQ2HGMEcNRogwGAXw2rXDH3uVKCjZYs655erEKX1T3FxcLBshHHgP5deTLQ4Jd28SZTVGFb2oBpGx6HqANe
 export const TensorswapIDL_v0_3_5 = IDL_v0_3_5;
 export const TensorswapIDL_v0_3_5_EffSlot = 154963721;
 
