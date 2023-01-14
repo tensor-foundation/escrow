@@ -1199,13 +1199,35 @@ export class TensorSwapSDK {
 
   // --------------------------------------- margin
 
-  async initMarginAcc({ owner, name }: { owner: PublicKey; name: number[] }) {
+  async initMarginAcc({
+    owner,
+    name,
+    desiredNr,
+  }: {
+    owner: PublicKey;
+    name: number[];
+    desiredNr?: number;
+  }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
-    const { marginNr, marginPda, marginBump } = await findNextFreeMarginNr({
-      connection: this.program.provider.connection,
-      owner,
-      tswap: tswapPda,
-    });
+
+    let marginNr;
+    let marginPda;
+    let marginBump;
+
+    if (isNullLike(desiredNr)) {
+      ({ marginNr, marginPda, marginBump } = await findNextFreeMarginNr({
+        connection: this.program.provider.connection,
+        owner,
+        tswap: tswapPda,
+      }));
+    } else {
+      marginNr = desiredNr;
+      [marginPda, marginBump] = findMarginPDA({
+        tswap: tswapPda,
+        owner,
+        marginNr: desiredNr,
+      });
+    }
 
     const builder = this.program.methods
       .initMarginAccount(marginNr, name)
