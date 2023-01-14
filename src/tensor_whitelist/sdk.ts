@@ -6,7 +6,7 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { Coder, Program, Provider } from "@project-serum/anchor";
-import { TENSOR_WHITELIST_ADDR } from "./constants";
+import { TLIST_ADDR, TLIST_COSIGNER, TLIST_OWNER } from "./constants";
 import {
   findMintProofPDA,
   findWhitelistAuthPDA,
@@ -108,7 +108,7 @@ export class TensorWhitelistSDK {
 
   constructor({
     idl = IDL,
-    addr = TENSOR_WHITELIST_ADDR,
+    addr = TLIST_ADDR,
     provider,
     coder,
   }: {
@@ -154,13 +154,13 @@ export class TensorWhitelistSDK {
 
   //main signature: cosigner
   async initUpdateAuthority({
-    cosigner,
-    owner,
+    cosigner = TLIST_COSIGNER,
+    owner = TLIST_OWNER,
     newCosigner,
     newOwner,
   }: {
-    cosigner: PublicKey;
-    owner: PublicKey;
+    cosigner?: PublicKey;
+    owner?: PublicKey;
     newCosigner: PublicKey | null;
     newOwner: PublicKey | null;
   }) {
@@ -186,15 +186,15 @@ export class TensorWhitelistSDK {
 
   //main signature: cosigner
   async initUpdateWhitelist({
-    cosigner,
-    owner,
+    cosigner = TLIST_COSIGNER,
+    owner, //can't pass default here, coz then it'll be auto-included in rem accs
     uuid,
     rootHash = null,
     name = null,
     voc = null,
     fvc = null,
   }: {
-    cosigner: PublicKey;
+    cosigner?: PublicKey;
     owner?: PublicKey;
     uuid: number[];
     rootHash?: number[] | null;
@@ -223,7 +223,7 @@ export class TensorWhitelistSDK {
       .accounts({
         whitelist: whitelistPda,
         whitelistAuthority: authPda,
-        cosigner: cosigner,
+        cosigner,
         systemProgram: SystemProgram.programId,
       })
       .remainingAccounts(remAcc);
@@ -239,10 +239,10 @@ export class TensorWhitelistSDK {
   //main signature: cosigner
   async freezeWhitelist({
     uuid,
-    cosigner,
+    cosigner = TLIST_COSIGNER,
   }: {
     uuid: number[];
-    cosigner: PublicKey;
+    cosigner?: PublicKey;
   }) {
     const [authPda] = findWhitelistAuthPDA({});
     const [whitelistPda] = findWhitelistPDA({
@@ -252,7 +252,7 @@ export class TensorWhitelistSDK {
     const builder = this.program.methods.freezeWhitelist().accounts({
       whitelist: whitelistPda,
       whitelistAuthority: authPda,
-      cosigner: cosigner,
+      cosigner,
       systemProgram: SystemProgram.programId,
     });
 
@@ -267,10 +267,10 @@ export class TensorWhitelistSDK {
   //main signature: owner
   async unfreezeWhitelist({
     uuid,
-    owner,
+    owner = TLIST_OWNER,
   }: {
     uuid: number[];
-    owner: PublicKey;
+    owner?: PublicKey;
   }) {
     const [authPda] = findWhitelistAuthPDA({});
     const [whitelistPda] = findWhitelistPDA({
@@ -325,7 +325,11 @@ export class TensorWhitelistSDK {
 
   // --------------------------------------- reallocs
 
-  async reallocAuthority({ cosigner }: { cosigner: PublicKey }) {
+  async reallocAuthority({
+    cosigner = TLIST_COSIGNER,
+  }: {
+    cosigner?: PublicKey;
+  }) {
     const [authPda] = findWhitelistAuthPDA({});
 
     const builder = this.program.methods.reallocAuthority().accounts({
@@ -343,10 +347,10 @@ export class TensorWhitelistSDK {
 
   async reallocWhitelist({
     uuid,
-    cosigner,
+    cosigner = TLIST_COSIGNER,
   }: {
     uuid: number[];
-    cosigner: PublicKey;
+    cosigner?: PublicKey;
   }) {
     const [authPda] = findWhitelistAuthPDA({});
     const [whitelistPda] = findWhitelistPDA({

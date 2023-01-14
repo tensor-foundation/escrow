@@ -18,7 +18,12 @@ import {
   Program,
 } from "@project-serum/anchor";
 import Big from "big.js";
-import { TENSORSWAP_ADDR, TSWAP_COSIGNER, TSWAP_FEE_ACC } from "./constants";
+import {
+  TENSORSWAP_ADDR,
+  TSWAP_COSIGNER,
+  TSWAP_FEE_ACC,
+  TSWAP_OWNER,
+} from "./constants";
 import {
   findMarginPDA,
   findNextFreeMarginNr,
@@ -459,13 +464,13 @@ export class TensorSwapSDK {
 
   //main signature: owner
   async initUpdateTSwap({
-    owner,
+    owner = TSWAP_OWNER,
     newOwner,
     config,
     feeVault = TSWAP_FEE_ACC,
-    cosigner = owner,
+    cosigner = TSWAP_COSIGNER,
   }: {
-    owner: PublicKey;
+    owner?: PublicKey;
     newOwner: PublicKey;
     config: TSwapConfigAnchor;
     feeVault?: PublicKey;
@@ -1158,7 +1163,7 @@ export class TensorSwapSDK {
 
   async reallocPool({
     owner,
-    cosigner,
+    cosigner = TSWAP_COSIGNER,
     whitelist,
     config,
   }: {
@@ -1199,6 +1204,7 @@ export class TensorSwapSDK {
 
   // --------------------------------------- margin
 
+  //main signer: owner
   async initMarginAcc({
     owner,
     name,
@@ -1249,6 +1255,7 @@ export class TensorSwapSDK {
     };
   }
 
+  //main signer: owner
   async closeMarginAcc({
     marginNr,
     owner,
@@ -1280,6 +1287,7 @@ export class TensorSwapSDK {
     };
   }
 
+  //main signer: owner
   async depositMarginAcc({
     marginNr,
     owner,
@@ -1313,6 +1321,7 @@ export class TensorSwapSDK {
     };
   }
 
+  //main signer: owner
   async withdrawMarginAcc({
     marginNr,
     owner,
@@ -1348,6 +1357,7 @@ export class TensorSwapSDK {
     };
   }
 
+  //main signer: owner
   async attachPoolMargin({
     config,
     marginNr,
@@ -1402,6 +1412,7 @@ export class TensorSwapSDK {
     };
   }
 
+  //main signer: owner
   async detachPoolMargin({
     config,
     marginNr,
@@ -1468,7 +1479,7 @@ export class TensorSwapSDK {
     config,
     marginNr,
     freeze,
-    cosigner,
+    cosigner = TSWAP_COSIGNER,
   }: {
     whitelist: PublicKey;
     owner: PublicKey;
@@ -1532,7 +1543,7 @@ export class TensorSwapSDK {
     actualPrice,
     nftMetadata,
     marginNr,
-    cosigner,
+    cosigner = TSWAP_COSIGNER,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;

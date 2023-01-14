@@ -4,7 +4,7 @@ Instructions:
 At the top level (ie tensorswap/), run:
 
 1. See setup_data.ts instructions first
-2. 
+2.
     ```
     ANCHOR_WALLET=~/.config/solana/id.json \
     TENSORSWAP_ADDR=<tswap program id> \
@@ -13,18 +13,12 @@ At the top level (ie tensorswap/), run:
         yarn ts-node localnet/playground.ts
     ```
 */
-import {
-  TENSORSWAP_ADDR,
-  TensorWhitelistSDK,
-  TENSOR_WHITELIST_ADDR,
-} from "../src";
+import { TENSORSWAP_ADDR, TensorWhitelistSDK, TLIST_ADDR } from "../src";
 
 import { swapSdk, TEST_PROVIDER, wlSdk } from "../tests/shared";
 
 (async () => {
-  const twhAccs = await TEST_PROVIDER.connection.getProgramAccounts(
-    TENSOR_WHITELIST_ADDR
-  );
+  const twhAccs = await TEST_PROVIDER.connection.getProgramAccounts(TLIST_ADDR);
   console.log(
     twhAccs.length,
     twhAccs.map((acc) => ({
