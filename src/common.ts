@@ -146,4 +146,8 @@ const _parseType = <T>(v: T): string => {
   return typeof v;
 };
 
+export const isNullLike = <T>(v: T | null | undefined): v is null | undefined =>
+  v === null || v === undefined;
+
 // #endregion
+
