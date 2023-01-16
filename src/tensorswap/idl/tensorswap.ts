@@ -118,11 +118,6 @@ export type Tensorswap = {
           "isSigner": false
         },
         {
-          "name": "solEscrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "whitelist",
           "isMut": false,
           "isSigner": false,
@@ -2120,11 +2115,6 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "pool",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "solEscrow",
           "isMut": true,
           "isSigner": false
         },
