@@ -33,8 +33,16 @@ pub mod tensorswap {
         auth_seeds: [u8; 32],
         is_cosigned: bool,
         order_type: u8,
+        max_taker_sell_count: Option<u32>,
     ) -> Result<()> {
-        instructions::init_pool::handler(ctx, config, auth_seeds, is_cosigned, order_type)
+        instructions::init_pool::handler(
+            ctx,
+            config,
+            auth_seeds,
+            is_cosigned,
+            order_type,
+            max_taker_sell_count,
+        )
     }
 
     pub fn close_pool<'info>(
@@ -101,8 +109,9 @@ pub mod tensorswap {
         _old_config: PoolConfig,
         new_config: PoolConfig,
         is_cosigned: Option<bool>,
+        max_taker_sell_count: Option<u32>,
     ) -> Result<()> {
-        instructions::edit_pool::handler(ctx, new_config, is_cosigned)
+        instructions::edit_pool::handler(ctx, new_config, is_cosigned, max_taker_sell_count)
     }
 
     pub fn realloc_pool(ctx: Context<ReallocPool>, _config: PoolConfig) -> Result<()> {
@@ -161,6 +170,15 @@ pub mod tensorswap {
         actual_price: u64,
     ) -> Result<()> {
         instructions::take_snipe::handler(ctx, actual_price)
+    }
+
+    pub fn edit_pool_in_place(
+        ctx: Context<EditPoolInPlace>,
+        _config: PoolConfig,
+        is_cosigned: Option<bool>,
+        max_taker_sell_count: Option<u32>,
+    ) -> Result<()> {
+        instructions::edit_pool_in_place::handler(ctx, is_cosigned, max_taker_sell_count)
     }
 }
 
@@ -233,4 +251,8 @@ pub enum ErrorCode {
     WrongFrozenStatus = 31,
     #[msg("margin account has pools open and is in use")]
     MarginInUse = 32,
+    #[msg("max taker sell count exceeded, pool cannot buy anymore NFTs")]
+    MaxTakerSellCountExceeded = 33,
+    #[msg("max taker sell count is too small")]
+    MaxTakerSellCountTooSmall = 34,
 }

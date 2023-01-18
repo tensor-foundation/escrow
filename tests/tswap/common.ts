@@ -27,7 +27,6 @@ import {
   computeMakerAmountCount,
   computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
-  findMarginPDA,
   OrderType,
   PoolAnchor,
   PoolConfigAnchor,
@@ -44,7 +43,6 @@ import {
 import {
   ACCT_NOT_EXISTS_ERR,
   buildAndSendTx,
-  calcMinRent,
   generateTreeOfSize,
   getLamports,
   HUNDRED_PCT_BPS,
@@ -54,15 +52,10 @@ import {
   withLamports,
   wlSdk,
 } from "../shared";
-import { AnchorProvider, Wallet } from "@project-serum/anchor";
+import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
 import { testInitUpdateMintProof } from "../twhitelist/common";
 import { isNullLike, MINUTES } from "@tensor-hq/tensor-common";
-import {
-  SingleConnectionBroadcaster,
-  SolanaProvider,
-  TransactionEnvelope,
-} from "@saberhq/solana-contrib";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -715,6 +708,7 @@ export const testMakePool = async ({
   commitment,
   isCosigned = false,
   orderType = OrderType.Standard,
+  maxTakerSellCount,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -724,6 +718,7 @@ export const testMakePool = async ({
   customAuthSeed?: number[];
   isCosigned?: boolean;
   orderType?: OrderType;
+  maxTakerSellCount?: number;
 }) => {
   const {
     tx: { ixs },
@@ -737,6 +732,7 @@ export const testMakePool = async ({
     config,
     orderType,
     isCosigned,
+    maxTakerSellCount,
   });
 
   const sig = await buildAndSendTx({
@@ -765,6 +761,8 @@ export const testMakePool = async ({
   expect(poolAcc.orderType).to.eq(orderType);
   expect(poolAcc.frozen).to.be.null;
   expect(poolAcc.margin).to.be.null;
+  //v1.1
+  expect(poolAcc.maxTakerSellCount).to.be.eq(maxTakerSellCount ?? 0);
 
   const accConfig = poolAcc.config as PoolConfigAnchor;
   expect(Object.keys(config.poolType)[0] in accConfig.poolType).true;
@@ -847,14 +845,16 @@ export const testEditPool = async ({
   newConfig,
   commitment,
   isCosigned = null,
+  maxTakerSellCount,
 }: {
   tswap: PublicKey;
   owner: Keypair;
   whitelist: PublicKey;
   oldConfig: PoolConfigAnchor;
-  newConfig: PoolConfigAnchor;
+  newConfig?: PoolConfigAnchor;
   commitment?: Commitment;
   isCosigned?: null | boolean;
+  maxTakerSellCount?: number;
 }) => {
   const {
     tx: { ixs },
@@ -869,6 +869,7 @@ export const testEditPool = async ({
     oldConfig,
     newConfig,
     isCosigned,
+    maxTakerSellCount,
   });
 
   //collect data from old pool which we're about to close
@@ -890,50 +891,67 @@ export const testEditPool = async ({
     opts: { commitment },
   });
 
-  // Old should be closed
-  await expect(swapSdk.fetchPool(oldPoolPda)).rejectedWith(ACCT_NOT_EXISTS_ERR);
-  await expect(swapSdk.fetchSolEscrow(oldSolEscrowPda)).rejectedWith(
-    ACCT_NOT_EXISTS_ERR
-  );
+  let newPool;
+  let newConfigAssigned;
 
-  // New should be open
-  const newPoolAcc = await swapSdk.fetchPool(newPoolPda);
-  expect(newPoolAcc.version).eq(CURRENT_POOL_VERSION);
-  expect(newPoolAcc.owner.toBase58()).eq(owner.publicKey.toBase58());
-  expect(newPoolAcc.tswap.toBase58()).eq(tswap.toBase58());
-  expect(newPoolAcc.whitelist.toBase58()).eq(whitelist.toBase58());
-  expect(newPoolAcc.takerBuyCount).eq(0);
-  expect(newPoolAcc.takerSellCount).eq(0);
-  expect(newPoolAcc.nftsHeld).eq(prevNfts);
+  if (!isNullLike(newConfig)) {
+    // Old should be closed
+    await expect(swapSdk.fetchPool(oldPoolPda)).rejectedWith(
+      ACCT_NOT_EXISTS_ERR
+    );
+    await expect(swapSdk.fetchSolEscrow(oldSolEscrowPda)).rejectedWith(
+      ACCT_NOT_EXISTS_ERR
+    );
+
+    // New should be open
+    newPool = await swapSdk.fetchPool(newPoolPda);
+    newConfigAssigned = newConfig;
+
+    expect(newPool.takerBuyCount).eq(0);
+    expect(newPool.takerSellCount).eq(0);
+  } else {
+    //refetch
+    newPool = await swapSdk.fetchPool(oldPoolPda);
+    newConfigAssigned = oldConfig;
+
+    expect(newPool.takerBuyCount).eq(prevBuys);
+    expect(newPool.takerSellCount).eq(prevSells);
+  }
+
+  expect(newPool.version).eq(CURRENT_POOL_VERSION);
+  expect(newPool.owner.toBase58()).eq(owner.publicKey.toBase58());
+  expect(newPool.tswap.toBase58()).eq(tswap.toBase58());
+  expect(newPool.whitelist.toBase58()).eq(whitelist.toBase58());
+
+  expect(newPool.nftsHeld).eq(prevNfts);
   //v0.3 - check new pool is pointing to authority
-  expect(newPoolAcc.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
+  expect(newPool.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
   //stats
-  expect(newPoolAcc.stats.takerBuyCount).eq(prevBuys);
-  expect(newPoolAcc.stats.takerSellCount).eq(prevSells);
-  expect(newPoolAcc.stats.accumulatedMmProfit.toNumber()).eq(
+  expect(newPool.stats.takerBuyCount).eq(prevBuys);
+  expect(newPool.stats.takerSellCount).eq(prevSells);
+  expect(newPool.stats.accumulatedMmProfit.toNumber()).eq(
     prevMmProfit.toNumber()
   );
-  expect(newPoolAcc.createdUnixSeconds.toNumber()).eq(
+  expect(newPool.createdUnixSeconds.toNumber()).eq(
     oldPool.createdUnixSeconds.toNumber()
   );
 
-  const accConfig = newPoolAcc.config as PoolConfigAnchor;
-  expect(Object.keys(newConfig.poolType)[0] in accConfig.poolType).true;
+  const accConfig = newPool.config as PoolConfigAnchor;
+  expect(Object.keys(newConfigAssigned.poolType)[0] in accConfig.poolType).true;
   expect(JSON.stringify(accConfig.curveType)).eq(
-    JSON.stringify(newConfig.curveType)
+    JSON.stringify(newConfigAssigned.curveType)
   );
   expect(accConfig.startingPrice.toNumber()).eq(
-    newConfig.startingPrice.toNumber()
+    newConfigAssigned.startingPrice.toNumber()
   );
-  expect(accConfig.delta.toNumber()).eq(newConfig.delta.toNumber());
+  expect(accConfig.delta.toNumber()).eq(newConfigAssigned.delta.toNumber());
   // Royalties enforced atm.
   expect(accConfig.honorRoyalties).eq(true);
-  if (newConfig.poolType === PoolTypeAnchor.Trade) {
-    expect(accConfig.mmFeeBps).eq(newConfig.mmFeeBps);
+  if (newConfigAssigned.poolType === PoolTypeAnchor.Trade) {
+    expect(accConfig.mmFeeBps).eq(newConfigAssigned.mmFeeBps);
   } else {
     expect(accConfig.mmFeeBps).eq(null);
   }
-
   expect(await getLamports(newSolEscrowPda)).eq(
     (await swapSdk.getSolEscrowRent()) + prevDepositedLamports
   );
@@ -943,16 +961,21 @@ export const testEditPool = async ({
   expect(authAcc.pool.toBase58()).eq(newPoolPda.toBase58());
 
   //v1
-  expect(newPoolAcc.isCosigned).to.eq(isCosigned ?? prevCosigned);
-  expect(newPoolAcc.orderType).to.eq(prevOrderType);
-  expect(newPoolAcc.frozen).to.eq(prevFrozen);
-  expect(newPoolAcc.margin).to.deep.eq(prevMargin);
+  expect(newPool.isCosigned).to.eq(isCosigned ?? prevCosigned);
+  expect(newPool.orderType).to.eq(prevOrderType);
+  expect(newPool.frozen).to.eq(prevFrozen);
+  expect(newPool.margin).to.deep.eq(prevMargin);
+
+  //v1.1
+  expect(newPool.maxTakerSellCount).to.be.eq(
+    maxTakerSellCount ?? oldPool.maxTakerSellCount
+  );
 
   return {
     sig,
     oldPoolPda,
     newPoolPda,
-    newPoolAcc,
+    newPoolAcc: newPool,
     nftAuthPda,
     newSolEscrowPda,
   };

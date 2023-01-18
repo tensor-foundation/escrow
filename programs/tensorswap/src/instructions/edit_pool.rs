@@ -1,6 +1,4 @@
 //! User editing a pool, which actually 1)closes old one, 2)inits new one, 3)shifts nft authority
-use std::str::FromStr;
-
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -135,31 +133,8 @@ pub fn handler(
     ctx: Context<EditPool>,
     new_config: PoolConfig,
     is_cosigned: Option<bool>,
+    max_taker_sell_count: Option<u32>,
 ) -> Result<()> {
-    let whitelist = &ctx.accounts.whitelist;
-
-    let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
-    //we have to make sure the passed whitelist PDA is not malicious. Checks:
-    // (Don't think this is necessary, but why not)
-    //1/3: make sure it's owned by the hardcoded WL program
-    if *whitelist.to_account_info().owner != hardcoded_whitelist_prog {
-        throw_err!(BadWhitelist);
-    }
-
-    //2/3: make sure uuid + WL prog address -> correct seeds
-    let (derived_whitelist, bump) =
-        Pubkey::find_program_address(&[&whitelist.uuid], &hardcoded_whitelist_prog);
-    if derived_whitelist != whitelist.key() || bump != whitelist.bump {
-        throw_err!(BadWhitelist);
-    }
-
-    //3/3: make sure whitelist is verified
-    if !whitelist.verified {
-        throw_err!(WhitelistNotVerified);
-    }
-
-    // --------------------------------------- serialize new pool
-
     let new_pool = &mut ctx.accounts.new_pool;
     let old_pool = &ctx.accounts.old_pool;
 
@@ -184,6 +159,13 @@ pub fn handler(
     //2-way link between the authority and the pool
     new_pool.nft_authority = ctx.accounts.nft_authority.key();
 
+    new_pool.order_type = old_pool.order_type;
+    //technically you can't edit frozen pools, but won't hurt
+    new_pool.frozen = old_pool.frozen;
+    new_pool.margin = old_pool.margin;
+
+    // --------------------------------------- (!!!) SYNC WITH EDIT POOL
+
     //need to be able to adjust this boolean when broad order <--> narrow (trait specific)
     match is_cosigned {
         Some(is_cosigned) => {
@@ -199,20 +181,29 @@ pub fn handler(
             new_pool.is_cosigned = old_pool.is_cosigned;
         }
     }
-    new_pool.order_type = old_pool.order_type;
-    //technically you can't edit frozen pools, but won't hurt
-    new_pool.frozen = old_pool.frozen;
-    new_pool.margin = old_pool.margin;
 
-    // --------------------------------------- update authority
+    match max_taker_sell_count {
+        Some(max_taker_sell_count) => {
+            //requires that the count is below what the pool already bought,
+            //except if it's 0, which simply means disabling it
+            if max_taker_sell_count != 0 && max_taker_sell_count < old_pool.stats.taker_sell_count {
+                throw_err!(MaxTakerSellCountTooSmall);
+            }
+            new_pool.max_taker_sell_count = max_taker_sell_count;
+        }
+        None => {
+            new_pool.max_taker_sell_count = old_pool.max_taker_sell_count;
+        }
+    }
+
+    // --------------------------------------- (!!!) SYNC WITH EDIT POOL END
 
     let auth = &mut ctx.accounts.nft_authority;
 
     //2-way link between the authority and the pool
     auth.pool = ctx.accounts.new_pool.key();
 
-    // --------------------------------------- move lamports from old to new pool
-
+    //move lamports from old to new pool
     ctx.accounts.transfer_lamports_from_old_to_new_pool()?;
 
     Ok(())

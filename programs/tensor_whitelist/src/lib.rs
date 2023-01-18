@@ -374,6 +374,7 @@ impl Authority {
 pub struct Whitelist {
     pub version: u8,
     pub bump: u8,
+    /// DEPRECATED, doesn't do anything
     pub verified: bool,
     /// in the case when not present will be [u8; 32]
     pub root_hash: [u8; 32],

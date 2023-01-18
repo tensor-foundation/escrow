@@ -1,6 +1,4 @@
 //! User creating a (empty) pool to trade NFTs (buy, sell or both)
-use std::str::FromStr;
-
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -111,31 +109,8 @@ pub fn handler<'info>(
     auth_seeds: [u8; 32],
     is_cosigned: bool,
     order_type: u8,
+    max_taker_sell_count: Option<u32>,
 ) -> Result<()> {
-    let whitelist = &ctx.accounts.whitelist;
-
-    let hardcoded_whitelist_prog = Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
-    //we have to make sure the passed whitelist PDA is not malicious. Checks:
-    // (Don't think this is necessary, but why not)
-    //1/3: make sure it's owned by the hardcoded WL program
-    if *whitelist.to_account_info().owner != hardcoded_whitelist_prog {
-        throw_err!(BadWhitelist);
-    }
-
-    //2/3: make sure uuid + WL prog address -> correct seeds
-    let (derived_whitelist, bump) =
-        Pubkey::find_program_address(&[&whitelist.uuid], &hardcoded_whitelist_prog);
-    if derived_whitelist != whitelist.key() || bump != whitelist.bump {
-        throw_err!(BadWhitelist);
-    }
-
-    //3/3: make sure whitelist is verified
-    if !whitelist.verified {
-        throw_err!(WhitelistNotVerified);
-    }
-
-    // --------------------------------------- serialize pool
-
     let pool = &mut ctx.accounts.pool;
 
     pool.version = CURRENT_POOL_VERSION;
@@ -168,6 +143,10 @@ pub fn handler<'info>(
     //all pools start off as non-marginated, and can be attached later
     pool.margin = None;
     pool.last_transacted_seconds = Clock::get()?.unix_timestamp;
+
+    if let Some(max_taker_sell_count) = max_taker_sell_count {
+        pool.max_taker_sell_count = max_taker_sell_count;
+    }
 
     // --------------------------------------- serialize authority
 

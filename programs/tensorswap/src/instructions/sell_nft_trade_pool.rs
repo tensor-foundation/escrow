@@ -70,6 +70,8 @@ impl<'info> Validate<'info> for SellNftTradePool<'info> {
             throw_err!(PoolFrozen);
         }
 
+        self.shared.pool.taker_allowed_to_sell()?;
+
         Ok(())
     }
 }

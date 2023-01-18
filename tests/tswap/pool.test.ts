@@ -40,7 +40,7 @@ import {
   TSWAP_CONFIG,
   TSWAP_FEE_PCT,
 } from "./common";
-import { castPoolTypeAnchor, PoolType } from "../../src";
+import { castPoolTypeAnchor, findNftAuthorityPDA, PoolType } from "../../src";
 
 describe("tswap pool", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -461,6 +461,7 @@ describe("tswap pool", () => {
           owner,
           config,
           whitelist,
+          maxTakerSellCount: 55,
         });
         const pool = await swapSdk.fetchPool(poolPda);
         const dateMs = pool.createdUnixSeconds.toNumber() * 1000;
@@ -477,6 +478,7 @@ describe("tswap pool", () => {
           newConfig,
           oldConfig: config,
           whitelist,
+          maxTakerSellCount: 111,
         });
         const newPool = await swapSdk.fetchPool(newPoolPda);
         const newDateMs = newPool.createdUnixSeconds.toNumber() * 1000;
@@ -485,6 +487,310 @@ describe("tswap pool", () => {
         expect(newDateMs).gte(Date.now() - 3 * 86400 * 1000);
       })
     );
+  });
+
+  it("init/edit correctly handles maxTakerSellCount", async () => {
+    const [owner, seller] = await makeNTraders(2);
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(seller, owner);
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(seller, owner);
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(seller, owner);
+    const {
+      proofs: [wlNft1, wlNft2, wlNft3],
+      whitelist,
+    } = await makeProofWhitelist([mint1, mint2, mint3], 100);
+
+    // --------------------------------------- allowed sell count 1
+
+    const config = tokenPoolConfig;
+    const { poolPda, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+      maxTakerSellCount: 1,
+    });
+    const expectedLamports = defaultSellExpectedLamports(true);
+    const minLamports = adjustSellMinLamports(true, expectedLamports);
+
+    await testDepositSol({
+      pool: poolPda,
+      config,
+      owner,
+      lamports: expectedLamports * 10, //more than enough
+      whitelist,
+    });
+
+    //sel once = ok
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft1,
+      ata: ata1,
+      nftAuthPda,
+      poolPda,
+      sellType: "token",
+      owner,
+      seller,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //try to sell again = fails
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft: wlNft2,
+        ata: ata2,
+        nftAuthPda,
+        poolPda,
+        sellType: "token",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+
+    // --------------------------------------- allowed sell count 2
+
+    //edit pool to increase allowed sell count to 2
+    const newConfig = { ...config, delta: new BN(1) };
+    const { newPoolPda } = await testEditPool({
+      tswap,
+      owner,
+      newConfig,
+      oldConfig: config,
+      whitelist,
+      maxTakerSellCount: 2,
+    });
+
+    //sell 2nd = ok
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft2,
+      ata: ata2,
+      nftAuthPda,
+      poolPda: newPoolPda,
+      sellType: "token",
+      owner,
+      seller,
+      config: newConfig,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //try to sell again = fails
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft: wlNft3,
+        ata: ata3,
+        nftAuthPda,
+        poolPda: newPoolPda,
+        sellType: "token",
+        owner,
+        seller,
+        config: newConfig,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+
+    //try to edit down from 2 to 1 = fails
+    const newConfig2 = { ...config, delta: new BN(2) };
+    await expect(
+      testEditPool({
+        tswap,
+        owner,
+        newConfig: newConfig2,
+        oldConfig: newConfig,
+        whitelist,
+        maxTakerSellCount: 1,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountTooSmall"));
+
+    // --------------------------------------- allowed sell count 0 (unlimited)
+
+    //edit pool 2nd time, this time set max taker count to 0
+    const { newPoolPda: newPoolPda2 } = await testEditPool({
+      tswap,
+      owner,
+      newConfig: newConfig2,
+      oldConfig: newConfig,
+      whitelist,
+      maxTakerSellCount: 0,
+    });
+
+    //sell 2nd = ok
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft3,
+      ata: ata3,
+      nftAuthPda,
+      poolPda: newPoolPda2,
+      sellType: "token",
+      owner,
+      seller,
+      config: newConfig2,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+  });
+
+  it("init/edit correctly handles maxTakerSellCount (use edit in place)", async () => {
+    const [owner, seller] = await makeNTraders(2);
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(seller, owner);
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(seller, owner);
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(seller, owner);
+    const {
+      proofs: [wlNft1, wlNft2, wlNft3],
+      whitelist,
+    } = await makeProofWhitelist([mint1, mint2, mint3], 100);
+
+    // --------------------------------------- allowed sell count 1
+
+    //make the pool with no delta so that math is easy
+    const config = { ...tokenPoolConfig, delta: new BN(0) };
+    const { poolPda, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+      maxTakerSellCount: 1,
+    });
+    const expectedLamports = defaultSellExpectedLamports(true);
+    const minLamports = adjustSellMinLamports(true, expectedLamports);
+
+    await testDepositSol({
+      pool: poolPda,
+      config,
+      owner,
+      lamports: expectedLamports * 10, //more than enough
+      whitelist,
+    });
+
+    //sel once = ok
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft1,
+      ata: ata1,
+      nftAuthPda,
+      poolPda,
+      sellType: "token",
+      owner,
+      seller,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //try to sell again = fails
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft: wlNft2,
+        ata: ata2,
+        nftAuthPda,
+        poolPda,
+        sellType: "token",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+
+    // --------------------------------------- allowed sell count 2
+
+    //edit pool to increase allowed sell count to 2
+    const { newPoolPda } = await testEditPool({
+      tswap,
+      owner,
+      oldConfig: config,
+      whitelist,
+      maxTakerSellCount: 2,
+    });
+
+    //sell 2nd = ok
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft2,
+      ata: ata2,
+      nftAuthPda,
+      poolPda: newPoolPda,
+      sellType: "token",
+      owner,
+      seller,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //try to sell again = fails
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft: wlNft3,
+        ata: ata3,
+        nftAuthPda,
+        poolPda: newPoolPda,
+        sellType: "token",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+
+    //try to edit down from 2 to 1 = fails
+    await expect(
+      testEditPool({
+        tswap,
+        owner,
+        oldConfig: config,
+        whitelist,
+        maxTakerSellCount: 1,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountTooSmall"));
+
+    // --------------------------------------- allowed sell count 0 (unlimited)
+
+    //edit pool 2nd time, this time set max taker count to 0
+    const { newPoolPda: newPoolPda2 } = await testEditPool({
+      tswap,
+      owner,
+      oldConfig: config,
+      whitelist,
+      maxTakerSellCount: 0,
+    });
+
+    //sell 2nd = ok
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft3,
+      ata: ata3,
+      nftAuthPda,
+      poolPda: newPoolPda2,
+      sellType: "token",
+      owner,
+      seller,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
   });
 
   it("editing pool transfers stats ok", async () => {

@@ -178,8 +178,12 @@ pub struct Pool {
     /// Last time a buy or sell order has been executed
     pub last_transacted_seconds: i64,
 
+    //v1.1
+    /// Limit how many buys a pool can execute - useful for cross-margin, else keeps buying into infinity
+    // Ideally would use an option here, but not enough space w/o migrating pools, hence 0 = no restriction
+    pub max_taker_sell_count: u32,
     // (!) make sure aligns with last number in SIZE
-    pub _reserved: [u8; 4],
+    // pub _reserved: [u8; 0],
 }
 
 impl Pool {
@@ -198,6 +202,17 @@ impl Pool {
         + Frozen::SIZE + 1
         + 8
         + 4;
+
+    pub fn taker_allowed_to_sell(&self) -> Result<()> {
+        //0 indicates no restriction on buy count
+        if self.max_taker_sell_count == 0 {
+            return Ok(());
+        }
+        if self.stats.taker_sell_count >= self.max_taker_sell_count {
+            throw_err!(MaxTakerSellCountExceeded);
+        }
+        Ok(())
+    }
 
     pub fn sol_escrow_seeds<'a>(&'a self, pool_key: &'a Pubkey) -> [&'a [u8]; 3] {
         [b"sol_escrow", pool_key.as_ref(), &self.sol_escrow_bump]
@@ -490,7 +505,8 @@ mod tests {
                 margin: None,
                 is_cosigned: false,
                 last_transacted_seconds: 0,
-                _reserved: [0; 4],
+                max_taker_sell_count: 10,
+                // _reserved: [0; 4],
             }
         }
     }
