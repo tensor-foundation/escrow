@@ -81,8 +81,22 @@ describe("prices helper functions", () => {
     }
   });
 
-  // todo: add more computeMakerAmountCount tests.
-  it("computeMakerAmountCount works for selling into trade pool", async () => {
+  /*
+  computeMakerAmountCount test cases (for all, test both count + total method):
+
+  For sells, make sure to test before + beyond max cap (ie into neagtive prices):
+  (1) Sell x linear x trade (mm fee)
+  (2) Sell x linear x token
+  (3) Sell x exp x trade (mm fee) 
+  (4) Sell x exp x token
+
+  (1) Buy x linear x NFT/trade
+  (2) Buy x exp x NFT/trade
+  */
+
+  // ================= Sell taker side =================
+
+  it("(1) computeMakerAmountCount works for selling into trade pool", async () => {
     // Compute amount for 3 NFTs selling into trade pool (most complex).
     const baseConfig = {
       desired: { count: 3 },
@@ -99,37 +113,37 @@ describe("prices helper functions", () => {
       takerSide: TakerSide.Sell,
       extraNFTsSelected: 0,
     };
+    // startSellPrice * mm Fee = 1.9*0.966
+    const startPrice = 1.8354 * LAMPORTS_PER_SOL;
+
     let { totalAmount, allowedCount, initialPrice } =
       computeMakerAmountCount(baseConfig);
-    // 1.9*0.966 + 1.8*0.966 + 1.7*0.966
+    // 3 sells: 1.9*0.966 + 1.8*0.966 + 1.7*0.966
     expect(totalAmount.toNumber()).eq(5.2164 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(3);
-    // 1.9*0.966
-    expect(initialPrice!.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(startPrice);
 
     // 0.0001 lamport less than required for 3.
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
       ...baseConfig,
       desired: { total: new BN(5.2163 * LAMPORTS_PER_SOL) },
     }));
-    // 1.9*0.966 + 1.8*0.966
+    // Just 2 sells: 1.9*0.966 + 1.8*0.966
     expect(totalAmount.toNumber()).eq(3.5742 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(2);
-    // 1.9*0.966
-    expect(initialPrice!.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(startPrice);
 
-    // 0.0001 lamport more than required for 3.
+    // 0.0001 lamport more than required = still 3.
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
       ...baseConfig,
       desired: { total: new BN(5.2165 * LAMPORTS_PER_SOL) },
     }));
-    // 1.9*0.966 + 1.8*0.966 + 1.7*0.966
+    // 3 sells: 1.9*0.966 + 1.8*0.966 + 1.7*0.966
     expect(totalAmount.toNumber()).eq(5.2164 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(3);
-    // 1.9*0.966
-    expect(initialPrice!.toNumber()).eq(1.8354 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(startPrice);
 
-    // ---- non-zero taker counts
+    // ---- non-zero taker counts ----
 
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
       ...baseConfig,
@@ -137,28 +151,47 @@ describe("prices helper functions", () => {
       takerSellCount: 5,
       takerBuyCount: 3,
     }));
-    // 1.7*0.966 + 1.6*0.966 + 1.5*0.966
+    // 3 sells at lower prices: 1.7*0.966 + 1.6*0.966 + 1.5*0.966
     expect(totalAmount.toNumber()).eq(4.6368 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(3);
-    // 1.7*0.966
+    // new start price: 1.7*0.966
     expect(initialPrice!.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
 
     // With total now
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
       ...baseConfig,
       desired: { total: new BN(4 * LAMPORTS_PER_SOL) },
-      // Start price should now be 2 - 2*0.1 = 1.8
       takerSellCount: 5,
       takerBuyCount: 3,
     }));
     expect(totalAmount.toNumber()).eq(3.1878 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(2);
-    // 1.7*0.966
     expect(initialPrice!.toNumber()).eq(1.6422 * LAMPORTS_PER_SOL);
+
+    // ---- sell beyond max amount ----
+    {
+      // Sell from 1.9, 1.8, ...: 0.966 * (0 + ... + 1.9) = 0.966 * 19 = 18.354
+      const total = 18.354 * LAMPORTS_PER_SOL;
+
+      ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+        ...baseConfig,
+        desired: { total: new BN(10000 * LAMPORTS_PER_SOL) },
+      }));
+      expect(totalAmount.toNumber()).eq(total);
+      expect(allowedCount).eq(20);
+      expect(initialPrice!.toNumber()).eq(startPrice);
+
+      ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+        ...baseConfig,
+        desired: { count: 21 },
+      }));
+      expect(totalAmount.toNumber()).eq(total);
+      expect(allowedCount).eq(20);
+      expect(initialPrice!.toNumber()).eq(startPrice);
+    }
   });
 
-  it("computeMakerAmountCount behaves fine with 0 and negative prices", async () => {
-    // Compute amount for 3 NFTs selling into trade pool (most complex).
+  it("(2) computeMakerAmountCount behaves fine with 0 and negative prices", async () => {
     const baseConfig = {
       desired: { total: new BN(2 * LAMPORTS_PER_SOL) },
       config: {
@@ -174,7 +207,6 @@ describe("prices helper functions", () => {
       takerSide: TakerSide.Sell,
       extraNFTsSelected: 0,
     };
-
     // No sells: 0.1 start price, can sell twice.
     let { totalAmount, allowedCount, initialPrice } =
       computeMakerAmountCount(baseConfig);
@@ -199,9 +231,48 @@ describe("prices helper functions", () => {
     expect(totalAmount.toNumber()).eq(0 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(0);
     expect(initialPrice).null;
+
+    // ---- sell beyond max amount ----
+    ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+      ...baseConfig,
+      desired: { count: 3 },
+    }));
+    expect(totalAmount.toNumber()).eq(0.1 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(2);
+    expect(initialPrice!.toNumber()).eq(0.1 * LAMPORTS_PER_SOL);
+
+    // ---- 0 price + delta ----
+    ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+      ...baseConfig,
+      config: {
+        ...baseConfig.config,
+        // 0 for both.
+        startingPrice: new Big(0),
+        delta: new Big(0),
+      },
+      maxCount: 123,
+    }));
+    expect(totalAmount.toNumber()).eq(0);
+    expect(allowedCount).eq(123);
+    expect(initialPrice!.toNumber()).eq(0);
+
+    // ---- 0 delta ----
+    ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+      ...baseConfig,
+      config: {
+        ...baseConfig.config,
+        // super low price.
+        startingPrice: new Big(1),
+        delta: new Big(0),
+      },
+      maxCount: 123,
+    }));
+    expect(totalAmount.toNumber()).eq(123);
+    expect(allowedCount).eq(123);
+    expect(initialPrice!.toNumber()).eq(1);
   });
 
-  it("computeMakerAmountCount adds small negative slippage for exponential curves", async () => {
+  it("(3) computeMakerAmountCount adds small negative slippage for exponential curves", async () => {
     const baseConfig = {
       desired: { count: 2 },
       config: {
@@ -217,12 +288,15 @@ describe("prices helper functions", () => {
       takerSide: TakerSide.Sell,
       extraNFTsSelected: 0,
     };
+    // sell price * mm fee = 1/1.1 * 0.9
+    const startPrice = 818181818;
+
     let { totalAmount, allowedCount, initialPrice } =
       computeMakerAmountCount(baseConfig);
-    // 1/1.1 * 0.9 * 1.001 + 1/1.1^2 * 0.9 * 1.001
+    // 3 sells: 1/1.1 * 0.9 * 1.001 + 1/1.1^2 * 0.9 * 1.001
     expect(totalAmount.toNumber()).eq(1563545455);
     expect(allowedCount).eq(2);
-    expect(initialPrice!.toNumber()).eq(0.819 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(startPrice);
 
     // Now inverse (specify amount) should give the same amount.
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
@@ -231,11 +305,34 @@ describe("prices helper functions", () => {
     }));
     expect(totalAmount.toNumber()).eq(1563545455);
     expect(allowedCount).eq(2);
-    expect(initialPrice!.toNumber()).eq(0.819 * LAMPORTS_PER_SOL);
+    expect(initialPrice!.toNumber()).eq(startPrice);
+
+    // ---- sell beyond max amount ----
+
+    ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+      ...baseConfig,
+      desired: { count: 1234 },
+      maxCount: 691,
+    }));
+    expect(totalAmount.toNumber()).eq(9009000000);
+    // This works because we're using count.
+    expect(allowedCount).eq(1234);
+    expect(initialPrice!.toNumber()).eq(startPrice);
+
+    ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+      ...baseConfig,
+      desired: { total: new BN(1000 * LAMPORTS_PER_SOL) },
+      maxCount: 691,
+    }));
+    expect(totalAmount.toNumber()).eq(9009000000);
+    // Capped out b/c price is 0.
+    expect(allowedCount).eq(691);
+    expect(initialPrice!.toNumber()).eq(startPrice);
   });
 });
 
-it("computeMakerAmountCount max count works for infinite expo sell curve", async () => {
+it("(4) computeMakerAmountCount max count works for infinite expo sell curve", async () => {
+  const maxCount = 691;
   const baseConfig = {
     desired: { total: new BN(0) },
     config: {
@@ -252,11 +349,156 @@ it("computeMakerAmountCount max count works for infinite expo sell curve", async
     takerSide: TakerSide.Sell,
     extraNFTsSelected: 0,
     // Check that this works.
-    maxCount: 691,
+    maxCount,
   };
   let { totalAmount, allowedCount, initialPrice } =
     computeMakerAmountCount(baseConfig);
   expect(totalAmount.toNumber()).eq(0);
-  expect(allowedCount).eq(691);
+  expect(allowedCount).eq(maxCount);
   expect(initialPrice!.toNumber()).eq(0);
+
+  ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
+    ...baseConfig,
+    desired: { total: new BN(123) },
+    config: {
+      ...baseConfig.config,
+      startingPrice: new Big(5),
+    },
+  }));
+  // We keep selling with 1/1.1 exponential decay: 5 * \sum n = 0 to infinity, 1/1.1^n
+  expect(totalAmount.toNumber()).eq(55);
+  expect(allowedCount).eq(maxCount);
+  expect(initialPrice!.toNumber()).eq(5);
+});
+
+// ================= Buy taker side =================
+
+it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () => {
+  // ---- Linear ----
+  for (const poolType of [PoolType.Token, PoolType.Trade]) {
+    const startingPrice = new Big(10 * LAMPORTS_PER_SOL);
+    {
+      const baseConfig = {
+        desired: { count: 5 },
+        config: {
+          poolType,
+          curveType: CurveType.Linear,
+          startingPrice,
+          delta: new Big(1 * LAMPORTS_PER_SOL),
+          // NB: no fee charged!
+          mmFeeBps: poolType === PoolType.Token ? null : 500,
+          honorRoyalties: true,
+        },
+        takerBuyCount: 0,
+        takerSellCount: 0,
+        takerSide: TakerSide.Buy,
+        extraNFTsSelected: 0,
+      };
+
+      {
+        const { totalAmount, allowedCount, initialPrice } =
+          computeMakerAmountCount(baseConfig);
+        // 5 buys: 10 + 11 + 12 + 13 + 14
+        expect(totalAmount.toNumber()).eq(60 * LAMPORTS_PER_SOL);
+        expect(allowedCount).eq(5);
+        expect(initialPrice!.toNumber()).eq(startingPrice.toNumber());
+      }
+
+      // Works with amount.
+      {
+        for (const amount of [60, 61, 74]) {
+          const { totalAmount, allowedCount, initialPrice } =
+            computeMakerAmountCount({
+              ...baseConfig,
+              desired: { total: new BN(amount * LAMPORTS_PER_SOL) },
+            });
+          expect(totalAmount.toNumber()).eq(60 * LAMPORTS_PER_SOL);
+          expect(allowedCount).eq(5);
+          expect(initialPrice!.toNumber()).eq(startingPrice.toNumber());
+        }
+      }
+
+      // ---- 0 price + delta ----
+      {
+        const { totalAmount, allowedCount, initialPrice } =
+          computeMakerAmountCount({
+            ...baseConfig,
+            desired: { total: new BN(1000) },
+            config: {
+              ...baseConfig.config,
+              // 0 for both.
+              startingPrice: new Big(0),
+              delta: new Big(0),
+            },
+            maxCount: 123,
+          });
+        expect(totalAmount.toNumber()).eq(0);
+        expect(allowedCount).eq(123);
+        expect(initialPrice!.toNumber()).eq(0);
+      }
+
+      // ---- 0 delta ----
+      {
+        const { totalAmount, allowedCount, initialPrice } =
+          computeMakerAmountCount({
+            ...baseConfig,
+            desired: { total: new BN(2000) },
+            config: {
+              ...baseConfig.config,
+              // super low price.
+              startingPrice: new Big(1),
+              delta: new Big(0),
+            },
+            // Ignored: can keep buying.
+            maxCount: 123,
+          });
+        expect(totalAmount.toNumber()).eq(2000);
+        expect(allowedCount).eq(2000);
+        expect(initialPrice!.toNumber()).eq(1);
+      }
+    }
+
+    // ---- Exp ----
+    const baseConfig = {
+      desired: { count: 5 },
+      config: {
+        poolType,
+        curveType: CurveType.Exponential,
+        startingPrice,
+        delta: new Big(1000),
+        // NB: no fee charged!
+        mmFeeBps: poolType === PoolType.Token ? null : 500,
+        honorRoyalties: true,
+      },
+      takerBuyCount: 0,
+      takerSellCount: 0,
+      takerSide: TakerSide.Buy,
+      extraNFTsSelected: 0,
+    };
+    // Negative slippage!
+    // 0.1% negative slippage * 5 buys: 1.001 * (10 + 10*1.1 + 10*1.1^2 + 10*1.1^3 + 10*1.1^4)
+    const expectedTotal = 61.112051 * LAMPORTS_PER_SOL;
+
+    {
+      const { totalAmount, allowedCount, initialPrice } =
+        computeMakerAmountCount(baseConfig);
+      expect(totalAmount.toNumber()).eq(expectedTotal);
+      expect(allowedCount).eq(5);
+      expect(initialPrice!.toNumber()).eq(startingPrice.toNumber());
+    }
+
+    // Works with amount.
+    {
+      for (const amount of [61.112051, 61.112052, 77.156]) {
+        const { totalAmount, allowedCount, initialPrice } =
+          computeMakerAmountCount({
+            ...baseConfig,
+            desired: { total: new BN(amount * LAMPORTS_PER_SOL) },
+          });
+        expect(totalAmount.toNumber()).eq(expectedTotal);
+        expect(allowedCount).eq(5);
+        expect(initialPrice!.toNumber()).eq(startingPrice.toNumber());
+      }
+    }
+  }
 });

@@ -90,6 +90,7 @@ jobs:
       fail-fast: false
       matrix:
         node:
+          - glob: tests/prices.spec.ts
           - glob: tests/tswap/buy.test.ts
           - glob: tests/tswap/cosigner.test.ts
           - glob: tests/tswap/deposit.test.ts
@@ -97,6 +98,10 @@ jobs:
           - glob: tests/tswap/sell.test.ts
           - glob: tests/tswap/tswap.test.ts
           - glob: tests/tswap/withdraw.test.ts
+          # No need to run
+          # - glob: tests/tswap/size.test.ts
+          - glob: tests/tswap/snipe.test.ts
+          - glob: tests/tswap/margin.test.ts
           - glob: tests/twhitelist/whitelist.test.ts
           - glob: tests/twhitelist/mint_proof.test.ts
     steps:

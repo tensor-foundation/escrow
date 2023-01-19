@@ -6,6 +6,8 @@ target
 **/*.rs.bk
 node_modules
 test-ledger
+.yarn/*
+!.yarn/releases/
 
 # Private keys/secrets
 *.jks

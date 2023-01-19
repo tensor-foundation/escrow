@@ -17,12 +17,12 @@
     "build:test": "anchor build -- --features testing && bash scripts/cp_idl.sh",
     "test": "bash scripts/full_test.sh",
     "fast-test": "anchor test --skip-build -- --features testing",
-    "pub": "rm -rf ./dist && yarn tsc && yarn publish --patch",
+    "pub": "rm -rf ./dist && yarn tsc && yarn npm publish --patch",
     "push": "git push --follow-tags",
     "pubpush": "yarn pub && yarn push",
-    "pubpush_manual": "rm -rf ./dist && yarn tsc && yarn publish && yarn push",
-    "upgrade:tswap": "yarn upgrade @tensor/tensorswap-ts --latest --check-files",
-    "upgrade:anchor": "yarn upgrade @project-serum/anchor --latest --check-files"
+    "pubpush_manual": "rm -rf ./dist && yarn tsc && yarn npm publish && yarn push",
+    "upgrade:tswap": "yarn up @tensor/tensorswap-ts",
+    "upgrade:anchor": "yarn up @project-serum/anchor"
   },
   "dependencies": {
     "@metaplex-foundation/js": "^0.17.5",
@@ -60,5 +60,6 @@
     "typescript": "^4.3.5",
     "uuid": "^8.3.2",
     "yargs": "^17.5.1"
-  }
+  },
+  "packageManager": "yarn@3.3.1"
 }
