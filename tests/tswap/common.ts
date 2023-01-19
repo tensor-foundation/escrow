@@ -427,6 +427,8 @@ export const computeDepositAmount = ({
       takerBuyCount: 0,
       takerSellCount: 0,
       extraNFTsSelected: 0,
+      maxTakerSellCount: 0,
+      statsTakerSellCount: 0,
     }).totalAmount.toNumber()
   );
 
@@ -450,6 +452,8 @@ export const computeTakerPrice = ({
       takerSellCount: sellCount,
       takerSide,
       extraNFTsSelected: 0,
+      maxTakerSellCount: 0,
+      statsTakerSellCount: 0,
       slippage,
     })!.toNumber()
   );

@@ -12,6 +12,16 @@ import {
 } from "../src";
 import { cartesian } from "./shared";
 
+const common = {
+  takerSellCount: 0,
+  takerBuyCount: 0,
+  extraNFTsSelected: 0,
+  statsTakerSellCount: 0,
+  maxTakerSellCount: 0,
+};
+
+type MakerAmountArgs = Parameters<typeof computeMakerAmountCount>[0];
+
 describe("prices helper functions", () => {
   it("computeTakerDisplayPrice works as intended for trade pools", async () => {
     const startingPrice = new Big(2 * LAMPORTS_PER_SOL);
@@ -35,6 +45,7 @@ describe("prices helper functions", () => {
       { mmFeeBps: 250, expected: startingPrice, takerSide: TakerSide.Buy },
     ]) {
       const price = computeTakerDisplayPrice({
+        ...common,
         config: {
           poolType: PoolType.Trade,
           curveType: CurveType.Linear,
@@ -43,13 +54,10 @@ describe("prices helper functions", () => {
           mmFeeBps,
           honorRoyalties: true,
         },
-        takerSellCount: 0,
-        takerBuyCount: 0,
         takerSide,
-        extraNFTsSelected: 0,
       });
 
-      expect(price!.toString()).eq(expected.toString());
+      expect(price!.toNumber()).eq(expected.toNumber());
     }
   });
 
@@ -63,6 +71,7 @@ describe("prices helper functions", () => {
       [PoolType.NFT, PoolType.Token]
     )) {
       const args = {
+        ...common,
         config: {
           poolType,
           curveType: CurveType.Linear,
@@ -71,13 +80,131 @@ describe("prices helper functions", () => {
           mmFeeBps,
           honorRoyalties: true,
         },
-        takerSellCount: 0,
-        takerBuyCount: 0,
         takerSide,
-        extraNFTsSelected: 0,
       };
       const price = computeTakerDisplayPrice(args);
-      expect(price!.toString()).eq(computeTakerPrice(args)!.toString());
+      expect(price!.toNumber()).eq(computeTakerPrice(args)!.toNumber());
+    }
+  });
+
+  it("computeTakerPrice/computeTakerDisplayPrice/computeMakerAmountCount respects maxTakerSellCount", async () => {
+    const startingPrice = new Big(2 * LAMPORTS_PER_SOL);
+    const delta = new Big(0.1 * LAMPORTS_PER_SOL);
+
+    // Respects for both token + trade pools.
+    for (const poolType of [PoolType.Token, PoolType.Trade]) {
+      const base = {
+        ...common,
+        config: {
+          poolType,
+          curveType: CurveType.Linear,
+          startingPrice,
+          delta,
+          mmFeeBps: null,
+          honorRoyalties: true,
+        },
+        takerSide: TakerSide.Sell,
+      };
+
+      const expectedPrice =
+        poolType === PoolType.Token
+          ? startingPrice.toNumber()
+          : startingPrice.minus(delta).toNumber();
+      // Can sell 1.
+      for (const config of [
+        base,
+        { ...base, statsTakerSellCount: 3, maxTakerSellCount: 4 },
+      ]) {
+        expect(computeTakerPrice(config)!.toNumber()).eq(expectedPrice);
+        expect(computeTakerDisplayPrice(config)!.toNumber()).eq(expectedPrice);
+        {
+          const { totalAmount, allowedCount, initialPrice } =
+            computeMakerAmountCount({ ...config, desired: { count: 1 } });
+          expect(totalAmount.toNumber()).eq(expectedPrice);
+          expect(allowedCount).eq(1);
+          expect(initialPrice!.toNumber()).eq(expectedPrice);
+        }
+      }
+
+      // Can only sell 1 more.
+      const { totalAmount, allowedCount, initialPrice } =
+        computeMakerAmountCount({
+          ...base,
+          desired: { count: 2 },
+          statsTakerSellCount: 3,
+          maxTakerSellCount: 4,
+        });
+      expect(totalAmount.toNumber()).eq(expectedPrice);
+      expect(allowedCount).eq(1);
+      expect(initialPrice!.toNumber()).eq(expectedPrice);
+
+      // Cannot sell any more.
+      const maxedConfig = {
+        ...base,
+        statsTakerSellCount: 1,
+        maxTakerSellCount: 1,
+      };
+      expect(computeTakerPrice(maxedConfig)).null;
+      expect(computeTakerDisplayPrice(maxedConfig)).null;
+      {
+        const { totalAmount, allowedCount, initialPrice } =
+          computeMakerAmountCount({ ...maxedConfig, desired: { count: 1 } });
+        expect(totalAmount.toNumber()).eq(0);
+        expect(allowedCount).eq(0);
+        expect(initialPrice).null;
+      }
+    }
+  });
+
+  it("extraNFTsSelected works", async () => {
+    const startingPrice = new Big(2 * LAMPORTS_PER_SOL);
+    const delta = new Big(0.1 * LAMPORTS_PER_SOL);
+
+    for (const { poolType, takerSide, expectedPrice } of [
+      {
+        poolType: PoolType.Token,
+        takerSide: TakerSide.Sell,
+        expectedPrice: startingPrice.minus(delta).toNumber(),
+      },
+      {
+        poolType: PoolType.NFT,
+        takerSide: TakerSide.Buy,
+        expectedPrice: startingPrice.plus(delta).toNumber(),
+      },
+      {
+        poolType: PoolType.Trade,
+        takerSide: TakerSide.Buy,
+        expectedPrice: startingPrice.plus(delta).toNumber(),
+      },
+      {
+        poolType: PoolType.Trade,
+        takerSide: TakerSide.Sell,
+        // Since this started @ startingPrice - delta
+        expectedPrice: startingPrice.minus(delta.mul(2)).toNumber(),
+      },
+    ]) {
+      const config = {
+        ...common,
+        config: {
+          poolType,
+          curveType: CurveType.Linear,
+          startingPrice,
+          delta,
+          mmFeeBps: null,
+          honorRoyalties: true,
+        },
+        takerSide,
+        extraNFTsSelected: 1,
+      };
+      expect(computeTakerPrice(config)!.toNumber()).eq(expectedPrice);
+      expect(computeTakerDisplayPrice(config)!.toNumber()).eq(expectedPrice);
+      {
+        const { totalAmount, allowedCount, initialPrice } =
+          computeMakerAmountCount({ ...config, desired: { count: 1 } });
+        expect(totalAmount.toNumber()).eq(expectedPrice);
+        expect(allowedCount).eq(1);
+        expect(initialPrice!.toNumber()).eq(expectedPrice);
+      }
     }
   });
 
@@ -99,6 +226,7 @@ describe("prices helper functions", () => {
   it("(1) computeMakerAmountCount works for selling into trade pool", async () => {
     // Compute amount for 3 NFTs selling into trade pool (most complex).
     const baseConfig = {
+      ...common,
       desired: { count: 3 },
       config: {
         poolType: PoolType.Trade,
@@ -108,10 +236,7 @@ describe("prices helper functions", () => {
         mmFeeBps: 340,
         honorRoyalties: true,
       },
-      takerBuyCount: 0,
-      takerSellCount: 0,
       takerSide: TakerSide.Sell,
-      extraNFTsSelected: 0,
     };
     // startSellPrice * mm Fee = 1.9*0.966
     const startPrice = 1.8354 * LAMPORTS_PER_SOL;
@@ -193,6 +318,7 @@ describe("prices helper functions", () => {
 
   it("(2) computeMakerAmountCount behaves fine with 0 and negative prices", async () => {
     const baseConfig = {
+      ...common,
       desired: { total: new BN(2 * LAMPORTS_PER_SOL) },
       config: {
         poolType: PoolType.Token,
@@ -202,10 +328,7 @@ describe("prices helper functions", () => {
         mmFeeBps: null,
         honorRoyalties: true,
       },
-      takerBuyCount: 0,
-      takerSellCount: 0,
       takerSide: TakerSide.Sell,
-      extraNFTsSelected: 0,
     };
     // No sells: 0.1 start price, can sell twice.
     let { totalAmount, allowedCount, initialPrice } =
@@ -250,7 +373,7 @@ describe("prices helper functions", () => {
         startingPrice: new Big(0),
         delta: new Big(0),
       },
-      maxCount: 123,
+      maxCountWhenInfinite: 123,
     }));
     expect(totalAmount.toNumber()).eq(0);
     expect(allowedCount).eq(123);
@@ -265,7 +388,7 @@ describe("prices helper functions", () => {
         startingPrice: new Big(1),
         delta: new Big(0),
       },
-      maxCount: 123,
+      maxCountWhenInfinite: 123,
     }));
     expect(totalAmount.toNumber()).eq(123);
     expect(allowedCount).eq(123);
@@ -274,6 +397,7 @@ describe("prices helper functions", () => {
 
   it("(3) computeMakerAmountCount adds small negative slippage for exponential curves", async () => {
     const baseConfig = {
+      ...common,
       desired: { count: 2 },
       config: {
         poolType: PoolType.Trade,
@@ -283,10 +407,7 @@ describe("prices helper functions", () => {
         mmFeeBps: 1000,
         honorRoyalties: true,
       },
-      takerBuyCount: 0,
-      takerSellCount: 0,
       takerSide: TakerSide.Sell,
-      extraNFTsSelected: 0,
     };
     // sell price * mm fee = 1/1.1 * 0.9
     const startPrice = 818181818;
@@ -312,7 +433,7 @@ describe("prices helper functions", () => {
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
       ...baseConfig,
       desired: { count: 1234 },
-      maxCount: 691,
+      maxCountWhenInfinite: 691,
     }));
     expect(totalAmount.toNumber()).eq(9009000000);
     // This works because we're using count.
@@ -322,7 +443,7 @@ describe("prices helper functions", () => {
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
       ...baseConfig,
       desired: { total: new BN(1000 * LAMPORTS_PER_SOL) },
-      maxCount: 691,
+      maxCountWhenInfinite: 691,
     }));
     expect(totalAmount.toNumber()).eq(9009000000);
     // Capped out b/c price is 0.
@@ -333,7 +454,8 @@ describe("prices helper functions", () => {
 
 it("(4) computeMakerAmountCount max count works for infinite expo sell curve", async () => {
   const maxCount = 691;
-  const baseConfig = {
+  const baseArgs: MakerAmountArgs = {
+    ...common,
     desired: { total: new BN(0) },
     config: {
       poolType: PoolType.Token,
@@ -344,30 +466,27 @@ it("(4) computeMakerAmountCount max count works for infinite expo sell curve", a
       mmFeeBps: null,
       honorRoyalties: true,
     },
-    takerBuyCount: 0,
-    takerSellCount: 0,
     takerSide: TakerSide.Sell,
-    extraNFTsSelected: 0,
     // Check that this works.
-    maxCount,
+    maxCountWhenInfinite: maxCount,
   };
   let { totalAmount, allowedCount, initialPrice } =
-    computeMakerAmountCount(baseConfig);
+    computeMakerAmountCount(baseArgs);
   expect(totalAmount.toNumber()).eq(0);
   expect(allowedCount).eq(maxCount);
   expect(initialPrice!.toNumber()).eq(0);
 
   ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
-    ...baseConfig,
+    ...baseArgs,
     desired: { total: new BN(123) },
     config: {
-      ...baseConfig.config,
+      ...baseArgs.config,
       startingPrice: new Big(5),
     },
   }));
   // We keep selling with 1/1.1 exponential decay: 5 * \sum n = 0 to infinity, 1/1.1^n
   expect(totalAmount.toNumber()).eq(55);
-  expect(allowedCount).eq(maxCount);
+  expect(allowedCount).eq(691);
   expect(initialPrice!.toNumber()).eq(5);
 });
 
@@ -379,6 +498,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
     const startingPrice = new Big(10 * LAMPORTS_PER_SOL);
     {
       const baseConfig = {
+        ...common,
         desired: { count: 5 },
         config: {
           poolType,
@@ -389,10 +509,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
           mmFeeBps: poolType === PoolType.Token ? null : 500,
           honorRoyalties: true,
         },
-        takerBuyCount: 0,
-        takerSellCount: 0,
         takerSide: TakerSide.Buy,
-        extraNFTsSelected: 0,
       };
 
       {
@@ -430,7 +547,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
               startingPrice: new Big(0),
               delta: new Big(0),
             },
-            maxCount: 123,
+            maxCountWhenInfinite: 123,
           });
         expect(totalAmount.toNumber()).eq(0);
         expect(allowedCount).eq(123);
@@ -450,7 +567,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
               delta: new Big(0),
             },
             // Ignored: can keep buying.
-            maxCount: 123,
+            maxCountWhenInfinite: 123,
           });
         expect(totalAmount.toNumber()).eq(2000);
         expect(allowedCount).eq(2000);
@@ -460,6 +577,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
 
     // ---- Exp ----
     const baseConfig = {
+      ...common,
       desired: { count: 5 },
       config: {
         poolType,
@@ -470,10 +588,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
         mmFeeBps: poolType === PoolType.Token ? null : 500,
         honorRoyalties: true,
       },
-      takerBuyCount: 0,
-      takerSellCount: 0,
       takerSide: TakerSide.Buy,
-      extraNFTsSelected: 0,
     };
     // Negative slippage!
     // 0.1% negative slippage * 5 buys: 1.001 * (10 + 10*1.1 + 10*1.1^2 + 10*1.1^3 + 10*1.1^4)

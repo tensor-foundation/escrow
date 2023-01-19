@@ -11,6 +11,11 @@ export type ComputePriceArgs = {
   takerSellCount: number;
   takerBuyCount: number;
   takerSide: TakerSide;
+
+  //v1.1: for selling, statsTakerSellCount < maxTakerSellCount (o/w no taking).
+  maxTakerSellCount: number;
+  statsTakerSellCount: number;
+
   //single "extra" selection field, instead of 2 (nftsSelectedToBuy / nftsSelectedToSell)
   //that's because for Trade pools we don't want user's selection in buy tab to influence price in sell tab and vv
   //takerSide basically decides which way we add it
@@ -60,10 +65,17 @@ const computeCurrentPrice = ({
   takerSellCount,
   takerBuyCount,
   takerSide,
+  maxTakerSellCount,
+  statsTakerSellCount,
   extraNFTsSelected,
   // Default small tolerance for exponential curves.
   slippage = config.curveType === CurveType.Linear ? 0 : EXPO_SLIPPAGE,
 }: ComputePriceArgs): Big | null => {
+  // Cannot sell anymore into capped pool.
+  if (maxTakerSellCount != 0 && statsTakerSellCount >= maxTakerSellCount) {
+    return null;
+  }
+
   let basePrice = (() => {
     switch (config.poolType) {
       case PoolType.Token:
@@ -156,12 +168,13 @@ const _shiftPriceByDelta = (
 // This ensures that the maker deposits more than enough (for rounding issues).
 export const computeMakerAmountCount = ({
   desired,
-  maxCount = 1000,
+  maxCountWhenInfinite = 1000,
   ...priceArgs
 }: Omit<ComputePriceArgs, "slippage"> & {
   desired: { count: number } | { total: BN };
-  // Necessary since for a sell curve exponential curve, this can be infinity.
-  maxCount?: number;
+  // Necessary since when price = 0 or when selling (lin or exp), this can be infinity.
+  // allowedCount can still exceed this if it can be computed & is finite.
+  maxCountWhenInfinite?: number;
 }): {
   totalAmount: BN;
   allowedCount: number;
@@ -206,7 +219,7 @@ export const computeMakerAmountCount = ({
         SELLS, (https://www.wolframalpha.com/input?i=solve+for+x+in+T+%3Dxp+-+x%28x-1%29d%2F2):
         only need negative root
           if (d-2p)62 - 8dT < 0 (ie we can buy until negative prices):
-            n = maxSellCount (see above)
+            n = maxCountWhenInfinite (see above)
           else:
             n = ( - sqrt((d-2p)^2 - 8dT) + d + 2p ) / (2d)
 
@@ -219,15 +232,16 @@ export const computeMakerAmountCount = ({
       SELLS: infinite (can always sell at 0)
   */
 
-  /*
-    Specifically for sell,
-    k = # of times we decrement delta before hitting 0 price
-    p = initial price
-    d = delta
-    p - kd >= 0 --> k <= p / d
-    So delta count = 1 + k
-    Buying we just take desired count.
-  */
+  /// Clips allowed count by taking into account maxTakerSellCount cap.
+  const adjustByMaxTakerCount = (allowedCount: number) => {
+    if (takerSide !== TakerSide.Sell) return allowedCount;
+    if (priceArgs.maxTakerSellCount === 0) return allowedCount;
+    if (priceArgs.statsTakerSellCount >= priceArgs.maxTakerSellCount) return 0;
+    return Math.min(
+      priceArgs.maxTakerSellCount - priceArgs.statsTakerSellCount,
+      allowedCount
+    );
+  };
 
   /// `undo` = add MM fee back; otherwise subtract MM fee.
   const adjustTotalMMFee = (total: Big, undo: boolean = false) => {
@@ -247,13 +261,20 @@ export const computeMakerAmountCount = ({
   };
 
   /// This is how many times to price can decrease when selling before we reach 0.
+  /// Specifically for sell,
+  /// k = # of times we decrement delta before hitting 0 price
+  /// p = initial price
+  /// d = delta
+  /// p - kd >= 0 --> k <= p / d
+  /// So delta count = 1 + k
+  /// Buying we just take desired count.
   const getMaxSellCountLinear = () => {
     if (initTakerPriceNoMM.eq(0)) {
-      if (config.delta.eq(0)) return maxCount;
+      if (config.delta.eq(0)) return maxCountWhenInfinite;
       return 1;
     }
 
-    if (config.delta.eq(0)) return maxCount;
+    if (config.delta.eq(0)) return maxCountWhenInfinite;
 
     return (
       1 +
@@ -262,10 +283,11 @@ export const computeMakerAmountCount = ({
   };
 
   const getTotalAmountLinear = (desiredCount: number) => {
-    const allowedCount =
+    const allowedCount = adjustByMaxTakerCount(
       takerSide === TakerSide.Buy
         ? desiredCount
-        : Math.min(desiredCount, getMaxSellCountLinear());
+        : Math.min(desiredCount, getMaxSellCountLinear())
+    );
 
     // This is basically an arithmetic series:
     // T  = p + (p +/- d) + p +/- 2d) + ... + (p +/- (n-1) d)
@@ -297,12 +319,13 @@ export const computeMakerAmountCount = ({
          = p * geosum(r, n-1)
          = p * (1 - r^n) / (1 - r)
     */
+    const allowedCount = adjustByMaxTakerCount(count);
     const r = getRateExp();
-    const geosum = (1 - Math.pow(r, count)) / (1 - r);
+    const geosum = (1 - Math.pow(r, allowedCount)) / (1 - r);
     const totalAmount = initTakerPriceNoMM.mul(geosum);
 
     return {
-      allowedCount: count,
+      allowedCount,
       // Negative slippage.
       totalAmount: new BN(
         adjustTotalMMFee(totalAmount)
@@ -343,7 +366,7 @@ export const computeMakerAmountCount = ({
     let tempCount: number;
     if (initTakerPriceNoMM.eq(0)) {
       // Protects against divide by 0.
-      tempCount = maxCount;
+      tempCount = maxCountWhenInfinite;
     } else if (config.delta.eq(0)) {
       // Protects against divide by 0.
       tempCount = total
@@ -364,7 +387,7 @@ export const computeMakerAmountCount = ({
           .toNumber();
       } else {
         // if (d-2p)^2 - 8dT < 0 (ie we can buy until negative prices):
-        //   n = maxSellCount (see above)
+        //   n = maxCountWhenInfinite (see above)
         // else:
         //   n = ( - sqrt((d+2p)^2 - 8dT) + d + 2p ) / (2d)
         const bSquared = config.delta.plus(twoP).pow(2);
@@ -394,7 +417,7 @@ export const computeMakerAmountCount = ({
   let tempCount: number;
   if (initTakerPriceNoMM.eq(0)) {
     // Protects against divide by 0.
-    tempCount = maxCount;
+    tempCount = maxCountWhenInfinite;
   } else {
     const operand = total
       .mul(r - 1)
@@ -404,7 +427,7 @@ export const computeMakerAmountCount = ({
 
     if (operand <= 0) {
       // Only possible when r < 1 ie selling (since we can sell infinitely).
-      tempCount = maxCount;
+      tempCount = maxCountWhenInfinite;
     } else {
       tempCount = Math.floor(Math.log(operand) / Math.log(r));
     }
