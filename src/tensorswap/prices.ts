@@ -317,10 +317,11 @@ export const computeMakerAmountCount = ({
       Thus:
       T  = p + pr + pr^2 + ... + pr^(n-1)
          = p * geosum(r, n-1)
-         = p * (1 - r^n) / (1 - r)
+         = p * (1 - r^n) / (1 - r), r != 1
     */
     const allowedCount = adjustByMaxTakerCount(count);
     const r = getRateExp();
+
     const geosum = (1 - Math.pow(r, allowedCount)) / (1 - r);
     const totalAmount = initTakerPriceNoMM.mul(geosum);
 
@@ -336,10 +337,13 @@ export const computeMakerAmountCount = ({
     };
   };
 
+  // delta = 0 when exp -> linear (degenerate) (o/w getRateExp will return 1 rate -> divide by 0s)
+  const isLinear = config.curveType === CurveType.Linear || config.delta.eq(0);
+
   // ====================== By count
 
   if ("count" in desired) {
-    if (config.curveType === CurveType.Linear) {
+    if (isLinear) {
       const { allowedCount, totalAmount } = getTotalAmountLinear(desired.count);
       return { totalAmount, allowedCount, initialPrice };
     } else {
@@ -357,7 +361,7 @@ export const computeMakerAmountCount = ({
     return { totalAmount: new BN(0), allowedCount: 0, initialPrice };
   }
 
-  if (config.curveType === CurveType.Linear) {
+  if (isLinear) {
     const twoP = initTakerPriceNoMM.mul(2);
     // These are the a, b, c in the quadratic formula.
     const fourAC = total.mul(config.delta).mul(8);
@@ -412,7 +416,7 @@ export const computeMakerAmountCount = ({
   }
 
   // Exponential.
-  // n = log[(r - 1)T/p + 1] / log(r)
+  // n = log[(r - 1)T/p + 1] / log(r), r != 1
   const r = getRateExp();
   let tempCount: number;
   if (initTakerPriceNoMM.eq(0)) {

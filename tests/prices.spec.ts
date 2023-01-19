@@ -223,9 +223,44 @@ describe("prices helper functions", () => {
 
   // ================= Sell taker side =================
 
+  it("computeMakerAmountCount degenerate exponential (delta = 0)", async () => {
+    const baseArgs: MakerAmountArgs = {
+      ...common,
+      desired: { total: new BN(0.01 * LAMPORTS_PER_SOL) },
+      config: {
+        poolType: PoolType.Token,
+        curveType: CurveType.Exponential,
+        startingPrice: new Big(0.01 * LAMPORTS_PER_SOL),
+        // This is a degenerate linear curve basically.
+        delta: new Big(0 * LAMPORTS_PER_SOL),
+        mmFeeBps: null,
+        honorRoyalties: true,
+      },
+      takerSide: TakerSide.Sell,
+      maxTakerSellCount: 1,
+    };
+    const { totalAmount, allowedCount, initialPrice } =
+      computeMakerAmountCount(baseArgs);
+    expect(totalAmount.toNumber()).eq(0.01 * LAMPORTS_PER_SOL);
+    expect(allowedCount).eq(1);
+    expect(initialPrice!.toNumber()).eq(0.01 * LAMPORTS_PER_SOL);
+
+    // By count.
+    {
+      const { totalAmount, allowedCount, initialPrice } =
+        computeMakerAmountCount({
+          ...baseArgs,
+          desired: { count: 1 },
+        });
+      expect(totalAmount.toNumber()).eq(0.01 * LAMPORTS_PER_SOL);
+      expect(allowedCount).eq(1);
+      expect(initialPrice!.toNumber()).eq(0.01 * LAMPORTS_PER_SOL);
+    }
+  });
+
   it("(1) computeMakerAmountCount works for selling into trade pool", async () => {
     // Compute amount for 3 NFTs selling into trade pool (most complex).
-    const baseConfig = {
+    const baseArgs: MakerAmountArgs = {
       ...common,
       desired: { count: 3 },
       config: {
@@ -242,7 +277,7 @@ describe("prices helper functions", () => {
     const startPrice = 1.8354 * LAMPORTS_PER_SOL;
 
     let { totalAmount, allowedCount, initialPrice } =
-      computeMakerAmountCount(baseConfig);
+      computeMakerAmountCount(baseArgs);
     // 3 sells: 1.9*0.966 + 1.8*0.966 + 1.7*0.966
     expect(totalAmount.toNumber()).eq(5.2164 * LAMPORTS_PER_SOL);
     expect(allowedCount).eq(3);
@@ -250,7 +285,7 @@ describe("prices helper functions", () => {
 
     // 0.0001 lamport less than required for 3.
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
-      ...baseConfig,
+      ...baseArgs,
       desired: { total: new BN(5.2163 * LAMPORTS_PER_SOL) },
     }));
     // Just 2 sells: 1.9*0.966 + 1.8*0.966
@@ -260,7 +295,7 @@ describe("prices helper functions", () => {
 
     // 0.0001 lamport more than required = still 3.
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
-      ...baseConfig,
+      ...baseArgs,
       desired: { total: new BN(5.2165 * LAMPORTS_PER_SOL) },
     }));
     // 3 sells: 1.9*0.966 + 1.8*0.966 + 1.7*0.966
@@ -271,7 +306,7 @@ describe("prices helper functions", () => {
     // ---- non-zero taker counts ----
 
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
-      ...baseConfig,
+      ...baseArgs,
       // Start price should now be 2 - 2*0.1 = 1.8
       takerSellCount: 5,
       takerBuyCount: 3,
@@ -284,7 +319,7 @@ describe("prices helper functions", () => {
 
     // With total now
     ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
-      ...baseConfig,
+      ...baseArgs,
       desired: { total: new BN(4 * LAMPORTS_PER_SOL) },
       takerSellCount: 5,
       takerBuyCount: 3,
@@ -299,7 +334,7 @@ describe("prices helper functions", () => {
       const total = 18.354 * LAMPORTS_PER_SOL;
 
       ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
-        ...baseConfig,
+        ...baseArgs,
         desired: { total: new BN(10000 * LAMPORTS_PER_SOL) },
       }));
       expect(totalAmount.toNumber()).eq(total);
@@ -307,7 +342,7 @@ describe("prices helper functions", () => {
       expect(initialPrice!.toNumber()).eq(startPrice);
 
       ({ totalAmount, allowedCount, initialPrice } = computeMakerAmountCount({
-        ...baseConfig,
+        ...baseArgs,
         desired: { count: 21 },
       }));
       expect(totalAmount.toNumber()).eq(total);
