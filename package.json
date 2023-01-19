@@ -17,10 +17,8 @@
     "build:test": "anchor build -- --features testing && bash scripts/cp_idl.sh",
     "test": "bash scripts/full_test.sh",
     "fast-test": "anchor test --skip-build -- --features testing",
-    "pub": "rm -rf ./dist && yarn tsc && yarn npm publish --patch",
     "push": "git push --follow-tags",
-    "pubpush": "yarn pub && yarn push",
-    "pubpush_manual": "rm -rf ./dist && yarn tsc && yarn npm publish && yarn push",
+    "pubpush": "rm -rf ./dist && yarn tsc && yarn npm publish && yarn push",
     "upgrade:tswap": "yarn up @tensor/tensorswap-ts",
     "upgrade:anchor": "yarn up @project-serum/anchor"
   },
