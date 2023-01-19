@@ -17,7 +17,7 @@
     "build:test": "anchor build -- --features testing && bash scripts/cp_idl.sh",
     "test": "bash scripts/full_test.sh",
     "fast-test": "anchor test --skip-build -- --features testing",
-    "push": "git push --follow-tags",
+    "push": "git push --atomic",
     "pubpush": "rm -rf ./dist && yarn tsc && yarn npm publish && yarn push",
     "upgrade:tswap": "yarn up @tensor/tensorswap-ts",
     "upgrade:anchor": "yarn up @project-serum/anchor"
