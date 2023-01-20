@@ -801,12 +801,26 @@ export const testClosePool = async ({
   whitelist,
   config,
   commitment,
+  marginNr,
 }: {
   owner: Keypair;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
   commitment?: Commitment;
+  marginNr?: number;
 }) => {
+  const finalIxs = [];
+  if (!isNullLike(marginNr)) {
+    const {
+      tx: { ixs },
+    } = await swapSdk.detachPoolMargin({
+      config,
+      marginNr,
+      owner: owner.publicKey,
+      whitelist,
+    });
+    finalIxs.push(...ixs);
+  }
   const {
     tx: { ixs },
     poolPda,
@@ -818,8 +832,9 @@ export const testClosePool = async ({
     whitelist,
     config,
   });
+  finalIxs.push(...ixs);
   const sig = await buildAndSendTx({
-    ixs,
+    ixs: finalIxs,
     extraSigners: [owner],
     opts: { commitment },
   });

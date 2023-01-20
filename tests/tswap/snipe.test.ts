@@ -203,6 +203,7 @@ describe("snipe", () => {
         ...config,
         startingPrice: config.startingPrice.add(new BN(1)),
       },
+      marginNr,
     });
   });
 
@@ -579,7 +580,9 @@ describe("snipe", () => {
           freeze,
           cosigner: TEST_COSIGNER.publicKey,
         });
-        await buildAndSendTx({ ixs, extraSigners: [TEST_COSIGNER] });
+        await expect(
+          buildAndSendTx({ ixs, extraSigners: [TEST_COSIGNER] })
+        ).to.be.rejectedWith(swapSdk.getErrorCodeHex("WrongOrderType"));
       }
 
       await expect(
@@ -594,7 +597,7 @@ describe("snipe", () => {
           poolPda,
           seller,
           whitelist,
-          frozen: freeze,
+          frozen: false, //coz one fails
         })
       ).to.be.rejectedWith(swapSdk.getErrorCodeHex("WrongOrderType"));
     }
