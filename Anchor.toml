@@ -10,14 +10,18 @@ tensor_whitelist = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW"
 # Required for tests.
 [[test.genesis]]
 address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
-program = "./deps/metaplex/token-metadata/target/deploy/mpl_token_metadata.so"
+program = "./deps/metaplex-mpl/token-metadata/target/deploy/mpl_token_metadata.so"
+
+[[test.genesis]]
+address = "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg"
+program = "./deps/metaplex-auth/program/target/deploy/mpl_token_auth_rules.so"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "tests/test-keypair.json"
 
 [scripts]
 # eg TESTS_GLOB='tests/tswap/buy.spec.ts anchor test (omit TESTS_GLOB to run all tests)

@@ -2,7 +2,7 @@
 use anchor_lang::solana_program::{program::invoke, system_instruction};
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer},
+    token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
@@ -18,6 +18,7 @@ pub struct BuyNft<'info> {
     )]
     pub tswap: Box<Account<'info, TSwap>>,
 
+    //degenerate: fee_acc now === TSwap, keeping around to preserve backwards compatibility
     /// CHECK: has_one = fee_vault in tswap
     #[account(mut)]
     pub fee_vault: UncheckedAccount<'info>,
@@ -63,7 +64,7 @@ pub struct BuyNft<'info> {
     pub nft_mint: Box<Account<'info, Mint>>,
 
     /// CHECK: assert_decode_metadata + seeds below
-    #[account(
+    #[account(mut,
         seeds=[
             mpl_token_metadata::state::PREFIX.as_bytes(),
             mpl_token_metadata::id().as_ref(),
@@ -125,22 +126,59 @@ pub struct BuyNft<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+
+    // --------------------------------------- pNft
+
+    //note that MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
+    /// CHECK: seeds below
+    #[account(
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::EDITION.as_bytes(),
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub nft_edition: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_escrow.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub owner_token_record: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_buyer_acc.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub dest_token_record: UncheckedAccount<'info>,
+
+    pub pnft_shared: ProgNftShared<'info>,
     // remaining accounts:
-    // 1. 0 to N creator accounts.
+    // CHECK: validate it's present on metadata in handler
+    // 1. optional authorization_rules, only if present on metadata
+    // 2. 0 to N creator accounts.
 }
 
 impl<'info> BuyNft<'info> {
-    fn transfer_nft_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        CpiContext::new(
-            self.token_program.to_account_info(),
-            Transfer {
-                from: self.nft_escrow.to_account_info(),
-                to: self.nft_buyer_acc.to_account_info(),
-                authority: self.tswap.to_account_info(),
-            },
-        )
-    }
-
     fn close_nft_escrow_ctx(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
         CpiContext::new(
             self.token_program.to_account_info(),
@@ -179,10 +217,12 @@ impl<'info> Validate<'info> for BuyNft<'info> {
 
 // TODO: Disable proofs for now until tx size limits increase. This is fine since we validate proof on deposit/sell.
 #[access_control(ctx.accounts.validate())]
-pub fn handler<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
+pub fn handler<'info, 'b>(
+    ctx: Context<'_, 'b, '_, 'info, BuyNft<'info>>,
     // Max vs exact so we can add slippage later.
     max_price: u64,
+    rules_acc_present: bool,
+    authorization_data: Option<AuthorizationDataLocal>,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
@@ -190,7 +230,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     let current_price = pool.current_price(TakerSide::Buy)?;
     let tswap_fee = pool.calc_tswap_fee(current_price)?;
-    let creators_fee = pool.calc_creators_fee(TakerSide::Buy, metadata, current_price)?;
+    let creators_fee = pool.calc_creators_fee(metadata, current_price)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -205,57 +245,54 @@ pub fn handler<'a, 'b, 'c, 'info>(
         throw_err!(PriceMismatch);
     }
 
-    // seller = owner
-    let mut left_for_seller = current_price;
-
     // transfer fee to Tensorswap
-    left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
     ctx.accounts
         .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
 
-    if creators_fee > 0 {
-        // send royalties: taken from AH's calculation:
-        // https://github.com/metaplex-foundation/metaplex-program-library/blob/2320b30ec91b729b153f0c0fe719f96d325b2358/auction-house/program/src/utils.rs#L366-L471
-        let mut remaining_fee = creators_fee;
-        let remaining_accounts = &mut ctx.remaining_accounts.iter();
-        match &metadata.data.creators {
-            Some(creators) => {
-                for creator in creators {
-                    let current_creator_info = next_account_info(remaining_accounts)?;
-                    require!(
-                        creator.address.eq(current_creator_info.key),
-                        CreatorMismatch
-                    );
+    // transfer nft to buyer
+    // has to go before creators fee calc below, coz we need to drain 1 optional acc
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
+    let auth_rules = if rules_acc_present {
+        Some(next_account_info(remaining_accounts)?)
+    } else {
+        None
+    };
+    send_pnft(
+        &ctx.accounts.tswap.to_account_info(),
+        &ctx.accounts.buyer.to_account_info(),
+        &ctx.accounts.nft_escrow,
+        &ctx.accounts.nft_buyer_acc,
+        &ctx.accounts.buyer,
+        &ctx.accounts.nft_mint,
+        &ctx.accounts.nft_metadata,
+        &ctx.accounts.nft_edition,
+        &ctx.accounts.system_program,
+        &ctx.accounts.token_program,
+        &ctx.accounts.associated_token_program,
+        &ctx.accounts.pnft_shared.instructions,
+        &ctx.accounts.owner_token_record,
+        &ctx.accounts.dest_token_record,
+        &ctx.accounts.pnft_shared.authorization_rules_program,
+        auth_rules,
+        authorization_data,
+        Some(&ctx.accounts.tswap),
+        None,
+    )?;
 
-                    let rent = Rent::get()?.minimum_balance(current_creator_info.data_len());
+    //send royalties
+    transfer_creators_fee(
+        None,
+        Some(FromExternal {
+            from: &ctx.accounts.buyer.to_account_info(),
+            sys_prog: &ctx.accounts.system_program,
+        }),
+        metadata,
+        remaining_accounts,
+        creators_fee,
+    )?;
 
-                    let pct = creator.share as u64;
-                    let creator_fee =
-                        unwrap_checked!({ pct.checked_mul(creators_fee)?.checked_div(100) });
-
-                    //prevents InsufficientFundsForRent, where creator acc doesn't have enough fee
-                    //https://explorer.solana.com/tx/vY5nYA95ELVrs9SU5u7sfU2ucHj4CRd3dMCi1gWrY7MSCBYQLiPqzABj9m8VuvTLGHb9vmhGaGY7mkqPa1NLAFE
-                    if unwrap_int!(current_creator_info.lamports().checked_add(creator_fee)) < rent
-                    {
-                        //skip current creator, we can't pay them
-                        continue;
-                    }
-
-                    remaining_fee = unwrap_int!(remaining_fee.checked_sub(creator_fee));
-                    if creator_fee > 0 {
-                        ctx.accounts
-                            .transfer_lamports(current_creator_info, creator_fee)?;
-                    }
-                }
-            }
-            None => (),
-        }
-        // Return any dust to seller.
-        let actual_creators_fee = unwrap_int!(creators_fee.checked_sub(remaining_fee));
-        left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
-    }
-
-    //transfer remainder to either seller/owner or the pool (if Trade pool)
+    //transfer current_price to either seller/owner or the pool (if Trade pool)
+    //(!) fees/royalties are paid by TAKER, which in this case is the BUYER (hence they get full price)
     let destination = match pool.config.pool_type {
         //send money direct to seller/owner
         PoolType::NFT => ctx.accounts.owner.to_account_info(),
@@ -265,15 +302,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
         PoolType::Token => unreachable!(),
     };
     ctx.accounts
-        .transfer_lamports(&destination, left_for_seller)?;
-
-    // transfer nft to buyer
-    token::transfer(
-        ctx.accounts
-            .transfer_nft_ctx()
-            .with_signer(&[&ctx.accounts.tswap.seeds()]),
-        1,
-    )?;
+        .transfer_lamports(&destination, current_price)?;
 
     // close nft escrow account
     token::close_account(

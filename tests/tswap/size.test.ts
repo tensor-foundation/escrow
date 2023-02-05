@@ -93,7 +93,6 @@ describe.skip("tx sizer", () => {
       nftSource: ata,
       owner: owner.publicKey,
       config,
-      proof: wlNft?.proof,
     });
 
     let {

@@ -3,10 +3,11 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {
   buildAndSendTx,
-  swapSdk,
-  hexCode,
-  TEST_PROVIDER,
   castPoolConfigAnchor,
+  createTokenAuthorizationRules,
+  hexCode,
+  swapSdk,
+  TEST_PROVIDER,
   wlSdk,
 } from "../shared";
 import {
@@ -43,7 +44,7 @@ describe("tswap deposits", () => {
       whitelist,
       proofs: [wlNft],
       // Long proof!
-    } = await makeProofWhitelist([mint], 20_000);
+    } = await makeProofWhitelist([mint], 1);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
       owner,
@@ -105,7 +106,12 @@ describe("tswap deposits", () => {
     const { mint, ata } = await createAndFundATA(owner);
     const { proofs, whitelist } = await makeProofWhitelist([mint]);
     const { mint: badMint, ata: badAta } = await createAndFundATA(owner);
-    await testMakePool({ tswap, owner, config, whitelist });
+    const { poolPda, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
 
     // Bad mint (w/ good + bad ATAs passed).
     // All:
@@ -117,7 +123,7 @@ describe("tswap deposits", () => {
       {
         currMint: badMint,
         currAta: badAta,
-        err: wlSdk.getErrorCodeHex("FailedMerkleProofVerification"),
+        err: swapSdk.getErrorCodeHex("BadMintProof"),
       },
       {
         currMint: badMint,
@@ -138,7 +144,7 @@ describe("tswap deposits", () => {
         nftSource: currAta,
         owner: owner.publicKey,
         config,
-        proof: proofs[0].proof,
+        // proof: proofs[0].proof,
       });
       await expect(
         buildAndSendTx({
@@ -149,19 +155,14 @@ describe("tswap deposits", () => {
     }
 
     // Good mint
-    const {
-      tx: { ixs: goodIxs },
-    } = await swapSdk.depositNft({
-      whitelist,
-      nftMint: mint,
-      nftSource: ata,
-      owner: owner.publicKey,
+    await testDepositNft({
+      pool: poolPda,
+      nftAuthPda,
+      owner,
       config,
-      proof: proofs[0].proof,
-    });
-    await buildAndSendTx({
-      ixs: goodIxs,
-      extraSigners: [owner],
+      ata,
+      wlNft: proofs[0],
+      whitelist,
     });
   });
 
@@ -625,7 +626,7 @@ describe("tswap deposits", () => {
         nftMint: mint, //<-- don't pass in merkle proof
         nftMetadata: metadata,
       })
-    ).to.be.rejectedWith("0x1778");
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadMintProof"));
 
     await testDepositNft({
       nftAuthPda,
@@ -677,7 +678,7 @@ describe("tswap deposits", () => {
         nftMint: mint, //<-- don't pass in merkle proof
         nftMetadata: metadata,
       })
-    ).to.be.rejectedWith("0x1778");
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadMintProof"));
 
     await testDepositNft({
       nftAuthPda,
@@ -732,7 +733,7 @@ describe("tswap deposits", () => {
         nftMint: mint, //<-- don't pass in merkle proof
         nftMetadata: metadata,
       })
-    ).to.be.rejectedWith("0x1778");
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadMintProof"));
 
     await testDepositNft({
       nftAuthPda,
@@ -824,4 +825,86 @@ describe("tswap deposits", () => {
   });
 
   //#endregion
+
+  it("deposits a pNft (no rulesets)", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+
+    const { mint, ata } = await createAndFundATA(
+      owner,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true
+    );
+    const {
+      whitelist,
+      proofs: [wlNft],
+      // Long proof!
+    } = await makeProofWhitelist([mint], 1);
+
+    const { poolPda: pool, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+
+    await testDepositNft({
+      nftAuthPda,
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+  });
+
+  it("deposits a pNft (1 ruleset)", async () => {
+    const [owner] = await makeNTraders(1);
+    const config = nftPoolConfig;
+
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER.connection,
+      owner
+    );
+
+    const { mint, ata } = await createAndFundATA(
+      owner,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true,
+      ruleSetAddr
+    );
+    const {
+      whitelist,
+      proofs: [wlNft],
+      // Long proof!
+    } = await makeProofWhitelist([mint], 1);
+
+    const { poolPda: pool, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+    });
+
+    await testDepositNft({
+      nftAuthPda,
+      pool,
+      config,
+      owner,
+      ata,
+      wlNft,
+      whitelist,
+      commitment: "confirmed",
+    });
+  });
 });

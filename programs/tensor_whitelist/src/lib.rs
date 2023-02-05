@@ -1,3 +1,6 @@
+#![allow(unknown_lints)] //needed otherwise complains during github actions
+#![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
+
 use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 use anchor_spl::token::Mint;
 use mpl_token_metadata::state::Metadata;
@@ -130,7 +133,7 @@ pub mod tensor_whitelist {
 
         require!(
             merkle_proof::verify_proof(proof.to_vec(), ctx.accounts.whitelist.root_hash, leaf.0),
-            FailedMerkleProofVerification,
+            ErrorCode::FailedMerkleProofVerification,
         );
 
         // Upsert proof into the MintProof account.

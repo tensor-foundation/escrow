@@ -2,24 +2,52 @@
 import * as anchor from "@project-serum/anchor";
 import { AnchorProvider, Wallet } from "@project-serum/anchor";
 import {
+  AddressLookupTableAccount,
+  AddressLookupTableProgram,
+  Commitment,
+  ComputeBudgetProgram,
   ConfirmOptions,
+  Connection,
   Keypair,
   PublicKey,
   Signer,
+  SystemProgram,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
+  SYSVAR_RENT_PUBKEY,
+  Transaction,
   TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
 } from "@solana/web3.js";
-import { buildTx } from "@tensor-hq/tensor-common/dist/solana_contrib";
 import { expect } from "chai";
 import { backOff } from "exponential-backoff";
 import keccak256 from "keccak256";
 import { MerkleTree } from "merkletreejs";
-import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
+import {
+  AUTH_PROG_ID,
+  findTSwapPDA,
+  isNullLike,
+  TENSORSWAP_ADDR,
+  TensorSwapSDK,
+  TensorWhitelistSDK,
+  TMETA_PROG_ID,
+} from "../src";
 import { getLamports as _getLamports } from "../src/common";
 import {
   SingleConnectionBroadcaster,
   SolanaProvider,
   TransactionEnvelope,
 } from "@saberhq/solana-contrib";
+import {
+  createCreateOrUpdateInstruction,
+  findRuleSetPDA,
+} from "@metaplex-foundation/mpl-token-auth-rules";
+import { encode } from "@msgpack/msgpack";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export {
   castPoolConfigAnchor,
@@ -32,7 +60,6 @@ export {
   PoolTypeAnchor,
   stringifyPKsAndBNs,
   TakerSide,
-  TSWAP_FEE_ACC,
 } from "../src";
 
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
@@ -45,41 +72,152 @@ export const getLamports = (acct: PublicKey) =>
 export const waitMS = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 type BuildAndSendTxArgs = {
-  provider: AnchorProvider;
+  provider?: AnchorProvider;
   ixs: TransactionInstruction[];
   extraSigners?: Signer[];
   opts?: ConfirmOptions;
   // Prints out transaction (w/ logs) to stdout
   debug?: boolean;
+  // Optional, if present signify that a V0 tx should be sent
+  lookupTableAccounts?: [AddressLookupTableAccount] | undefined;
 };
 
-const _buildAndSendTx = async ({
-  provider,
+//simplified version from tensor-common
+const _buildTx = async ({
+  connections,
+  feePayer,
+  instructions,
+  additionalSigners,
+  commitment = "confirmed",
+}: {
+  //(!) ideally this should be the same RPC node that will then try to send/confirm the tx
+  connections: Array<Connection>;
+  feePayer: PublicKey;
+  instructions: TransactionInstruction[];
+  additionalSigners?: Array<Signer>;
+  commitment?: Commitment;
+}) => {
+  if (!instructions.length) {
+    throw new Error("must pass at least one instruction");
+  }
+
+  const tx = new Transaction();
+  tx.add(...instructions);
+  tx.feePayer = feePayer;
+
+  const latestBlockhash = await connections[0].getLatestBlockhash({
+    commitment,
+  });
+  tx.recentBlockhash = latestBlockhash.blockhash;
+  const lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
+
+  if (additionalSigners) {
+    additionalSigners
+      .filter((s): s is Signer => s !== undefined)
+      .forEach((kp) => {
+        tx.partialSign(kp);
+      });
+  }
+
+  return { tx, lastValidBlockHeight };
+};
+
+//simplified version from tensor-common
+const _buildTxV0 = async ({
+  connections,
+  feePayer,
+  instructions,
+  additionalSigners,
+  commitment = "confirmed",
+  addressLookupTableAccs,
+}: {
+  //(!) ideally this should be the same RPC node that will then try to send/confirm the tx
+  connections: Array<Connection>;
+  feePayer: PublicKey;
+  instructions: TransactionInstruction[];
+  additionalSigners?: Array<Signer>;
+  commitment?: Commitment;
+  addressLookupTableAccs: AddressLookupTableAccount[];
+}) => {
+  if (!instructions.length) {
+    throw new Error("must pass at least one instruction");
+  }
+
+  const latestBlockhash = await connections[0].getLatestBlockhash({
+    commitment,
+  });
+  const lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
+
+  const msg = new TransactionMessage({
+    payerKey: feePayer,
+    recentBlockhash: latestBlockhash.blockhash,
+    instructions,
+  }).compileToV0Message(addressLookupTableAccs);
+  const tx = new VersionedTransaction(msg);
+
+  if (additionalSigners) {
+    tx.sign(additionalSigners.filter((s): s is Signer => s !== undefined));
+  }
+
+  return { tx, lastValidBlockHeight };
+};
+
+export const buildAndSendTx = async ({
+  provider = TEST_PROVIDER,
   ixs,
   extraSigners,
   opts,
   debug,
+  lookupTableAccounts,
 }: BuildAndSendTxArgs) => {
-  const { tx } = await backOff(
-    () =>
-      buildTx({
-        connections: [provider.connection],
-        instructions: ixs,
-        additionalSigners: extraSigners,
-        feePayer: provider.publicKey,
-      }),
-    {
-      // Retry blockhash errors (happens during tests sometimes).
-      retry: (e: any) => {
-        return e.message.includes("blockhash");
-      },
-    }
-  );
-  await provider.wallet.signTransaction(tx);
+  let tx: Transaction | VersionedTransaction;
+
+  if (isNullLike(lookupTableAccounts)) {
+    //build legacy
+    ({ tx } = await backOff(
+      () =>
+        _buildTx({
+          connections: [provider.connection],
+          instructions: ixs,
+          additionalSigners: extraSigners,
+          feePayer: provider.publicKey,
+        }),
+      {
+        // Retry blockhash errors (happens during tests sometimes).
+        retry: (e: any) => {
+          return e.message.includes("blockhash");
+        },
+      }
+    ));
+    await provider.wallet.signTransaction(tx);
+  } else {
+    //build v0
+    ({ tx } = await backOff(
+      () =>
+        _buildTxV0({
+          connections: [provider.connection],
+          instructions: ixs,
+          //have to add TEST_KEYPAIR here instead of wallet.signTx() since partialSign not impl on v0 txs
+          additionalSigners: [TEST_KEYPAIR, ...(extraSigners ?? [])],
+          feePayer: provider.publicKey,
+          addressLookupTableAccs: lookupTableAccounts,
+        }),
+      {
+        // Retry blockhash errors (happens during tests sometimes).
+        retry: (e: any) => {
+          return e.message.includes("blockhash");
+        },
+      }
+    ));
+  }
+
   try {
     if (debug) opts = { ...opts, commitment: "confirmed" };
-    //(!) SUPER IMPORTANT TO USE THIS METHOD AND NOT sendRawTransaction()
-    const sig = await provider.sendAndConfirm(tx, extraSigners, opts);
+    const sig = await provider.connection.sendRawTransaction(
+      tx.serialize(),
+      opts
+    );
+    await provider.connection.confirmTransaction(sig, "confirmed");
     if (debug) {
       console.log(
         await provider.connection.getTransaction(sig, {
@@ -95,10 +233,6 @@ const _buildAndSendTx = async ({
     throw e;
   }
 };
-
-export const buildAndSendTx = (
-  args: Omit<BuildAndSendTxArgs, "provider"> & { provider?: AnchorProvider }
-) => _buildAndSendTx({ provider: TEST_PROVIDER, ...args });
 
 export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
   const leaves = targetMints.map((m) => m.toBuffer());
@@ -184,7 +318,18 @@ export const cartesian = <T extends any[][]>(...arr: T): MapCartesian<T>[] =>
   ) as MapCartesian<T>[];
 
 //(!) provider used across all tests
+process.env.ANCHOR_WALLET = "tests/test-keypair.json";
 export const TEST_PROVIDER = anchor.AnchorProvider.local();
+const TEST_KEYPAIR = Keypair.fromSecretKey(
+  Buffer.from(
+    JSON.parse(
+      require("fs").readFileSync(process.env.ANCHOR_WALLET, {
+        encoding: "utf-8",
+      })
+    )
+  )
+);
+
 export const swapSdk = new TensorSwapSDK({ provider: TEST_PROVIDER });
 export const wlSdk = new TensorWhitelistSDK({ provider: TEST_PROVIDER });
 
@@ -239,4 +384,193 @@ export const calcMinRent = async (address: PublicKey) => {
   } else {
     console.log("acc not found");
   }
+};
+
+export const createTokenAuthorizationRules = async (
+  connection: Connection,
+  payer: Keypair,
+  name = "a", //keep it short or we wont have space for tx to pass
+  data?: Uint8Array
+) => {
+  const [ruleSetAddress] = await findRuleSetPDA(payer.publicKey, name);
+
+  //ruleset relevant for transfers
+  const ruleSet = {
+    libVersion: 1,
+    ruleSetName: name,
+    owner: Array.from(payer.publicKey.toBytes()),
+    operations: {
+      "Delegate:Transfer": {
+        ProgramOwnedList: {
+          programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+          field: "Delegate",
+        },
+      },
+      "Transfer:Owner": {
+        All: {
+          rules: [
+            //no space
+            // {
+            //   Amount: {
+            //     amount: 1,
+            //     operator: "Eq",
+            //     field: "Amount",
+            //   },
+            // },
+            {
+              Any: {
+                rules: [
+                  {
+                    ProgramOwnedList: {
+                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      field: "Source",
+                    },
+                  },
+                  {
+                    ProgramOwnedList: {
+                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      field: "Destination",
+                    },
+                  },
+                  {
+                    ProgramOwnedList: {
+                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      field: "Authority",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      "Transfer:TransferDelegate": {
+        All: {
+          rules: [
+            //no space
+            // {
+            //   Amount: {
+            //     amount: 1,
+            //     operator: "Eq",
+            //     field: "Amount",
+            //   },
+            // },
+            {
+              Any: {
+                rules: [
+                  {
+                    ProgramOwnedList: {
+                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      field: "Source",
+                    },
+                  },
+                  {
+                    ProgramOwnedList: {
+                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      field: "Destination",
+                    },
+                  },
+                  {
+                    ProgramOwnedList: {
+                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      field: "Authority",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  // Encode the file using msgpack so the pre-encoded data can be written directly to a Solana program account
+  let finalData = data ?? encode(ruleSet);
+
+  let createIX = createCreateOrUpdateInstruction(
+    {
+      payer: payer.publicKey,
+      ruleSetPda: ruleSetAddress,
+      systemProgram: SystemProgram.programId,
+    },
+    {
+      createOrUpdateArgs: { __kind: "V1", serializedRuleSet: finalData },
+    },
+    AUTH_PROG_ID
+  );
+
+  await buildAndSendTx({ ixs: [createIX], extraSigners: [payer] });
+
+  return ruleSetAddress;
+};
+
+export const createCoreTswapLUT = async (
+  provider = TEST_PROVIDER,
+  slotCommitment: Commitment = "finalized"
+) => {
+  const conn = provider.connection;
+
+  //use finalized, otherwise get "is not a recent slot err"
+  const slot = await conn.getSlot(slotCommitment);
+
+  //create
+  const [lookupTableInst, lookupTableAddress] =
+    AddressLookupTableProgram.createLookupTable({
+      authority: provider.publicKey,
+      payer: provider.publicKey,
+      recentSlot: slot,
+    });
+
+  //see if already created
+  let lookupTableAccount = (
+    await conn.getAddressLookupTable(lookupTableAddress)
+  ).value;
+  if (!!lookupTableAccount) {
+    console.log("LUT exists", lookupTableAddress.toBase58());
+    return lookupTableAccount;
+  }
+
+  console.log("LUT missing");
+
+  const [tswapPda] = findTSwapPDA({});
+
+  //add addresses
+  const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+    payer: provider.publicKey,
+    authority: provider.publicKey,
+    lookupTable: lookupTableAddress,
+    addresses: [
+      tswapPda,
+      TOKEN_PROGRAM_ID,
+      SystemProgram.programId,
+      SYSVAR_RENT_PUBKEY,
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      AUTH_PROG_ID,
+      TMETA_PROG_ID,
+      SYSVAR_INSTRUCTIONS_PUBKEY,
+    ],
+  });
+
+  let done = false;
+  while (!done) {
+    try {
+      await buildAndSendTx({
+        provider,
+        ixs: [lookupTableInst, extendInstruction],
+      });
+      done = true;
+    } catch (e) {
+      console.log("failed, try again in 5");
+      await waitMS(5000);
+    }
+  }
+
+  console.log("new LUT created", lookupTableAddress.toBase58());
+
+  //fetch
+  lookupTableAccount = (await conn.getAddressLookupTable(lookupTableAddress))
+    .value;
+
+  return lookupTableAccount;
 };

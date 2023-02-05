@@ -70,7 +70,7 @@ impl<'info> InitPool<'info> {
 
         match config.pool_type {
             PoolType::NFT | PoolType::Token => {
-                if config.mm_fee_bps != None {
+                if config.mm_fee_bps.is_some() {
                     throw_err!(FeesNotAllowed);
                 }
             }
@@ -86,7 +86,10 @@ impl<'info> InitPool<'info> {
 
         //for exponential pool delta can't be above 99.99% and has to fit into a u16
         if config.curve_type == CurveType::Exponential {
-            let u16delta = try_or_err!(u16::try_from(config.delta), ArithmeticError);
+            let u16delta = try_or_err!(
+                u16::try_from(config.delta),
+                crate::ErrorCode::ArithmeticError
+            );
             if u16delta > MAX_DELTA_BPS {
                 throw_err!(DeltaTooLarge);
             }

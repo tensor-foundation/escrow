@@ -1,14 +1,17 @@
 //! User selling an NFT into a Trade pool
 //! We separate this from Token pool since the NFT will go into an NFT escrow w/ a receipt.
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{Token, TokenAccount},
+};
 use vipers::throw_err;
 
 use crate::*;
 
 #[derive(Accounts)]
 pub struct SellNftTradePool<'info> {
-    shared: SellNft<'info>,
+    shared: SellNftShared<'info>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(
@@ -38,21 +41,57 @@ pub struct SellNftTradePool<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    // remaining accounts:
-    // 1. 0 to N creator accounts.
-}
 
-impl<'info> SellNftTradePool<'info> {
-    fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        CpiContext::new(
-            self.token_program.to_account_info(),
-            Transfer {
-                from: self.shared.nft_seller_acc.to_account_info(),
-                to: self.nft_escrow.to_account_info(),
-                authority: self.shared.seller.to_account_info(),
-            },
-        )
-    }
+    // --------------------------------------- pNft
+    pub associated_token_program: Program<'info, AssociatedToken>,
+
+    //note that MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
+    /// CHECK: seeds below
+    #[account(
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            shared.nft_mint.key().as_ref(),
+            mpl_token_metadata::state::EDITION.as_bytes(),
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub nft_edition: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            shared.nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            shared.nft_seller_acc.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub owner_token_record: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            shared.nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_escrow.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub dest_token_record: UncheckedAccount<'info>,
+
+    pub pnft_shared: ProgNftShared<'info>,
+    // remaining accounts:
+    // CHECK: validate it's present on metadata in handler
+    // 1. optional authorization_rules, only if present on metadata
+    // 2. 0 to N creator accounts.
 }
 
 impl<'info> Validate<'info> for SellNftTradePool<'info> {
@@ -81,10 +120,41 @@ pub fn handler<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, SellNftTradePool<'info>>,
     // Min vs exact so we can add slippage later.
     min_price: u64,
+    rules_acc_present: bool,
+    authorization_data: Option<AuthorizationDataLocal>,
 ) -> Result<()> {
-    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter();
-
     let pool = &ctx.accounts.shared.pool;
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
+
+    // transfer nft to escrow
+    // has to go before any transfer_lamports, o/w we get `sum of account balances before and after instruction do not match`
+    // has to go before creators fee calc below, coz we need to drain 1 optional acc
+    let auth_rules = if rules_acc_present {
+        Some(next_account_info(remaining_accounts)?)
+    } else {
+        None
+    };
+    send_pnft(
+        &ctx.accounts.shared.seller.to_account_info(),
+        &ctx.accounts.shared.seller.to_account_info(),
+        &ctx.accounts.shared.nft_seller_acc,
+        &ctx.accounts.nft_escrow,
+        &ctx.accounts.shared.tswap.to_account_info(),
+        &ctx.accounts.shared.nft_mint,
+        &ctx.accounts.shared.nft_metadata,
+        &ctx.accounts.nft_edition,
+        &ctx.accounts.system_program,
+        &ctx.accounts.token_program,
+        &ctx.accounts.associated_token_program,
+        &ctx.accounts.pnft_shared.instructions,
+        &ctx.accounts.owner_token_record,
+        &ctx.accounts.dest_token_record,
+        &ctx.accounts.pnft_shared.authorization_rules_program,
+        auth_rules,
+        authorization_data,
+        None,
+        None,
+    )?;
 
     let metadata = &assert_decode_metadata(
         &ctx.accounts.shared.nft_mint,
@@ -94,7 +164,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     let current_price = pool.current_price(TakerSide::Sell)?;
     let tswap_fee = pool.calc_tswap_fee(current_price)?;
     let mm_fee = pool.calc_mm_fee(current_price)?;
-    let creators_fee = pool.calc_creators_fee(TakerSide::Sell, metadata, current_price)?;
+    let creators_fee = pool.calc_creators_fee(metadata, current_price)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -112,11 +182,6 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     let mut left_for_seller = current_price;
 
-    // transfer nft to escrow
-    // This must go before any transfer_lamports
-    // o/w we get `sum of account balances before and after instruction do not match`
-    token::transfer(ctx.accounts.transfer_ctx(), 1)?;
-
     //create nft receipt for trade pool
     let receipt_state = &mut ctx.accounts.nft_receipt;
     receipt_state.bump = unwrap_bump!(ctx, "nft_receipt");
@@ -132,10 +197,11 @@ pub fn handler<'a, 'b, 'c, 'info>(
     )?;
 
     // send royalties
-    let actual_creators_fee = ctx.accounts.shared.transfer_creators_fee(
-        &ctx.accounts.shared.sol_escrow.to_account_info(),
+    let actual_creators_fee = transfer_creators_fee(
+        Some(&ctx.accounts.shared.sol_escrow.to_account_info()),
+        None,
         metadata,
-        remaining_accounts_iter,
+        remaining_accounts,
         creators_fee,
     )?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
@@ -144,6 +210,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
 
     //send money directly to seller
+    //(!) fees/royalties are paid by TAKER, which in this case is the SELLER
     let destination = ctx.accounts.shared.seller.to_account_info();
     ctx.accounts
         .shared

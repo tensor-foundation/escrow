@@ -9,7 +9,11 @@ bash scripts/cp_idl.sh
 # Build token metadata program for testing
 git submodule init
 git submodule update
-pushd deps/metaplex/token-metadata/program
+
+pushd deps/metaplex-mpl/token-metadata/program
+cargo build-bpf
+popd
+pushd deps/metaplex-auth/program
 cargo build-bpf
 popd
 

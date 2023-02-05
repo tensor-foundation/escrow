@@ -1,6 +1,10 @@
-use std::{cmp, cmp::min, fmt::Debug};
+use std::{cmp, fmt::Debug};
 
-use mpl_token_metadata::state::Metadata;
+use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
+use mpl_token_metadata::{
+    processor::AuthorizationData,
+    state::{Metadata, TokenStandard},
+};
 use spl_math::precise_number::PreciseNumber;
 use vipers::throw_err;
 
@@ -15,9 +19,7 @@ pub const CURRENT_TSWAP_VERSION: u8 = 1;
 pub const CURRENT_POOL_VERSION: u8 = 2;
 
 #[constant]
-pub const MAX_CREATORS_FEE_BPS: u16 = 90; // 0.9%
-#[constant]
-pub const MAX_MM_FEES_BPS: u16 = 9900; //99%
+pub const MAX_MM_FEES_BPS: u16 = 9999; //99%
 #[constant]
 pub const HUNDRED_PCT_BPS: u16 = 10000;
 #[constant]
@@ -29,9 +31,9 @@ pub const SPREAD_TICKS: u8 = 1;
 
 // --------------------------------------- fees
 
-//standard fee for tswap txs = 0.1%
+//standard fee for tswap txs = 1%
 #[constant]
-pub const STANDARD_FEE_BPS: u16 = 10;
+pub const STANDARD_FEE_BPS: u16 = 100;
 
 //fixed fee applied on top of initial snipe value
 //eg if user wants to snipe for 100, we charge 1.5% on top
@@ -268,23 +270,20 @@ impl Pool {
         Ok(fee)
     }
 
-    pub fn calc_creators_fee(
-        &self,
-        side: TakerSide,
-        metadata: &Metadata,
-        current_price: u64,
-    ) -> Result<u64> {
+    pub fn calc_creators_fee(&self, metadata: &Metadata, current_price: u64) -> Result<u64> {
         // Royalties opted out.
         if !self.config.honor_royalties {
             return Ok(0);
         }
 
-        // No creator fees for trade pools where taker buys (ie trade pool sells).
-        if side == TakerSide::Buy && self.config.pool_type == PoolType::Trade {
-            return Ok(0);
-        }
-
-        let creators_fee_bps = min(MAX_CREATORS_FEE_BPS, metadata.data.seller_fee_basis_points);
+        //only pay royalties on pNFTs
+        let creators_fee_bps = if metadata.token_standard.is_some()
+            && metadata.token_standard.unwrap() == TokenStandard::ProgrammableNonFungible
+        {
+            metadata.data.seller_fee_basis_points
+        } else {
+            0
+        };
         let fee = unwrap_checked!({
             (creators_fee_bps as u64)
                 .checked_mul(current_price)?
@@ -364,14 +363,14 @@ impl Pool {
                     unwrap_checked!({
                         self.config
                             .starting_price
-                            .checked_add((self.config.delta as u64).checked_mul(times as u64)?)
+                            .checked_add((self.config.delta).checked_mul(times as u64)?)
                     })
                 }
                 Direction::Down => {
                     unwrap_checked!({
                         self.config
                             .starting_price
-                            .checked_sub((self.config.delta as u64).checked_mul(times as u64)?)
+                            .checked_sub((self.config.delta).checked_mul(times as u64)?)
                     })
                 }
             },
@@ -458,6 +457,81 @@ pub struct BuySellEvent {
     pub mm_fee: u64,
     #[index]
     pub creators_fee: u64,
+}
+
+// --------------------------------------- replicating mplex type for anchor IDL export
+//have to do this because anchor won't include foreign structs in the IDL
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct AuthorizationDataLocal {
+    pub payload: Vec<TaggedPayload>,
+}
+impl From<AuthorizationDataLocal> for AuthorizationData {
+    fn from(val: AuthorizationDataLocal) -> Self {
+        let mut p = Payload::new();
+        val.payload.into_iter().for_each(|tp| {
+            p.insert(tp.name, PayloadType::try_from(tp.payload).unwrap());
+        });
+        AuthorizationData { payload: p }
+    }
+}
+
+//Unfortunately anchor doesn't like HashMaps, nor Tuples, so you can't pass in:
+// HashMap<String, PayloadType>, nor
+// Vec<(String, PayloadTypeLocal)>
+// so have to create this stupid temp struct for IDL to serialize correctly
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct TaggedPayload {
+    name: String,
+    payload: PayloadTypeLocal,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub enum PayloadTypeLocal {
+    /// A plain `Pubkey`.
+    Pubkey(Pubkey),
+    /// PDA derivation seeds.
+    Seeds(SeedsVecLocal),
+    /// A merkle proof.
+    MerkleProof(ProofInfoLocal),
+    /// A plain `u64` used for `Amount`.
+    Number(u64),
+}
+impl From<PayloadTypeLocal> for PayloadType {
+    fn from(val: PayloadTypeLocal) -> Self {
+        match val {
+            PayloadTypeLocal::Pubkey(pubkey) => PayloadType::Pubkey(pubkey),
+            PayloadTypeLocal::Seeds(seeds) => {
+                PayloadType::Seeds(SeedsVec::try_from(seeds).unwrap())
+            }
+            PayloadTypeLocal::MerkleProof(proof) => {
+                PayloadType::MerkleProof(ProofInfo::try_from(proof).unwrap())
+            }
+            PayloadTypeLocal::Number(number) => PayloadType::Number(number),
+        }
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct SeedsVecLocal {
+    /// The vector of derivation seeds.
+    pub seeds: Vec<Vec<u8>>,
+}
+impl From<SeedsVecLocal> for SeedsVec {
+    fn from(val: SeedsVecLocal) -> Self {
+        SeedsVec { seeds: val.seeds }
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct ProofInfoLocal {
+    /// The merkle proof.
+    pub proof: Vec<[u8; 32]>,
+}
+impl From<ProofInfoLocal> for ProofInfo {
+    fn from(val: ProofInfoLocal) -> Self {
+        ProofInfo { proof: val.proof }
+    }
 }
 
 // --------------------------------------- tests

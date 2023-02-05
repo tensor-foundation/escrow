@@ -16,6 +16,7 @@ import {
   swapSdk,
   TEST_PROVIDER,
   withLamports,
+  wlSdk,
 } from "../shared";
 import {
   adjustSellMinLamports,
@@ -163,7 +164,7 @@ describe("tswap pool", () => {
     await Promise.all(
       [
         { mmFeeBps: 9900, fail: false },
-        { mmFeeBps: 9901, fail: true },
+        { mmFeeBps: 10000, fail: true },
       ].map(async ({ mmFeeBps, fail }) => {
         const promise = testMakePool({
           tswap,
@@ -367,12 +368,14 @@ describe("tswap pool", () => {
         const editionRent = await conn.getMinimumBalanceForRentExemption(
           (await conn.getAccountInfo(masterEdition))!.data.byteLength
         );
+        const proofRent = await wlSdk.getMintProofRent();
 
         const expected =
           // Proceeds from sale, minus the rent we paid to create the mint + ATA initially.
-          buyPrice * (1 - TSWAP_FEE_PCT) -
+          buyPrice -
           metaRent -
           editionRent -
+          proofRent -
           (await getMinimumBalanceForRentExemptMint(conn)) -
           // NB: for some reason if we close the ATA beforehand (and now have this adjustment)
           // the resulting amount credited differs depending on which tests run before this one (wtf??)
@@ -904,8 +907,7 @@ describe("tswap pool", () => {
         mmProfit1 + mmProfit2
       );
       expect(await getLamports(newSolEscrowPda2)).eq(
-        (await swapSdk.getSolEscrowRent()) +
-          3 * LAMPORTS_PER_SOL * (1 - TSWAP_CONFIG.feeBps / HUNDRED_PCT_BPS)
+        (await swapSdk.getSolEscrowRent()) + 3 * LAMPORTS_PER_SOL
       );
     }
   });

@@ -5,6 +5,7 @@ import {
   buildAndSendTx,
   cartesian,
   castPoolConfigAnchor,
+  createTokenAuthorizationRules,
   getLamports,
   swapSdk,
   TEST_PROVIDER,
@@ -15,6 +16,7 @@ import {
   beforeHook,
   createAndFundATA,
   createATA,
+  getAccount,
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
@@ -521,4 +523,89 @@ describe("tswap withdraws", () => {
   });
 
   //endregion
+
+  it("withdraws a pNft (no rulesets)", async () => {
+    const [owner] = await makeNTraders(1);
+
+    await Promise.all(
+      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const { mint, ata } = await createAndFundATA(
+          owner,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          true
+        );
+
+        const {
+          proofs: [wlNft],
+          whitelist,
+        } = await makeProofWhitelist([mint]);
+        const { poolPda: pool, nftAuthPda } = await testMakePool({
+          tswap,
+          owner,
+          config,
+          whitelist,
+        });
+        await testDepositNft({
+          pool,
+          config,
+          owner,
+          ata,
+          wlNft,
+          whitelist,
+          nftAuthPda,
+        });
+
+        await testWithdrawNft({ pool, config, owner, ata, wlNft, whitelist });
+      })
+    );
+  });
+
+  it("withdraws a pNft (1 ruleset)", async () => {
+    const [owner] = await makeNTraders(1);
+
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER.connection,
+      owner
+    );
+
+    await Promise.all(
+      [nftPoolConfig, tradePoolConfig].map(async (config) => {
+        const { mint, ata } = await createAndFundATA(
+          owner,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          true,
+          ruleSetAddr
+        );
+
+        const {
+          proofs: [wlNft],
+          whitelist,
+        } = await makeProofWhitelist([mint]);
+        const { poolPda: pool, nftAuthPda } = await testMakePool({
+          tswap,
+          owner,
+          config,
+          whitelist,
+        });
+        await testDepositNft({
+          pool,
+          config,
+          owner,
+          ata,
+          wlNft,
+          whitelist,
+          nftAuthPda,
+        });
+        await testWithdrawNft({ pool, config, owner, ata, wlNft, whitelist });
+      })
+    );
+  });
 });

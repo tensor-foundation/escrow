@@ -20,8 +20,20 @@ import {
   tokenPoolConfig,
   tradePoolConfig,
 } from "./common";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import { buildAndSendTx, cartesian, getLamports, swapSdk } from "../shared";
+import {
+  AddressLookupTableAccount,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+} from "@solana/web3.js";
+import {
+  buildAndSendTx,
+  cartesian,
+  createTokenAuthorizationRules,
+  getLamports,
+  swapSdk,
+  TEST_PROVIDER,
+} from "../shared";
 import { findMarginPDA, OrderType } from "../../src";
 import { expect } from "chai";
 import { BN } from "@project-serum/anchor";
@@ -29,10 +41,11 @@ import { BN } from "@project-serum/anchor";
 describe("snipe", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
+  let lookupTableAccount: AddressLookupTableAccount | null;
 
   // All tests need these before they start.
   before(async () => {
-    ({ tswapPda: tswap } = await beforeHook());
+    ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
   });
 
   it("freezes > unfreezes", async () => {
@@ -137,6 +150,7 @@ describe("snipe", () => {
         royaltyBps: 1000,
         marginNr,
         isSniping: true,
+        lookupTableAccount,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("PoolFrozen"));
 
@@ -183,6 +197,7 @@ describe("snipe", () => {
       royaltyBps: 1000,
       marginNr,
       isSniping: true,
+      lookupTableAccount,
     });
 
     //try to edit / close (should succeed)
@@ -989,5 +1004,179 @@ describe("snipe", () => {
         whitelist,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadMargin"));
+  });
+
+  it("snipes pnft ok (no rulesets)", async () => {
+    for (const [freeze, snipePricePct] of cartesian(
+      [true, false],
+      [0.8, 1, 0]
+    )) {
+      const [owner, seller] = await makeNTraders(2);
+
+      //create margin acc
+      const { marginNr } = await testMakeMargin({ owner });
+
+      //created marginated bid
+      const config = tokenPoolConfig;
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      const { mint, ata } = await makeMintTwoAta(
+        seller,
+        owner,
+        1000,
+        creators,
+        undefined,
+        undefined,
+        true
+      );
+      const {
+        proofs: [wlNft],
+        whitelist,
+      } = await makeProofWhitelist([mint], 100);
+      const { poolPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+        orderType: OrderType.Sniping,
+      });
+      const { marginPda } = await testAttachPoolToMargin({
+        config,
+        marginNr,
+        owner,
+        whitelist,
+      });
+
+      //prices
+      const bidAmount = LAMPORTS_PER_SOL;
+      const snipeAmount = bidAmount * snipePricePct;
+      const fullBidAmount = calcSnipeBidWithFee(bidAmount);
+
+      //deposit sol into it
+      await testDepositIntoMargin({
+        owner,
+        marginNr,
+        marginPda,
+        amount: fullBidAmount,
+      });
+
+      //freeze it
+      if (freeze) {
+        await testSetFreeze({
+          owner: owner.publicKey,
+          config,
+          marginNr,
+          whitelist,
+          fullBidAmount,
+          freeze: true,
+        });
+      }
+
+      await testTakeSnipe({
+        actualSnipeAmount: snipeAmount,
+        initialBidAmount: bidAmount,
+        ata,
+        config,
+        marginNr,
+        wlNft,
+        owner,
+        poolPda,
+        seller,
+        whitelist,
+        frozen: freeze,
+        programmable: true,
+      });
+    }
+  });
+
+  it.only("snipes pnft ok (1 ruleset)", async () => {
+    for (const [freeze, snipePricePct] of cartesian(
+      [true, false],
+      [0.8, 1, 0]
+    )) {
+      const [owner, seller] = await makeNTraders(2);
+
+      const ruleSetAddr = await createTokenAuthorizationRules(
+        TEST_PROVIDER.connection,
+        owner
+      );
+
+      //create margin acc
+      const { marginNr } = await testMakeMargin({ owner });
+
+      //created marginated bid
+      const config = tokenPoolConfig;
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      const { mint, ata } = await makeMintTwoAta(
+        seller,
+        owner,
+        1000,
+        creators,
+        undefined,
+        undefined,
+        true,
+        ruleSetAddr
+      );
+      const {
+        proofs: [wlNft],
+        whitelist,
+      } = await makeProofWhitelist([mint], 100);
+      const { poolPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+        orderType: OrderType.Sniping,
+      });
+      const { marginPda } = await testAttachPoolToMargin({
+        config,
+        marginNr,
+        owner,
+        whitelist,
+      });
+
+      //prices
+      const bidAmount = LAMPORTS_PER_SOL;
+      const snipeAmount = bidAmount * snipePricePct;
+      const fullBidAmount = calcSnipeBidWithFee(bidAmount);
+
+      //deposit sol into it
+      await testDepositIntoMargin({
+        owner,
+        marginNr,
+        marginPda,
+        amount: fullBidAmount,
+      });
+
+      //freeze it
+      if (freeze) {
+        await testSetFreeze({
+          owner: owner.publicKey,
+          config,
+          marginNr,
+          whitelist,
+          fullBidAmount,
+          freeze: true,
+        });
+      }
+
+      await testTakeSnipe({
+        actualSnipeAmount: snipeAmount,
+        initialBidAmount: bidAmount,
+        ata,
+        config,
+        marginNr,
+        wlNft,
+        owner,
+        poolPda,
+        seller,
+        whitelist,
+        frozen: freeze,
+        programmable: true,
+      });
+    }
   });
 });

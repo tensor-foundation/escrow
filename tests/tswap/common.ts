@@ -1,10 +1,12 @@
 import {
+  AddressLookupTableAccount,
   Commitment,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
   Signer,
   SystemProgram,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
   Transaction,
 } from "@solana/web3.js";
 import {
@@ -27,6 +29,9 @@ import {
   computeMakerAmountCount,
   computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
+  findTokenRecordPDA,
+  isNullLike,
+  MINUTES,
   OrderType,
   PoolAnchor,
   PoolConfigAnchor,
@@ -37,12 +42,12 @@ import {
   STANDARD_FEE_BPS,
   TakerSide,
   TensorWhitelistSDK,
-  TSWAP_FEE_ACC,
   TSwapConfigAnchor,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
   buildAndSendTx,
+  createCoreTswapLUT,
   generateTreeOfSize,
   getLamports,
   HUNDRED_PCT_BPS,
@@ -55,7 +60,20 @@ import {
 import { AnchorProvider } from "@project-serum/anchor";
 import chaiAsPromised from "chai-as-promised";
 import { testInitUpdateMintProof } from "../twhitelist/common";
-import { isNullLike, MINUTES } from "@tensor-hq/tensor-common";
+import {
+  createCreateInstruction,
+  CreateInstructionAccounts,
+  CreateInstructionArgs,
+  createMintInstruction,
+  MintInstructionAccounts,
+  MintInstructionArgs,
+  PROGRAM_ID,
+  TokenStandard,
+} from "@metaplex-foundation/mpl-token-metadata";
+import {
+  Payload,
+  PROGRAM_ID as AUTH_PROGRAM_ID,
+} from "@metaplex-foundation/mpl-token-auth-rules";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -69,7 +87,6 @@ export const TSWAP_CONFIG: TSwapConfigAnchor = {
   feeBps: STANDARD_FEE_BPS,
 };
 export const TSWAP_FEE_PCT = TSWAP_CONFIG.feeBps / 1e4;
-export const MAX_CREATORS_FEE = 90 / 1e4;
 
 export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
   curveType: CurveTypeAnchor.Linear,
@@ -111,7 +128,6 @@ export const beforeHook = async () => {
   } = await swapSdk.initUpdateTSwap({
     owner: TEST_PROVIDER.publicKey,
     newOwner: TEST_PROVIDER.publicKey,
-    feeVault: TSWAP_FEE_ACC,
     config: TSWAP_CONFIG,
     cosigner: TEST_COSIGNER.publicKey,
   });
@@ -122,10 +138,13 @@ export const beforeHook = async () => {
   expect(swapAcc.version).eq(1);
   expect(swapAcc.owner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
   expect(swapAcc.cosigner.toBase58()).eq(TEST_COSIGNER.publicKey.toBase58());
-  expect(swapAcc.feeVault.toBase58()).eq(TSWAP_FEE_ACC.toBase58());
+  expect(swapAcc.feeVault.toBase58()).eq(tswapPda.toBase58());
   expect((swapAcc.config as TSwapConfigAnchor).feeBps).eq(TSWAP_FEE_PCT * 1e4);
 
-  return { tswapPda };
+  //LUT
+  const lookupTableAccount = await createCoreTswapLUT();
+
+  return { tswapPda, lookupTableAccount };
 };
 
 const expectPoolAccounting = (
@@ -191,6 +210,155 @@ export type CreatorInput = {
   authority?: Signer;
 };
 
+const _createAndMintPNft = async ({
+  owner,
+  mint,
+  royaltyBps,
+  creators,
+  collection,
+  collectionVerified = true,
+  ruleSet = null,
+}: {
+  owner: Keypair;
+  mint: Keypair;
+  royaltyBps?: number;
+  creators?: CreatorInput[];
+  collection?: Keypair;
+  collectionVerified?: boolean;
+  ruleSet?: PublicKey | null;
+}) => {
+  // --------------------------------------- create
+
+  // metadata account
+  const [metadata] = PublicKey.findProgramAddressSync(
+    [Buffer.from("metadata"), PROGRAM_ID.toBuffer(), mint.publicKey.toBuffer()],
+    PROGRAM_ID
+  );
+
+  // master edition account
+  const [masterEdition] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("metadata"),
+      PROGRAM_ID.toBuffer(),
+      mint.publicKey.toBuffer(),
+      Buffer.from("edition"),
+    ],
+    PROGRAM_ID
+  );
+
+  const accounts: CreateInstructionAccounts = {
+    metadata,
+    masterEdition,
+    mint: mint.publicKey,
+    authority: owner.publicKey,
+    payer: owner.publicKey,
+    splTokenProgram: TOKEN_PROGRAM_ID,
+    sysvarInstructions: SYSVAR_INSTRUCTIONS_PUBKEY,
+    updateAuthority: owner.publicKey,
+  };
+
+  const args: CreateInstructionArgs = {
+    createArgs: {
+      __kind: "V1",
+      assetData: {
+        name: "Whatever",
+        symbol: "TSR",
+        uri: "https://www.tensor.trade",
+        sellerFeeBasisPoints: royaltyBps ?? 0,
+        creators:
+          creators?.map((c) => {
+            return {
+              address: c.address,
+              share: c.share,
+              verified: !!c.authority,
+            };
+          }) ?? null,
+        primarySaleHappened: true,
+        isMutable: true,
+        tokenStandard: TokenStandard.ProgrammableNonFungible,
+        collection: collection
+          ? { verified: collectionVerified, key: collection.publicKey }
+          : null,
+        uses: null,
+        collectionDetails: null,
+        ruleSet,
+      },
+      decimals: 0,
+      printSupply: { __kind: "Zero" },
+    },
+  };
+
+  const createIx = createCreateInstruction(accounts, args);
+
+  // this test always initializes the mint, we we need to set the
+  // account to be writable and a signer
+  for (let i = 0; i < createIx.keys.length; i++) {
+    if (createIx.keys[i].pubkey.toBase58() === mint.publicKey.toBase58()) {
+      createIx.keys[i].isSigner = true;
+      createIx.keys[i].isWritable = true;
+    }
+  }
+
+  // --------------------------------------- mint
+
+  // mint instrution will initialize a ATA account
+  const [tokenPda] = PublicKey.findProgramAddressSync(
+    [
+      owner.publicKey.toBuffer(),
+      TOKEN_PROGRAM_ID.toBuffer(),
+      mint.publicKey.toBuffer(),
+    ],
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  const [tokenRecord] = findTokenRecordPDA(mint.publicKey, tokenPda);
+
+  const mintAcccounts: MintInstructionAccounts = {
+    token: tokenPda,
+    tokenOwner: owner.publicKey,
+    metadata,
+    masterEdition,
+    tokenRecord,
+    mint: mint.publicKey,
+    payer: owner.publicKey,
+    authority: owner.publicKey,
+    sysvarInstructions: SYSVAR_INSTRUCTIONS_PUBKEY,
+    splAtaProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    splTokenProgram: TOKEN_PROGRAM_ID,
+    authorizationRules: ruleSet ?? undefined,
+    authorizationRulesProgram: AUTH_PROGRAM_ID,
+  };
+
+  const payload: Payload = {
+    map: new Map(),
+  };
+
+  const mintArgs: MintInstructionArgs = {
+    mintArgs: {
+      __kind: "V1",
+      amount: 1,
+      authorizationData: {
+        payload: payload as any,
+      },
+    },
+  };
+
+  const mintIx = createMintInstruction(mintAcccounts, mintArgs);
+
+  // --------------------------------------- send
+
+  await buildAndSendTx({
+    ixs: [createIx, mintIx],
+    extraSigners: [owner, mint],
+  });
+
+  return {
+    tokenAddress: tokenPda,
+    metadataAddress: metadata,
+    masterEditionAddress: masterEdition,
+  };
+};
+
 const _createAndFundATA = async ({
   provider,
   owner,
@@ -199,6 +367,8 @@ const _createAndFundATA = async ({
   creators,
   collection,
   collectionVerified,
+  programmable = false,
+  ruleSetAddr,
 }: {
   provider: AnchorProvider;
   owner?: Keypair;
@@ -207,6 +377,8 @@ const _createAndFundATA = async ({
   creators?: CreatorInput[];
   collection?: Keypair;
   collectionVerified?: boolean;
+  programmable?: boolean;
+  ruleSetAddr?: PublicKey;
 }): Promise<{
   mint: PublicKey;
   ata: PublicKey;
@@ -239,24 +411,40 @@ const _createAndFundATA = async ({
     // );
   }
 
-  const { metadataAddress, tokenAddress, masterEditionAddress } = await mplex
-    .nfts()
-    .create({
-      useNewMint: usedMint,
-      tokenOwner: usedOwner.publicKey,
-      uri: "https://www.tensor.trade",
-      name: "Whatever",
-      sellerFeeBasisPoints: royaltyBps ?? 0,
-      creators,
-      maxSupply: toBigNumber(1),
-      collection: collection?.publicKey,
-    });
+  let metadataAddress, tokenAddress, masterEditionAddress;
+  if (programmable) {
+    //create programmable nft
+    ({ metadataAddress, tokenAddress, masterEditionAddress } =
+      await _createAndMintPNft({
+        mint: usedMint,
+        owner: usedOwner,
+        royaltyBps,
+        creators,
+        collection,
+        collectionVerified,
+        ruleSet: ruleSetAddr,
+      }));
+  } else {
+    //create normal nft
+    ({ metadataAddress, tokenAddress, masterEditionAddress } = await mplex
+      .nfts()
+      .create({
+        useNewMint: usedMint,
+        tokenOwner: usedOwner.publicKey,
+        uri: "https://www.tensor.trade",
+        name: "Whatever",
+        sellerFeeBasisPoints: royaltyBps ?? 0,
+        creators,
+        maxSupply: toBigNumber(1),
+        collection: collection?.publicKey,
+      }));
 
-  if (collection && collectionVerified) {
-    await mplex.nfts().verifyCollection({
-      mintAddress: usedMint.publicKey,
-      collectionMintAddress: collection.publicKey,
-    });
+    if (collection && collectionVerified) {
+      await mplex.nfts().verifyCollection({
+        mintAddress: usedMint.publicKey,
+        collectionMintAddress: collection.publicKey,
+      });
+    }
   }
 
   // console.log(
@@ -275,15 +463,19 @@ const _createAndFundATA = async ({
 
 export const createFundedWallet = (sol?: number) =>
   _createFundedWallet(TEST_PROVIDER, sol);
+
 export const createATA = (mint: PublicKey, owner: Keypair) =>
   _createATA(TEST_PROVIDER, mint, owner);
+
 export const createAndFundATA = (
   owner?: Keypair,
   mint?: Keypair,
   royaltyBps?: number,
   creators?: CreatorInput[],
   collection?: Keypair,
-  collectionVerified?: boolean
+  collectionVerified?: boolean,
+  programmable?: boolean,
+  ruleSetAddr?: PublicKey
 ) =>
   _createAndFundATA({
     provider: TEST_PROVIDER,
@@ -293,7 +485,10 @@ export const createAndFundATA = (
     creators,
     collection,
     collectionVerified,
+    programmable,
+    ruleSetAddr,
   });
+
 export const getAccount = (acct: PublicKey) =>
   _getAccount(TEST_PROVIDER.connection, acct);
 
@@ -308,7 +503,9 @@ export const makeMintTwoAta = async (
   royaltyBps?: number,
   creators?: CreatorInput[],
   collection?: Keypair,
-  collectionVerified?: boolean
+  collectionVerified?: boolean,
+  programmable?: boolean,
+  ruleSetAddr?: PublicKey
 ) => {
   const { mint, ata, metadata, masterEdition } = await createAndFundATA(
     owner,
@@ -316,7 +513,9 @@ export const makeMintTwoAta = async (
     royaltyBps,
     creators,
     collection,
-    collectionVerified
+    collectionVerified,
+    programmable,
+    ruleSetAddr
   );
 
   const { ata: otherAta } = await createATA(mint, other);
@@ -1012,6 +1211,7 @@ export const testDepositNft = async ({
   whitelist,
   commitment,
   nftMetadata,
+  skipPoolAccounting = false,
 }: {
   pool: PublicKey;
   nftAuthPda: PublicKey;
@@ -1023,11 +1223,23 @@ export const testDepositNft = async ({
   whitelist: PublicKey;
   commitment?: Commitment;
   nftMetadata?: PublicKey;
+  skipPoolAccounting?: boolean;
 }) => {
   if (!wlNft?.mint && !nftMint) {
     throw new Error("nft mint missing");
   }
   const mint = wlNft?.mint ?? nftMint!;
+
+  if (wlNft?.proof) {
+    // Need to create mint proof first before being able to sell.
+    await testInitUpdateMintProof({
+      user: owner,
+      mint,
+      whitelist,
+      proof: wlNft.proof,
+      expectedProofLen: wlNft.proof.length,
+    });
+  }
 
   let {
     tx: { ixs },
@@ -1039,7 +1251,6 @@ export const testDepositNft = async ({
     nftSource: ata,
     owner: owner.publicKey,
     config,
-    proof: wlNft?.proof,
     nftMetadata,
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
@@ -1056,14 +1267,16 @@ export const testDepositNft = async ({
   let escrowAcc = await getAccount(escrowPda);
   expect(escrowAcc.amount.toString()).eq("1");
   const poolAcc = await swapSdk.fetchPool(pool);
-  expectPoolAccounting(poolAcc, prevPoolAcc, { nfts: 1, sell: 0, buy: 0 });
+  if (!skipPoolAccounting) {
+    expectPoolAccounting(poolAcc, prevPoolAcc, { nfts: 1, sell: 0, buy: 0 });
+  }
 
   const receipt = await swapSdk.fetchReceipt(receiptPda);
   expect(receipt.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
   expect(receipt.nftMint.toBase58()).eq(mint.toBase58());
   expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
 
-  return { depSig, receiptPda };
+  return { depSig, receiptPda, escrowPda };
 };
 
 // CANNOT be run async w/ same pool (sol escrow balance check).
@@ -1234,6 +1447,8 @@ export const testBuyNft = async ({
   commitment,
   royaltyBps,
   creators,
+  programmable,
+  lookupTableAccount,
 }: {
   whitelist: PublicKey;
   pool: PublicKey;
@@ -1249,12 +1464,15 @@ export const testBuyNft = async ({
   commitment?: Commitment;
   royaltyBps?: number;
   creators?: CreatorInput[];
+  programmable?: boolean;
+  lookupTableAccount?: AddressLookupTableAccount | null;
 }) => {
   const {
     tx: { ixs },
     receiptPda,
     escrowPda,
     solEscrowPda,
+    tswapPda,
   } = await swapSdk.buyNft({
     whitelist,
     nftMint: wlNft.mint,
@@ -1269,7 +1487,7 @@ export const testBuyNft = async ({
 
   return await withLamports(
     {
-      prevFeeAccLamports: TSWAP_FEE_ACC,
+      prevFeeAccLamports: tswapPda,
       prevSellerLamports: owner.publicKey,
       prevBuyerLamports: buyer.publicKey,
       prevEscrowLamports: solEscrowPda,
@@ -1286,6 +1504,9 @@ export const testBuyNft = async ({
         opts: {
           commitment,
         },
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
       });
 
       //NFT moved from escrow to trader
@@ -1296,7 +1517,7 @@ export const testBuyNft = async ({
         TokenAccountNotFoundError
       );
 
-      const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
+      const feeAccLamports = await getLamports(tswapPda);
       const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE_PCT);
       //paid tswap fees (NB: fee account may be un-init before).
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
@@ -1306,7 +1527,7 @@ export const testBuyNft = async ({
       // Check creators' balances.
       let creatorsFee = 0;
       // Trade pools (when being bought from) charge no royalties.
-      if (!!creators?.length && royaltyBps && !isTrade) {
+      if (!!creators?.length && royaltyBps) {
         //skip creators when royalties not enough to cover rent
         let skippedCreators = 0;
         for (const c of creators) {
@@ -1316,15 +1537,15 @@ export const testBuyNft = async ({
         }
 
         creatorsFee = Math.trunc(
-          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) *
+          (programmable ? royaltyBps / 1e4 : 0) *
             expectedLamports *
             (1 - skippedCreators / 100)
         );
 
         for (const c of creators) {
           const cBal = await getLamports(c.address);
-          //only run the test if share > 1, else it's skipped
-          if (c.share > 1) {
+          //only run the test if share > 1, else it's skipped && cBal exists (it wont if 0 royalties were paid)
+          if (c.share > 1 && !isNullLike(cBal)) {
             expect(cBal).eq(
               Math.trunc(
                 ((creatorsFee / (1 - skippedCreators / 100)) * c.share) / 100
@@ -1336,18 +1557,21 @@ export const testBuyNft = async ({
 
       // Buyer pays full amount.
       const currBuyerLamports = await getLamports(buyer.publicKey);
-      expect(currBuyerLamports! - prevBuyerLamports!).eq(-1 * expectedLamports);
+      //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
+      if (!programmable) {
+        expect(currBuyerLamports! - prevBuyerLamports!).eq(
+          -1 * (expectedLamports + tswapFee + creatorsFee)
+        );
+      }
       // Depending on the pool type:
       // (1) Trade = amount sent to escrow, NOT owner
       // (1) NFT = amount sent to owner, NOT escrow
-
-      const grossAmount = expectedLamports * (1 - TSWAP_FEE_PCT) - creatorsFee;
       const expOwnerAmount =
-        (isTrade ? 0 : grossAmount) +
+        (isTrade ? 0 : expectedLamports) +
         // The owner gets back the rent costs.
         (await swapSdk.getNftDepositReceiptRent()) +
         (await swapSdk.getTokenAcctRent());
-      const expEscrowAmount = isTrade ? grossAmount : 0;
+      const expEscrowAmount = isTrade ? expectedLamports : 0;
 
       // amount sent to owner's wallet
       const currSellerLamports = await getLamports(owner.publicKey);
@@ -1399,6 +1623,9 @@ export const testMakePoolBuyNft = async ({
   royaltyBps,
   creators,
   treeSize,
+  programmable,
+  ruleSetAddr,
+  lookupTableAccount,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -1412,12 +1639,19 @@ export const testMakePoolBuyNft = async ({
   royaltyBps?: number;
   creators?: CreatorInput[];
   treeSize?: number;
+  programmable?: boolean;
+  ruleSetAddr?: PublicKey;
+  lookupTableAccount?: AddressLookupTableAccount | null;
 }) => {
   const { mint, ata, otherAta, metadata, masterEdition } = await makeMintTwoAta(
     owner,
     buyer,
     royaltyBps,
-    creators
+    creators,
+    undefined,
+    undefined,
+    programmable,
+    ruleSetAddr
   );
   const {
     proofs: [wlNft],
@@ -1454,6 +1688,8 @@ export const testMakePoolBuyNft = async ({
       commitment,
       royaltyBps,
       creators,
+      programmable,
+      lookupTableAccount,
     })),
     pool,
     whitelist,
@@ -1484,6 +1720,8 @@ export const testSellNft = async ({
   isCosigned = false,
   marginNr = null,
   isSniping = false,
+  programmable,
+  lookupTableAccount,
 }: {
   sellType: "trade" | "token";
   nftMint?: PublicKey;
@@ -1507,6 +1745,8 @@ export const testSellNft = async ({
   isCosigned?: boolean;
   marginNr?: null | number;
   isSniping?: boolean;
+  programmable?: boolean;
+  lookupTableAccount?: AddressLookupTableAccount | null;
 }) => {
   if (!wlNft?.mint && !nftMint) {
     throw new Error("missing mint");
@@ -1533,6 +1773,7 @@ export const testSellNft = async ({
     ownerAtaAcc,
     receiptPda: nftReceipt,
     marginPda,
+    tswapPda,
   } = await swapSdk.sellNft({
     type: sellType,
     whitelist,
@@ -1560,7 +1801,7 @@ export const testSellNft = async ({
 
   return await withLamports(
     {
-      prevFeeAccLamports: TSWAP_FEE_ACC,
+      prevFeeAccLamports: tswapPda,
       prevSellerLamports: seller.publicKey,
       prevBuyerLamports: owner.publicKey,
       prevEscrowLamports: solEscrowPda,
@@ -1583,6 +1824,9 @@ export const testSellNft = async ({
         ixs,
         extraSigners: isCosigned ? [seller, TEST_COSIGNER] : [seller],
         opts: { commitment },
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
       });
 
       //NFT moved from trader to escrow
@@ -1590,7 +1834,7 @@ export const testSellNft = async ({
       expect(traderAcc.amount.toString()).eq("0");
       await _checkDestAcc("1");
 
-      const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
+      const feeAccLamports = await getLamports(tswapPda);
       const tswapFee = Math.trunc(
         isSniping
           ? calcSnipeFee(expectedLamports)
@@ -1609,7 +1853,7 @@ export const testSellNft = async ({
         //skip creators when royalties not enough to cover rent
         let skippedCreators = 0;
         const temp = Math.trunc(
-          Math.min(MAX_CREATORS_FEE, royaltyBps / 1e4) *
+          (programmable ? royaltyBps / 1e4 : 0) *
             expectedLamports *
             (1 - skippedCreators / 100)
         );
@@ -1617,7 +1861,8 @@ export const testSellNft = async ({
         // Need to accumulate b/c of dust.
         for (const c of creators) {
           const cBal = await getLamports(c.address);
-          if (c.share > 1) {
+          //only run the test if share > 1, else it's skipped && cBal exists (it wont if 0 royalties were paid)
+          if (c.share > 1 && !isNullLike(cBal)) {
             const expected = Math.trunc((temp * c.share) / 100);
             expect(cBal).eq(expected);
             creatorsFee += expected;
@@ -1636,17 +1881,20 @@ export const testSellNft = async ({
           : // owner ATA always exists (b/c we initialize it above)
             0;
       const currSellerLamports = await getLamports(seller.publicKey);
-      expect(currSellerLamports! - prevSellerLamports!).eq(
-        // Seller gets back original price minus:
-        // (1) TSwap fees
-        // (2) MM fees (if trade pool)
-        // (3) any rent paid by seller
-        expectedLamports -
-          tswapFee -
-          mmFees -
-          expectedRentBySeller -
-          creatorsFee
-      );
+      //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
+      if (!programmable) {
+        expect(currSellerLamports! - prevSellerLamports!).eq(
+          // Seller gets back original price minus:
+          // (1) TSwap fees
+          // (2) MM fees (if trade pool)
+          // (3) any rent paid by seller
+          expectedLamports -
+            tswapFee -
+            mmFees -
+            expectedRentBySeller -
+            creatorsFee
+        );
+      }
 
       // buyer should not have balance change
       const currBuyerLamports = await getLamports(owner.publicKey);
@@ -1720,6 +1968,9 @@ export const testMakePoolSellNft = async ({
   creators,
   treeSize,
   isCosigned = false,
+  programmable,
+  ruleSetAddr,
+  lookupTableAccount,
 }: {
   sellType: "trade" | "token";
   tswap: PublicKey;
@@ -1735,12 +1986,19 @@ export const testMakePoolSellNft = async ({
   creators?: CreatorInput[];
   treeSize?: number;
   isCosigned?: boolean;
+  programmable?: boolean;
+  ruleSetAddr?: PublicKey;
+  lookupTableAccount?: AddressLookupTableAccount | null;
 }) => {
   const { mint, ata } = await makeMintTwoAta(
     seller,
     owner,
     royaltyBps,
-    creators
+    creators,
+    undefined,
+    undefined,
+    programmable,
+    ruleSetAddr
   );
   const {
     proofs: [wlNft],
@@ -1782,6 +2040,8 @@ export const testMakePoolSellNft = async ({
       creators,
       treeSize,
       isCosigned,
+      programmable,
+      lookupTableAccount,
     })),
     poolPda,
     wlNft,
@@ -1805,6 +2065,7 @@ export const testTakeSnipe = async ({
   marginNr,
   frozen,
   cosigner = TEST_COSIGNER,
+  programmable,
 }: {
   nftMint?: PublicKey;
   whitelist: PublicKey;
@@ -1823,6 +2084,7 @@ export const testTakeSnipe = async ({
   // Whether we're "taking" a frozen order
   frozen: boolean;
   cosigner?: Keypair;
+  programmable?: boolean;
 }) => {
   if (!wlNft?.mint && !nftMint) {
     throw new Error("missing mint");
@@ -1847,6 +2109,7 @@ export const testTakeSnipe = async ({
     solEscrowPda,
     marginPda,
     ownerAtaAcc,
+    tswapPda,
   } = await swapSdk.takeSnipe({
     whitelist,
     nftMint: mint,
@@ -1866,7 +2129,7 @@ export const testTakeSnipe = async ({
 
   return await withLamports(
     {
-      prevFeeAccLamports: TSWAP_FEE_ACC,
+      prevFeeAccLamports: tswapPda,
       prevSellerLamports: seller.publicKey,
       prevBuyerLamports: owner.publicKey,
       prevEscrowLamports: solEscrowPda,
@@ -1895,7 +2158,7 @@ export const testTakeSnipe = async ({
       expect(traderAcc.amount.toString()).eq("0");
       await _checkDestAcc("1");
 
-      const feeAccLamports = await getLamports(TSWAP_FEE_ACC);
+      const feeAccLamports = await getLamports(tswapPda);
 
       //snipe fee sent correctly
       const snipeBaseFee = Math.trunc(calcSnipeFee(initialBidAmount));
@@ -1908,7 +2171,10 @@ export const testTakeSnipe = async ({
 
       //seller paid correctly
       const currSellerLamports = await getLamports(seller.publicKey);
-      expect(currSellerLamports! - prevSellerLamports!).eq(actualSnipeAmount);
+      //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
+      if (!programmable) {
+        expect(currSellerLamports! - prevSellerLamports!).eq(actualSnipeAmount);
+      }
 
       //rest moved to margin account
       const actualPaidBySniper = actualSnipeAmount + totalSnipeFee;

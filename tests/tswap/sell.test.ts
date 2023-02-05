@@ -1,11 +1,17 @@
 import { BN, LangErrorCode } from "@project-serum/anchor";
 import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import {
+  AddressLookupTableAccount,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+} from "@solana/web3.js";
 import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
   castPoolConfigAnchor,
+  createTokenAuthorizationRules,
   CurveTypeAnchor,
   hexCode,
   INTEGER_OVERFLOW_ERR,
@@ -38,15 +44,15 @@ import {
   tradePoolConfig,
   TSWAP_FEE_PCT,
 } from "./common";
-import { castPoolTypeAnchor, PoolType } from "../../src";
 
 describe("tswap sell", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
+  let lookupTableAccount: AddressLookupTableAccount | null;
 
   // All tests need these before they start.
   before(async () => {
-    ({ tswapPda: tswap } = await beforeHook());
+    ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
   });
 
   it("sell into token/trade pool", async () => {
@@ -102,7 +108,7 @@ describe("tswap sell", () => {
           expectedLamports
         ),
         // TODO snipe: currently cosigning only for token pools
-        isCosigned: config === tradePoolConfig ? false : true,
+        isCosigned: config !== tradePoolConfig,
       });
     }
   });
@@ -266,6 +272,7 @@ describe("tswap sell", () => {
         minLamports: adjustSellMinLamports(isToken, expectedLamports),
         royaltyBps,
         creators,
+        lookupTableAccount, //<-- make it a v0
       });
     }
   });
@@ -321,6 +328,7 @@ describe("tswap sell", () => {
         royaltyBps: 50,
         creators,
         treeSize: 5_000,
+        lookupTableAccount,
       });
     }
   });
@@ -433,7 +441,7 @@ describe("tswap sell", () => {
           {
             currMint: badMint,
             currAta: badAta,
-            err: hexCode(LangErrorCode.AccountNotInitialized),
+            err: swapSdk.getErrorCodeHex("BadMintProof"),
           },
           {
             currMint: badMint,
@@ -1154,8 +1162,7 @@ describe("tswap sell", () => {
           Math.trunc((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4)
       );
       expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-        Math.trunc(expectedLamports * TSWAP_FEE_PCT) +
-          Math.trunc((expectedLamports * 69) / 1e4)
+        Math.trunc(expectedLamports * TSWAP_FEE_PCT)
       );
 
       if (config === tradePoolConfig)
@@ -1181,6 +1188,83 @@ describe("tswap sell", () => {
       expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
         whitelist.toBase58()
       );
+    }
+  });
+
+  it("sell pNft into token/trade pool (no rulesets)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const [{ owner, seller }, config] of cartesian(
+      [
+        { owner: traderA, seller: traderB },
+        { owner: traderB, seller: traderA },
+      ],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      const expectedLamports = defaultSellExpectedLamports(
+        config === tokenPoolConfig
+      );
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(
+          config === tokenPoolConfig,
+          expectedLamports
+        ),
+        creators,
+        royaltyBps: 500,
+        programmable: true,
+        lookupTableAccount,
+      });
+    }
+  });
+
+  it("sell pNft into token/trade pool (1 ruleset)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER.connection,
+      traderA
+    );
+
+    // Intentionally do this serially (o/w balances will race).
+    for (const [{ owner, seller }, config] of cartesian(
+      [
+        { owner: traderA, seller: traderB },
+        { owner: traderB, seller: traderA },
+      ],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      const expectedLamports = defaultSellExpectedLamports(
+        config === tokenPoolConfig
+      );
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(
+          config === tokenPoolConfig,
+          expectedLamports
+        ),
+        programmable: true,
+        ruleSetAddr,
+        creators,
+        royaltyBps: 1000,
+        lookupTableAccount,
+      });
     }
   });
 });

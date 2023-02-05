@@ -1,6 +1,10 @@
 //! User depositing NFTs into their NFT/Trade pool (to sell NFTs)
-use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use tensor_whitelist::{self, FullMerkleProof, Whitelist, ZERO_ARRAY};
+
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token::{Mint, Token, TokenAccount},
+};
+use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
 use crate::*;
@@ -69,7 +73,6 @@ pub struct DepositNft<'info> {
         space = 8 + NftDepositReceipt::SIZE,
     )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
-
     /// CHECK: has_one = owner in pool
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -81,6 +84,7 @@ pub struct DepositNft<'info> {
     //can't deserialize directly coz Anchor traits not implemented
     /// CHECK: assert_decode_metadata + seeds below
     #[account(
+        mut,
         seeds=[
             mpl_token_metadata::state::PREFIX.as_bytes(),
             mpl_token_metadata::id().as_ref(),
@@ -90,34 +94,79 @@ pub struct DepositNft<'info> {
         bump
     )]
     pub nft_metadata: UncheckedAccount<'info>,
+
+    // intentionally not deserializing, it would be dummy in the case of VOC/FVC based verification
+    /// CHECK: seeds below + assert_decode_mint_proof
+    #[account(
+        seeds = [
+            b"mint_proof".as_ref(),
+            nft_mint.key().as_ref(),
+            whitelist.key().as_ref(),
+        ],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
+    pub mint_proof: UncheckedAccount<'info>,
+
+    // --------------------------------------- pNft
+
+    //note that MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
+    /// CHECK: seeds below
+    #[account(
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::EDITION.as_bytes(),
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub nft_edition: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_source.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub owner_token_record: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_escrow.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub dest_token_record: UncheckedAccount<'info>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
+
+    pub pnft_shared: ProgNftShared<'info>,
+    // remaining accounts:
+    // CHECK: validate it's present on metadata in handler
+    // 1. optional authorization_rules, only if present on metadata
 }
 
 impl<'info> DepositNft<'info> {
-    fn verify_whitelist(&self, proof: Vec<[u8; 32]>) -> Result<()> {
-        //prioritize merkle tree if proof present
-        if self.whitelist.root_hash != ZERO_ARRAY {
-            let leaf = anchor_lang::solana_program::keccak::hash(self.nft_mint.key().as_ref());
-            self.whitelist.verify_whitelist(
-                None,
-                Some(FullMerkleProof {
-                    proof,
-                    leaf: leaf.0,
-                }),
-            )
-        } else {
-            let metadata = &assert_decode_metadata(&self.nft_mint, &self.nft_metadata)?;
-            self.whitelist.verify_whitelist(Some(metadata), None)
-        }
-    }
-
-    fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        CpiContext::new(
-            self.token_program.to_account_info(),
-            Transfer {
-                from: self.nft_source.to_account_info(),
-                to: self.nft_escrow.to_account_info(),
-                authority: self.owner.to_account_info(),
-            },
+    pub fn verify_whitelist(&self) -> Result<()> {
+        verify_whitelist(
+            &self.whitelist,
+            &self.mint_proof,
+            &self.nft_mint,
+            &self.nft_metadata,
         )
     }
 }
@@ -134,10 +183,34 @@ impl<'info> Validate<'info> for DepositNft<'info> {
     }
 }
 
-#[access_control(ctx.accounts.verify_whitelist(proof); ctx.accounts.validate())]
-pub fn handler(ctx: Context<DepositNft>, proof: Vec<[u8; 32]>) -> Result<()> {
-    // do the transfer
-    token::transfer(ctx.accounts.transfer_ctx(), 1)?;
+#[access_control(ctx.accounts.verify_whitelist(); ctx.accounts.validate())]
+pub fn handler<'info>(
+    ctx: Context<'_, '_, '_, 'info, DepositNft<'info>>,
+    authorization_data: Option<AuthorizationDataLocal>,
+) -> Result<()> {
+    let rem_acc = &mut ctx.remaining_accounts.iter().peekable();
+    let auth_rules = rem_acc.peek().copied();
+    send_pnft(
+        &ctx.accounts.owner.to_account_info(),
+        &ctx.accounts.owner.to_account_info(),
+        &ctx.accounts.nft_source,
+        &ctx.accounts.nft_escrow,
+        &ctx.accounts.tswap.to_account_info(),
+        &ctx.accounts.nft_mint,
+        &ctx.accounts.nft_metadata,
+        &ctx.accounts.nft_edition,
+        &ctx.accounts.system_program,
+        &ctx.accounts.token_program,
+        &ctx.accounts.associated_token_program,
+        &ctx.accounts.pnft_shared.instructions,
+        &ctx.accounts.owner_token_record,
+        &ctx.accounts.dest_token_record,
+        &ctx.accounts.pnft_shared.authorization_rules_program,
+        auth_rules,
+        authorization_data,
+        None,
+        None,
+    )?;
 
     //update pool
     let pool = &mut ctx.accounts.pool;

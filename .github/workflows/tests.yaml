@@ -16,7 +16,7 @@ env:
 jobs:
   test-rust:
     name: Rust Tests
-    runs-on: [self-hosted, linux, x64] 
+    runs-on: [self-hosted, linux, x64]
     # runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -44,7 +44,7 @@ jobs:
 
   setup-anchor-cli:
     name: Setup Anchor cli
-    runs-on: [self-hosted, linux, x64] 
+    runs-on: [self-hosted, linux, x64]
     # runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -83,16 +83,15 @@ jobs:
     # so we need to download the anchor artifact from above.
     needs: setup-anchor-cli
     name: Test ${{ matrix.node.glob }}
-    runs-on: [self-hosted, linux, x64] 
+    runs-on: [self-hosted, linux, x64]
     # runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy: 
+    strategy:
       fail-fast: false
       matrix:
         node:
           - glob: tests/prices.spec.ts
           - glob: tests/tswap/buy.test.ts
-          - glob: tests/tswap/cosigner.test.ts
           - glob: tests/tswap/deposit.test.ts
           - glob: tests/tswap/pool.test.ts
           - glob: tests/tswap/sell.test.ts
@@ -135,7 +134,7 @@ jobs:
 
       - run: yarn install
       - run: yarn test
-        env: 
+        env:
           TESTS_GLOB: ${{ matrix.node.glob }}
       # This ensures the IDL generated matches what's checked in!
       - uses: ./.github/actions/git-diff/

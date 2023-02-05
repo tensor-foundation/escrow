@@ -1,3 +1,6 @@
+#![allow(unknown_lints)] //needed otherwise complains during github actions
+#![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
+
 use anchor_lang::prelude::*;
 use vipers::prelude::*;
 
@@ -52,16 +55,20 @@ pub mod tensorswap {
         instructions::close_pool::handler(ctx)
     }
 
-    pub fn deposit_nft(
-        ctx: Context<DepositNft>,
+    pub fn deposit_nft<'info>(
+        ctx: Context<'_, '_, '_, 'info, DepositNft<'info>>,
         _config: PoolConfig,
-        proof: Vec<[u8; 32]>,
+        authorization_data: Option<AuthorizationDataLocal>,
     ) -> Result<()> {
-        instructions::deposit_nft::handler(ctx, proof)
+        instructions::deposit_nft::handler(ctx, authorization_data)
     }
 
-    pub fn withdraw_nft(ctx: Context<WithdrawNft>, _config: PoolConfig) -> Result<()> {
-        instructions::withdraw_nft::handler(ctx)
+    pub fn withdraw_nft<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithdrawNft<'info>>,
+        _config: PoolConfig,
+        authorization_data: Option<AuthorizationDataLocal>,
+    ) -> Result<()> {
+        instructions::withdraw_nft::handler(ctx, authorization_data)
     }
 
     pub fn deposit_sol<'info>(
@@ -80,28 +87,44 @@ pub mod tensorswap {
         instructions::withdraw_sol::handler(ctx, lamports)
     }
 
-    pub fn buy_nft<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, BuyNft<'info>>,
+    pub fn buy_nft<'info>(
+        ctx: Context<'_, '_, '_, 'info, BuyNft<'info>>,
         _config: PoolConfig,
         max_price: u64,
+        rules_acc_present: bool,
+        authorization_data: Option<AuthorizationDataLocal>,
     ) -> Result<()> {
-        instructions::buy_nft::handler(ctx, max_price)
+        instructions::buy_nft::handler(ctx, max_price, rules_acc_present, authorization_data)
     }
 
-    pub fn sell_nft_token_pool<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, SellNftTokenPool<'info>>,
+    pub fn sell_nft_token_pool<'info>(
+        ctx: Context<'_, '_, '_, 'info, SellNftTokenPool<'info>>,
         _config: PoolConfig,
         min_price: u64,
+        rules_acc_present: bool,
+        authorization_data: Option<AuthorizationDataLocal>,
     ) -> Result<()> {
-        instructions::sell_nft_token_pool::handler(ctx, min_price)
+        instructions::sell_nft_token_pool::handler(
+            ctx,
+            min_price,
+            rules_acc_present,
+            authorization_data,
+        )
     }
 
-    pub fn sell_nft_trade_pool<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, SellNftTradePool<'info>>,
+    pub fn sell_nft_trade_pool<'info>(
+        ctx: Context<'_, '_, '_, 'info, SellNftTradePool<'info>>,
         _config: PoolConfig,
         min_price: u64,
+        rules_acc_present: bool,
+        authorization_data: Option<AuthorizationDataLocal>,
     ) -> Result<()> {
-        instructions::sell_nft_trade_pool::handler(ctx, min_price)
+        instructions::sell_nft_trade_pool::handler(
+            ctx,
+            min_price,
+            rules_acc_present,
+            authorization_data,
+        )
     }
 
     pub fn edit_pool(
@@ -164,12 +187,13 @@ pub mod tensorswap {
         instructions::set_pool_freeze::handler(ctx, freeze)
     }
 
-    pub fn take_snipe<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, TakeSnipe<'info>>,
+    pub fn take_snipe<'info>(
+        ctx: Context<'_, '_, '_, 'info, TakeSnipe<'info>>,
         _config: PoolConfig,
         actual_price: u64,
+        authorization_data: Option<AuthorizationDataLocal>,
     ) -> Result<()> {
-        instructions::take_snipe::handler(ctx, actual_price)
+        instructions::take_snipe::handler(ctx, actual_price, authorization_data)
     }
 
     pub fn edit_pool_in_place(
@@ -179,6 +203,10 @@ pub mod tensorswap {
         max_taker_sell_count: Option<u32>,
     ) -> Result<()> {
         instructions::edit_pool_in_place::handler(ctx, is_cosigned, max_taker_sell_count)
+    }
+
+    pub fn withdraw_tswap_fees(ctx: Context<WithdrawTswapFees>, amount: u64) -> Result<()> {
+        instructions::withdraw_tswap_fees::handler(ctx, amount)
     }
 }
 
@@ -222,6 +250,7 @@ pub enum ErrorCode {
     FeesNotAllowed = 17,
     #[msg("metadata account does not match")]
     BadMetadata = 18,
+    //error copied from metaplex
     #[msg("provided creator address does not match metadata creator")]
     CreatorMismatch = 19,
     #[msg("wrong pool version provided")]
@@ -255,4 +284,6 @@ pub enum ErrorCode {
     MaxTakerSellCountExceeded = 33,
     #[msg("max taker sell count is too small")]
     MaxTakerSellCountTooSmall = 34,
+    #[msg("rule set for programmable nft does not match")]
+    BadRuleSet = 35,
 }

@@ -1,7 +1,8 @@
 //! User withdrawing an NFT from their Trade pool
+
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer},
+    token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
 use tensor_whitelist::Whitelist;
 use vipers::throw_err;
@@ -93,20 +94,72 @@ pub struct WithdrawNft<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+
+    // --------------------------------------- pNft
+
+    //can't deserialize directly coz Anchor traits not implemented
+    /// CHECK: assert_decode_metadata + seeds below
+    #[account(
+        mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub nft_metadata: UncheckedAccount<'info>,
+
+    //note that MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
+    /// CHECK: seeds below
+    #[account(
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::EDITION.as_bytes(),
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub nft_edition: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_escrow.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub owner_token_record: UncheckedAccount<'info>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_dest.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub dest_token_record: UncheckedAccount<'info>,
+
+    pub pnft_shared: ProgNftShared<'info>,
+    // remaining accounts:
+    // CHECK: validate it's present on metadata in handler
+    // 1. optional authorization_rules, only if present on metadata
 }
 
 impl<'info> WithdrawNft<'info> {
-    fn transfer_ctx(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        CpiContext::new(
-            self.token_program.to_account_info(),
-            Transfer {
-                from: self.nft_escrow.to_account_info(),
-                to: self.nft_dest.to_account_info(),
-                authority: self.tswap.to_account_info(),
-            },
-        )
-    }
-
     fn close_nft_escrow_ctx(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
         CpiContext::new(
             self.token_program.to_account_info(),
@@ -132,13 +185,32 @@ impl<'info> Validate<'info> for WithdrawNft<'info> {
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(ctx: Context<WithdrawNft>) -> Result<()> {
-    // do the transfer
-    token::transfer(
-        ctx.accounts
-            .transfer_ctx()
-            .with_signer(&[&ctx.accounts.tswap.seeds()]),
-        1,
+pub fn handler<'info>(
+    ctx: Context<'_, '_, '_, 'info, WithdrawNft<'info>>,
+    authorization_data: Option<AuthorizationDataLocal>,
+) -> Result<()> {
+    let rem_acc = &mut ctx.remaining_accounts.iter().peekable();
+    let auth_rules = rem_acc.peek().copied();
+    send_pnft(
+        &ctx.accounts.tswap.to_account_info(),
+        &ctx.accounts.owner.to_account_info(),
+        &ctx.accounts.nft_escrow,
+        &ctx.accounts.nft_dest,
+        &ctx.accounts.owner,
+        &ctx.accounts.nft_mint,
+        &ctx.accounts.nft_metadata,
+        &ctx.accounts.nft_edition,
+        &ctx.accounts.system_program,
+        &ctx.accounts.token_program,
+        &ctx.accounts.associated_token_program,
+        &ctx.accounts.pnft_shared.instructions,
+        &ctx.accounts.owner_token_record,
+        &ctx.accounts.dest_token_record,
+        &ctx.accounts.pnft_shared.authorization_rules_program,
+        auth_rules,
+        authorization_data,
+        Some(&ctx.accounts.tswap),
+        None,
     )?;
 
     // close nft escrow account

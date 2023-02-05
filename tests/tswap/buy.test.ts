@@ -1,10 +1,16 @@
 import { BN, LangErrorCode } from "@project-serum/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import {
+  AddressLookupTableAccount,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+} from "@solana/web3.js";
 import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
   castPoolConfigAnchor,
+  createTokenAuthorizationRules,
   CurveTypeAnchor,
   hexCode,
   PoolConfigAnchor,
@@ -32,10 +38,11 @@ import {
 describe("tswap buy", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
+  let lookupTableAccount: AddressLookupTableAccount | null;
 
   // All tests need these before they start.
   before(async () => {
-    ({ tswapPda: tswap } = await beforeHook());
+    ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
   });
 
   it("buy from nft pool", async () => {
@@ -473,7 +480,12 @@ describe("tswap buy", () => {
         const { proofs, whitelist } = await makeProofWhitelist(
           nfts.map((nft) => nft.mint)
         );
-        await testMakePool({ tswap, owner: traderA, whitelist, config });
+        const { poolPda, nftAuthPda } = await testMakePool({
+          tswap,
+          owner: traderA,
+          whitelist,
+          config,
+        });
 
         // This determines the sequence in which we do deposits & buys.
         // This should be length numBuys.
@@ -484,19 +496,14 @@ describe("tswap buy", () => {
 
         // deposit all NFTs.
         for (const nft of nfts) {
-          const {
-            tx: { ixs },
-          } = await swapSdk.depositNft({
+          await testDepositNft({
+            pool: poolPda,
+            nftAuthPda,
+            owner: traderA,
+            config,
+            ata: nfts.find((n) => n.mint === nft.mint)!.ataA,
+            wlNft: proofs.find((p) => p.mint === nft.mint),
             whitelist,
-            nftMint: nft.mint,
-            nftSource: nft.ataA,
-            owner: traderA.publicKey,
-            config: config,
-            proof: proofs.find((p) => p.mint === nft.mint)!.proof,
-          });
-          await buildAndSendTx({
-            ixs,
-            extraSigners: [traderA],
           });
 
           depositedNfts.push(nft);
@@ -551,19 +558,6 @@ describe("tswap buy", () => {
         );
       })
     );
-    // amazing table for debugging
-    // const tx = new TransactionEnvelope(
-    //   new SolanaAugmentedProvider(
-    //     SolanaProvider.init({
-    //       connection: TEST_PROVIDER.connection,
-    //       wallet: TEST_PROVIDER.wallet,
-    //       opts: TEST_PROVIDER.opts,
-    //     })
-    //   ),
-    //   nfts.map((n) => n.ixs).flat() as TransactionInstruction[],
-    //   [traderA]
-    // );
-    // await tx.simulateTable().catch(console.log);
   });
 
   it("buy a ton with default exponential curve + tolerance", async () => {
@@ -598,24 +592,25 @@ describe("tswap buy", () => {
     const { proofs, whitelist } = await makeProofWhitelist(
       nfts.map((nft) => nft.mint)
     );
-    await testMakePool({ tswap, owner: traderA, whitelist, config });
+    const { poolPda, nftAuthPda } = await testMakePool({
+      tswap,
+      owner: traderA,
+      whitelist,
+      config,
+    });
 
     // deposit all NFTs.
     await Promise.all(
       nfts.map(async (nft) => {
-        const {
-          tx: { ixs },
-        } = await swapSdk.depositNft({
+        await testDepositNft({
+          pool: poolPda,
+          nftAuthPda,
+          owner: traderA,
+          config,
+          ata: nfts.find((n) => n.mint === nft.mint)!.ataA,
+          wlNft: proofs.find((p) => p.mint === nft.mint),
           whitelist,
-          nftMint: nft.mint,
-          nftSource: nft.ataA,
-          owner: traderA.publicKey,
-          config: config,
-          proof: proofs.find((p) => p.mint === nft.mint)!.proof,
-        });
-        await buildAndSendTx({
-          ixs,
-          extraSigners: [traderA],
+          skipPoolAccounting: true,
         });
       })
     );
@@ -689,8 +684,7 @@ describe("tswap buy", () => {
     );
     expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
     expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-      Math.trunc(expectedLamports * TSWAP_FEE_PCT) +
-        Math.trunc((expectedLamports * 50) / 1e4)
+      Math.trunc(expectedLamports * TSWAP_FEE_PCT)
     );
 
     expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(
@@ -711,5 +705,59 @@ describe("tswap buy", () => {
     expect(swapSdk.getAccountByName(ix, "Whitelist")?.pubkey.toBase58()).eq(
       whitelist.toBase58()
     );
+  });
+
+  it("buy pNft from nft pool (no ruleset)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const { owner, buyer } of [
+      { owner: traderA, buyer: traderB },
+      { owner: traderB, buyer: traderA },
+    ]) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      await testMakePoolBuyNft({
+        tswap,
+        owner,
+        buyer,
+        config: nftPoolConfig,
+        expectedLamports: LAMPORTS_PER_SOL,
+        programmable: true,
+        creators,
+        royaltyBps: 500,
+        lookupTableAccount,
+      });
+    }
+  });
+
+  it("buy pNft from trade pool (1 ruleset) (should NOT require LUT)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER.connection,
+      traderA
+    );
+
+    // Intentionally do this serially (o/w balances will race).
+    for (const { owner, buyer } of [
+      { owner: traderA, buyer: traderB },
+      { owner: traderB, buyer: traderA },
+    ]) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      await testMakePoolBuyNft({
+        tswap,
+        owner,
+        buyer,
+        config: tradePoolConfig,
+        expectedLamports: LAMPORTS_PER_SOL,
+        programmable: true,
+        ruleSetAddr,
+        creators,
+        royaltyBps: 1000,
+      });
+    }
   });
 });

@@ -3,6 +3,9 @@ members = [
     "programs/*",
     "lib/*"
 ]
+exclude = [
+    "deps/metaplex-auth/program"
+]
 
 [profile.release]
 overflow-checks = true

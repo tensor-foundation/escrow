@@ -17,9 +17,15 @@ import {
   testWithdrawFromMargin,
   tokenPoolConfig,
 } from "./common";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import {
+  AddressLookupTableAccount,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+} from "@solana/web3.js";
 import {
   buildAndSendTx,
+  createTokenAuthorizationRules,
   getLamports,
   PoolConfigAnchor,
   swapSdk,
@@ -32,10 +38,11 @@ import BN from "bn.js";
 describe("margin account", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
+  let lookupTableAccount: AddressLookupTableAccount | null;
 
   // All tests need these before they start.
   before(async () => {
-    ({ tswapPda: tswap } = await beforeHook());
+    ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
   });
 
   it("inits > deposits > withdraws > closes margin acc", async () => {
@@ -261,6 +268,7 @@ describe("margin account", () => {
         marginNr,
         royaltyBps: 1000,
         creators,
+        lookupTableAccount, //<-- make it a v0
       });
     }
 
@@ -333,6 +341,7 @@ describe("margin account", () => {
         royaltyBps: 1000,
         creators,
         isCosigned: true,
+        lookupTableAccount, //<-- make it a v0
       });
     }
 
@@ -415,6 +424,7 @@ describe("margin account", () => {
         royaltyBps: 1000,
         creators,
         isCosigned: true,
+        lookupTableAccount, //<-- make it a v0
       });
     }
 
@@ -485,6 +495,7 @@ describe("margin account", () => {
         marginNr,
         royaltyBps: 1000,
         creators,
+        lookupTableAccount, //<-- make it a v0
       });
 
       storedOrderData.push({ config2, whitelist });
@@ -537,5 +548,91 @@ describe("margin account", () => {
       provider: TEST_PROVIDER,
       extraSigners: [owner],
     });
+  });
+
+  it("cosigned + marginated + pnft + 5 creators (8 extra accs) sell now works", async () => {
+    const [owner, seller] = await makeNTraders(2);
+
+    //create margin acc
+    const { marginNr, marginPda, marginRent } = await testMakeMargin({ owner });
+
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER.connection,
+      owner
+    );
+
+    //deposit into it once, but for 3x orders
+    await testDepositIntoMargin({
+      owner,
+      marginNr,
+      marginPda,
+      amount: LAMPORTS_PER_SOL * (1 + 0.6 + 0.5),
+    });
+
+    const config = tokenPoolConfig;
+
+    //create and execute 3 marginated bids, all pulling from the same account
+    let i = 1;
+    for (const coef of [1, 0.6, 0.5]) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+
+      const config2 = {
+        ...config,
+        startingPrice: new BN(coef * LAMPORTS_PER_SOL),
+      };
+      const { mint, ata } = await makeMintTwoAta(
+        seller,
+        owner,
+        1000,
+        creators,
+        undefined,
+        undefined,
+        true,
+        ruleSetAddr
+      );
+      const {
+        proofs: [wlNft],
+        whitelist,
+      } = await makeProofWhitelist([mint], 100);
+      const { poolPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config: config2,
+        // orderType: OrderType.Sniping, //<-- normal order!
+        isCosigned: true,
+      });
+      await testAttachPoolToMargin({
+        config: config2,
+        marginNr,
+        owner,
+        whitelist,
+        poolsAttached: i,
+      });
+      i++;
+
+      await testSellNft({
+        wlNft,
+        ata,
+        config: config2,
+        expectedLamports: coef * LAMPORTS_PER_SOL,
+        owner,
+        poolPda,
+        sellType: "token",
+        seller,
+        whitelist,
+        marginNr,
+        royaltyBps: 1000,
+        creators,
+        isCosigned: true,
+        programmable: true,
+        lookupTableAccount, //passing this makes it a v0
+      });
+    }
+
+    const marginBalance = await getLamports(marginPda);
+    expect(marginBalance).to.eq(await swapSdk.getMarginAccountRent());
   });
 });

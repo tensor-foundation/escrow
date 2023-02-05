@@ -10,7 +10,6 @@ import {
   waitMS,
   wlSdk,
 } from "../shared";
-import { WhitelistedCreatorInactiveError } from "../../deps/metaplex/nft-packs/js/src/generated";
 
 chai.use(chaiAsPromised);
 
