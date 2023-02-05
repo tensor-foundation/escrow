@@ -35,7 +35,7 @@ import {
   TSWAP_FEE_PCT,
 } from "./common";
 
-describe("tswap buy", () => {
+describe.only("tswap buy", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
   let lookupTableAccount: AddressLookupTableAccount | null;
@@ -735,7 +735,7 @@ describe("tswap buy", () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER.connection,
+      TEST_PROVIDER,
       traderA
     );
 

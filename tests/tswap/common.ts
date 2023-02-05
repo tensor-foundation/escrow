@@ -210,7 +210,7 @@ export type CreatorInput = {
   authority?: Signer;
 };
 
-const _createAndMintPNft = async ({
+export const _createAndMintPNft = async ({
   owner,
   mint,
   royaltyBps,
@@ -218,6 +218,7 @@ const _createAndMintPNft = async ({
   collection,
   collectionVerified = true,
   ruleSet = null,
+  provider = TEST_PROVIDER,
 }: {
   owner: Keypair;
   mint: Keypair;
@@ -226,6 +227,7 @@ const _createAndMintPNft = async ({
   collection?: Keypair;
   collectionVerified?: boolean;
   ruleSet?: PublicKey | null;
+  provider?: AnchorProvider;
 }) => {
   // --------------------------------------- create
 
@@ -348,6 +350,7 @@ const _createAndMintPNft = async ({
   // --------------------------------------- send
 
   await buildAndSendTx({
+    provider,
     ixs: [createIx, mintIx],
     extraSigners: [owner, mint],
   });
@@ -475,10 +478,11 @@ export const createAndFundATA = (
   collection?: Keypair,
   collectionVerified?: boolean,
   programmable?: boolean,
-  ruleSetAddr?: PublicKey
+  ruleSetAddr?: PublicKey,
+  provider?: AnchorProvider
 ) =>
   _createAndFundATA({
-    provider: TEST_PROVIDER,
+    provider: provider ?? TEST_PROVIDER,
     owner,
     mint,
     royaltyBps,

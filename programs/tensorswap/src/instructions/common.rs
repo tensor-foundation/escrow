@@ -9,7 +9,7 @@ use anchor_lang::{
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount},
+    token::{self, Mint, Token, TokenAccount, Transfer},
 };
 use mpl_token_metadata::{
     self,
@@ -372,7 +372,35 @@ pub fn send_pnft<'info>(
     //if passed, we assign a delegate first, and the call signed_invoke() instead of invoke()
     delegate: Option<&Account<'info, TSwap>>,
 ) -> Result<()> {
-    // --------------------------------------- transfer
+    // TODO temp for non-pNFTs, do a normal transfer, while metaplex fixes their stuff
+    // else we get this error https://solscan.io/tx/5iZSYkpccN1X49vEtHwh5CoRU2TbaCN5Ebf3BPUGmbjnFevS12hAeaqpxwRbabqhao1og7rV1sg7w1ofNxZvM58m
+
+    let metadata = assert_decode_metadata(nft_mint, nft_metadata)?;
+
+    if metadata.token_standard.is_none()
+        || metadata.token_standard.unwrap() != TokenStandard::ProgrammableNonFungible
+    {
+        msg!("non-pnft / no token std, normal transfer");
+
+        let ctx = CpiContext::new(
+            token_program.to_account_info(),
+            Transfer {
+                from: source_ata.to_account_info(),
+                to: dest_ata.to_account_info(),
+                authority: authority_and_owner.to_account_info(),
+            },
+        );
+
+        if let Some(tswap) = tswap {
+            token::transfer(ctx.with_signer(&[&tswap.seeds()]), 1)?;
+        } else {
+            token::transfer(ctx, 1)?;
+        }
+
+        return Ok(());
+    }
+
+    // --------------------------------------- pnft transfer
 
     let mut builder = TransferBuilder::new();
     builder
@@ -422,8 +450,6 @@ pub fn send_pnft<'info>(
         //   16. `[optional]` Token Authorization Rules account
         //passed in below, if needed
     ];
-
-    let metadata = assert_decode_metadata(nft_mint, nft_metadata)?;
 
     if let Some(standard) = metadata.token_standard {
         if standard == TokenStandard::ProgrammableNonFungible {

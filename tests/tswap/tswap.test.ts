@@ -104,7 +104,7 @@ describe("tswap init_update_tswap", () => {
     const [traderA, traderB] = await makeNTraders(2);
 
     const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER.connection,
+      TEST_PROVIDER,
       traderA
     );
 

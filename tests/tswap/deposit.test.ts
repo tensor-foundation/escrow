@@ -869,7 +869,7 @@ describe("tswap deposits", () => {
     const config = nftPoolConfig;
 
     const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER.connection,
+      TEST_PROVIDER,
       owner
     );
 

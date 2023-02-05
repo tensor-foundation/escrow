@@ -387,7 +387,7 @@ export const calcMinRent = async (address: PublicKey) => {
 };
 
 export const createTokenAuthorizationRules = async (
-  connection: Connection,
+  provider: AnchorProvider,
   payer: Keypair,
   name = "a", //keep it short or we wont have space for tx to pass
   data?: Uint8Array
@@ -500,7 +500,7 @@ export const createTokenAuthorizationRules = async (
     AUTH_PROG_ID
   );
 
-  await buildAndSendTx({ ixs: [createIX], extraSigners: [payer] });
+  await buildAndSendTx({ provider, ixs: [createIX], extraSigners: [payer] });
 
   return ruleSetAddress;
 };

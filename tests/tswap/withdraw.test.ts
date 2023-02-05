@@ -568,7 +568,7 @@ describe("tswap withdraws", () => {
     const [owner] = await makeNTraders(1);
 
     const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER.connection,
+      TEST_PROVIDER,
       owner
     );
 

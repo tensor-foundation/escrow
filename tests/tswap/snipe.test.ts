@@ -1090,7 +1090,7 @@ describe("snipe", () => {
     }
   });
 
-  it.only("snipes pnft ok (1 ruleset)", async () => {
+  it("snipes pnft ok (1 ruleset)", async () => {
     for (const [freeze, snipePricePct] of cartesian(
       [true, false],
       [0.8, 1, 0]
@@ -1098,7 +1098,7 @@ describe("snipe", () => {
       const [owner, seller] = await makeNTraders(2);
 
       const ruleSetAddr = await createTokenAuthorizationRules(
-        TEST_PROVIDER.connection,
+        TEST_PROVIDER,
         owner
       );
 

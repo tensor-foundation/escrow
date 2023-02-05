@@ -557,7 +557,7 @@ describe("margin account", () => {
     const { marginNr, marginPda, marginRent } = await testMakeMargin({ owner });
 
     const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER.connection,
+      TEST_PROVIDER,
       owner
     );
 
