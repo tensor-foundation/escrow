@@ -60,15 +60,7 @@ import {
 import { Metaplex } from "@metaplex-foundation/js";
 
 /*
-Guide for version upgrades:
-1. save old IDL under correct version
-2. fill in the below versioned IDls section (NOTE: use version on saved IDL)
-3. upgrade package.json w/ new version
-4. upgrade cargo.toml w/ new version
-5. rebuild the new IDL
-6. release the new SDK and integrate into BE/FE
-7. upgrade protocol
-8. after upgrade, add the tx id and slot
+Guide for protocol rollout: https://www.notion.so/tensor-hq/Protocol-Deployment-playbook-d345244ec21e48fb8a1f37277b38e38e
  */
 // ---------------------------------------- Versioned IDLs for backwards compat when parsing.
 import {
