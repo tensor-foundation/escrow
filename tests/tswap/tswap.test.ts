@@ -60,7 +60,7 @@ describe("tswap init_update_tswap", () => {
         ixs: fakeIxs,
         extraSigners: [randomOwner, randomCosigner],
       })
-    ).rejectedWith(swapSdk.getErrorCodeHex("BadTSwapOwner"));
+    ).rejectedWith(swapSdk.getErrorCodeHex("BadOwner"));
 
     // Update cosigner + owner works.
     const {

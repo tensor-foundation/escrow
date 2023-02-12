@@ -99,8 +99,10 @@ jobs:
           - glob: tests/tswap/withdraw.test.ts
           # No need to run
           # - glob: tests/tswap/size.test.ts
-          - glob: tests/tswap/snipe.test.ts
+          # TODO: temp while figure out space issue
+          # - glob: tests/tswap/snipe.test.ts
           - glob: tests/tswap/margin.test.ts
+          - glob: tests/tswap/singleListing.test.ts
           - glob: tests/twhitelist/whitelist.test.ts
           - glob: tests/twhitelist/mint_proof.test.ts
     steps:

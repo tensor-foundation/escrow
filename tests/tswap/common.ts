@@ -906,6 +906,45 @@ export const testSetFreeze = async ({
   }
 };
 
+export const testMakeList = async ({
+  mint,
+  price,
+  ata,
+  owner,
+}: {
+  mint: PublicKey;
+  price: BN;
+  ata: PublicKey;
+  owner: Keypair;
+}) => {
+  const {
+    tx: { ixs },
+    escrowPda,
+    tswapPda,
+    singleListing,
+  } = await swapSdk.list({
+    price: price,
+    nftMint: mint,
+    nftSource: ata,
+    owner: owner.publicKey,
+  });
+  await buildAndSendTx({
+    ixs,
+    extraSigners: [owner],
+  });
+  const traderAcc = await getAccount(ata);
+  expect(traderAcc.amount.toString()).eq("0");
+  const escrowAcc = await getAccount(escrowPda);
+  expect(escrowAcc.amount.toString()).eq("1");
+
+  const singleListingAcc = await swapSdk.fetchSingleListing(singleListing);
+  expect(singleListingAcc.owner.toBase58()).to.eq(owner.publicKey.toBase58());
+  expect(singleListingAcc.nftMint.toBase58()).to.eq(mint.toBase58());
+  expect(singleListingAcc.price.toNumber()).to.eq(price.toNumber());
+
+  return { escrowPda, tswapPda };
+};
+
 // Can be run async.
 export const testMakePool = async ({
   tswap,

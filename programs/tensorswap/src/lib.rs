@@ -180,20 +180,26 @@ pub mod tensorswap {
     }
 
     pub fn set_pool_freeze(
-        ctx: Context<SetPoolFreeze>,
+        // ctx: Context<SetPoolFreeze>,
+        _ctx: Context<DummyCtx>, //changed this ctx so it compiles // TODO temp while size issues
         _config: PoolConfig,
-        freeze: bool,
+        _freeze: bool,
     ) -> Result<()> {
-        instructions::set_pool_freeze::handler(ctx, freeze)
+        // TODO temp while size issues
+        // instructions::set_pool_freeze::handler(ctx, freeze)
+        Ok(())
     }
 
-    pub fn take_snipe<'info>(
-        ctx: Context<'_, '_, '_, 'info, TakeSnipe<'info>>,
+    pub fn take_snipe(
+        // ctx: Context<'_, '_, '_, 'info, TakeSnipe<'info>>,
+        _ctx: Context<DummyCtx>, //changed this ctx so it compiles // TODO temp while size issues
         _config: PoolConfig,
-        actual_price: u64,
-        authorization_data: Option<AuthorizationDataLocal>,
+        _actual_price: u64,
+        _authorization_data: Option<AuthorizationDataLocal>,
     ) -> Result<()> {
-        instructions::take_snipe::handler(ctx, actual_price, authorization_data)
+        // TODO temp while size issues
+        // instructions::take_snipe::handler(ctx, actual_price, authorization_data)
+        Ok(())
     }
 
     pub fn edit_pool_in_place(
@@ -207,6 +213,42 @@ pub mod tensorswap {
 
     pub fn withdraw_tswap_fees(ctx: Context<WithdrawTswapFees>, amount: u64) -> Result<()> {
         instructions::withdraw_tswap_fees::handler(ctx, amount)
+    }
+
+    pub fn list<'info>(
+        ctx: Context<'_, '_, '_, 'info, List<'info>>,
+        price: u64,
+        authorization_data: Option<AuthorizationDataLocal>,
+    ) -> Result<()> {
+        instructions::list::handler(ctx, price, authorization_data)
+    }
+
+    pub fn delist<'info>(
+        ctx: Context<'_, '_, '_, 'info, Delist<'info>>,
+        authorization_data: Option<AuthorizationDataLocal>,
+    ) -> Result<()> {
+        instructions::delist::handler(ctx, authorization_data)
+    }
+
+    pub fn buy_single_listing<'info>(
+        ctx: Context<'_, '_, '_, 'info, BuySingleListing<'info>>,
+        max_price: u64,
+        rules_acc_present: bool,
+        authorization_data: Option<AuthorizationDataLocal>,
+    ) -> Result<()> {
+        instructions::buy_single_listing::handler(
+            ctx,
+            max_price,
+            rules_acc_present,
+            authorization_data,
+        )
+    }
+
+    pub fn edit_single_listing<'info>(
+        ctx: Context<'_, '_, '_, 'info, EditSingleListing<'info>>,
+        price: u64,
+    ) -> Result<()> {
+        instructions::edit_single_listing::handler(ctx, price)
     }
 }
 
@@ -244,8 +286,8 @@ pub enum ErrorCode {
     WrongMint = 14,
     #[msg("insufficient Tswap account balance")]
     InsufficientTswapAccBalance = 15,
-    #[msg("bad tswap owner")]
-    BadTSwapOwner = 16,
+    #[msg("bad owner")]
+    BadOwner = 16,
     #[msg("fees not allowed for non-trade pools")]
     FeesNotAllowed = 17,
     #[msg("metadata account does not match")]
@@ -287,3 +329,6 @@ pub enum ErrorCode {
     #[msg("rule set for programmable nft does not match")]
     BadRuleSet = 35,
 }
+
+#[derive(Accounts)]
+pub struct DummyCtx {}

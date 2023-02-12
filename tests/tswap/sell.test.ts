@@ -45,7 +45,7 @@ import {
   TSWAP_FEE_PCT,
 } from "./common";
 
-describe.only("tswap sell", () => {
+describe("tswap sell", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
   let lookupTableAccount: AddressLookupTableAccount | null;

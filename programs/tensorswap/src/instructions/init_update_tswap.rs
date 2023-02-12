@@ -27,7 +27,7 @@ impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
 
         //if owner already present, make sure it's signing off on the update
         if owner != Pubkey::default() && owner != self.owner.key() {
-            throw_err!(BadTSwapOwner);
+            throw_err!(BadOwner);
         }
         Ok(())
     }

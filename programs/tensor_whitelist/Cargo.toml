@@ -19,6 +19,6 @@ testing = []
 [dependencies]
 anchor-lang = { version="0.26.0", features=["init-if-needed"] }
 anchor-spl = "0.26.0"
-mpl-token-metadata = { version="1.8.1", features = [ "no-entrypoint" ] }
+mpl-token-metadata = { version="1.8.3", features = [ "no-entrypoint" ] }
 vipers = {path= '../../lib/vipers' }
 merkle_proof = {path= '../../lib/merkle_proof' }

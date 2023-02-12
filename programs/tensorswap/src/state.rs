@@ -188,6 +188,34 @@ pub struct Pool {
     // pub _reserved: [u8; 0],
 }
 
+pub fn calc_tswap_fee(fee_bps: u16, current_price: u64) -> Result<u64> {
+    let fee = unwrap_checked!({
+        (fee_bps as u64)
+            .checked_mul(current_price)?
+            .checked_div(HUNDRED_PCT_BPS as u64)
+    });
+
+    Ok(fee)
+}
+
+pub fn calc_creators_fee(metadata: &Metadata, current_price: u64) -> Result<u64> {
+    //only pay royalties on pNFTs
+    let creators_fee_bps = if metadata.token_standard.is_some()
+        && metadata.token_standard.unwrap() == TokenStandard::ProgrammableNonFungible
+    {
+        metadata.data.seller_fee_basis_points
+    } else {
+        0
+    };
+    let fee = unwrap_checked!({
+        (creators_fee_bps as u64)
+            .checked_mul(current_price)?
+            .checked_div(HUNDRED_PCT_BPS as u64)
+    });
+
+    Ok(fee)
+}
+
 impl Pool {
     #[allow(clippy::identity_op)]
     pub const SIZE: usize = (3 * 1)
@@ -241,11 +269,7 @@ impl Pool {
             _ => unimplemented!(),
         };
 
-        let fee = unwrap_checked!({
-            (fee_bps as u64)
-                .checked_mul(current_price)?
-                .checked_div(HUNDRED_PCT_BPS as u64)
-        });
+        let fee = calc_tswap_fee(fee_bps, current_price)?;
 
         //for sniping we have a min base fee so that we don't get drained
         if self.order_type == 1 {
@@ -276,21 +300,7 @@ impl Pool {
             return Ok(0);
         }
 
-        //only pay royalties on pNFTs
-        let creators_fee_bps = if metadata.token_standard.is_some()
-            && metadata.token_standard.unwrap() == TokenStandard::ProgrammableNonFungible
-        {
-            metadata.data.seller_fee_basis_points
-        } else {
-            0
-        };
-        let fee = unwrap_checked!({
-            (creators_fee_bps as u64)
-                .checked_mul(current_price)?
-                .checked_div(HUNDRED_PCT_BPS as u64)
-        });
-
-        Ok(fee)
+        calc_creators_fee(metadata, current_price)
     }
 
     pub fn current_price(&self, side: TakerSide) -> Result<u64> {
@@ -409,6 +419,20 @@ impl MarginAccount {
     pub const SIZE: usize = 32 + 32 + 2 + 1 + 4 + 64;
 }
 
+#[account]
+pub struct SingleListing {
+    pub owner: Pubkey,
+    pub nft_mint: Pubkey,
+    pub price: u64,
+    pub bump: [u8; 1],
+    pub _reserved: [u8; 64],
+}
+
+impl SingleListing {
+    #[allow(clippy::identity_op)]
+    pub const SIZE: usize = (32 * 2) + 8 + 1 + 64;
+}
+
 // --------------------------------------- receipts
 
 /// Represents NFTs deposited into our protocol.
@@ -457,6 +481,12 @@ pub struct BuySellEvent {
     pub mm_fee: u64,
     #[index]
     pub creators_fee: u64,
+}
+
+#[event]
+pub struct DelistEvent {
+    #[index]
+    pub current_price: u64,
 }
 
 // --------------------------------------- replicating mplex type for anchor IDL export
