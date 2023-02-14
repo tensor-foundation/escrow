@@ -2486,8 +2486,22 @@ export class TensorSwapSDK {
     const message = tx.transaction.message;
     const logs = tx.meta?.logMessages;
 
+    const programIdIndex = message.accountKeys.findIndex((k) =>
+      k.equals(this.program.programId)
+    );
+
     const ixs: ParsedTSwapIx[] = [];
-    message.instructions.forEach((rawIx, ixIdx) => {
+    [
+      // Top-level ixs.
+      ...message.instructions.map((rawIx, ixIdx) => ({ rawIx, ixIdx })),
+      // Inner ixs (eg in CPI calls).
+      ...(tx.meta?.innerInstructions?.flatMap(({ instructions, index }) =>
+        instructions.map((rawIx) => ({ rawIx, ixIdx: index }))
+      ) ?? []),
+    ].forEach(({ rawIx, ixIdx }) => {
+      // Ignore ixs that are not from our program.
+      if (rawIx.programIdIndex !== programIdIndex) return;
+
       // Instruction data.
       const ix = this.coder.instruction.decode(rawIx.data, "base58");
       if (!ix) return;
