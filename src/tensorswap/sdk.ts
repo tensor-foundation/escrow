@@ -164,6 +164,10 @@ export const triageIDL = (slot: number | bigint): TensorswapIDL | null => {
 
 // --------------------------------------- constants
 
+// pNFTs very expensive.
+const DEFAULT_COMPUTE_UNITS = 800_000;
+const DEFAULT_MICRO_LAMPORTS = 200_000;
+
 export const STANDARD_FEE_BPS: number = +IDL_latest.constants.find(
   (c) => c.name === "STANDARD_FEE_BPS"
 )!.value;
@@ -826,8 +830,8 @@ export class TensorSwapSDK {
     config,
     nftMetadata,
     authData = null,
-    compute = 400000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -991,8 +995,8 @@ export class TensorSwapSDK {
     config,
     nftMetadata,
     authData = null,
-    compute = 400000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -1156,8 +1160,8 @@ export class TensorSwapSDK {
     maxPrice,
     metaCreators,
     authData = null,
-    compute = 400000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -1304,8 +1308,8 @@ export class TensorSwapSDK {
     isCosigned = false,
     cosigner = TSWAP_COSIGNER,
     authData = null,
-    compute = 800000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
   }: {
     type: "trade" | "token";
     whitelist: PublicKey;
@@ -1866,8 +1870,8 @@ export class TensorSwapSDK {
     marginNr,
     cosigner = TSWAP_COSIGNER,
     authData = null,
-    compute = 800000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -2005,8 +2009,8 @@ export class TensorSwapSDK {
     owner,
     nftMetadata,
     authData = null,
-    compute = 400000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
     price,
   }: {
     nftMint: PublicKey;
@@ -2104,8 +2108,8 @@ export class TensorSwapSDK {
     owner,
     nftMetadata,
     authData = null,
-    compute = 400000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
   }: {
     nftMint: PublicKey;
     nftDest: PublicKey;
@@ -2202,8 +2206,8 @@ export class TensorSwapSDK {
     maxPrice,
     metaCreators,
     authData = null,
-    compute = 400000,
-    priorityMicroLamports = 1,
+    compute = DEFAULT_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
   }: {
     nftMint: PublicKey;
     nftBuyerAcc: PublicKey;
