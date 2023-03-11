@@ -1,6 +1,7 @@
 import {
+  adjustSellMinLamports,
   beforeHook,
-  calcSnipeBidWithFee,
+  defaultSellExpectedLamports,
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
@@ -12,10 +13,9 @@ import {
   testMakeMargin,
   testMakePool,
   testSellNft,
-  testSetFreeze,
-  testTakeSnipe,
   testWithdrawFromMargin,
   tokenPoolConfig,
+  tradePoolConfig,
 } from "./common";
 import {
   AddressLookupTableAccount,
@@ -31,7 +31,7 @@ import {
   swapSdk,
   TEST_PROVIDER,
 } from "../shared";
-import { OrderType, TensorWhitelistSDK } from "../../src";
+import { castPoolTypeAnchor, PoolType, TensorWhitelistSDK } from "../../src";
 import { expect } from "chai";
 import BN from "bn.js";
 
@@ -208,148 +208,112 @@ describe("margin account", () => {
   //   expect(marginBalance).to.eq(await swapSdk.getMarginAccountRent());
   // });
 
-  it("multiple normal orders all successfully withdrawing from same margin acc", async () => {
+  it("multiple normal orders all successfully withdrawing from same margin acc (token and trade)", async () => {
     const [owner, seller] = await makeNTraders(2);
 
-    //create margin acc
-    const { marginNr, marginPda, marginRent } = await testMakeMargin({ owner });
+    for (const config of [
+      tokenPoolConfig,
+      { ...tradePoolConfig, mmFeeBps: 10_00 },
+    ]) {
+      const isToken = castPoolTypeAnchor(config.poolType) === PoolType.Token;
+      const coefs = [1, 0.6, 0.5];
+      const amount =
+        (1 + 0.6 + 0.5) * LAMPORTS_PER_SOL -
+        (isToken ? 0 : coefs.length * 1234);
 
-    //deposit into it once, but for 3x orders
-    await testDepositIntoMargin({
-      owner,
-      marginNr,
-      marginPda,
-      amount: LAMPORTS_PER_SOL * (1 + 0.6 + 0.5),
-    });
+      //create and execute 2 marginated bids, all pulling from the same account
+      let i = 1;
 
-    const config = tokenPoolConfig;
-
-    //create and execute 3 marginated bids, all pulling from the same account
-    let i = 1;
-    for (const coef of [1, 0.6, 0.5]) {
-      const creators = Array(5)
-        .fill(null)
-        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-
-      const config2 = {
-        ...config,
-        startingPrice: new BN(coef * LAMPORTS_PER_SOL),
-      };
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
-      const {
-        proofs: [wlNft],
-        whitelist,
-      } = await makeProofWhitelist([mint], 100);
-      const { poolPda } = await testMakePool({
-        tswap,
+      //create margin acc
+      const { marginNr, marginPda, marginRent } = await testMakeMargin({
         owner,
-        whitelist,
-        config: config2,
-        // orderType: OrderType.Sniping, //<-- normal order!
       });
-      await testAttachPoolToMargin({
-        config: config2,
+
+      //deposit into it once, but for 3x orders
+      await testDepositIntoMargin({
+        owner,
         marginNr,
-        owner,
-        whitelist,
-        poolsAttached: i,
+        marginPda,
+        amount,
       });
-      i++;
 
-      await testSellNft({
-        wlNft,
-        ata,
-        config: config2,
-        expectedLamports: coef * LAMPORTS_PER_SOL,
-        owner,
-        poolPda,
-        sellType: "token",
-        seller,
-        whitelist,
-        marginNr,
-        royaltyBps: 1000,
-        creators,
-        lookupTableAccount, //<-- make it a v0
-      });
+      for (const coef of coefs) {
+        const creators = Array(5)
+          .fill(null)
+          .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+
+        const config2 = {
+          ...config,
+          startingPrice: new BN(coef * LAMPORTS_PER_SOL),
+        };
+        const { mint, ata } = await makeMintTwoAta(
+          seller,
+          owner,
+          1000,
+          creators
+        );
+        const {
+          proofs: [wlNft],
+          whitelist,
+        } = await makeProofWhitelist([mint], 100);
+        const { poolPda, nftAuthPda } = await testMakePool({
+          tswap,
+          owner,
+          whitelist,
+          config: config2,
+          // orderType: OrderType.Sniping, //<-- normal order!
+        });
+        await testAttachPoolToMargin({
+          config: config2,
+          marginNr,
+          owner,
+          whitelist,
+          poolsAttached: i,
+        });
+        i++;
+
+        const expectedLamports = defaultSellExpectedLamports(
+          isToken,
+          coef * LAMPORTS_PER_SOL
+        );
+        await testSellNft({
+          wlNft,
+          ata,
+          config: config2,
+          expectedLamports,
+          minLamports: isToken
+            ? undefined
+            : adjustSellMinLamports(
+                isToken,
+                expectedLamports,
+                config.mmFeeBps!
+              ) - 10, //margin of safety for rounding
+          owner,
+          poolPda,
+          sellType: castPoolTypeAnchor(config.poolType)
+            .toString()
+            .toLowerCase() as "trade" | "token",
+          seller,
+          whitelist,
+          marginNr,
+          royaltyBps: 1000,
+          creators,
+          nftAuthPda,
+          lookupTableAccount, //<-- make it a v0
+        });
+      }
+
+      const marginBalance = await getLamports(marginPda);
+      expect(marginBalance).approximately(
+        (await swapSdk.getMarginAccountRent()) +
+          (isToken ? 0 : (amount * config.mmFeeBps!) / 100_00),
+        10
+      );
     }
-
-    const marginBalance = await getLamports(marginPda);
-    expect(marginBalance).to.eq(await swapSdk.getMarginAccountRent());
   });
 
   //we have tests testing each individually but not together
   //this one is especially important coz we're passing in 7 extra accounts: cosigner, margin, 5 creators
-  it("cosigned + marginated sell now works", async () => {
-    const [owner, seller] = await makeNTraders(2);
-
-    //create margin acc
-    const { marginNr, marginPda, marginRent } = await testMakeMargin({ owner });
-
-    //deposit into it once, but for 3x orders
-    await testDepositIntoMargin({
-      owner,
-      marginNr,
-      marginPda,
-      amount: LAMPORTS_PER_SOL * (1 + 0.6 + 0.5),
-    });
-
-    const config = tokenPoolConfig;
-
-    //create and execute 3 marginated bids, all pulling from the same account
-    let i = 1;
-    for (const coef of [1, 0.6, 0.5]) {
-      const creators = Array(5)
-        .fill(null)
-        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-
-      const config2 = {
-        ...config,
-        startingPrice: new BN(coef * LAMPORTS_PER_SOL),
-      };
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
-      const {
-        proofs: [wlNft],
-        whitelist,
-      } = await makeProofWhitelist([mint], 100);
-      const { poolPda } = await testMakePool({
-        tswap,
-        owner,
-        whitelist,
-        config: config2,
-        // orderType: OrderType.Sniping, //<-- normal order!
-        isCosigned: true,
-      });
-      await testAttachPoolToMargin({
-        config: config2,
-        marginNr,
-        owner,
-        whitelist,
-        poolsAttached: i,
-      });
-      i++;
-
-      await testSellNft({
-        wlNft,
-        ata,
-        config: config2,
-        expectedLamports: coef * LAMPORTS_PER_SOL,
-        owner,
-        poolPda,
-        sellType: "token",
-        seller,
-        whitelist,
-        marginNr,
-        royaltyBps: 1000,
-        creators,
-        isCosigned: true,
-        lookupTableAccount, //<-- make it a v0
-      });
-    }
-
-    const marginBalance = await getLamports(marginPda);
-    expect(marginBalance).to.eq(await swapSdk.getMarginAccountRent());
-  });
-
   it("cosigned + marginated sell now works for edited pool", async () => {
     const [owner, seller] = await makeNTraders(2);
 
@@ -551,89 +515,118 @@ describe("margin account", () => {
     });
   });
 
-  it("cosigned + marginated + pnft + 5 creators (8 extra accs) sell now works", async () => {
+  it("MAX ACC CHECK: cosigned + marginated + pnft + 5 creators (8 extra accs) sell now works", async () => {
     const [owner, seller] = await makeNTraders(2);
 
-    //create margin acc
-    const { marginNr, marginPda, marginRent } = await testMakeMargin({ owner });
+    for (const config of [
+      tokenPoolConfig,
+      { ...tradePoolConfig, mmFeeBps: 10_00 },
+    ]) {
+      const isToken = castPoolTypeAnchor(config.poolType) === PoolType.Token;
+      const coefs = [1, 0.6, 0.5];
+      const amount =
+        (1 + 0.6 + 0.5) * LAMPORTS_PER_SOL -
+        (isToken ? 0 : coefs.length * 1234);
 
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
-
-    //deposit into it once, but for 3x orders
-    await testDepositIntoMargin({
-      owner,
-      marginNr,
-      marginPda,
-      amount: LAMPORTS_PER_SOL * (1 + 0.6 + 0.5),
-    });
-
-    const config = tokenPoolConfig;
-
-    //create and execute 3 marginated bids, all pulling from the same account
-    let i = 1;
-    for (const coef of [1, 0.6, 0.5]) {
-      const creators = Array(5)
-        .fill(null)
-        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-
-      const config2 = {
-        ...config,
-        startingPrice: new BN(coef * LAMPORTS_PER_SOL),
-      };
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
+      //create margin acc
+      const { marginNr, marginPda, marginRent } = await testMakeMargin({
         owner,
-        1000,
-        creators,
-        undefined,
-        undefined,
-        true,
-        ruleSetAddr
+      });
+
+      const ruleSetAddr = await createTokenAuthorizationRules(
+        TEST_PROVIDER,
+        owner
       );
-      const {
-        proofs: [wlNft],
-        whitelist,
-      } = await makeProofWhitelist([mint], 100);
-      const { poolPda } = await testMakePool({
-        tswap,
-        owner,
-        whitelist,
-        config: config2,
-        // orderType: OrderType.Sniping, //<-- normal order!
-        isCosigned: true,
-      });
-      await testAttachPoolToMargin({
-        config: config2,
-        marginNr,
-        owner,
-        whitelist,
-        poolsAttached: i,
-      });
-      i++;
 
-      await testSellNft({
-        wlNft,
-        ata,
-        config: config2,
-        expectedLamports: coef * LAMPORTS_PER_SOL,
+      //deposit into it once, but for 3x orders
+      await testDepositIntoMargin({
         owner,
-        poolPda,
-        sellType: "token",
-        seller,
-        whitelist,
         marginNr,
-        royaltyBps: 1000,
-        creators,
-        isCosigned: true,
-        programmable: true,
-        lookupTableAccount, //passing this makes it a v0
+        marginPda,
+        amount,
       });
+
+      //create and execute 3 marginated bids, all pulling from the same account
+      let i = 1;
+      for (const coef of [1, 0.6, 0.5]) {
+        const creators = Array(5)
+          .fill(null)
+          .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+
+        const config2 = {
+          ...config,
+          startingPrice: new BN(coef * LAMPORTS_PER_SOL),
+        };
+        const { mint, ata } = await makeMintTwoAta(
+          seller,
+          owner,
+          1000,
+          creators,
+          undefined,
+          undefined,
+          true,
+          ruleSetAddr
+        );
+        const {
+          proofs: [wlNft],
+          whitelist,
+        } = await makeProofWhitelist([mint], 100);
+        const { poolPda, nftAuthPda } = await testMakePool({
+          tswap,
+          owner,
+          whitelist,
+          config: config2,
+          // orderType: OrderType.Sniping, //<-- normal order!
+          isCosigned: isToken, //<-- token only
+        });
+        await testAttachPoolToMargin({
+          config: config2,
+          marginNr,
+          owner,
+          whitelist,
+          poolsAttached: i,
+        });
+        i++;
+
+        const expectedLamports = defaultSellExpectedLamports(
+          isToken,
+          coef * LAMPORTS_PER_SOL
+        );
+        await testSellNft({
+          wlNft,
+          ata,
+          config: config2,
+          expectedLamports,
+          minLamports: isToken
+            ? undefined
+            : adjustSellMinLamports(
+                isToken,
+                expectedLamports,
+                config.mmFeeBps!
+              ) - 10, //margin of safety for rounding
+          owner,
+          poolPda,
+          sellType: castPoolTypeAnchor(config.poolType)
+            .toString()
+            .toLowerCase() as "trade" | "token",
+          seller,
+          whitelist,
+          marginNr,
+          royaltyBps: 1000,
+          creators,
+          isCosigned: isToken, //<-- token only
+          programmable: true,
+          lookupTableAccount, //passing this makes it a v0
+          nftAuthPda,
+        });
+      }
+
+      const marginBalance = await getLamports(marginPda);
+      expect(marginBalance).approximately(
+        (await swapSdk.getMarginAccountRent()) +
+          (isToken ? 0 : (amount * config.mmFeeBps!) / 100_00),
+        10
+      );
     }
-
-    const marginBalance = await getLamports(marginPda);
-    expect(marginBalance).to.eq(await swapSdk.getMarginAccountRent());
   });
 });

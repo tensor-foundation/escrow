@@ -178,6 +178,8 @@ pub fn handler<'info>(
 
     let mut left_for_seller = current_price;
 
+    // --------------------------------------- SOL transfers
+
     //decide where we're sending the money from - margin (marginated pool) or escrow (normal pool)
     let from = match &pool.margin {
         Some(stored_margin_account) => {
@@ -195,16 +197,15 @@ pub fn handler<'info>(
         None => ctx.accounts.shared.sol_escrow.to_account_info(),
     };
 
-    //transfer fee to Tensorswap
+    // transfer fee to Tensorswap
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-
     transfer_lamports_from_tswap(
         &from,
         &ctx.accounts.shared.fee_vault.to_account_info(),
         tswap_fee,
     )?;
 
-    // send royalties
+    // transfer royalties
     let actual_creators_fee = transfer_creators_fee(
         Some(&from),
         None,
@@ -214,10 +215,15 @@ pub fn handler<'info>(
     )?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
 
-    //send money directly to seller
+    // transfer remainder to seller
     //(!) fees/royalties are paid by TAKER, which in this case is the SELLER
-    let destination = ctx.accounts.shared.seller.to_account_info();
-    transfer_lamports_from_tswap(&from, &destination, left_for_seller)?;
+    transfer_lamports_from_tswap(
+        &from,
+        &ctx.accounts.shared.seller.to_account_info(),
+        left_for_seller,
+    )?;
+
+    // --------------------------------------- accounting
 
     //update pool accounting
     let pool = &mut ctx.accounts.shared.pool;

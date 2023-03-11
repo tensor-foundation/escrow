@@ -335,14 +335,6 @@ impl<'info> SellNftShared<'info> {
             &self.nft_metadata,
         )
     }
-
-    pub fn transfer_lamports_from_escrow(
-        &self,
-        to: &AccountInfo<'info>,
-        lamports: u64,
-    ) -> Result<()> {
-        transfer_lamports_from_tswap(&self.sol_escrow.to_account_info(), to, lamports)
-    }
 }
 
 #[allow(clippy::too_many_arguments)]

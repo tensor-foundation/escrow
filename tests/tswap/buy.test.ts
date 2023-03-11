@@ -460,7 +460,7 @@ describe("tswap buy", () => {
               ? new BN(1_238_923_843 / numBuys)
               : // 10.21% (prime #)
                 new BN(10_21),
-          honorRoyalties: true,
+          mmCompoundFees: true,
           mmFeeBps: poolType === PoolTypeAnchor.Trade ? 0 : null,
         };
 
@@ -572,7 +572,7 @@ describe("tswap buy", () => {
       startingPrice: new BN(2_083_195_757),
       // 8.77% (prime #)
       delta: new BN(8_77),
-      honorRoyalties: true,
+      mmCompoundFees: true,
       mmFeeBps: null,
     };
 
@@ -757,6 +757,38 @@ describe("tswap buy", () => {
         ruleSetAddr,
         creators,
         royaltyBps: 1000,
+      });
+    }
+  });
+
+  it("MAX ACC CHECK: buy pNft from trade pool (1 ruleset) (should require LUT) (margin)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER,
+      traderA
+    );
+
+    // Intentionally do this serially (o/w balances will race).
+    for (const { owner, buyer } of [
+      { owner: traderA, buyer: traderB },
+      { owner: traderB, buyer: traderA },
+    ]) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      await testMakePoolBuyNft({
+        tswap,
+        owner,
+        buyer,
+        config: tradePoolConfig,
+        expectedLamports: LAMPORTS_PER_SOL,
+        programmable: true,
+        ruleSetAddr,
+        creators,
+        royaltyBps: 1000,
+        marginated: true,
+        lookupTableAccount, //<-- make it a v0
       });
     }
   });

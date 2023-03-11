@@ -18,6 +18,7 @@ const common = {
   extraNFTsSelected: 0,
   statsTakerSellCount: 0,
   maxTakerSellCount: 0,
+  statsTakerBuyCount: 0,
 };
 
 type MakerAmountArgs = Parameters<typeof computeMakerAmountCount>[0];
@@ -52,7 +53,7 @@ describe("prices helper functions", () => {
           startingPrice,
           delta,
           mmFeeBps,
-          honorRoyalties: true,
+          mmCompoundFees: true,
         },
         takerSide,
       });
@@ -78,7 +79,7 @@ describe("prices helper functions", () => {
           startingPrice,
           delta,
           mmFeeBps,
-          honorRoyalties: true,
+          mmCompoundFees: true,
         },
         takerSide,
       };
@@ -101,7 +102,7 @@ describe("prices helper functions", () => {
           startingPrice,
           delta,
           mmFeeBps: null,
-          honorRoyalties: true,
+          mmCompoundFees: true,
         },
         takerSide: TakerSide.Sell,
       };
@@ -110,10 +111,23 @@ describe("prices helper functions", () => {
         poolType === PoolType.Token
           ? startingPrice.toNumber()
           : startingPrice.minus(delta).toNumber();
+
       // Can sell 1.
       for (const config of [
         base,
         { ...base, statsTakerSellCount: 3, maxTakerSellCount: 4 },
+        {
+          ...base,
+          statsTakerSellCount: 4,
+          statsTakerBuyCount: 1,
+          maxTakerSellCount: 4,
+        },
+        {
+          ...base,
+          statsTakerSellCount: 1,
+          statsTakerBuyCount: 1,
+          maxTakerSellCount: 1,
+        },
       ]) {
         expect(computeTakerPrice(config)!.toNumber()).eq(expectedPrice);
         expect(computeTakerDisplayPrice(config)!.toNumber()).eq(expectedPrice);
@@ -139,19 +153,28 @@ describe("prices helper functions", () => {
       expect(initialPrice!.toNumber()).eq(expectedPrice);
 
       // Cannot sell any more.
-      const maxedConfig = {
-        ...base,
-        statsTakerSellCount: 1,
-        maxTakerSellCount: 1,
-      };
-      expect(computeTakerPrice(maxedConfig)).null;
-      expect(computeTakerDisplayPrice(maxedConfig)).null;
-      {
-        const { totalAmount, allowedCount, initialPrice } =
-          computeMakerAmountCount({ ...maxedConfig, desired: { count: 1 } });
-        expect(totalAmount.toNumber()).eq(0);
-        expect(allowedCount).eq(0);
-        expect(initialPrice).null;
+      for (const maxedConfig of [
+        {
+          ...base,
+          statsTakerSellCount: 1,
+          maxTakerSellCount: 1,
+        },
+        {
+          ...base,
+          statsTakerSellCount: 2,
+          statsTakerBuyCount: 1,
+          maxTakerSellCount: 1,
+        },
+      ]) {
+        expect(computeTakerPrice(maxedConfig)).null;
+        expect(computeTakerDisplayPrice(maxedConfig)).null;
+        {
+          const { totalAmount, allowedCount, initialPrice } =
+            computeMakerAmountCount({ ...maxedConfig, desired: { count: 1 } });
+          expect(totalAmount.toNumber()).eq(0);
+          expect(allowedCount).eq(0);
+          expect(initialPrice).null;
+        }
       }
     }
   });
@@ -191,7 +214,7 @@ describe("prices helper functions", () => {
           startingPrice,
           delta,
           mmFeeBps: null,
-          honorRoyalties: true,
+          mmCompoundFees: true,
         },
         takerSide,
         extraNFTsSelected: 1,
@@ -214,7 +237,7 @@ describe("prices helper functions", () => {
   For sells, make sure to test before + beyond max cap (ie into neagtive prices):
   (1) Sell x linear x trade (mm fee)
   (2) Sell x linear x token
-  (3) Sell x exp x trade (mm fee) 
+  (3) Sell x exp x trade (mm fee)
   (4) Sell x exp x token
 
   (1) Buy x linear x NFT/trade
@@ -234,7 +257,7 @@ describe("prices helper functions", () => {
         // This is a degenerate linear curve basically.
         delta: new Big(0 * LAMPORTS_PER_SOL),
         mmFeeBps: null,
-        honorRoyalties: true,
+        mmCompoundFees: true,
       },
       takerSide: TakerSide.Sell,
       maxTakerSellCount: 1,
@@ -269,7 +292,7 @@ describe("prices helper functions", () => {
         startingPrice: new Big(2 * LAMPORTS_PER_SOL),
         delta: new Big(0.1 * LAMPORTS_PER_SOL),
         mmFeeBps: 340,
-        honorRoyalties: true,
+        mmCompoundFees: true,
       },
       takerSide: TakerSide.Sell,
     };
@@ -361,7 +384,7 @@ describe("prices helper functions", () => {
         startingPrice: new Big(0.1 * LAMPORTS_PER_SOL),
         delta: new Big(0.1 * LAMPORTS_PER_SOL),
         mmFeeBps: null,
-        honorRoyalties: true,
+        mmCompoundFees: true,
       },
       takerSide: TakerSide.Sell,
     };
@@ -440,7 +463,7 @@ describe("prices helper functions", () => {
         startingPrice: new Big(1 * LAMPORTS_PER_SOL),
         delta: new Big(1000),
         mmFeeBps: 1000,
-        honorRoyalties: true,
+        mmCompoundFees: true,
       },
       takerSide: TakerSide.Sell,
     };
@@ -499,7 +522,7 @@ it("(4) computeMakerAmountCount max count works for infinite expo sell curve", a
       startingPrice: new Big(0 * LAMPORTS_PER_SOL),
       delta: new Big(1000),
       mmFeeBps: null,
-      honorRoyalties: true,
+      mmCompoundFees: true,
     },
     takerSide: TakerSide.Sell,
     // Check that this works.
@@ -542,7 +565,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
           delta: new Big(1 * LAMPORTS_PER_SOL),
           // NB: no fee charged!
           mmFeeBps: poolType === PoolType.Token ? null : 500,
-          honorRoyalties: true,
+          mmCompoundFees: true,
         },
         takerSide: TakerSide.Buy,
       };
@@ -621,7 +644,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
         delta: new Big(1000),
         // NB: no fee charged!
         mmFeeBps: poolType === PoolType.Token ? null : 500,
-        honorRoyalties: true,
+        mmCompoundFees: true,
       },
       takerSide: TakerSide.Buy,
     };

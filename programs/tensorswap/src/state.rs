@@ -101,12 +101,11 @@ pub enum CurveType {
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 pub struct PoolConfig {
     pub pool_type: PoolType,
-    // TODO: later can be made into a dyn Trait
     pub curve_type: CurveType,
-    pub starting_price: u64,   //lamports
-    pub delta: u64,            //lamports pr bps
-    pub honor_royalties: bool, // always enabled
+    pub starting_price: u64, //lamports
+    pub delta: u64,          //lamports pr bps
     /// Trade pools only
+    pub mm_compound_fees: bool,
     pub mm_fee_bps: Option<u16>,
 }
 
@@ -238,9 +237,34 @@ impl Pool {
         if self.max_taker_sell_count == 0 {
             return Ok(());
         }
-        if self.stats.taker_sell_count >= self.max_taker_sell_count {
+
+        //if the pool has made more sells than buys, by defn it can buy more to get to initial state
+        if self.stats.taker_buy_count > self.stats.taker_sell_count {
+            return Ok(());
+        }
+
+        if self.stats.taker_sell_count - self.stats.taker_buy_count >= self.max_taker_sell_count {
             throw_err!(MaxTakerSellCountExceeded);
         }
+        Ok(())
+    }
+
+    //used when editing pools to prevent setting a new cap that's too low
+    pub fn valid_max_sell_count(&self, new_count: u32) -> Result<()> {
+        //0 indicates no restriction
+        if new_count == 0 {
+            return Ok(());
+        }
+
+        //if the pool has made more sells than buys, by defn we can set any cap (including lowest = 1)
+        if self.stats.taker_buy_count > self.stats.taker_sell_count {
+            return Ok(());
+        }
+
+        if new_count < self.stats.taker_sell_count - self.stats.taker_buy_count {
+            throw_err!(MaxTakerSellCountTooSmall);
+        }
+
         Ok(())
     }
 
@@ -295,11 +319,6 @@ impl Pool {
     }
 
     pub fn calc_creators_fee(&self, metadata: &Metadata, current_price: u64) -> Result<u64> {
-        // Royalties opted out.
-        if !self.config.honor_royalties {
-            return Ok(0);
-        }
-
         calc_creators_fee(metadata, current_price)
     }
 
@@ -595,7 +614,7 @@ mod tests {
                     curve_type,
                     starting_price,
                     delta,
-                    honor_royalties: true,
+                    mm_compound_fees: true,
                     mm_fee_bps,
                 },
                 taker_sell_count,

@@ -60,6 +60,7 @@ pub fn handler(
     ctx: Context<EditPoolInPlace>,
     is_cosigned: Option<bool>,
     max_taker_sell_count: Option<u32>,
+    mm_compound_fees: Option<bool>,
 ) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
 
@@ -76,15 +77,16 @@ pub fn handler(
     }
 
     if let Some(max_taker_sell_count) = max_taker_sell_count {
-        //requires that the count is below what the pool already bought,
-        //except if it's 0, which simply means disabling it
-        if max_taker_sell_count != 0 && max_taker_sell_count < pool.stats.taker_sell_count {
-            throw_err!(MaxTakerSellCountTooSmall);
-        }
+        pool.valid_max_sell_count(max_taker_sell_count)?;
         pool.max_taker_sell_count = max_taker_sell_count;
     }
 
     // --------------------------------------- (!!!) SYNC WITH EDIT POOL END
+
+    //in the other edit ix we do this via passing in a new config
+    if let Some(mm_compound_fees) = mm_compound_fees {
+        pool.config.mm_compound_fees = mm_compound_fees;
+    }
 
     Ok(())
 }

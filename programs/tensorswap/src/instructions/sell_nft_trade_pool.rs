@@ -91,7 +91,9 @@ pub struct SellNftTradePool<'info> {
     // remaining accounts:
     // CHECK: validate it's present on metadata in handler
     // 1. optional authorization_rules, only if present on metadata
-    // 2. 0 to N creator accounts.
+    // CHECK: 1)seeds, 2)program owner, 3)normal owner, 4)margin acc stored on pool
+    // 2. optional margin account (even without sniping can be used)
+    // 3. 0 to N creator accounts.
 }
 
 impl<'info> Validate<'info> for SellNftTradePool<'info> {
@@ -163,24 +165,77 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     let current_price = pool.current_price(TakerSide::Sell)?;
     let tswap_fee = pool.calc_tswap_fee(current_price)?;
-    let mm_fee = pool.calc_mm_fee(current_price)?;
     let creators_fee = pool.calc_creators_fee(metadata, current_price)?;
+    let mm_fee = pool.calc_mm_fee(current_price)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
     emit!(BuySellEvent {
         current_price,
         tswap_fee,
+        //record MM here instead of buy tx (when it's technically paid to the MMer)
+        //this is because offchain we use the event to determine "true" price paid by taker, which in this case is current price - mm fee
         mm_fee,
         creators_fee,
     });
 
     // Need to include mm_fee to prevent someone editing the MM fee from rugging the seller.
+
     if unwrap_int!(current_price.checked_sub(mm_fee)) < min_price {
         throw_err!(PriceMismatch);
     }
 
     let mut left_for_seller = current_price;
+
+    // --------------------------------------- SOL transfers
+
+    //decide where we're sending the money from - margin (marginated pool) or escrow (normal pool)
+    let from = match &pool.margin {
+        Some(stored_margin_account) => {
+            let margin_account_info = next_account_info(remaining_accounts)?;
+            assert_decode_margin_account(
+                margin_account_info,
+                &ctx.accounts.shared.tswap.to_account_info(),
+                &ctx.accounts.shared.owner.to_account_info(),
+            )?;
+            if *margin_account_info.key != *stored_margin_account {
+                throw_err!(BadMargin);
+            }
+            margin_account_info.clone()
+        }
+        None => ctx.accounts.shared.sol_escrow.to_account_info(),
+    };
+
+    // transfer fee to Tensorswap
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
+    transfer_lamports_from_tswap(
+        &from,
+        &ctx.accounts.shared.fee_vault.to_account_info(),
+        tswap_fee,
+    )?;
+
+    // transfer royalties
+    let actual_creators_fee = transfer_creators_fee(
+        Some(&from),
+        None,
+        metadata,
+        remaining_accounts,
+        creators_fee,
+    )?;
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
+
+    // subtract MM spread before wiring to seller
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
+
+    // transfer remainder to seller
+    // (!) fees/royalties are paid by TAKER, which in this case is the SELLER
+    transfer_lamports_from_tswap(
+        &from,
+        &ctx.accounts.shared.seller.to_account_info(),
+        left_for_seller,
+    )?;
+
+    // --------------------------------------- accounting
 
     //create nft receipt for trade pool
     let receipt_state = &mut ctx.accounts.nft_receipt;
@@ -189,45 +244,14 @@ pub fn handler<'a, 'b, 'c, 'info>(
     receipt_state.nft_mint = ctx.accounts.shared.nft_mint.key();
     receipt_state.nft_escrow = ctx.accounts.nft_escrow.key();
 
-    //transfer fee to Tensorswap
-    left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-    ctx.accounts.shared.transfer_lamports_from_escrow(
-        &ctx.accounts.shared.fee_vault.to_account_info(),
-        tswap_fee,
-    )?;
-
-    // send royalties
-    let actual_creators_fee = transfer_creators_fee(
-        Some(&ctx.accounts.shared.sol_escrow.to_account_info()),
-        None,
-        metadata,
-        remaining_accounts,
-        creators_fee,
-    )?;
-    left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
-
-    // Owner/MM keeps some funds as their fee (no transfer necessary).
-    left_for_seller = unwrap_int!(left_for_seller.checked_sub(mm_fee));
-
-    //send money directly to seller
-    //(!) fees/royalties are paid by TAKER, which in this case is the SELLER
-    let destination = ctx.accounts.shared.seller.to_account_info();
-    ctx.accounts
-        .shared
-        .transfer_lamports_from_escrow(&destination, left_for_seller)?;
-
     //update pool accounting
     let pool = &mut ctx.accounts.shared.pool;
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_add(1));
     pool.taker_sell_count = unwrap_int!(pool.taker_sell_count.checked_add(1));
     pool.stats.taker_sell_count = unwrap_int!(pool.stats.taker_sell_count.checked_add(1));
-    //record a MM profit of 1/2 MM fee
-    pool.stats.accumulated_mm_profit = unwrap_checked!({
-        pool.stats
-            .accumulated_mm_profit
-            .checked_add(mm_fee.checked_div(2)?)
-    });
     pool.last_transacted_seconds = Clock::get()?.unix_timestamp;
+
+    //MM profit no longer recorded during taker sell txs, only taker buy txs
 
     Ok(())
 }

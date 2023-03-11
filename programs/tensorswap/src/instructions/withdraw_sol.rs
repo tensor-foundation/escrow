@@ -56,17 +56,13 @@ pub struct WithdrawSol<'info> {
 }
 
 impl<'info> WithdrawSol<'info> {
-    fn transfer_lamports(&self, lamports: u64) -> Result<()> {
-        transfer_lamports_from_tswap(
-            &self.sol_escrow.to_account_info(),
-            &self.owner.to_account_info(),
-            lamports,
-        )
+    pub fn transfer_lamports(&self, from: &AccountInfo<'info>, lamports: u64) -> Result<()> {
+        transfer_lamports_from_tswap(from, &self.owner.to_account_info(), lamports)
     }
 }
 
-impl<'info> Validate<'info> for WithdrawSol<'info> {
-    fn validate(&self) -> Result<()> {
+impl<'info> WithdrawSol<'info> {
+    fn validate_sol_transfer(&self) -> Result<()> {
         if self.pool.frozen.is_some() {
             throw_err!(PoolFrozen);
         }
@@ -75,12 +71,27 @@ impl<'info> Validate<'info> for WithdrawSol<'info> {
         }
         Ok(())
     }
+
+    pub fn validate_mm_fee_transfer(&self) -> Result<()> {
+        if self.pool.frozen.is_some() {
+            throw_err!(PoolFrozen);
+        }
+        if self.pool.config.pool_type != PoolType::Trade {
+            throw_err!(WrongPoolType);
+        }
+        // (!) NOT doing this check so that if they change pool type to compounded, they can still withdraw fees
+        // if self.pool.config.mm_compound_fees {
+        //     throw_err!(PoolFeesCompounded);
+        // }
+        Ok(())
+    }
 }
 
-#[access_control(ctx.accounts.validate())]
+#[access_control(ctx.accounts.validate_sol_transfer())]
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>,
     lamports: u64,
 ) -> Result<()> {
-    ctx.accounts.transfer_lamports(lamports)
+    ctx.accounts
+        .transfer_lamports(&ctx.accounts.sol_escrow.to_account_info(), lamports)
 }

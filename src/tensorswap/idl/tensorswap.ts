@@ -1,5 +1,5 @@
 export type Tensorswap = {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "name": "tensorswap",
   "constants": [
     {
@@ -1499,6 +1499,12 @@ export type Tensorswap = {
           "type": {
             "option": "u32"
           }
+        },
+        {
+          "name": "mmCompoundFees",
+          "type": {
+            "option": "bool"
+          }
         }
       ]
     },
@@ -1919,6 +1925,120 @@ export type Tensorswap = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "withdrawMmFee",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Tied to the pool because used to verify pool seeds"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawTswapOwnedSpl",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "We ask also for a signature just to make sure this wallet can actually sign things"
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "splSource",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "splDest",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "splMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -2305,14 +2425,14 @@ export type Tensorswap = {
             "type": "u64"
           },
           {
-            "name": "honorRoyalties",
+            "name": "mmCompoundFees",
+            "docs": [
+              "Trade pools only"
+            ],
             "type": "bool"
           },
           {
             "name": "mmFeeBps",
-            "docs": [
-              "Trade pools only"
-            ],
             "type": {
               "option": "u16"
             }
@@ -2742,12 +2862,17 @@ export type Tensorswap = {
       "code": 6035,
       "name": "BadRuleSet",
       "msg": "rule set for programmable nft does not match"
+    },
+    {
+      "code": 6036,
+      "name": "PoolFeesCompounded",
+      "msg": "this pool compounds fees and they cannot be withdrawn separately"
     }
   ]
 };
 
 export const IDL: Tensorswap = {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "name": "tensorswap",
   "constants": [
     {
@@ -4247,6 +4372,12 @@ export const IDL: Tensorswap = {
           "type": {
             "option": "u32"
           }
+        },
+        {
+          "name": "mmCompoundFees",
+          "type": {
+            "option": "bool"
+          }
         }
       ]
     },
@@ -4667,6 +4798,120 @@ export const IDL: Tensorswap = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "withdrawMmFee",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "whitelist",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "solEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Tied to the pool because used to verify pool seeds"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "PoolConfig"
+          }
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawTswapOwnedSpl",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "We ask also for a signature just to make sure this wallet can actually sign things"
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "splSource",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "splDest",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "splMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -5053,14 +5298,14 @@ export const IDL: Tensorswap = {
             "type": "u64"
           },
           {
-            "name": "honorRoyalties",
+            "name": "mmCompoundFees",
+            "docs": [
+              "Trade pools only"
+            ],
             "type": "bool"
           },
           {
             "name": "mmFeeBps",
-            "docs": [
-              "Trade pools only"
-            ],
             "type": {
               "option": "u16"
             }
@@ -5490,6 +5735,11 @@ export const IDL: Tensorswap = {
       "code": 6035,
       "name": "BadRuleSet",
       "msg": "rule set for programmable nft does not match"
+    },
+    {
+      "code": 6036,
+      "name": "PoolFeesCompounded",
+      "msg": "this pool compounds fees and they cannot be withdrawn separately"
     }
   ]
 };

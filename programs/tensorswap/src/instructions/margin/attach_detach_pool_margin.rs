@@ -39,7 +39,7 @@ pub struct AttachDetachPoolMargin<'info> {
         has_one = tswap, has_one = owner, has_one = whitelist, has_one = sol_escrow,
         // can only deposit SOL into Token pool
         // TODO: if we decide to add Trade pool, need to update sell_nft_to_trade_pool.rs and buy_nft.rs w/ logic related to margin
-        constraint = config.pool_type == PoolType::Token @ crate::ErrorCode::WrongPoolType,
+        constraint = config.pool_type == PoolType::Token || config.pool_type == PoolType::Trade @ crate::ErrorCode::WrongPoolType,
     )]
     pub pool: Box<Account<'info, Pool>>,
 
@@ -73,6 +73,7 @@ impl<'info> Validate<'info> for AttachDetachPoolMargin<'info> {
         //bids only for now
         match self.pool.config.pool_type {
             PoolType::Token => (),
+            PoolType::Trade => (),
             _ => {
                 throw_err!(WrongPoolType);
             }

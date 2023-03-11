@@ -3,7 +3,7 @@ import {
   getMinimumBalanceForRentExemptMint,
 } from "@solana/spl-token";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import { BN } from "bn.js";
+import BN from "bn.js";
 import { expect } from "chai";
 import {
   buildAndSendTx,
@@ -27,23 +27,23 @@ import {
   makeNTraders,
   makeProofWhitelist,
   nftPoolConfig,
+  testAttachPoolToMargin,
   testBuyNft,
   testClosePool,
   testDepositNft,
   testDepositSol,
   testEditPool,
+  testMakeMargin,
   testMakePool,
   testMakePoolBuyNft,
   testMakePoolSellNft,
   testSellNft,
   tokenPoolConfig,
   tradePoolConfig,
-  TSWAP_CONFIG,
-  TSWAP_FEE_PCT,
 } from "./common";
-import { castPoolTypeAnchor, findNftAuthorityPDA, PoolType } from "../../src";
+import { castPoolTypeAnchor, PoolType } from "../../src";
 
-describe("tswap pool", () => {
+describe.only("tswap pool", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
 
@@ -72,28 +72,6 @@ describe("tswap pool", () => {
         console.log(`pool created: ${new Date(dateMs)}`);
         // This should be within 3 days (max clock drift historical) of the current time.
         expect(dateMs).gte(Date.now() - 3 * 86400 * 1000);
-      })
-    );
-  });
-
-  it("cannot init pool without royalties", async () => {
-    const [owner] = await makeNTraders(1);
-    await Promise.all(
-      [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint } = await createAndFundATA(owner);
-        const { whitelist } = await makeProofWhitelist([mint]);
-
-        await expect(
-          testMakePool({
-            tswap,
-            owner,
-            config: {
-              ...config,
-              honorRoyalties: false,
-            },
-            whitelist,
-          })
-        ).rejectedWith(swapSdk.getErrorCodeHex("RoyaltiesEnabled"));
       })
     );
   });
@@ -648,18 +626,195 @@ describe("tswap pool", () => {
 
   it("init/edit correctly handles maxTakerSellCount (use edit in place)", async () => {
     const [owner, seller] = await makeNTraders(2);
-    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(seller, owner);
-    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(seller, owner);
-    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(seller, owner);
+
+    //make the pool with no delta / mm fee so that math is easy
+    for (const config of [
+      { ...tokenPoolConfig, delta: new BN(0) },
+      { ...tradePoolConfig, delta: new BN(0), mmFeeBps: 0 },
+    ]) {
+      const { mint: mint1, ata: ata1 } = await makeMintTwoAta(seller, owner);
+      const { mint: mint2, ata: ata2 } = await makeMintTwoAta(seller, owner);
+      const { mint: mint3, ata: ata3 } = await makeMintTwoAta(seller, owner);
+      const {
+        proofs: [wlNft1, wlNft2, wlNft3],
+        whitelist,
+      } = await makeProofWhitelist([mint1, mint2, mint3], 100);
+
+      // --------------------------------------- allowed sell count 1
+
+      const isToken = castPoolTypeAnchor(config.poolType) === PoolType.Token;
+      const { poolPda, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        config,
+        whitelist,
+        maxTakerSellCount: 1,
+      });
+      const expectedLamports = LAMPORTS_PER_SOL;
+      const minLamports = adjustSellMinLamports(isToken, expectedLamports, 0);
+
+      await testDepositSol({
+        pool: poolPda,
+        config,
+        owner,
+        lamports: expectedLamports * 10, //more than enough
+        whitelist,
+      });
+
+      //sel once = ok
+      await testSellNft({
+        whitelist,
+        wlNft: wlNft1,
+        ata: ata1,
+        nftAuthPda,
+        poolPda,
+        sellType: isToken ? "token" : "trade",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      });
+
+      //try to sell again = fails
+      await expect(
+        testSellNft({
+          whitelist,
+          wlNft: wlNft2,
+          ata: ata2,
+          nftAuthPda,
+          poolPda,
+          sellType: isToken ? "token" : "trade",
+          owner,
+          seller,
+          config,
+          expectedLamports,
+          minLamports,
+          treeSize: 100,
+        })
+      ).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded")
+      );
+
+      // --------------------------------------- allowed sell count 2
+
+      //edit pool to increase allowed sell count to 2
+      const { newPoolPda } = await testEditPool({
+        tswap,
+        owner,
+        oldConfig: config,
+        whitelist,
+        maxTakerSellCount: 2,
+      });
+
+      //sell 2nd = ok
+      await testSellNft({
+        whitelist,
+        wlNft: wlNft2,
+        ata: ata2,
+        nftAuthPda,
+        poolPda: newPoolPda,
+        sellType: isToken ? "token" : "trade",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      });
+
+      //try to sell again = fails
+      await expect(
+        testSellNft({
+          whitelist,
+          wlNft: wlNft3,
+          ata: ata3,
+          nftAuthPda,
+          poolPda: newPoolPda,
+          sellType: isToken ? "token" : "trade",
+          owner,
+          seller,
+          config,
+          expectedLamports,
+          minLamports,
+          treeSize: 100,
+        })
+      ).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded")
+      );
+
+      //try to edit down from 2 to 1 = fails
+      await expect(
+        testEditPool({
+          tswap,
+          owner,
+          oldConfig: config,
+          whitelist,
+          maxTakerSellCount: 1,
+        })
+      ).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("MaxTakerSellCountTooSmall")
+      );
+
+      // --------------------------------------- allowed sell count 0 (unlimited)
+
+      //edit pool 2nd time, this time set max taker count to 0
+      const { newPoolPda: newPoolPda2 } = await testEditPool({
+        tswap,
+        owner,
+        oldConfig: config,
+        whitelist,
+        maxTakerSellCount: 0,
+      });
+
+      //sell 2nd = ok
+      await testSellNft({
+        whitelist,
+        wlNft: wlNft3,
+        ata: ata3,
+        nftAuthPda,
+        poolPda: newPoolPda2,
+        sellType: isToken ? "token" : "trade",
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      });
+    }
+  });
+
+  it("maxTakerSellCount (both buys & sells, market-making pool)", async () => {
+    const [owner, taker] = await makeNTraders(2);
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint4, ata: ata4 } = await makeMintTwoAta(taker, owner);
     const {
-      proofs: [wlNft1, wlNft2, wlNft3],
+      mint: mint5,
+      ata: ata5,
+      otherAta: otherAta5,
+    } = await makeMintTwoAta(owner, taker);
+    const {
+      mint: mint6,
+      ata: ata6,
+      otherAta: otherAta6,
+    } = await makeMintTwoAta(owner, taker);
+    const {
+      proofs: [wlNft1, wlNft2, wlNft3, wlNft4, wlNft5, wlNft6],
       whitelist,
-    } = await makeProofWhitelist([mint1, mint2, mint3], 100);
+    } = await makeProofWhitelist(
+      [mint1, mint2, mint3, mint4, mint5, mint6],
+      100
+    );
 
     // --------------------------------------- allowed sell count 1
 
-    //make the pool with no delta so that math is easy
-    const config = { ...tokenPoolConfig, delta: new BN(0) };
+    //make the pool with no delta / mm fee so that math is easy
+    const config = { ...tradePoolConfig, delta: new BN(0), mmFeeBps: 0 };
+
     const { poolPda, nftAuthPda } = await testMakePool({
       tswap,
       owner,
@@ -667,8 +822,8 @@ describe("tswap pool", () => {
       whitelist,
       maxTakerSellCount: 1,
     });
-    const expectedLamports = defaultSellExpectedLamports(true);
-    const minLamports = adjustSellMinLamports(true, expectedLamports);
+    const expectedLamports = LAMPORTS_PER_SOL;
+    const minLamports = adjustSellMinLamports(false, expectedLamports, 0);
 
     await testDepositSol({
       pool: poolPda,
@@ -678,16 +833,16 @@ describe("tswap pool", () => {
       whitelist,
     });
 
-    //sel once = ok
+    //after: takerSell = 1, takerBuy = 0, cap = 1, left till cap = 0
     await testSellNft({
       whitelist,
       wlNft: wlNft1,
       ata: ata1,
       nftAuthPda,
       poolPda,
-      sellType: "token",
+      sellType: "trade",
       owner,
-      seller,
+      seller: taker,
       config,
       expectedLamports,
       minLamports,
@@ -702,9 +857,64 @@ describe("tswap pool", () => {
         ata: ata2,
         nftAuthPda,
         poolPda,
-        sellType: "token",
+        sellType: "trade",
         owner,
-        seller,
+        seller: taker,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+
+    //after: takerSell = 1, takerBuy = 1, cap = 1, left till cap = 1
+    await testDepositNft({
+      nftAuthPda,
+      pool: poolPda,
+      config,
+      owner,
+      ata: ata5,
+      wlNft: wlNft5,
+      whitelist,
+    });
+    await testBuyNft({
+      pool: poolPda,
+      wlNft: wlNft5,
+      whitelist,
+      otherAta: otherAta5,
+      owner,
+      buyer: taker,
+      config,
+      expectedLamports: LAMPORTS_PER_SOL,
+    });
+
+    //after: takerSell = 2, takerBuy = 1, cap = 1, left till cap = 0
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft2,
+      ata: ata2,
+      nftAuthPda,
+      poolPda,
+      sellType: "trade",
+      owner,
+      seller: taker,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //try to sell again = fails
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft: wlNft3,
+        ata: ata3,
+        nftAuthPda,
+        poolPda,
+        sellType: "trade",
+        owner,
+        seller: taker,
         config,
         expectedLamports,
         minLamports,
@@ -723,16 +933,16 @@ describe("tswap pool", () => {
       maxTakerSellCount: 2,
     });
 
-    //sell 2nd = ok
+    //after: takerSell = 3, takerBuy = 1, cap = 2, left till cap = 0
     await testSellNft({
       whitelist,
-      wlNft: wlNft2,
-      ata: ata2,
+      wlNft: wlNft3,
+      ata: ata3,
       nftAuthPda,
       poolPda: newPoolPda,
-      sellType: "token",
+      sellType: "trade",
       owner,
-      seller,
+      seller: taker,
       config,
       expectedLamports,
       minLamports,
@@ -743,13 +953,13 @@ describe("tswap pool", () => {
     await expect(
       testSellNft({
         whitelist,
-        wlNft: wlNft3,
-        ata: ata3,
+        wlNft: wlNft4,
+        ata: ata4,
         nftAuthPda,
         poolPda: newPoolPda,
-        sellType: "token",
+        sellType: "trade",
         owner,
-        seller,
+        seller: taker,
         config,
         expectedLamports,
         minLamports,
@@ -782,13 +992,13 @@ describe("tswap pool", () => {
     //sell 2nd = ok
     await testSellNft({
       whitelist,
-      wlNft: wlNft3,
-      ata: ata3,
+      wlNft: wlNft4,
+      ata: ata4,
       nftAuthPda,
       poolPda: newPoolPda2,
-      sellType: "token",
+      sellType: "trade",
       owner,
-      seller,
+      seller: taker,
       config,
       expectedLamports,
       minLamports,
@@ -796,13 +1006,176 @@ describe("tswap pool", () => {
     });
   });
 
-  it("editing pool transfers stats ok", async () => {
+  it("maxTakerSellCount (negative, market-making pool)", async () => {
+    const [owner, taker] = await makeNTraders(2);
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint4, ata: ata4 } = await makeMintTwoAta(taker, owner);
+    const {
+      mint: mint5,
+      ata: ata5,
+      otherAta: otherAta5,
+    } = await makeMintTwoAta(owner, taker);
+    const {
+      mint: mint6,
+      ata: ata6,
+      otherAta: otherAta6,
+    } = await makeMintTwoAta(owner, taker);
+    const {
+      proofs: [wlNft1, wlNft2, wlNft3, wlNft4, wlNft5, wlNft6],
+      whitelist,
+    } = await makeProofWhitelist(
+      [mint1, mint2, mint3, mint4, mint5, mint6],
+      100
+    );
+
+    // --------------------------------------- allowed sell count 1
+
+    //make the pool with no delta / mm fee so that math is easy
+    const config = { ...tradePoolConfig, delta: new BN(0), mmFeeBps: 0 };
+
+    const { poolPda, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+      maxTakerSellCount: 1,
+    });
+    const expectedLamports = LAMPORTS_PER_SOL;
+    const minLamports = adjustSellMinLamports(false, expectedLamports, 0);
+
+    await testDepositSol({
+      pool: poolPda,
+      config,
+      owner,
+      lamports: expectedLamports * 10, //more than enough
+      whitelist,
+    });
+
+    // --------------------------------------- buy
+
+    //after: takerSell = 0, takerBuy = 1, cap = 1, left till cap = 2
+    await testDepositNft({
+      nftAuthPda,
+      pool: poolPda,
+      config,
+      owner,
+      ata: ata5,
+      wlNft: wlNft5,
+      whitelist,
+    });
+    await testBuyNft({
+      pool: poolPda,
+      wlNft: wlNft5,
+      whitelist,
+      otherAta: otherAta5,
+      owner,
+      buyer: taker,
+      config,
+      expectedLamports: LAMPORTS_PER_SOL,
+    });
+
+    //after: takerSell = 0, takerBuy = 2, cap = 1, left till cap = 3
+    await testDepositNft({
+      nftAuthPda,
+      pool: poolPda,
+      config,
+      owner,
+      ata: ata6,
+      wlNft: wlNft6,
+      whitelist,
+    });
+    await testBuyNft({
+      pool: poolPda,
+      wlNft: wlNft6,
+      whitelist,
+      otherAta: otherAta6,
+      owner,
+      buyer: taker,
+      config,
+      expectedLamports: LAMPORTS_PER_SOL,
+    });
+
+    // --------------------------------------- sell
+
+    //after: takerSell = 1, takerBuy = 2, cap = 1, left till cap = 2
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft1,
+      ata: ata1,
+      nftAuthPda,
+      poolPda,
+      sellType: "trade",
+      owner,
+      seller: taker,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //after: takerSell = 2, takerBuy = 2, cap = 1, left till cap = 1
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft2,
+      ata: ata2,
+      nftAuthPda,
+      poolPda,
+      sellType: "trade",
+      owner,
+      seller: taker,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //after: takerSell = 3, takerBuy = 2, cap = 1, left till cap = 0
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft3,
+      ata: ata3,
+      nftAuthPda,
+      poolPda,
+      sellType: "trade",
+      owner,
+      seller: taker,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //try to sell again = fails
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft: wlNft4,
+        ata: ata4,
+        nftAuthPda,
+        poolPda,
+        sellType: "trade",
+        owner,
+        seller: taker,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+  });
+
+  it("editing pool transfers stats & balances ok", async () => {
     const [traderA, traderB] = await makeNTraders(2);
     // Intentionally do this serially (o/w balances will race).
-    for (const { owner, buyer } of [
-      { owner: traderA, buyer: traderB },
-      { owner: traderB, buyer: traderA },
-    ]) {
+    for (const [{ owner, buyer }, marginated] of cartesian(
+      [
+        { owner: traderA, buyer: traderB },
+        { owner: traderB, buyer: traderA },
+      ],
+      [true, false]
+    )) {
       const config = {
         ...tradePoolConfig,
         delta: new BN(LAMPORTS_PER_SOL / 10),
@@ -830,6 +1203,25 @@ describe("tswap pool", () => {
         whitelist,
         config,
       });
+
+      let marginNr;
+      let marginPda: PublicKey | undefined;
+      if (
+        marginated &&
+        castPoolTypeAnchor(config.poolType) === PoolType.Trade
+      ) {
+        ({ marginNr, marginPda } = await testMakeMargin({
+          owner,
+        }));
+        await testAttachPoolToMargin({
+          config,
+          marginNr,
+          owner,
+          whitelist,
+          poolsAttached: 1,
+        });
+      }
+
       await testDepositNft({
         nftAuthPda,
         pool,
@@ -848,10 +1240,10 @@ describe("tswap pool", () => {
         buyer,
         config,
         expectedLamports: LAMPORTS_PER_SOL,
+        marginNr,
       });
 
       //edit pool + deposit 2nd nft + make 2nd buy
-      const mmProfit1 = (LAMPORTS_PER_SOL * 0.25) / 2;
       const newConfig1 = {
         ...config,
         startingPrice: new BN(2 * LAMPORTS_PER_SOL),
@@ -863,6 +1255,7 @@ describe("tswap pool", () => {
         oldConfig: config,
         whitelist,
       });
+
       await testDepositNft({
         pool: newPoolPda1,
         nftAuthPda,
@@ -881,10 +1274,10 @@ describe("tswap pool", () => {
         buyer,
         config: newConfig1,
         expectedLamports: 2 * LAMPORTS_PER_SOL,
+        marginNr,
       });
 
       //edit pool final time
-      const mmProfit2 = (LAMPORTS_PER_SOL * 2 * 0.25) / 2;
       const newConfig2 = {
         ...config,
         startingPrice: new BN(3 * LAMPORTS_PER_SOL),
@@ -904,11 +1297,18 @@ describe("tswap pool", () => {
       expect(newPoolAcc2.stats.takerBuyCount).eq(2);
       expect(newPoolAcc2.stats.takerSellCount).eq(0);
       expect(newPoolAcc2.stats.accumulatedMmProfit.toNumber()).eq(
-        mmProfit1 + mmProfit2
+        (3 * LAMPORTS_PER_SOL * 2500) / HUNDRED_PCT_BPS
       );
       expect(await getLamports(newSolEscrowPda2)).eq(
-        (await swapSdk.getSolEscrowRent()) + 3 * LAMPORTS_PER_SOL
+        (await swapSdk.getSolEscrowRent()) +
+          (marginated ? 0 : 3 * LAMPORTS_PER_SOL)
       );
+      if (marginPda) {
+        expect(await getLamports(marginPda)).eq(
+          (await swapSdk.getMarginAccountRent()) +
+            (marginated ? 3 * LAMPORTS_PER_SOL : 0)
+        );
+      }
     }
   });
 
@@ -1211,7 +1611,7 @@ describe("tswap pool", () => {
       });
 
       //taker buys 1
-      const mmProfit1 = (LAMPORTS_PER_SOL * 0.25) / 2;
+      const mmProfit1 = LAMPORTS_PER_SOL * 0.25;
       const { poolAcc: poolAcc1 } = await testBuyNft({
         pool,
         wlNft: wlNftA,
@@ -1226,7 +1626,7 @@ describe("tswap pool", () => {
 
       //taker sells 1
       //since the pool sold 1 nft before, the price went up by 1 delta, but the purchase price is 1 notch lower, ie it's the same
-      const mmProfit2 = mmProfit1 + (LAMPORTS_PER_SOL * 0.25) / 2;
+      const mmProfit2 = mmProfit1;
       const { poolAcc: poolAcc2 } = await testSellNft({
         nftMint: mintA,
         ata: otherAtaA,
@@ -1244,7 +1644,7 @@ describe("tswap pool", () => {
       expect(poolAcc2.stats.accumulatedMmProfit.toNumber()).eq(mmProfit2);
 
       //taker buys 2
-      const mmProfit3 = mmProfit2 + (LAMPORTS_PER_SOL * 0.25) / 2;
+      const mmProfit3 = mmProfit2 + LAMPORTS_PER_SOL * 0.25;
       const { poolAcc: poolAcc3 } = await testBuyNft({
         pool,
         wlNft: wlNftA,
@@ -1258,7 +1658,7 @@ describe("tswap pool", () => {
       expect(poolAcc3.stats.accumulatedMmProfit.toNumber()).eq(mmProfit3);
 
       //taker buys 3
-      const mmProfit4 = mmProfit3 + (LAMPORTS_PER_SOL * 1.1 * 0.25) / 2;
+      const mmProfit4 = mmProfit3 + LAMPORTS_PER_SOL * 1.1 * 0.25;
       const { poolAcc: poolAcc4 } = await testBuyNft({
         pool,
         wlNft: wlNftB,
@@ -1272,7 +1672,7 @@ describe("tswap pool", () => {
       expect(poolAcc4.stats.accumulatedMmProfit.toNumber()).eq(mmProfit4);
 
       //taker sells 2
-      const mmProfit5 = mmProfit4 + (LAMPORTS_PER_SOL * 1.1 * 0.25) / 2;
+      const mmProfit5 = mmProfit4;
       const { poolAcc: poolAcc5 } = await testSellNft({
         nftMint: mintA,
         ata: otherAtaA,
@@ -1290,7 +1690,7 @@ describe("tswap pool", () => {
       expect(poolAcc5.stats.accumulatedMmProfit.toNumber()).eq(mmProfit5);
 
       //taker sells 3
-      const mmProfit6 = mmProfit5 + (LAMPORTS_PER_SOL * 0.25) / 2;
+      const mmProfit6 = mmProfit5;
       const { poolAcc: poolAcc6 } = await testSellNft({
         nftMint: mintB,
         ata: otherAtaB,
@@ -1349,6 +1749,604 @@ describe("tswap pool", () => {
           );
       })
     );
+  });
+
+  //endregion
+
+  //#region MM Segregated fees.
+
+  it("correctly handles & withdraws segregated MM profit (normal and marginated)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    for (const [{ owner, buyer }, marginated] of cartesian(
+      [
+        { owner: traderA, buyer: traderB },
+        { owner: traderB, buyer: traderA },
+      ],
+      [true, false]
+    )) {
+      const config = {
+        ...tradePoolConfig,
+        delta: new BN(LAMPORTS_PER_SOL / 10),
+        mmFeeBps: 2500,
+        mmCompoundFees: false, //<-- important
+      };
+      const {
+        mint: mintA,
+        ata: ataA,
+        otherAta: otherAtaA,
+      } = await makeMintTwoAta(owner, buyer);
+      const {
+        mint: mintB,
+        ata: ataB,
+        otherAta: otherAtaB,
+      } = await makeMintTwoAta(owner, buyer);
+      const {
+        proofs: [wlNftA, wlNftB],
+        whitelist,
+      } = await makeProofWhitelist([mintA, mintB]);
+
+      let marginNr = undefined;
+      let marginPda: PublicKey | undefined;
+      if (marginated) {
+        ({ marginNr, marginPda } = await testMakeMargin({
+          owner,
+        }));
+      }
+
+      //make pool + deposit 1st nft + make 1st buy
+      const { poolPda: pool, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+      });
+
+      if (marginated) {
+        await testAttachPoolToMargin({
+          config,
+          marginNr: marginNr!,
+          owner,
+          whitelist,
+          poolsAttached: 1,
+        });
+      }
+
+      const poolRent = await swapSdk.getPoolRent();
+
+      await testDepositNft({
+        nftAuthPda,
+        pool,
+        config,
+        owner,
+        ata: ataA,
+        wlNft: wlNftA,
+        whitelist,
+      });
+      await testDepositNft({
+        nftAuthPda,
+        pool,
+        config,
+        owner,
+        ata: ataB,
+        wlNft: wlNftB,
+        whitelist,
+      });
+
+      //taker buys 1
+      const mmProfit1 = LAMPORTS_PER_SOL * 0.25;
+      const { poolAcc: poolAcc1 } = await testBuyNft({
+        pool,
+        wlNft: wlNftA,
+        whitelist,
+        otherAta: otherAtaA,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        marginNr,
+      });
+      expect(poolAcc1.stats.accumulatedMmProfit.toNumber()).eq(mmProfit1);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit1);
+
+      //taker sells 1
+      //since the pool sold 1 nft before, the price went up by 1 delta, but the purchase price is 1 notch lower, ie it's the same
+      const mmProfit2 = mmProfit1;
+      const { poolAcc: poolAcc2 } = await testSellNft({
+        nftMint: mintA,
+        ata: otherAtaA,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
+        nftAuthPda,
+        owner,
+        poolPda: pool,
+        sellType: "trade",
+        seller: buyer,
+        whitelist,
+        wlNft: wlNftA,
+        marginNr,
+      });
+      expect(poolAcc2.stats.accumulatedMmProfit.toNumber()).eq(mmProfit2);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit2);
+
+      //taker buys 2
+      const mmProfit3 = mmProfit2 + LAMPORTS_PER_SOL * 0.25;
+      const { poolAcc: poolAcc3 } = await testBuyNft({
+        pool,
+        wlNft: wlNftA,
+        whitelist,
+        otherAta: otherAtaA,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        marginNr,
+      });
+      expect(poolAcc3.stats.accumulatedMmProfit.toNumber()).eq(mmProfit3);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit3);
+
+      //taker buys 3
+      const mmProfit4 = mmProfit3 + LAMPORTS_PER_SOL * 1.1 * 0.25;
+      const { poolAcc: poolAcc4 } = await testBuyNft({
+        pool,
+        wlNft: wlNftB,
+        whitelist,
+        otherAta: otherAtaB,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL * 1.1,
+        marginNr,
+      });
+      expect(poolAcc4.stats.accumulatedMmProfit.toNumber()).eq(mmProfit4);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit4);
+
+      //taker sells 2
+      const mmProfit5 = mmProfit4;
+      const { poolAcc: poolAcc5 } = await testSellNft({
+        nftMint: mintA,
+        ata: otherAtaA,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL * 1.1,
+        minLamports: LAMPORTS_PER_SOL * 1.1 * 0.75,
+        nftAuthPda,
+        owner,
+        poolPda: pool,
+        sellType: "trade",
+        seller: buyer,
+        whitelist,
+        wlNft: wlNftA,
+        marginNr,
+      });
+      expect(poolAcc5.stats.accumulatedMmProfit.toNumber()).eq(mmProfit5);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit5);
+
+      //taker sells 3
+      const mmProfit6 = mmProfit5;
+      const { poolAcc: poolAcc6 } = await testSellNft({
+        nftMint: mintB,
+        ata: otherAtaB,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
+        nftAuthPda,
+        owner,
+        poolPda: pool,
+        sellType: "trade",
+        seller: buyer,
+        whitelist,
+        wlNft: wlNftB,
+        marginNr,
+      });
+      expect(poolAcc6.stats.accumulatedMmProfit.toNumber()).eq(mmProfit6);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit6);
+
+      const ownerCurrent = (await getLamports(owner.publicKey))!;
+
+      const withdrawFees = async (lamports: BN) => {
+        const {
+          tx: { ixs },
+        } = await swapSdk.withdrawMmFee({
+          whitelist,
+          config,
+          owner: owner.publicKey,
+          lamports,
+        });
+        await buildAndSendTx({ ixs, extraSigners: [owner] });
+      };
+
+      //try to withdraw too much
+      await expect(withdrawFees(new BN(mmProfit6 + 1))).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+      );
+
+      //try to withdraw a little
+      await withdrawFees(new BN(1));
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit6 - 1);
+      expect(await getLamports(owner.publicKey)).to.eq(ownerCurrent + 1);
+
+      //try to withdraw everything
+      await withdrawFees(new BN(mmProfit6 - 1));
+      expect(await getLamports(pool)).to.eq(poolRent);
+      expect(await getLamports(owner.publicKey)).to.eq(
+        ownerCurrent + mmProfit6
+      );
+
+      //try to withdraw again
+      await expect(withdrawFees(new BN(1))).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+      );
+    }
+  });
+
+  it("editing works for segregated MM pools (normal and marginated)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    for (const [{ owner, buyer }, marginated] of cartesian(
+      [
+        { owner: traderA, buyer: traderB },
+        { owner: traderB, buyer: traderA },
+      ],
+      [true, false]
+    )) {
+      const config = {
+        ...tradePoolConfig,
+        delta: new BN(LAMPORTS_PER_SOL / 10),
+        mmFeeBps: 2500,
+        mmCompoundFees: false, //<-- important
+      };
+      const {
+        mint: mintA,
+        ata: ataA,
+        otherAta: otherAtaA,
+      } = await makeMintTwoAta(owner, buyer);
+      const {
+        mint: mintB,
+        ata: ataB,
+        otherAta: otherAtaB,
+      } = await makeMintTwoAta(owner, buyer);
+      const {
+        proofs: [wlNftA, wlNftB],
+        whitelist,
+      } = await makeProofWhitelist([mintA, mintB]);
+
+      let marginNr = undefined;
+      let marginPda: PublicKey | undefined;
+      if (marginated) {
+        ({ marginNr, marginPda } = await testMakeMargin({
+          owner,
+        }));
+      }
+
+      //make pool + deposit 1st nft + make 1st buy
+      const { poolPda: pool, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+      });
+
+      if (marginated) {
+        await testAttachPoolToMargin({
+          config,
+          marginNr: marginNr!,
+          owner,
+          whitelist,
+          poolsAttached: 1,
+        });
+      }
+
+      const poolRent = await swapSdk.getPoolRent();
+
+      await testDepositNft({
+        nftAuthPda,
+        pool,
+        config,
+        owner,
+        ata: ataA,
+        wlNft: wlNftA,
+        whitelist,
+      });
+      await testDepositNft({
+        nftAuthPda,
+        pool,
+        config,
+        owner,
+        ata: ataB,
+        wlNft: wlNftB,
+        whitelist,
+      });
+
+      //taker buys 1
+      const mmProfit1 = LAMPORTS_PER_SOL * 0.25;
+      const { poolAcc: poolAcc1 } = await testBuyNft({
+        pool,
+        wlNft: wlNftA,
+        whitelist,
+        otherAta: otherAtaA,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        marginNr,
+      });
+      expect(poolAcc1.stats.accumulatedMmProfit.toNumber()).eq(mmProfit1);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit1);
+
+      //taker sells 1
+      //since the pool sold 1 nft before, the price went up by 1 delta, but the purchase price is 1 notch lower, ie it's the same
+      const mmProfit2 = mmProfit1;
+      const { poolAcc: poolAcc2 } = await testSellNft({
+        nftMint: mintA,
+        ata: otherAtaA,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
+        nftAuthPda,
+        owner,
+        poolPda: pool,
+        sellType: "trade",
+        seller: buyer,
+        whitelist,
+        wlNft: wlNftA,
+        marginNr,
+      });
+      expect(poolAcc2.stats.accumulatedMmProfit.toNumber()).eq(mmProfit2);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit2);
+
+      // --------------------------------------- not compounding
+
+      //edit
+      await testEditPool({
+        oldConfig: config,
+        owner,
+        tswap,
+        whitelist,
+        mmCompoundFees: true, //<-- now compounding
+      });
+
+      //taker buys 2
+      const mmProfit3 = mmProfit2;
+      const mmProfit3Stats = mmProfit2 + LAMPORTS_PER_SOL * 0.25;
+      const { poolAcc: poolAcc3 } = await testBuyNft({
+        pool,
+        wlNft: wlNftA,
+        whitelist,
+        otherAta: otherAtaA,
+        owner,
+        buyer,
+        config: { ...config, mmCompoundFees: true },
+        expectedLamports: LAMPORTS_PER_SOL,
+        marginNr,
+      });
+      expect(poolAcc3.stats.accumulatedMmProfit.toNumber()).eq(mmProfit3Stats);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit3);
+
+      //taker sells 2
+      const mmProfit4 = mmProfit3;
+      const mmProfit4Stats = mmProfit3Stats;
+      const { poolAcc: poolAcc4, solEscrowPda } = await testSellNft({
+        nftMint: mintA,
+        ata: otherAtaA,
+        config: { ...config, mmCompoundFees: true },
+        expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
+        nftAuthPda,
+        owner,
+        poolPda: pool,
+        sellType: "trade",
+        seller: buyer,
+        whitelist,
+        wlNft: wlNftA,
+        marginNr,
+      });
+      expect(poolAcc4.stats.accumulatedMmProfit.toNumber()).eq(mmProfit4Stats);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit4);
+
+      // --------------------------------------- not compounding
+
+      //edit
+      await testEditPool({
+        oldConfig: config,
+        owner,
+        tswap,
+        whitelist,
+        mmCompoundFees: false, //<-- again not compounding
+      });
+
+      //taker buys 3
+      const mmProfit5 = mmProfit4 + LAMPORTS_PER_SOL * 0.25;
+      const mmProfit5Stats = mmProfit4Stats + LAMPORTS_PER_SOL * 0.25;
+      const { poolAcc: poolAcc5 } = await testBuyNft({
+        pool,
+        wlNft: wlNftB,
+        whitelist,
+        otherAta: otherAtaB,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        marginNr,
+      });
+      expect(poolAcc5.stats.accumulatedMmProfit.toNumber()).eq(mmProfit5Stats);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit5);
+
+      //taker sells 3
+      const mmProfit6 = mmProfit5;
+      const mmProfit6Stats = mmProfit5Stats;
+      const { poolAcc: poolAcc6 } = await testSellNft({
+        nftMint: mintB,
+        ata: otherAtaB,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
+        nftAuthPda,
+        owner,
+        poolPda: pool,
+        sellType: "trade",
+        seller: buyer,
+        whitelist,
+        wlNft: wlNftB,
+        marginNr,
+      });
+      expect(poolAcc6.stats.accumulatedMmProfit.toNumber()).eq(mmProfit6Stats);
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit6);
+
+      //edit
+      await testEditPool({
+        oldConfig: config,
+        owner,
+        tswap,
+        whitelist,
+        mmCompoundFees: true, //<-- again compounding
+      });
+
+      const ownerCurrent = (await getLamports(owner.publicKey))!;
+
+      //should still be able to withdraw fees!
+
+      const withdrawFees = async (lamports: BN) => {
+        const {
+          tx: { ixs },
+        } = await swapSdk.withdrawMmFee({
+          whitelist,
+          config,
+          owner: owner.publicKey,
+          lamports,
+        });
+        await buildAndSendTx({ ixs, extraSigners: [owner] });
+      };
+
+      //try to withdraw too much
+      await expect(withdrawFees(new BN(mmProfit6 + 1))).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+      );
+
+      //try to withdraw a little
+      await withdrawFees(new BN(1));
+      expect(await getLamports(pool)).to.eq(poolRent + mmProfit6 - 1);
+      expect(await getLamports(owner.publicKey)).to.eq(ownerCurrent + 1);
+
+      //try to withdraw everything
+      await withdrawFees(new BN(mmProfit6 - 1));
+      expect(await getLamports(pool)).to.eq(poolRent);
+      expect(await getLamports(owner.publicKey)).to.eq(
+        ownerCurrent + mmProfit6
+      );
+
+      //try to withdraw again
+      await expect(withdrawFees(new BN(1))).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+      );
+    }
+  });
+
+  it("fails to withdraw segregated MM profit from a compounded account", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const { owner, buyer } of [
+      { owner: traderA, buyer: traderB },
+      { owner: traderB, buyer: traderA },
+    ]) {
+      const config = {
+        ...tradePoolConfig,
+        delta: new BN(LAMPORTS_PER_SOL / 10),
+        mmFeeBps: 2500,
+        mmCompoundFees: true, //<-- important
+      };
+      const {
+        mint: mintA,
+        ata: ataA,
+        otherAta: otherAtaA,
+      } = await makeMintTwoAta(owner, buyer);
+      const {
+        mint: mintB,
+        ata: ataB,
+        otherAta: otherAtaB,
+      } = await makeMintTwoAta(owner, buyer);
+      const {
+        proofs: [wlNftA, wlNftB],
+        whitelist,
+      } = await makeProofWhitelist([mintA, mintB]);
+
+      //make pool + deposit 1st nft + make 1st buy
+      const { poolPda: pool, nftAuthPda } = await testMakePool({
+        tswap,
+        owner,
+        whitelist,
+        config,
+      });
+      const poolRent = await swapSdk.getPoolRent();
+
+      await testDepositNft({
+        nftAuthPda,
+        pool,
+        config,
+        owner,
+        ata: ataA,
+        wlNft: wlNftA,
+        whitelist,
+      });
+      await testDepositNft({
+        nftAuthPda,
+        pool,
+        config,
+        owner,
+        ata: ataB,
+        wlNft: wlNftB,
+        whitelist,
+      });
+
+      //taker buys 1
+      const mmProfit1 = LAMPORTS_PER_SOL * 0.25;
+      const { poolAcc: poolAcc1 } = await testBuyNft({
+        pool,
+        wlNft: wlNftA,
+        whitelist,
+        otherAta: otherAtaA,
+        owner,
+        buyer,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+      });
+      expect(poolAcc1.stats.accumulatedMmProfit.toNumber()).eq(mmProfit1);
+      expect(await getLamports(pool)).to.eq(poolRent); //<-- no profit into pool
+
+      //taker sells 1
+      //since the pool sold 1 nft before, the price went up by 1 delta, but the purchase price is 1 notch lower, ie it's the same
+      const mmProfit2 = mmProfit1;
+      const { poolAcc: poolAcc2 } = await testSellNft({
+        nftMint: mintA,
+        ata: otherAtaA,
+        config,
+        expectedLamports: LAMPORTS_PER_SOL,
+        minLamports: LAMPORTS_PER_SOL * 0.75,
+        nftAuthPda,
+        owner,
+        poolPda: pool,
+        sellType: "trade",
+        seller: buyer,
+        whitelist,
+        wlNft: wlNftA,
+      });
+      expect(poolAcc2.stats.accumulatedMmProfit.toNumber()).eq(mmProfit2);
+      expect(await getLamports(pool)).to.eq(poolRent); //<-- no profit into pool
+
+      //it will try to withdraw but will get 0 out
+      const prevOwner = await getLamports(owner.publicKey);
+      const {
+        tx: { ixs },
+      } = await swapSdk.withdrawMmFee({
+        whitelist,
+        config,
+        owner: owner.publicKey,
+        lamports: new BN(1),
+      });
+      await expect(
+        buildAndSendTx({ ixs, extraSigners: [owner] })
+      ).to.be.rejectedWith(
+        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+      );
+    }
   });
 
   //endregion

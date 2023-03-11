@@ -26,6 +26,7 @@ import BN from "bn.js";
 import chai, { expect } from "chai";
 import {
   castPoolConfigAnchor,
+  castPoolTypeAnchor,
   computeMakerAmountCount,
   computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
@@ -35,6 +36,7 @@ import {
   OrderType,
   PoolAnchor,
   PoolConfigAnchor,
+  PoolType,
   PoolTypeAnchor,
   SNIPE_FEE_BPS,
   SNIPE_MIN_FEE,
@@ -92,7 +94,7 @@ export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
   curveType: CurveTypeAnchor.Linear,
   startingPrice: new BN(LAMPORTS_PER_SOL),
   delta: new BN(1234),
-  honorRoyalties: true,
+  mmCompoundFees: true,
   mmFeeBps: null,
 };
 export const nftPoolConfig: PoolConfigAnchor = {
@@ -661,9 +663,12 @@ export const computeTakerPrice = ({
     })!.toNumber()
   );
 
-export const defaultSellExpectedLamports = (isToken: boolean) => {
+export const defaultSellExpectedLamports = (
+  isToken: boolean,
+  amount = LAMPORTS_PER_SOL
+) => {
   // Selling is 1 tick lower than start price for trade pools.
-  return isToken ? LAMPORTS_PER_SOL : LAMPORTS_PER_SOL - 1234;
+  return isToken ? amount : amount - 1234;
 };
 
 export const calcSnipeFee = (bid: number) =>
@@ -673,14 +678,16 @@ export const calcSnipeBidWithFee = (bid: number) => bid + calcSnipeFee(bid);
 
 export const adjustSellMinLamports = (
   isToken: boolean,
-  expectedLamports: number
+  expectedLamports: number,
+  mmFeeBps?: number
 ) => {
   // Min price needs to be adjusted for MM fees for trade pools.
   return isToken
     ? expectedLamports
     : expectedLamports -
         Math.trunc(
-          (expectedLamports * tradePoolConfig.mmFeeBps!) / HUNDRED_PCT_BPS
+          (expectedLamports * (mmFeeBps ?? tradePoolConfig.mmFeeBps!)) /
+            HUNDRED_PCT_BPS
         );
 };
 
@@ -1019,8 +1026,6 @@ export const testMakePool = async ({
     config.startingPrice.toNumber()
   );
   expect(accConfig.delta.toNumber()).eq(config.delta.toNumber());
-  // Royalties enforced atm.
-  expect(accConfig.honorRoyalties).eq(true);
   if (config.poolType === PoolTypeAnchor.Trade) {
     expect(accConfig.mmFeeBps).eq(config.mmFeeBps);
   } else {
@@ -1107,6 +1112,7 @@ export const testEditPool = async ({
   commitment,
   isCosigned = null,
   maxTakerSellCount,
+  mmCompoundFees,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -1116,6 +1122,7 @@ export const testEditPool = async ({
   commitment?: Commitment;
   isCosigned?: null | boolean;
   maxTakerSellCount?: number;
+  mmCompoundFees?: boolean | null;
 }) => {
   const {
     tx: { ixs },
@@ -1131,6 +1138,7 @@ export const testEditPool = async ({
     newConfig,
     isCosigned,
     maxTakerSellCount,
+    mmCompoundFees,
   });
 
   //collect data from old pool which we're about to close
@@ -1206,8 +1214,6 @@ export const testEditPool = async ({
     newConfigAssigned.startingPrice.toNumber()
   );
   expect(accConfig.delta.toNumber()).eq(newConfigAssigned.delta.toNumber());
-  // Royalties enforced atm.
-  expect(accConfig.honorRoyalties).eq(true);
   if (newConfigAssigned.poolType === PoolTypeAnchor.Trade) {
     expect(accConfig.mmFeeBps).eq(newConfigAssigned.mmFeeBps);
   } else {
@@ -1231,6 +1237,10 @@ export const testEditPool = async ({
   expect(newPool.maxTakerSellCount).to.be.eq(
     maxTakerSellCount ?? oldPool.maxTakerSellCount
   );
+
+  if (!isNullLike(mmCompoundFees)) {
+    newPool.config.mmCompoundFees = mmCompoundFees;
+  }
 
   return {
     sig,
@@ -1492,6 +1502,7 @@ export const testBuyNft = async ({
   creators,
   programmable,
   lookupTableAccount,
+  marginNr,
 }: {
   whitelist: PublicKey;
   pool: PublicKey;
@@ -1509,6 +1520,7 @@ export const testBuyNft = async ({
   creators?: CreatorInput[];
   programmable?: boolean;
   lookupTableAccount?: AddressLookupTableAccount | null;
+  marginNr?: number;
 }) => {
   const {
     tx: { ixs },
@@ -1516,6 +1528,8 @@ export const testBuyNft = async ({
     escrowPda,
     solEscrowPda,
     tswapPda,
+    marginPda,
+    poolPda,
   } = await swapSdk.buyNft({
     whitelist,
     nftMint: wlNft.mint,
@@ -1524,6 +1538,7 @@ export const testBuyNft = async ({
     buyer: buyer.publicKey,
     config,
     maxPrice: new BN(maxLamports),
+    marginNr,
   });
 
   const prevPoolAcc = await swapSdk.fetchPool(pool);
@@ -1534,12 +1549,16 @@ export const testBuyNft = async ({
       prevSellerLamports: owner.publicKey,
       prevBuyerLamports: buyer.publicKey,
       prevEscrowLamports: solEscrowPda,
+      prevPoolLamports: poolPda,
+      ...(marginPda ? { prevMarginLamports: marginPda } : {}),
     },
     async ({
       prevFeeAccLamports,
       prevSellerLamports,
       prevBuyerLamports,
       prevEscrowLamports,
+      prevPoolLamports,
+      prevMarginLamports,
     }) => {
       const buySig = await buildAndSendTx({
         ixs,
@@ -1566,6 +1585,10 @@ export const testBuyNft = async ({
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
 
       const isTrade = config.poolType === PoolTypeAnchor.Trade;
+      const separateMmFee =
+        isTrade && !config.mmCompoundFees
+          ? (config.mmFeeBps / HUNDRED_PCT_BPS) * expectedLamports
+          : 0;
 
       // Check creators' balances.
       let creatorsFee = 0;
@@ -1614,7 +1637,22 @@ export const testBuyNft = async ({
         // The owner gets back the rent costs.
         (await swapSdk.getNftDepositReceiptRent()) +
         (await swapSdk.getTokenAcctRent());
-      const expEscrowAmount = isTrade ? expectedLamports : 0;
+
+      const expEscrowAmount = isTrade
+        ? marginPda
+          ? 0
+          : expectedLamports - separateMmFee
+        : 0;
+      const expMarginAmount = isTrade
+        ? marginPda
+          ? expectedLamports - separateMmFee
+          : 0
+        : 0;
+
+      if (!config.mmCompoundFees) {
+        const currPoolLamports = await getLamports(poolPda);
+        expect(prevPoolLamports! - currPoolLamports!).eq(-1 * separateMmFee);
+      }
 
       // amount sent to owner's wallet
       const currSellerLamports = await getLamports(owner.publicKey);
@@ -1623,6 +1661,12 @@ export const testBuyNft = async ({
       // amount sent to escrow
       const currSolEscrowLamports = await getLamports(solEscrowPda);
       expect(currSolEscrowLamports! - prevEscrowLamports!).eq(expEscrowAmount);
+
+      // amount sent to margin
+      if (marginPda) {
+        const currMarginLamports = await getLamports(marginPda);
+        expect(currMarginLamports! - prevMarginLamports!).eq(expMarginAmount);
+      }
 
       const poolAcc = await swapSdk.fetchPool(pool);
       expectPoolAccounting(poolAcc, prevPoolAcc, {
@@ -1669,6 +1713,8 @@ export const testMakePoolBuyNft = async ({
   programmable,
   ruleSetAddr,
   lookupTableAccount,
+  marginated = false,
+  poolsAttached = 1,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -1685,6 +1731,8 @@ export const testMakePoolBuyNft = async ({
   programmable?: boolean;
   ruleSetAddr?: PublicKey;
   lookupTableAccount?: AddressLookupTableAccount | null;
+  marginated?: boolean;
+  poolsAttached?: number;
 }) => {
   const { mint, ata, otherAta, metadata, masterEdition } = await makeMintTwoAta(
     owner,
@@ -1706,6 +1754,21 @@ export const testMakePoolBuyNft = async ({
     whitelist,
     config,
   });
+
+  let marginNr;
+  let marginPda;
+  if (marginated && castPoolTypeAnchor(config.poolType) === PoolType.Trade) {
+    ({ marginNr, marginPda } = await testMakeMargin({
+      owner,
+    }));
+    await testAttachPoolToMargin({
+      config,
+      marginNr,
+      owner,
+      whitelist,
+      poolsAttached,
+    });
+  }
 
   await testDepositNft({
     nftAuthPda,
@@ -1733,6 +1796,7 @@ export const testMakePoolBuyNft = async ({
       creators,
       programmable,
       lookupTableAccount,
+      marginNr,
     })),
     pool,
     whitelist,
@@ -1740,6 +1804,7 @@ export const testMakePoolBuyNft = async ({
     wlNft,
     metadata,
     masterEdition,
+    marginNr,
   };
 };
 

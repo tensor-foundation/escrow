@@ -126,6 +126,22 @@ impl<'info> EditPool<'info> {
             lamports_to_move,
         )
     }
+
+    fn transfer_mm_fees_from_old_to_new_pool(&self) -> Result<()> {
+        let current_lamports = self.old_pool.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(self.old_pool.to_account_info().data_len());
+        let lamports_to_move = current_lamports.checked_sub(rent).unwrap();
+
+        if lamports_to_move > 0 {
+            transfer_lamports_from_tswap(
+                &self.old_pool.to_account_info(),
+                &self.new_pool.to_account_info(),
+                lamports_to_move,
+            )?;
+        }
+
+        Ok(())
+    }
 }
 
 #[access_control(ctx.accounts.validate(); ctx.accounts.validate_pool_type(new_config))]
@@ -164,7 +180,7 @@ pub fn handler(
     new_pool.frozen = old_pool.frozen;
     new_pool.margin = old_pool.margin;
 
-    // --------------------------------------- (!!!) SYNC WITH EDIT POOL
+    // --------------------------------------- (!!!) SYNC WITH EDIT POOL IN PLACE
 
     //need to be able to adjust this boolean when broad order <--> narrow (trait specific)
     match is_cosigned {
@@ -184,11 +200,7 @@ pub fn handler(
 
     match max_taker_sell_count {
         Some(max_taker_sell_count) => {
-            //requires that the count is below what the pool already bought,
-            //except if it's 0, which simply means disabling it
-            if max_taker_sell_count != 0 && max_taker_sell_count < old_pool.stats.taker_sell_count {
-                throw_err!(MaxTakerSellCountTooSmall);
-            }
+            new_pool.valid_max_sell_count(max_taker_sell_count)?;
             new_pool.max_taker_sell_count = max_taker_sell_count;
         }
         None => {
@@ -196,7 +208,7 @@ pub fn handler(
         }
     }
 
-    // --------------------------------------- (!!!) SYNC WITH EDIT POOL END
+    // --------------------------------------- (!!!) SYNC WITH EDIT POOL END IN PLACE
 
     let auth = &mut ctx.accounts.nft_authority;
 
@@ -205,6 +217,7 @@ pub fn handler(
 
     //move lamports from old to new pool
     ctx.accounts.transfer_lamports_from_old_to_new_pool()?;
+    ctx.accounts.transfer_mm_fees_from_old_to_new_pool()?;
 
     Ok(())
 }

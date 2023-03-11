@@ -175,7 +175,9 @@ pub struct BuyNft<'info> {
     // remaining accounts:
     // CHECK: validate it's present on metadata in handler
     // 1. optional authorization_rules, only if present on metadata
-    // 2. 0 to N creator accounts.
+    // CHECK: 1)seeds, 2)program owner, 3)normal owner, 4)margin acc stored on pool
+    // 2. optional margin account (even without sniping can be used)
+    // 3. 0 to N creator accounts.
 }
 
 impl<'info> BuyNft<'info> {
@@ -237,17 +239,13 @@ pub fn handler<'info, 'b>(
     emit!(BuySellEvent {
         current_price,
         tswap_fee,
-        mm_fee: 0, // no MM fee for buying
+        mm_fee: 0, //record in sell_trade ix for parsing
         creators_fee,
     });
 
     if current_price > max_price {
         throw_err!(PriceMismatch);
     }
-
-    // transfer fee to Tensorswap
-    ctx.accounts
-        .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
 
     // transfer nft to buyer
     // has to go before creators fee calc below, coz we need to drain 1 optional acc
@@ -279,7 +277,37 @@ pub fn handler<'info, 'b>(
         None,
     )?;
 
-    //send royalties
+    // --------------------------------------- SOL transfers
+
+    // transfer fee to Tensorswap (on top of current price)
+    ctx.accounts
+        .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
+
+    //(!) this block has to come before royalties transfer due to remaining_accounts
+    let destination = match pool.config.pool_type {
+        //send money direct to seller/owner
+        PoolType::NFT => ctx.accounts.owner.to_account_info(),
+        //send money to the pool
+        // NB: no explicit MM fees here: that's because it goes directly to the escrow anyways.
+        PoolType::Trade => match &pool.margin {
+            Some(stored_margin_account) => {
+                let margin_account_info = next_account_info(remaining_accounts)?;
+                assert_decode_margin_account(
+                    margin_account_info,
+                    &ctx.accounts.tswap.to_account_info(),
+                    &ctx.accounts.owner.to_account_info(),
+                )?;
+                if *margin_account_info.key != *stored_margin_account {
+                    throw_err!(BadMargin);
+                }
+                margin_account_info.clone()
+            }
+            None => ctx.accounts.sol_escrow.to_account_info(),
+        },
+        PoolType::Token => unreachable!(),
+    };
+
+    // transfer royalties (on top of current price)
     transfer_creators_fee(
         None,
         Some(FromExternal {
@@ -291,18 +319,22 @@ pub fn handler<'info, 'b>(
         creators_fee,
     )?;
 
-    //transfer current_price to either seller/owner or the pool (if Trade pool)
-    //(!) fees/royalties are paid by TAKER, which in this case is the BUYER (hence they get full price)
-    let destination = match pool.config.pool_type {
-        //send money direct to seller/owner
-        PoolType::NFT => ctx.accounts.owner.to_account_info(),
-        //send money to the pool
-        // NB: no explicit MM fees here: that's because it goes directly to the escrow anyways.
-        PoolType::Trade => ctx.accounts.sol_escrow.to_account_info(),
-        PoolType::Token => unreachable!(),
-    };
-    ctx.accounts
-        .transfer_lamports(&destination, current_price)?;
+    // transfer current price + MM fee if !compounded (within current price)
+    match pool.config.pool_type {
+        PoolType::Trade if !pool.config.mm_compound_fees => {
+            let mm_fee = pool.calc_mm_fee(current_price)?;
+            let left_for_pool = unwrap_int!(current_price.checked_sub(mm_fee));
+            ctx.accounts
+                .transfer_lamports(&destination, left_for_pool)?;
+            ctx.accounts
+                .transfer_lamports(&ctx.accounts.pool.to_account_info(), mm_fee)?;
+        }
+        _ => ctx
+            .accounts
+            .transfer_lamports(&destination, current_price)?,
+    }
+
+    // --------------------------------------- accounting
 
     // close nft escrow account
     token::close_account(
@@ -316,16 +348,14 @@ pub fn handler<'info, 'b>(
     pool.nfts_held = unwrap_int!(pool.nfts_held.checked_sub(1));
     pool.taker_buy_count = unwrap_int!(pool.taker_buy_count.checked_add(1));
     pool.stats.taker_buy_count = unwrap_int!(pool.stats.taker_buy_count.checked_add(1));
-    //record a MM profit of 1/2 MM fee
+    pool.last_transacted_seconds = Clock::get()?.unix_timestamp;
+
+    //record the entirety of MM fee during the buy tx
     if pool.config.pool_type == PoolType::Trade {
         let mm_fee = pool.calc_mm_fee(current_price)?;
-        pool.stats.accumulated_mm_profit = unwrap_checked!({
-            pool.stats
-                .accumulated_mm_profit
-                .checked_add(mm_fee.checked_div(2)?)
-        });
+        pool.stats.accumulated_mm_profit =
+            unwrap_checked!({ pool.stats.accumulated_mm_profit.checked_add(mm_fee) });
     }
-    pool.last_transacted_seconds = Clock::get()?.unix_timestamp;
 
     Ok(())
 }

@@ -705,7 +705,7 @@ describe("tswap sell", () => {
     const numSells = 5;
     const baseConfig = {
       startingPrice: new BN(2),
-      honorRoyalties: true,
+      mmCompoundFees: true,
     };
     await Promise.all(
       cartesian(
@@ -898,7 +898,7 @@ describe("tswap sell", () => {
               ? new BN(1_238_923_843 / numSells)
               : // 10.21% (prime #)
                 new BN(10_21),
-          honorRoyalties: true,
+          mmCompoundFees: true,
           mmFeeBps: poolType === PoolTypeAnchor.Trade ? 0 : null,
         };
 
@@ -1031,7 +1031,7 @@ describe("tswap sell", () => {
       startingPrice: new BN(2_083_195_757),
       // 17.21% (prime #)
       delta: new BN(17_21),
-      honorRoyalties: true,
+      mmCompoundFees: true,
       mmFeeBps: null,
     };
 

@@ -27,7 +27,7 @@ pub mod tensorswap {
         new_owner: Pubkey,
         config: TSwapConfig,
     ) -> Result<()> {
-        instructions::init_update_tswap::handler(ctx, new_owner, config)
+        instructions::admin::init_update_tswap::handler(ctx, new_owner, config)
     }
 
     pub fn init_pool<'info>(
@@ -138,7 +138,7 @@ pub mod tensorswap {
     }
 
     pub fn realloc_pool(ctx: Context<ReallocPool>, _config: PoolConfig) -> Result<()> {
-        instructions::realloc_pool::handler(ctx)
+        instructions::admin::realloc_pool::handler(ctx)
     }
 
     pub fn init_margin_account(
@@ -207,12 +207,18 @@ pub mod tensorswap {
         _config: PoolConfig,
         is_cosigned: Option<bool>,
         max_taker_sell_count: Option<u32>,
+        mm_compound_fees: Option<bool>,
     ) -> Result<()> {
-        instructions::edit_pool_in_place::handler(ctx, is_cosigned, max_taker_sell_count)
+        instructions::edit_pool_in_place::handler(
+            ctx,
+            is_cosigned,
+            max_taker_sell_count,
+            mm_compound_fees,
+        )
     }
 
     pub fn withdraw_tswap_fees(ctx: Context<WithdrawTswapFees>, amount: u64) -> Result<()> {
-        instructions::withdraw_tswap_fees::handler(ctx, amount)
+        instructions::admin::withdraw_tswap_fees::handler(ctx, amount)
     }
 
     pub fn list<'info>(
@@ -249,6 +255,21 @@ pub mod tensorswap {
         price: u64,
     ) -> Result<()> {
         instructions::edit_single_listing::handler(ctx, price)
+    }
+
+    pub fn withdraw_mm_fee<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>,
+        _config: PoolConfig,
+        lamports: u64,
+    ) -> Result<()> {
+        instructions::withdraw_mm_fees::handler(ctx, lamports)
+    }
+
+    pub fn withdraw_tswap_owned_spl(
+        ctx: Context<WithdrawTswapOwnedSpl>,
+        amount: u64,
+    ) -> Result<()> {
+        instructions::admin::withdraw_tswap_owned_spl::handler(ctx, amount)
     }
 }
 
@@ -328,6 +349,8 @@ pub enum ErrorCode {
     MaxTakerSellCountTooSmall = 34,
     #[msg("rule set for programmable nft does not match")]
     BadRuleSet = 35,
+    #[msg("this pool compounds fees and they cannot be withdrawn separately")]
+    PoolFeesCompounded = 36,
 }
 
 #[derive(Accounts)]

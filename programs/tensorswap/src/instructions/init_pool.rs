@@ -64,10 +64,6 @@ pub struct InitPool<'info> {
 
 impl<'info> InitPool<'info> {
     fn validate_pool_type(&self, config: PoolConfig) -> Result<()> {
-        if !config.honor_royalties {
-            throw_err!(RoyaltiesEnabled);
-        }
-
         match config.pool_type {
             PoolType::NFT | PoolType::Token => {
                 if config.mm_fee_bps.is_some() {
