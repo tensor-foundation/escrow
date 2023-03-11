@@ -610,48 +610,6 @@ export class TensorSwapSDK {
     };
   }
 
-  //main signature: owner
-  async withdrawTswapOwnedSpl({
-    mint,
-    owner = TSWAP_OWNER,
-    cosigner = TSWAP_COSIGNER,
-    amount,
-  }: {
-    mint: PublicKey;
-    owner?: PublicKey;
-    cosigner?: PublicKey;
-    amount: BN;
-  }) {
-    const [tswapPda, tswapBump] = findTSwapPDA({});
-
-    const splSource = await getAssociatedTokenAddress(mint, tswapPda, true);
-    const splDest = await getAssociatedTokenAddress(mint, owner);
-
-    const builder = this.program.methods
-      .withdrawTswapOwnedSpl(amount)
-      .accounts({
-        tswap: tswapPda,
-        owner,
-        cosigner,
-        splSource,
-        splDest,
-        splMint: mint,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: SYSVAR_RENT_PUBKEY,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-      });
-
-    return {
-      builder,
-      tx: { ixs: [await builder.instruction()] },
-      tswapPda,
-      tswapBump,
-      splSource,
-      splDest,
-    };
-  }
-
   // --------------------------------------- pool methods
 
   //main signature: owner
@@ -2675,7 +2633,6 @@ export class TensorSwapSDK {
     switch (ix.ix.name) {
       case "initUpdateTswap":
       case "withdrawTswapFees":
-      case "withdrawTswapOwnedSpl":
       case "initMarginAccount":
       case "closeMarginAccount":
       case "depositMarginAccount":
@@ -2748,8 +2705,6 @@ export class TensorSwapSDK {
       case "setPoolFreeze":
       case "attachPoolToMargin":
         return null;
-      case "withdrawTswapOwnedSpl":
-        return (ix.ix.data as WithdrawTSwapOwnedSplData).amount;
     }
   }
 
@@ -2767,7 +2722,6 @@ export class TensorSwapSDK {
       case "delist":
       case "initUpdateTswap":
       case "withdrawTswapFees":
-      case "withdrawTswapOwnedSpl":
       case "initPool":
       case "closePool":
       case "depositNft":

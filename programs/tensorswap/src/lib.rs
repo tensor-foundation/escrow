@@ -265,12 +265,13 @@ pub mod tensorswap {
         instructions::withdraw_mm_fees::handler(ctx, lamports)
     }
 
-    pub fn withdraw_tswap_owned_spl(
-        ctx: Context<WithdrawTswapOwnedSpl>,
-        amount: u64,
-    ) -> Result<()> {
-        instructions::admin::withdraw_tswap_owned_spl::handler(ctx, amount)
-    }
+    // OFFLINE BY DEFAULT
+    // pub fn withdraw_tswap_owned_spl(
+    //     ctx: Context<WithdrawTswapOwnedSpl>,
+    //     amount: u64,
+    // ) -> Result<()> {
+    //     instructions::admin::withdraw_tswap_owned_spl::handler(ctx, amount)
+    // }
 }
 
 #[error_code]
