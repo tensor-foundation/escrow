@@ -6,10 +6,10 @@ Remember to add Github PAT with read:packages permission to `GH_AUTH_TOKEN` envv
 
 Copy JUST the following over:
 ```
-package.json
 tsconfig.json
 yarn.lock
 src/
 ```
 
-Also remove `@tensor-hq/tensor-common` from the package.json (and reinstall for yarn.lock).
+For `package.json`, DO NOT COPY ENTIRELY b/c package names + repos are diff: just copy over the deps that changed.
+
