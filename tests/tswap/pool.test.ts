@@ -43,7 +43,7 @@ import {
 } from "./common";
 import { castPoolTypeAnchor, PoolType } from "../../src";
 
-describe.only("tswap pool", () => {
+describe("tswap pool", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
 

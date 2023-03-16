@@ -634,6 +634,7 @@ export const computeDepositAmount = ({
       extraNFTsSelected: 0,
       maxTakerSellCount: 0,
       statsTakerSellCount: 0,
+      statsTakerBuyCount: 0,
     }).totalAmount.toNumber()
   );
 
@@ -659,6 +660,7 @@ export const computeTakerPrice = ({
       extraNFTsSelected: 0,
       maxTakerSellCount: 0,
       statsTakerSellCount: 0,
+      statsTakerBuyCount: 0,
       slippage,
     })!.toNumber()
   );
@@ -1587,7 +1589,7 @@ export const testBuyNft = async ({
       const isTrade = config.poolType === PoolTypeAnchor.Trade;
       const separateMmFee =
         isTrade && !config.mmCompoundFees
-          ? (config.mmFeeBps / HUNDRED_PCT_BPS) * expectedLamports
+          ? ((config.mmFeeBps ?? 0) / HUNDRED_PCT_BPS) * expectedLamports
           : 0;
 
       // Check creators' balances.
@@ -1830,6 +1832,7 @@ export const testSellNft = async ({
   isSniping = false,
   programmable,
   lookupTableAccount,
+  skipCreatorBalanceCheck = false,
 }: {
   sellType: "trade" | "token";
   nftMint?: PublicKey;
@@ -1855,6 +1858,7 @@ export const testSellNft = async ({
   isSniping?: boolean;
   programmable?: boolean;
   lookupTableAccount?: AddressLookupTableAccount | null;
+  skipCreatorBalanceCheck?: boolean;
 }) => {
   if (!wlNft?.mint && !nftMint) {
     throw new Error("missing mint");
@@ -1957,7 +1961,7 @@ export const testSellNft = async ({
 
       // Check creators' balances.
       let creatorsFee = 0;
-      if (!!creators?.length && royaltyBps) {
+      if (!skipCreatorBalanceCheck && !!creators?.length && royaltyBps) {
         //skip creators when royalties not enough to cover rent
         let skippedCreators = 0;
         const temp = Math.trunc(
@@ -2079,6 +2083,7 @@ export const testMakePoolSellNft = async ({
   programmable,
   ruleSetAddr,
   lookupTableAccount,
+  skipCreatorBalanceCheck = false,
 }: {
   sellType: "trade" | "token";
   tswap: PublicKey;
@@ -2097,6 +2102,7 @@ export const testMakePoolSellNft = async ({
   programmable?: boolean;
   ruleSetAddr?: PublicKey;
   lookupTableAccount?: AddressLookupTableAccount | null;
+  skipCreatorBalanceCheck?: boolean;
 }) => {
   const { mint, ata } = await makeMintTwoAta(
     seller,
@@ -2150,10 +2156,12 @@ export const testMakePoolSellNft = async ({
       isCosigned,
       programmable,
       lookupTableAccount,
+      skipCreatorBalanceCheck,
     })),
     poolPda,
     wlNft,
     whitelist,
+    mint,
   };
 };
 

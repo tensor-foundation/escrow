@@ -3,7 +3,8 @@
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Token, TokenAccount},
+    token,
+    token::{CloseAccount, Token, TokenAccount},
 };
 use vipers::throw_err;
 
@@ -71,6 +72,34 @@ pub struct SellNftTokenPool<'info> {
     pub dest_token_record: UncheckedAccount<'info>,
 
     pub pnft_shared: ProgNftShared<'info>,
+
+    //using this as temporary escrow to avoid having to rely on delegate
+    /// Implicitly checked via transfer. Will fail if wrong account
+    #[account(
+        init_if_needed,
+        payer = shared.seller,
+        seeds=[
+            b"nft_escrow".as_ref(),
+            shared.nft_mint.key().as_ref(),
+        ],
+        bump,
+        token::mint = shared.nft_mint, token::authority = shared.tswap,
+    )]
+    pub nft_escrow: Box<Account<'info, TokenAccount>>,
+
+    /// CHECK: seeds below
+    #[account(mut,
+        seeds=[
+            mpl_token_metadata::state::PREFIX.as_bytes(),
+            mpl_token_metadata::id().as_ref(),
+            shared.nft_mint.key().as_ref(),
+            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            nft_escrow.key().as_ref()
+        ],
+        seeds::program = mpl_token_metadata::id(),
+        bump
+    )]
+    pub temp_escrow_token_record: UncheckedAccount<'info>,
     // remaining accounts:
     // CHECK: validate it's present on metadata in handler
     // 1. optional authorization_rules, only if present on metadata
@@ -102,6 +131,19 @@ impl<'info> Validate<'info> for SellNftTokenPool<'info> {
     }
 }
 
+impl<'info> SellNftTokenPool<'info> {
+    fn close_nft_escrow_ctx(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
+        CpiContext::new(
+            self.token_program.to_account_info(),
+            CloseAccount {
+                account: self.nft_escrow.to_account_info(),
+                destination: self.shared.seller.to_account_info(),
+                authority: self.shared.tswap.to_account_info(),
+            },
+        )
+    }
+}
+
 #[access_control(ctx.accounts.shared.verify_whitelist(); ctx.accounts.validate())]
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, SellNftTokenPool<'info>>,
@@ -113,6 +155,8 @@ pub fn handler<'info>(
     let pool = &ctx.accounts.shared.pool;
     let remaining_accounts = &mut ctx.remaining_accounts.iter();
 
+    // --------------------------------------- send pnft
+
     // transfer nft directly to owner (ATA)
     // has to go before any transfer_lamports, o/w we get `sum of account balances before and after instruction do not match`
     // has to go before creators fee calc below, coz we need to drain 1 optional acc
@@ -122,10 +166,34 @@ pub fn handler<'info>(
         None
     };
 
+    //STEP 1/2: SEND TO ESCROW
     send_pnft(
         &ctx.accounts.shared.seller.to_account_info(),
         &ctx.accounts.shared.seller.to_account_info(),
         &ctx.accounts.shared.nft_seller_acc,
+        &ctx.accounts.nft_escrow, //<- send to escrow first
+        &ctx.accounts.shared.tswap.to_account_info(),
+        &ctx.accounts.shared.nft_mint,
+        &ctx.accounts.shared.nft_metadata,
+        &ctx.accounts.nft_edition,
+        &ctx.accounts.system_program,
+        &ctx.accounts.token_program,
+        &ctx.accounts.associated_token_program,
+        &ctx.accounts.pnft_shared.instructions,
+        &ctx.accounts.owner_token_record,
+        &ctx.accounts.temp_escrow_token_record,
+        &ctx.accounts.pnft_shared.authorization_rules_program,
+        auth_rules,
+        authorization_data.clone(),
+        None,
+        None,
+    )?;
+
+    //STEP 2/2: SEND FROM ESCROW
+    send_pnft(
+        &ctx.accounts.shared.tswap.to_account_info(),
+        &ctx.accounts.shared.seller.to_account_info(),
+        &ctx.accounts.nft_escrow,
         &ctx.accounts.owner_ata_acc,
         &ctx.accounts.shared.owner.to_account_info(),
         &ctx.accounts.shared.nft_mint,
@@ -135,14 +203,46 @@ pub fn handler<'info>(
         &ctx.accounts.token_program,
         &ctx.accounts.associated_token_program,
         &ctx.accounts.pnft_shared.instructions,
-        &ctx.accounts.owner_token_record,
+        &ctx.accounts.temp_escrow_token_record,
         &ctx.accounts.dest_token_record,
         &ctx.accounts.pnft_shared.authorization_rules_program,
         auth_rules,
         authorization_data,
         Some(&ctx.accounts.shared.tswap),
-        Some(&ctx.accounts.shared.tswap),
+        None,
     )?;
+
+    // close temp nft escrow account, so it's not dangling
+    token::close_account(
+        ctx.accounts
+            .close_nft_escrow_ctx()
+            .with_signer(&[&ctx.accounts.shared.tswap.seeds()]),
+    )?;
+
+    // USING DELEGATE (PAUSE TO NOT RELY ON DELEGATE RULE)
+    // send_pnft(
+    //     &ctx.accounts.shared.seller.to_account_info(),
+    //     &ctx.accounts.shared.seller.to_account_info(),
+    //     &ctx.accounts.shared.nft_seller_acc,
+    //     &ctx.accounts.owner_ata_acc,
+    //     &ctx.accounts.shared.owner.to_account_info(),
+    //     &ctx.accounts.shared.nft_mint,
+    //     &ctx.accounts.shared.nft_metadata,
+    //     &ctx.accounts.nft_edition,
+    //     &ctx.accounts.system_program,
+    //     &ctx.accounts.token_program,
+    //     &ctx.accounts.associated_token_program,
+    //     &ctx.accounts.pnft_shared.instructions,
+    //     &ctx.accounts.owner_token_record,
+    //     &ctx.accounts.dest_token_record,
+    //     &ctx.accounts.pnft_shared.authorization_rules_program,
+    //     auth_rules,
+    //     authorization_data,
+    //     Some(&ctx.accounts.shared.tswap),
+    //     Some(&ctx.accounts.shared.tswap),
+    // )?;
+
+    // --------------------------------------- end pnft
 
     if pool.is_cosigned {
         let cosigner = next_account_info(remaining_accounts)?;

@@ -44,6 +44,7 @@ import {
   tradePoolConfig,
   TSWAP_FEE_PCT,
 } from "./common";
+import { castPoolTypeAnchor, findNftEscrowPDA, PoolType } from "../../src";
 
 describe("tswap sell", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -301,6 +302,7 @@ describe("tswap sell", () => {
         minLamports: adjustSellMinLamports(isToken, expectedLamports),
         royaltyBps,
         creators,
+        lookupTableAccount, //<-- make it a v0
       });
     }
   });
@@ -1242,28 +1244,81 @@ describe("tswap sell", () => {
       ],
       [tokenPoolConfig, tradePoolConfig]
     )) {
+      const isTrade = castPoolTypeAnchor(config.poolType) === PoolType.Trade;
+
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
       const expectedLamports = defaultSellExpectedLamports(
         config === tokenPoolConfig
       );
-      await testMakePoolSellNft({
-        sellType: config === tradePoolConfig ? "trade" : "token",
+      const { mint } = await testMakePoolSellNft({
+        sellType: isTrade ? "trade" : "token",
         tswap,
         owner,
         seller,
         config,
         expectedLamports,
+        minLamports: adjustSellMinLamports(!isTrade, expectedLamports),
+        programmable: true,
+        ruleSetAddr,
+        creators,
+        royaltyBps: 1000,
+        lookupTableAccount,
+      });
+
+      if (!isTrade) {
+        //expect the temp escrow to be closed
+        const [escrowPda] = findNftEscrowPDA({ nftMint: mint });
+        expect(await TEST_PROVIDER.connection.getAccountInfo(escrowPda)).to.be
+          .null;
+      }
+
+      //make sure can transact again (since we created a temp escrow account and deleted it)
+      //intentionally reverse pool type
+      const reversedConfig =
+        config === tradePoolConfig ? tokenPoolConfig : tradePoolConfig; //<-- reverse intentionally
+      const reversedExpectedLamports = defaultSellExpectedLamports(
+        reversedConfig === tokenPoolConfig
+      );
+      const isTradeReversed = !isTrade;
+
+      await testMakePoolSellNft({
+        sellType: isTradeReversed ? "trade" : "token",
+        tswap,
+        owner: seller,
+        seller: owner,
+        config: reversedConfig,
+        expectedLamports: reversedExpectedLamports,
         minLamports: adjustSellMinLamports(
-          config === tokenPoolConfig,
-          expectedLamports
+          !isTradeReversed,
+          reversedExpectedLamports
         ),
         programmable: true,
         ruleSetAddr,
         creators,
         royaltyBps: 1000,
         lookupTableAccount,
+        //won't take into account previous creator balance
+        skipCreatorBalanceCheck: true,
+      });
+
+      //and again
+      await testMakePoolSellNft({
+        sellType: isTrade ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(!isTrade, expectedLamports),
+        programmable: true,
+        ruleSetAddr,
+        creators,
+        royaltyBps: 1000,
+        lookupTableAccount,
+        //won't take into account previous creator balance
+        skipCreatorBalanceCheck: true,
       });
     }
   });

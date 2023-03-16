@@ -400,12 +400,6 @@ export const createTokenAuthorizationRules = async (
     ruleSetName: name,
     owner: Array.from(payer.publicKey.toBytes()),
     operations: {
-      "Delegate:Transfer": {
-        ProgramOwnedList: {
-          programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
-          field: "Delegate",
-        },
-      },
       "Transfer:Owner": {
         All: {
           rules: [
@@ -444,44 +438,52 @@ export const createTokenAuthorizationRules = async (
           ],
         },
       },
-      "Transfer:TransferDelegate": {
-        All: {
-          rules: [
-            //no space
-            // {
-            //   Amount: {
-            //     amount: 1,
-            //     operator: "Eq",
-            //     field: "Amount",
-            //   },
-            // },
-            {
-              Any: {
-                rules: [
-                  {
-                    ProgramOwnedList: {
-                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
-                      field: "Source",
-                    },
-                  },
-                  {
-                    ProgramOwnedList: {
-                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
-                      field: "Destination",
-                    },
-                  },
-                  {
-                    ProgramOwnedList: {
-                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
-                      field: "Authority",
-                    },
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      },
+
+      // DISABLE THESE IF YOU WANT A PNFT W/O A DELEGATE RULE
+      // "Delegate:Transfer": {
+      //   ProgramOwnedList: {
+      //     programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //     field: "Delegate",
+      //   },
+      // },
+      // "Transfer:TransferDelegate": {
+      //   All: {
+      //     rules: [
+      //       //no space
+      //       // {
+      //       //   Amount: {
+      //       //     amount: 1,
+      //       //     operator: "Eq",
+      //       //     field: "Amount",
+      //       //   },
+      //       // },
+      //       {
+      //         Any: {
+      //           rules: [
+      //             {
+      //               ProgramOwnedList: {
+      //                 programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //                 field: "Source",
+      //               },
+      //             },
+      //             {
+      //               ProgramOwnedList: {
+      //                 programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //                 field: "Destination",
+      //               },
+      //             },
+      //             {
+      //               ProgramOwnedList: {
+      //                 programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //                 field: "Authority",
+      //               },
+      //             },
+      //           ],
+      //         },
+      //       },
+      //     ],
+      //   },
+      // },
     },
   };
 
