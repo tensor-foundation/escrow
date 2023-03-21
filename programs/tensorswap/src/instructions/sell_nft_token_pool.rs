@@ -3,9 +3,9 @@
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token,
-    token::{CloseAccount, Token, TokenAccount},
+    token::{self, CloseAccount, Token, TokenAccount},
 };
+use mpl_token_metadata::processor::AuthorizationData;
 use vipers::throw_err;
 
 use crate::*;
@@ -184,7 +184,9 @@ pub fn handler<'info>(
         &ctx.accounts.temp_escrow_token_record,
         &ctx.accounts.pnft_shared.authorization_rules_program,
         auth_rules,
-        authorization_data.clone(),
+        authorization_data
+            .clone()
+            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         None,
         None,
     )?;
@@ -207,7 +209,8 @@ pub fn handler<'info>(
         &ctx.accounts.dest_token_record,
         &ctx.accounts.pnft_shared.authorization_rules_program,
         auth_rules,
-        authorization_data,
+        authorization_data
+            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         Some(&ctx.accounts.shared.tswap),
         None,
     )?;
@@ -237,9 +240,10 @@ pub fn handler<'info>(
     //     &ctx.accounts.dest_token_record,
     //     &ctx.accounts.pnft_shared.authorization_rules_program,
     //     auth_rules,
-    //     authorization_data,
+    //     authorization_data
+    //         .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
     //     Some(&ctx.accounts.shared.tswap),
-    //     Some(&ctx.accounts.shared.tswap),
+    //     Some(&ctx.accounts.shared.tswap.to_account_info()),
     // )?;
 
     // --------------------------------------- end pnft
@@ -299,7 +303,7 @@ pub fn handler<'info>(
 
     // transfer fee to Tensorswap
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-    transfer_lamports_from_tswap(
+    transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.fee_vault.to_account_info(),
         tswap_fee,
@@ -317,7 +321,7 @@ pub fn handler<'info>(
 
     // transfer remainder to seller
     //(!) fees/royalties are paid by TAKER, which in this case is the SELLER
-    transfer_lamports_from_tswap(
+    transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.seller.to_account_info(),
         left_for_seller,

@@ -265,6 +265,14 @@ pub mod tensorswap {
         instructions::withdraw_mm_fees::handler(ctx, lamports)
     }
 
+    pub fn withdraw_margin_account_cpi(
+        ctx: Context<WithdrawMarginAccountCpi>,
+        _bump: u8,
+        lamports: u64,
+    ) -> Result<()> {
+        instructions::withdraw_margin_account::handler_cpi(ctx, lamports)
+    }
+
     // OFFLINE BY DEFAULT
     // pub fn withdraw_tswap_owned_spl(
     //     ctx: Context<WithdrawTswapOwnedSpl>,
@@ -298,6 +306,7 @@ pub enum ErrorCode {
     ArithmeticError = 9,
     #[msg("this nft doesnt belong to this pool")]
     WrongPool = 10,
+    //@DEPRECATED
     #[msg("royalties are enabled always")]
     RoyaltiesEnabled = 11,
     #[msg("specified price not within current price")]
@@ -352,7 +361,12 @@ pub enum ErrorCode {
     BadRuleSet = 35,
     #[msg("this pool compounds fees and they cannot be withdrawn separately")]
     PoolFeesCompounded = 36,
+    #[msg("royalties percentage passed in must be between 0 and 100")]
+    BadRoyaltiesPct = 37,
 }
 
 #[derive(Accounts)]
-pub struct DummyCtx {}
+pub struct DummyCtx<'info> {
+    //have to have 1 entry in order for lifetime arg to be used (else complains during CPI into tensorswap)
+    pub system_program: Program<'info, System>,
+}

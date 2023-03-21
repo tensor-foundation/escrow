@@ -2005,6 +2005,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "tensor_bid"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "merkle_proof",
+ "mpl-token-auth-rules",
+ "mpl-token-metadata",
+ "spl-math",
+ "static_assertions",
+ "tensorswap",
+ "vipers",
+]
+
+[[package]]
 name = "tensor_whitelist"
 version = "0.2.0"
 dependencies = [
@@ -2017,7 +2032,7 @@ dependencies = [
 
 [[package]]
 name = "tensorswap"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

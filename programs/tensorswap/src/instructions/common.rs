@@ -3,6 +3,7 @@ use std::{slice::Iter, str::FromStr};
 use anchor_lang::{
     prelude::Accounts,
     solana_program::{
+        instruction::Instruction,
         program::{invoke, invoke_signed},
         system_instruction,
     },
@@ -32,22 +33,22 @@ pub fn transfer_all_lamports_from_tswap<'info>(
     let rent = Rent::get()?.minimum_balance(tswap_owned_acc.data_len());
     let to_move = unwrap_int!(tswap_owned_acc.lamports().checked_sub(rent));
 
-    transfer_lamports_from_tswap(tswap_owned_acc, to, to_move)
+    transfer_lamports_from_pda(tswap_owned_acc, to, to_move)
 }
 
-pub fn transfer_lamports_from_tswap<'info>(
-    tswap_owned_acc: &AccountInfo<'info>,
+pub fn transfer_lamports_from_pda<'info>(
+    from_pda: &AccountInfo<'info>,
     to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
-    let new_tswap_owned_acc = unwrap_int!(tswap_owned_acc.lamports().checked_sub(lamports));
+    let remaining_pda_lamports = unwrap_int!(from_pda.lamports().checked_sub(lamports));
     // Check we are not withdrawing into our rent.
-    let rent = Rent::get()?.minimum_balance(tswap_owned_acc.data_len());
-    if new_tswap_owned_acc < rent {
+    let rent = Rent::get()?.minimum_balance(from_pda.data_len());
+    if remaining_pda_lamports < rent {
         throw_err!(InsufficientTswapAccBalance);
     }
 
-    **tswap_owned_acc.try_borrow_mut_lamports()? = new_tswap_owned_acc;
+    **from_pda.try_borrow_mut_lamports()? = remaining_pda_lamports;
 
     let new_to = unwrap_int!(to.lamports.borrow().checked_add(lamports));
     **to.lamports.borrow_mut() = new_to;
@@ -79,6 +80,19 @@ pub fn assert_decode_metadata<'info>(
     Ok(Metadata::from_account_info(metadata_account)?)
 }
 
+pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
+    let program_id = &Pubkey::from_str(TENSOR_SWAP_ADDR).unwrap();
+    Pubkey::find_program_address(
+        &[
+            b"margin".as_ref(),
+            tswap.as_ref(),
+            owner.as_ref(),
+            &nr.to_le_bytes(),
+        ],
+        program_id,
+    )
+}
+
 #[inline(never)]
 pub fn assert_decode_margin_account<'info>(
     margin_account_info: &AccountInfo<'info>,
@@ -88,15 +102,7 @@ pub fn assert_decode_margin_account<'info>(
     let margin_account: Account<'info, MarginAccount> = Account::try_from(margin_account_info)?;
 
     let program_id = &Pubkey::from_str(TENSOR_SWAP_ADDR).unwrap();
-    let (key, _) = Pubkey::find_program_address(
-        &[
-            b"margin".as_ref(),
-            tswap.key().as_ref(),
-            owner.key().as_ref(),
-            &margin_account.nr.to_le_bytes(),
-        ],
-        program_id,
-    );
+    let (key, _) = margin_pda(&tswap.key(), &owner.key(), margin_account.nr);
     if key != *margin_account_info.key {
         throw_err!(BadMargin);
     }
@@ -173,7 +179,7 @@ pub fn transfer_creators_fee<'b, 'info>(
     // not possible have a private enum in Anchor, it's always stuffed into IDL, which leads to:
     // IdlError: Type not found: {"type":{"defined":"&'bAccountInfo<'info>"},"name":"0"}
     // hence the next 2 lines are 2x Options instead of 1 Enum. First Option dictates branch
-    from_tswap: Option<&'b AccountInfo<'info>>,
+    from_pda: Option<&'b AccountInfo<'info>>,
     from_ext: Option<FromExternal<'b, 'info>>,
     metadata: &Metadata,
     remaining_accounts_iter: &mut Iter<AccountInfo<'info>>,
@@ -206,9 +212,9 @@ pub fn transfer_creators_fee<'b, 'info>(
 
                 remaining_fee = unwrap_int!(remaining_fee.checked_sub(creator_fee));
                 if creator_fee > 0 {
-                    match from_tswap {
+                    match from_pda {
                         Some(from) => {
-                            transfer_lamports_from_tswap(from, current_creator_info, creator_fee)?;
+                            transfer_lamports_from_pda(from, current_creator_info, creator_fee)?;
                         }
                         None => {
                             let FromExternal { from, sys_prog } = from_ext.as_ref().unwrap();
@@ -338,7 +344,7 @@ impl<'info> SellNftShared<'info> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn send_pnft<'info>(
+pub fn prep_pnft_transfer_ix<'info>(
     //for escrow accounts authority always === owner, for token accs can be diff but our protocol doesn't yet support that
     authority_and_owner: &AccountInfo<'info>,
     //(!) payer can't carry data, has to be a normal KP:
@@ -358,42 +364,11 @@ pub fn send_pnft<'info>(
     dest_token_record: &UncheckedAccount<'info>,
     authorization_rules_program: &UncheckedAccount<'info>,
     rules_acc: Option<&AccountInfo<'info>>,
-    authorization_data: Option<AuthorizationDataLocal>,
-    //if passed, use signed_invoke() instead of invoke()
-    tswap: Option<&Account<'info, TSwap>>,
+    authorization_data: Option<AuthorizationData>,
     //if passed, we assign a delegate first, and the call signed_invoke() instead of invoke()
-    delegate: Option<&Account<'info, TSwap>>,
-) -> Result<()> {
-    // TODO temp for non-pNFTs, do a normal transfer, while metaplex fixes their stuff
-    // else we get this error https://solscan.io/tx/5iZSYkpccN1X49vEtHwh5CoRU2TbaCN5Ebf3BPUGmbjnFevS12hAeaqpxwRbabqhao1og7rV1sg7w1ofNxZvM58m
-
+    delegate: Option<&AccountInfo<'info>>,
+) -> Result<(Instruction, Vec<AccountInfo<'info>>)> {
     let metadata = assert_decode_metadata(nft_mint, nft_metadata)?;
-
-    if metadata.token_standard.is_none()
-        || metadata.token_standard.unwrap() != TokenStandard::ProgrammableNonFungible
-    {
-        msg!("non-pnft / no token std, normal transfer");
-
-        let ctx = CpiContext::new(
-            token_program.to_account_info(),
-            Transfer {
-                from: source_ata.to_account_info(),
-                to: dest_ata.to_account_info(),
-                authority: authority_and_owner.to_account_info(),
-            },
-        );
-
-        if let Some(tswap) = tswap {
-            token::transfer(ctx.with_signer(&[&tswap.seeds()]), 1)?;
-        } else {
-            token::transfer(ctx, 1)?;
-        }
-
-        return Ok(());
-    }
-
-    // --------------------------------------- pnft transfer
-
     let mut builder = TransferBuilder::new();
     builder
         .authority(*authority_and_owner.key)
@@ -495,11 +470,7 @@ pub fn send_pnft<'info>(
                             .authorization_rules_program(authorization_rules_program.key())
                             .build(DelegateArgs::TransferV1 {
                                 amount: 1,
-                                authorization_data: authorization_data.clone().map(
-                                    |authorization_data| {
-                                        AuthorizationData::try_from(authorization_data).unwrap()
-                                    },
-                                ),
+                                authorization_data: authorization_data.clone(),
                             })
                             .unwrap()
                             .instruction();
@@ -552,11 +523,91 @@ pub fn send_pnft<'info>(
     let transfer_ix = builder
         .build(TransferArgs::V1 {
             amount: 1, //currently 1 only
-            authorization_data: authorization_data
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            authorization_data,
         })
         .unwrap()
         .instruction();
+
+    Ok((transfer_ix, account_infos))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn send_pnft<'info>(
+    //for escrow accounts authority always === owner, for token accs can be diff but our protocol doesn't yet support that
+    authority_and_owner: &AccountInfo<'info>,
+    //(!) payer can't carry data, has to be a normal KP:
+    // https://github.com/solana-labs/solana/blob/bda0c606a19ce1cc44b5ab638ff0b993f612e76c/runtime/src/system_instruction_processor.rs#L197
+    payer: &AccountInfo<'info>,
+    source_ata: &Account<'info, TokenAccount>,
+    dest_ata: &Account<'info, TokenAccount>,
+    dest_owner: &AccountInfo<'info>,
+    nft_mint: &Account<'info, Mint>,
+    nft_metadata: &UncheckedAccount<'info>,
+    nft_edition: &UncheckedAccount<'info>,
+    system_program: &Program<'info, System>,
+    token_program: &Program<'info, Token>,
+    ata_program: &Program<'info, AssociatedToken>,
+    instructions: &UncheckedAccount<'info>,
+    owner_token_record: &UncheckedAccount<'info>,
+    dest_token_record: &UncheckedAccount<'info>,
+    authorization_rules_program: &UncheckedAccount<'info>,
+    rules_acc: Option<&AccountInfo<'info>>,
+    authorization_data: Option<AuthorizationData>,
+    //if passed, use signed_invoke() instead of invoke()
+    tswap: Option<&Account<'info, TSwap>>,
+    //if passed, we assign a delegate first, and the call signed_invoke() instead of invoke()
+    delegate: Option<&AccountInfo<'info>>,
+) -> Result<()> {
+    // TODO temp for non-pNFTs, do a normal transfer, while metaplex fixes their stuff
+    // else we get this error https://solscan.io/tx/5iZSYkpccN1X49vEtHwh5CoRU2TbaCN5Ebf3BPUGmbjnFevS12hAeaqpxwRbabqhao1og7rV1sg7w1ofNxZvM58m
+
+    let metadata = assert_decode_metadata(nft_mint, nft_metadata)?;
+
+    if metadata.token_standard.is_none()
+        || metadata.token_standard.unwrap() != TokenStandard::ProgrammableNonFungible
+    {
+        msg!("non-pnft / no token std, normal transfer");
+
+        let ctx = CpiContext::new(
+            token_program.to_account_info(),
+            Transfer {
+                from: source_ata.to_account_info(),
+                to: dest_ata.to_account_info(),
+                authority: authority_and_owner.to_account_info(),
+            },
+        );
+
+        if let Some(tswap) = tswap {
+            token::transfer(ctx.with_signer(&[&tswap.seeds()]), 1)?;
+        } else {
+            token::transfer(ctx, 1)?;
+        }
+
+        return Ok(());
+    }
+
+    // --------------------------------------- pnft transfer
+
+    let (transfer_ix, account_infos) = prep_pnft_transfer_ix(
+        authority_and_owner,
+        payer,
+        source_ata,
+        dest_ata,
+        dest_owner,
+        nft_mint,
+        nft_metadata,
+        nft_edition,
+        system_program,
+        token_program,
+        ata_program,
+        instructions,
+        owner_token_record,
+        dest_token_record,
+        authorization_rules_program,
+        rules_acc,
+        authorization_data,
+        delegate,
+    )?;
 
     if let Some(tswap) = tswap {
         invoke_signed(&transfer_ix, &account_infos, &[&tswap.seeds()])?;

@@ -25,7 +25,7 @@ pub struct ReallocPool<'info> {
         ],
         bump = pool.bump[0],
         has_one = tswap, has_one = owner, has_one = whitelist,
-        realloc = 8 + Pool::SIZE,
+        realloc = POOL_SIZE,
         realloc::payer = cosigner,
         realloc::zero = false,
     )]

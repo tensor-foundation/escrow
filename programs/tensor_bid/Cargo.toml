@@ -1,11 +1,12 @@
 [package]
-name = "tensorswap"
-version = "1.7.0"
+name = "tensor_bid"
+version = "0.1.0"
+description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "tensorswap"
+name = "tensor_bid"
 
 [features]
 no-entrypoint = []
@@ -23,5 +24,5 @@ mpl-token-auth-rules = "1.2.0"
 vipers = {path= '../../lib/vipers' }
 merkle_proof = {path= '../../lib/merkle_proof' }
 spl-math = { version = "0.1.0", features = [ "no-entrypoint" ] }
-tensor_whitelist = { path = '../tensor_whitelist', features = ["cpi"] }
+tensorswap = { path = '../tensorswap', features = ["cpi"] }
 static_assertions = "1.1.0"

@@ -30,7 +30,6 @@ import {
   findPoolPDA,
   findSingleListingPDA,
   findSolEscrowPDA,
-  findTokenRecordPDA,
   findTSwapPDA,
 } from "./pda";
 import {
@@ -40,25 +39,26 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
+  AccountSuffix,
+  AUTH_PROG_ID,
   decodeAcct,
+  DEFAULT_COMPUTE_UNITS,
+  DEFAULT_MICRO_LAMPORTS,
   DiscMap,
-  fetchNft,
   genDiscToDecoderMap,
   getAccountRent,
+  getRentSync,
   hexCode,
   isNullLike,
+  parseStrFn,
+  prepPnftAccounts,
   TMETA_PROG_ID,
-  AUTH_PROG_ID,
 } from "../common";
 import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/instruction";
 import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
 import { findMintProofPDA } from "../tensor_whitelist";
 import { v4 } from "uuid";
-import {
-  AuthorizationData,
-  Metadata,
-} from "@metaplex-foundation/mpl-token-metadata";
-import { Metaplex } from "@metaplex-foundation/js";
+import { AuthorizationData } from "@metaplex-foundation/mpl-token-metadata";
 
 /*
 Guide for protocol rollout: https://www.notion.so/tensor-hq/Protocol-Deployment-playbook-d345244ec21e48fb8a1f37277b38e38e
@@ -110,6 +110,11 @@ import {
 } from "./idl/tensorswap_v1_5_0";
 
 import {
+  IDL as IDL_v1_6_0,
+  Tensorswap as Tensorswap_v1_6_0,
+} from "./idl/tensorswap_v1_6_0";
+
+import {
   IDL as IDL_latest,
   Tensorswap as Tensorswap_latest,
 } from "./idl/tensorswap";
@@ -154,9 +159,13 @@ export const TensorswapIDL_v1_4_0_EffSlot = 177428733;
 export const TensorswapIDL_v1_5_0 = IDL_v1_5_0;
 export const TensorswapIDL_v1_5_0_EffSlot = 182023294;
 
-// https://solscan.io/tx/3hq9BG1xWEM5NcwTZiLVsNRsACXZxACXBjPNpamg4WMufi3K9Ej5jLHXxo1DEzw1C5vDr1XvKYYGPuciqqoEQiK8
+// remove delegate from SELL NOW: https://solscan.io/tx/3hq9BG1xWEM5NcwTZiLVsNRsACXZxACXBjPNpamg4WMufi3K9Ej5jLHXxo1DEzw1C5vDr1XvKYYGPuciqqoEQiK8
+export const TensorswapIDL_v1_6_0 = IDL_v1_6_0;
+export const TensorswapIDL_v1_6_0_EffSlot = 182972833;
+
+// add cpi ix for TBID + export acc size as constants https://solscan.io/tx/5jhCkfL622mQm6LXCmzsKbYCMHcyFjHcSLqJPV2G6HApS7iFK9UMyg7gaoeW8aUW6kPFsfAdraibpvNRe3fnSc3h
 export const TensorswapIDL_latest = IDL_latest;
-export const TensorswapIDL_latest_EffSlot = 182972833;
+export const TensorswapIDL_latest_EffSlot = 183869296;
 
 export type TensorswapIDL =
   | Tensorswap_v0_1_32
@@ -168,6 +177,7 @@ export type TensorswapIDL =
   | Tensorswap_v1_3_0
   | Tensorswap_v1_4_0
   | Tensorswap_v1_5_0
+  | Tensorswap_v1_6_0
   | Tensorswap_latest;
 
 // Use this function to figure out which IDL to use based on the slot # of historical txs.
@@ -182,15 +192,12 @@ export const triageIDL = (slot: number | bigint): TensorswapIDL | null => {
   if (slot < TensorswapIDL_v1_3_0_EffSlot) return TensorswapIDL_v1_1_0;
   if (slot < TensorswapIDL_v1_4_0_EffSlot) return TensorswapIDL_v1_3_0;
   if (slot < TensorswapIDL_v1_5_0_EffSlot) return TensorswapIDL_v1_4_0;
-  if (slot < TensorswapIDL_latest_EffSlot) return TensorswapIDL_v1_5_0;
+  if (slot < TensorswapIDL_v1_6_0_EffSlot) return TensorswapIDL_v1_5_0;
+  if (slot < TensorswapIDL_latest_EffSlot) return TensorswapIDL_v1_6_0;
   return TensorswapIDL_latest;
 };
 
 // --------------------------------------- constants
-
-// pNFTs very expensive.
-const DEFAULT_COMPUTE_UNITS = 800_000;
-const DEFAULT_MICRO_LAMPORTS = 200_000;
 
 export const STANDARD_FEE_BPS: number = +IDL_latest.constants.find(
   (c) => c.name === "STANDARD_FEE_BPS"
@@ -201,11 +208,36 @@ export const SNIPE_FEE_BPS: number = +IDL_latest.constants.find(
 export const SNIPE_PROFIT_SHARE_BPS: number = +IDL_latest.constants.find(
   (c) => c.name === "SNIPE_PROFIT_SHARE_BPS"
 )!.value;
+export const TAKER_BROKER_PCT: number = +IDL_latest.constants.find(
+  (c) => c.name === "TAKER_BROKER_PCT"
+)!.value;
 export const SNIPE_MIN_FEE: number = 0.01 * LAMPORTS_PER_SOL;
+export const TSWAP_SIZE: number = parseStrFn(
+  IDL_latest.constants.find((c) => c.name === "TSWAP_SIZE")!.value
+);
+export const POOL_SIZE: number = parseStrFn(
+  IDL_latest.constants.find((c) => c.name === "POOL_SIZE")!.value
+);
+export const MARGIN_SIZE: number = parseStrFn(
+  IDL_latest.constants.find((c) => c.name === "MARGIN_SIZE")!.value
+);
+export const SINGLE_LISTING_SIZE: number = parseStrFn(
+  IDL_latest.constants.find((c) => c.name === "SINGLE_LISTING_SIZE")!.value
+);
+export const DEPOSIT_RECEIPT_SIZE: number = parseStrFn(
+  IDL_latest.constants.find((c) => c.name === "DEPOSIT_RECEIPT_SIZE")!.value
+);
+export const NFT_AUTHORITY_SIZE: number = parseStrFn(
+  IDL_latest.constants.find((c) => c.name === "NFT_AUTHORITY_SIZE")!.value
+);
 
-export const APPROX_SOL_ESCROW_RENT = 946560;
-export const APPROX_SOL_MARGIN_RENT = 1886160;
-export const APPROX_POOL_RENT = 2930160;
+export const APPROX_TSWAP_RENT = getRentSync(TSWAP_SIZE);
+export const APPROX_POOL_RENT = getRentSync(POOL_SIZE);
+export const APPROX_SOL_MARGIN_RENT = getRentSync(MARGIN_SIZE);
+export const APPROX_SINGLE_LISTING_RENT = getRentSync(SINGLE_LISTING_SIZE);
+export const APPROX_DEPOSIT_RECEIPT_RENT = getRentSync(DEPOSIT_RECEIPT_SIZE);
+export const APPROX_NFT_AUTHORITY_RENT = getRentSync(NFT_AUTHORITY_SIZE);
+export const APPROX_SOL_ESCROW_RENT = 946560; //token account owned by the program, keep hardcoded
 
 // --------------------------------------- pool type
 
@@ -424,24 +456,6 @@ export type TaggedTensorSwapPdaAnchor =
     };
 
 export type TensorSwapEventAnchor = Event<typeof IDL_latest["events"][number]>;
-
-export type AccountSuffix =
-  | "Nft Mint"
-  | "Sol Escrow"
-  | "Old Sol Escrow"
-  | "New Sol Escrow"
-  | "Pool"
-  | "Old Pool"
-  | "New Pool"
-  | "Nft Escrow"
-  | "Whitelist"
-  | "Nft Receipt"
-  | "Buyer"
-  | "Seller"
-  | "Owner"
-  | "Nft Authority"
-  | "Margin Account"
-  | "Single Listing";
 
 // ------------- Types for parsed ixs from raw tx.
 
@@ -904,7 +918,8 @@ export class TensorSwapSDK {
       ruleSet,
       nftEditionPda,
       authDataSerialized,
-    } = await this.prepPnftAccounts({
+    } = await prepPnftAccounts({
+      connection: this.program.provider.connection,
       nftMetadata,
       nftMint,
       destAta: escrowPda,
@@ -1068,7 +1083,8 @@ export class TensorSwapSDK {
       ruleSet,
       nftEditionPda,
       authDataSerialized,
-    } = await this.prepPnftAccounts({
+    } = await prepPnftAccounts({
+      connection: this.program.provider.connection,
       nftMetadata,
       nftMint,
       destAta: nftDest,
@@ -1293,7 +1309,8 @@ export class TensorSwapSDK {
       ruleSet,
       nftEditionPda,
       authDataSerialized,
-    } = await this.prepPnftAccounts({
+    } = await prepPnftAccounts({
+      connection: this.program.provider.connection,
       nftMetadata: metaCreators?.metadata,
       nftCreators: metaCreators?.creators,
       nftMint,
@@ -1465,7 +1482,8 @@ export class TensorSwapSDK {
         destTokenRecordPda: tokenDestTokenRecordPda,
       },
     ] = await Promise.all([
-      this.prepPnftAccounts({
+      prepPnftAccounts({
+        connection: this.program.provider.connection,
         nftMetadata: metaCreators?.metadata,
         nftCreators: metaCreators?.creators,
         nftMint,
@@ -1473,7 +1491,8 @@ export class TensorSwapSDK {
         authData,
         sourceAta: nftSellerAcc,
       }),
-      this.prepPnftAccounts({
+      prepPnftAccounts({
+        connection: this.program.provider.connection,
         nftMetadata: metaCreators?.metadata,
         nftCreators: metaCreators?.creators,
         nftMint,
@@ -2042,7 +2061,8 @@ export class TensorSwapSDK {
       ruleSet,
       nftEditionPda,
       authDataSerialized,
-    } = await this.prepPnftAccounts({
+    } = await prepPnftAccounts({
+      connection: this.program.provider.connection,
       nftMetadata,
       nftMint,
       destAta: ownerAtaAcc,
@@ -2160,7 +2180,8 @@ export class TensorSwapSDK {
       ruleSet,
       nftEditionPda,
       authDataSerialized,
-    } = await this.prepPnftAccounts({
+    } = await prepPnftAccounts({
+      connection: this.program.provider.connection,
       nftMetadata,
       nftMint,
       destAta: escrowPda,
@@ -2257,7 +2278,8 @@ export class TensorSwapSDK {
       ruleSet,
       nftEditionPda,
       authDataSerialized,
-    } = await this.prepPnftAccounts({
+    } = await prepPnftAccounts({
+      connection: this.program.provider.connection,
       nftMetadata,
       nftMint,
       destAta: nftDest,
@@ -2363,7 +2385,8 @@ export class TensorSwapSDK {
       ruleSet,
       nftEditionPda,
       authDataSerialized,
-    } = await this.prepPnftAccounts({
+    } = await prepPnftAccounts({
+      connection: this.program.provider.connection,
       nftMetadata: metaCreators?.metadata,
       nftCreators: metaCreators?.creators,
       nftMint,
@@ -2474,17 +2497,17 @@ export class TensorSwapSDK {
 
   // --------------------------------------- helper methods
 
+  async getTswapRent() {
+    return await getAccountRent(
+      this.program.provider.connection,
+      this.program.account.tSwap
+    );
+  }
+
   async getPoolRent() {
     return await getAccountRent(
       this.program.provider.connection,
       this.program.account.pool
-    );
-  }
-
-  async getSolEscrowRent() {
-    return await getAccountRent(
-      this.program.provider.connection,
-      this.program.account.solEscrow
     );
   }
 
@@ -2495,10 +2518,24 @@ export class TensorSwapSDK {
     );
   }
 
+  async getSingleListingRent() {
+    return await getAccountRent(
+      this.program.provider.connection,
+      this.program.account.singleListing
+    );
+  }
+
   async getNftDepositReceiptRent() {
     return await getAccountRent(
       this.program.provider.connection,
       this.program.account.nftDepositReceipt
+    );
+  }
+
+  async getNftAuthorityRent() {
+    return await getAccountRent(
+      this.program.provider.connection,
+      this.program.account.nftAuthority
     );
   }
 
@@ -2508,17 +2545,10 @@ export class TensorSwapSDK {
     );
   }
 
-  async getTswapRent() {
+  async getSolEscrowRent() {
     return await getAccountRent(
       this.program.provider.connection,
-      this.program.account.tSwap
-    );
-  }
-
-  async getSingleListingRent() {
-    return await getAccountRent(
-      this.program.provider.connection,
-      this.program.account.singleListing
+      this.program.account.solEscrow
     );
   }
 
@@ -2531,73 +2561,6 @@ export class TensorSwapSDK {
 
   getErrorCodeHex(name: typeof IDL_latest["errors"][number]["name"]): string {
     return hexCode(this.getError(name).code);
-  }
-
-  async prepPnftAccounts({
-    nftMetadata,
-    nftCreators,
-    nftMint,
-    sourceAta,
-    destAta,
-    authData = null,
-  }: {
-    nftMetadata?: PublicKey;
-    nftCreators?: PublicKey[];
-    nftMint: PublicKey;
-    sourceAta: PublicKey;
-    destAta: PublicKey;
-    authData?: AuthorizationData | null;
-  }) {
-    let meta;
-    let creators: PublicKey[] = [];
-    if (nftMetadata) {
-      meta = nftMetadata;
-      if (nftCreators) creators = nftCreators;
-    } else {
-      const nft = await fetchNft(this.program.provider.connection, nftMint);
-      meta = nft.metadataAddress;
-      creators = nft.creators.map((c) => c.address);
-    }
-
-    const inflatedMeta = await Metadata.fromAccountAddress(
-      this.program.provider.connection,
-      meta
-    );
-    const ruleSet = inflatedMeta.programmableConfig?.ruleSet;
-
-    const [ownerTokenRecordPda, ownerTokenRecordBump] = findTokenRecordPDA(
-      nftMint,
-      sourceAta
-    );
-    const [destTokenRecordPda, destTokenRecordBump] = findTokenRecordPDA(
-      nftMint,
-      destAta
-    );
-
-    //retrieve edition PDA
-    const mplex = new Metaplex(this.program.provider.connection);
-    const nftEditionPda = mplex.nfts().pdas().edition({ mint: nftMint });
-
-    //have to re-serialize due to anchor limitations
-    const authDataSerialized = authData
-      ? {
-          payload: Object.entries(authData.payload.map).map(([k, v]) => {
-            return { name: k, payload: v };
-          }),
-        }
-      : null;
-
-    return {
-      meta,
-      creators,
-      ownerTokenRecordBump,
-      ownerTokenRecordPda,
-      destTokenRecordBump,
-      destTokenRecordPda,
-      ruleSet,
-      nftEditionPda,
-      authDataSerialized,
-    };
   }
 
   // --------------------------------------- parsing raw transactions
@@ -2670,6 +2633,7 @@ export class TensorSwapSDK {
       case "closeMarginAccount":
       case "depositMarginAccount":
       case "withdrawMarginAccount":
+      case "withdrawMarginAccountCpi":
       case "attachPoolToMargin":
       case "detachPoolFromMargin":
       case "takeSnipe":
@@ -2719,6 +2683,7 @@ export class TensorSwapSDK {
       case "withdrawMmFee":
       case "depositMarginAccount":
       case "withdrawMarginAccount":
+      case "withdrawMarginAccountCpi":
       case "withdrawTswapFees":
       case "detachPoolFromMargin":
         return (ix.ix.data as WithdrawDepositSolData).lamports;
@@ -2769,6 +2734,7 @@ export class TensorSwapSDK {
       case "closeMarginAccount":
       case "depositMarginAccount":
       case "withdrawMarginAccount":
+      case "withdrawMarginAccountCpi":
       case "attachPoolToMargin":
       case "detachPoolFromMargin":
       case "setPoolFreeze":

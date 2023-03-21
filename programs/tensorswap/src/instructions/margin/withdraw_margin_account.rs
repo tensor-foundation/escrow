@@ -1,3 +1,7 @@
+use std::str::FromStr;
+
+use anchor_spl::token::Mint;
+
 use crate::*;
 
 #[derive(Accounts)]
@@ -34,7 +38,7 @@ impl<'info> Validate<'info> for WithdrawMarginAccount<'info> {
 
 impl<'info> WithdrawMarginAccount<'info> {
     fn transfer_lamports_to_owner(&self, lamports: u64) -> Result<()> {
-        transfer_lamports_from_tswap(
+        transfer_lamports_from_pda(
             &self.margin_account.to_account_info(),
             &self.owner.to_account_info(),
             lamports,
@@ -48,4 +52,56 @@ pub fn handler(ctx: Context<WithdrawMarginAccount>, lamports: u64) -> Result<()>
     ctx.accounts.transfer_lamports_to_owner(lamports)?;
 
     Ok(())
+}
+
+// --------------------------------------- cpi
+
+#[derive(Accounts)]
+#[instruction(bump: u8)]
+pub struct WithdrawMarginAccountCpi<'info> {
+    #[account(
+        seeds = [], bump = tswap.bump[0],
+    )]
+    pub tswap: Box<Account<'info, TSwap>>,
+
+    #[account(
+        mut,
+        seeds = [
+            b"margin".as_ref(),
+            tswap.key().as_ref(),
+            owner.key().as_ref(),
+            &margin_account.nr.to_le_bytes()
+        ],
+        bump = margin_account.bump[0],
+        has_one = owner,
+    )]
+    pub margin_account: Box<Account<'info, MarginAccount>>,
+
+    // this bid state can only be derived from TBID program for a given mint and owner
+    // and because it's a signer only TBID can call this
+    #[account(mut,
+        seeds=[b"bid_state".as_ref(), owner.key().as_ref(), nft_mint.key().as_ref()],
+        seeds::program = Pubkey::from_str("TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv").unwrap(),
+        bump = bump,
+    )]
+    pub bid_state: Signer<'info>,
+
+    /// CHECK: has_one on margin_account, seeds in bid_state
+    pub owner: UncheckedAccount<'info>,
+
+    /// CHECK: seeds in bid_state
+    pub nft_mint: Box<Account<'info, Mint>>,
+
+    /// CHECK: can only be passed in by TBID, since it has to sign off with bid pda
+    pub destination: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+pub fn handler_cpi(ctx: Context<WithdrawMarginAccountCpi>, lamports: u64) -> Result<()> {
+    transfer_lamports_from_pda(
+        &ctx.accounts.margin_account.to_account_info(),
+        &ctx.accounts.destination.to_account_info(),
+        lamports,
+    )
 }

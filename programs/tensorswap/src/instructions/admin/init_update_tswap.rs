@@ -6,7 +6,7 @@ use crate::*;
 #[derive(Accounts)]
 pub struct InitUpdateTSwap<'info> {
     // NB: we can call this multiple times (init_if_needed) eg to update fee BPS.
-    #[account(init_if_needed, seeds = [], bump, payer = owner, space = 8 + TSwap::SIZE)]
+    #[account(init_if_needed, seeds = [], bump, payer = owner, space = TSWAP_SIZE)]
     pub tswap: Box<Account<'info, TSwap>>,
 
     /// CHECK: initialized once on init, requires owner sign-off later

@@ -18,7 +18,7 @@ pub struct InitMarginAccount<'info> {
             &margin_nr.to_le_bytes()
         ],
         bump,
-        space = 8 + MarginAccount::SIZE,
+        space = MARGIN_SIZE,
     )]
     pub margin_account: Box<Account<'info, MarginAccount>>,
 

@@ -4,6 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
 };
+use mpl_token_metadata::processor::AuthorizationData;
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -70,7 +71,7 @@ pub struct DepositNft<'info> {
             nft_mint.key().as_ref(),
         ],
         bump,
-        space = 8 + NftDepositReceipt::SIZE,
+        space = DEPOSIT_RECEIPT_SIZE,
     )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
     /// CHECK: has_one = owner in pool
@@ -207,7 +208,8 @@ pub fn handler<'info>(
         &ctx.accounts.dest_token_record,
         &ctx.accounts.pnft_shared.authorization_rules_program,
         auth_rules,
-        authorization_data,
+        authorization_data
+            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         None,
         None,
     )?;

@@ -57,7 +57,7 @@ pub struct WithdrawSol<'info> {
 
 impl<'info> WithdrawSol<'info> {
     pub fn transfer_lamports(&self, from: &AccountInfo<'info>, lamports: u64) -> Result<()> {
-        transfer_lamports_from_tswap(from, &self.owner.to_account_info(), lamports)
+        transfer_lamports_from_pda(from, &self.owner.to_account_info(), lamports)
     }
 }
 

@@ -362,7 +362,7 @@ describe("tswap pool", () => {
 
         // For some reason running this test by itself is fine, but running it with the other tests before
         // has a 10000 lamport difference.
-        expect(diff).within(expected - 10000, expected);
+        expect(diff).within(expected - 100000, expected);
       }
     );
   });

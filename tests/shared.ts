@@ -47,6 +47,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import { TensorBidSDK } from "../src/tensor_bid";
 
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export {
@@ -332,6 +333,7 @@ const TEST_KEYPAIR = Keypair.fromSecretKey(
 
 export const swapSdk = new TensorSwapSDK({ provider: TEST_PROVIDER });
 export const wlSdk = new TensorWhitelistSDK({ provider: TEST_PROVIDER });
+export const bidSdk = new TensorBidSDK({ provider: TEST_PROVIDER });
 
 //#region Shared test functions.
 
@@ -390,7 +392,8 @@ export const createTokenAuthorizationRules = async (
   provider: AnchorProvider,
   payer: Keypair,
   name = "a", //keep it short or we wont have space for tx to pass
-  data?: Uint8Array
+  data?: Uint8Array,
+  whitelistedProgram = TENSORSWAP_ADDR
 ) => {
   const [ruleSetAddress] = await findRuleSetPDA(payer.publicKey, name);
 
@@ -416,19 +419,19 @@ export const createTokenAuthorizationRules = async (
                 rules: [
                   {
                     ProgramOwnedList: {
-                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      programs: [Array.from(whitelistedProgram.toBytes())],
                       field: "Source",
                     },
                   },
                   {
                     ProgramOwnedList: {
-                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      programs: [Array.from(whitelistedProgram.toBytes())],
                       field: "Destination",
                     },
                   },
                   {
                     ProgramOwnedList: {
-                      programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+                      programs: [Array.from(whitelistedProgram.toBytes())],
                       field: "Authority",
                     },
                   },
@@ -438,11 +441,10 @@ export const createTokenAuthorizationRules = async (
           ],
         },
       },
-
       // DISABLE THESE IF YOU WANT A PNFT W/O A DELEGATE RULE
       // "Delegate:Transfer": {
       //   ProgramOwnedList: {
-      //     programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //     programs: [Array.from(whitelistedProgram.toBytes())],
       //     field: "Delegate",
       //   },
       // },
@@ -462,19 +464,19 @@ export const createTokenAuthorizationRules = async (
       //           rules: [
       //             {
       //               ProgramOwnedList: {
-      //                 programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //                 programs: [Array.from(whitelistedProgram.toBytes())],
       //                 field: "Source",
       //               },
       //             },
       //             {
       //               ProgramOwnedList: {
-      //                 programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //                 programs: [Array.from(whitelistedProgram.toBytes())],
       //                 field: "Destination",
       //               },
       //             },
       //             {
       //               ProgramOwnedList: {
-      //                 programs: [Array.from(TENSORSWAP_ADDR.toBytes())],
+      //                 programs: [Array.from(whitelistedProgram.toBytes())],
       //                 field: "Authority",
       //               },
       //             },

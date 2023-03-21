@@ -4,6 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
+use mpl_token_metadata::processor::AuthorizationData;
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -272,7 +273,8 @@ pub fn handler<'info, 'b>(
         &ctx.accounts.dest_token_record,
         &ctx.accounts.pnft_shared.authorization_rules_program,
         auth_rules,
-        authorization_data,
+        authorization_data
+            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         Some(&ctx.accounts.tswap),
         None,
     )?;

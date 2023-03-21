@@ -6,6 +6,8 @@ import {
   createTokenAuthorizationRules,
   withLamports,
   getLamports,
+  bidSdk,
+  wlSdk,
 } from "../shared";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -22,6 +24,7 @@ import {
 } from "./common";
 import BN from "bn.js";
 import {
+  ACCOUNT_SIZE,
   createAssociatedTokenAccountInstruction,
   createMint,
   getAssociatedTokenAddress,
@@ -29,6 +32,20 @@ import {
   mintTo,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import { APPROX_BID_STATE_RENT } from "../../src/tensor_bid";
+import {
+  APPROX_AUTHORITY_RENT,
+  APPROX_DEPOSIT_RECEIPT_RENT,
+  APPROX_MINT_PROOF_RENT,
+  APPROX_NFT_AUTHORITY_RENT,
+  APPROX_POOL_RENT,
+  APPROX_SINGLE_LISTING_RENT,
+  APPROX_SOL_ESCROW_RENT,
+  APPROX_SOL_MARGIN_RENT,
+  APPROX_TSWAP_RENT,
+  APPROX_WHITELIST_RENT,
+  getRentSync,
+} from "../../src";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -244,4 +261,30 @@ describe("tswap init_update_tswap", () => {
   //     buildAndSendTx({ ixs, extraSigners: [TEST_COSIGNER] })
   //   ).to.be.rejectedWith("0x1");
   // });
+
+  it("sizes are correct", async () => {
+    //tbid
+    expect(await bidSdk.getBidStateRent()).to.eq(APPROX_BID_STATE_RENT);
+
+    //tlist
+    expect(await wlSdk.getAuthorityRent()).to.eq(APPROX_AUTHORITY_RENT);
+    expect(await wlSdk.getWhitelistRent()).to.eq(APPROX_WHITELIST_RENT);
+    expect(await wlSdk.getMintProofRent()).to.eq(APPROX_MINT_PROOF_RENT);
+
+    //tswap
+    expect(await swapSdk.getTswapRent()).to.eq(APPROX_TSWAP_RENT);
+    expect(await swapSdk.getPoolRent()).to.eq(APPROX_POOL_RENT);
+    expect(await swapSdk.getMarginAccountRent()).to.eq(APPROX_SOL_MARGIN_RENT);
+    expect(await swapSdk.getSingleListingRent()).to.eq(
+      APPROX_SINGLE_LISTING_RENT
+    );
+    expect(await swapSdk.getNftDepositReceiptRent()).to.eq(
+      APPROX_DEPOSIT_RECEIPT_RENT
+    );
+    expect(await swapSdk.getNftAuthorityRent()).to.eq(
+      APPROX_NFT_AUTHORITY_RENT
+    );
+    expect(await swapSdk.getSolEscrowRent()).to.eq(APPROX_SOL_ESCROW_RENT);
+    expect(await swapSdk.getTokenAcctRent()).to.eq(getRentSync(ACCOUNT_SIZE));
+  });
 });

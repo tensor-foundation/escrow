@@ -24,7 +24,7 @@ pub struct InitPool<'info> {
             &config.delta.to_le_bytes()
         ],
         bump,
-        space = 8 + Pool::SIZE,
+        space = POOL_SIZE,
     )]
     pub pool: Box<Account<'info, Pool>>,
 
@@ -57,7 +57,7 @@ pub struct InitPool<'info> {
         init, payer = owner,
         seeds = [b"nft_auth".as_ref(), &auth_seeds],
         bump,
-        space = 8 + NftAuthority::SIZE
+        space = NFT_AUTHORITY_SIZE
     )]
     pub nft_authority: Box<Account<'info, NftAuthority>>,
 }

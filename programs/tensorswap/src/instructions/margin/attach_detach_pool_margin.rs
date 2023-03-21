@@ -96,7 +96,7 @@ impl<'info> AttachDetachPoolMargin<'info> {
         )
     }
     fn move_to_escrow(&self, lamports: u64) -> Result<()> {
-        transfer_lamports_from_tswap(
+        transfer_lamports_from_pda(
             &self.margin_account.to_account_info(),
             &self.sol_escrow.to_account_info(),
             lamports,

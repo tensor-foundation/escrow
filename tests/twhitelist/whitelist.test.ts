@@ -13,7 +13,7 @@ import {
 
 chai.use(chaiAsPromised);
 
-describe("tensor_whitelist WL auth and create", () => {
+describe("tensor whitelist", () => {
   let authPda: PublicKey;
   let tlistOwner: Keypair;
 

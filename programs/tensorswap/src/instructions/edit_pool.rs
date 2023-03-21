@@ -43,7 +43,7 @@ pub struct EditPool<'info> {
             &new_config.delta.to_le_bytes()
         ],
         bump,
-        space = 8 + Pool::SIZE,
+        space = POOL_SIZE,
     )]
     pub new_pool: Box<Account<'info, Pool>>,
 
@@ -120,7 +120,7 @@ impl<'info> EditPool<'info> {
         let rent = Rent::get()?.minimum_balance(self.old_sol_escrow.to_account_info().data_len());
         let lamports_to_move = current_lamports.checked_sub(rent).unwrap();
 
-        transfer_lamports_from_tswap(
+        transfer_lamports_from_pda(
             &self.old_sol_escrow.to_account_info(),
             &self.new_sol_escrow.to_account_info(),
             lamports_to_move,
@@ -133,7 +133,7 @@ impl<'info> EditPool<'info> {
         let lamports_to_move = current_lamports.checked_sub(rent).unwrap();
 
         if lamports_to_move > 0 {
-            transfer_lamports_from_tswap(
+            transfer_lamports_from_pda(
                 &self.old_pool.to_account_info(),
                 &self.new_pool.to_account_info(),
                 lamports_to_move,

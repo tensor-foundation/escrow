@@ -11,9 +11,6 @@ declare_id!("TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW");
 //version history:
 // v2 = added cosigner and 3 different verification methods
 pub const CURRENT_WHITELIST_VERSION: u8 = 2;
-// 28-length padded merkle proof -> 2^28 mints supported.
-// 28 is max length b/c of tx size limits.
-pub const MAX_PROOF_LEN: usize = 28;
 
 pub const ZERO_ARRAY: [u8; 32] = [0; 32];
 
@@ -185,7 +182,7 @@ pub mod tensor_whitelist {
 
 #[derive(Accounts)]
 pub struct InitUpdateAuthority<'info> {
-    #[account(init_if_needed, payer = cosigner, seeds = [], bump, space = 8 + Authority::SIZE)]
+    #[account(init_if_needed, payer = cosigner, seeds = [], bump, space = AUTHORITY_SIZE)]
     pub whitelist_authority: Box<Account<'info, Authority>>,
 
     /// both have to sign on any updates
@@ -204,7 +201,7 @@ pub struct InitUpdateWhitelist<'info> {
         payer = cosigner,
         seeds = [&uuid],
         bump,
-        space = 8 + Whitelist::SIZE
+        space = WHITELIST_SIZE
     )]
     pub whitelist: Box<Account<'info, Whitelist>>,
 
@@ -245,7 +242,7 @@ pub struct InitUpdateMintProof<'info> {
             whitelist.key().as_ref(),
         ],
         bump,
-        space = 8 + MintProof::SIZE
+        space = MINT_PROOF_SIZE
     )]
     pub mint_proof: Box<Account<'info, MintProof>>,
 
@@ -262,7 +259,7 @@ pub struct ReallocAuthority<'info> {
         seeds = [],
         bump = whitelist_authority.bump,
         has_one = cosigner,
-        realloc = 8 + Authority::SIZE,
+        realloc = AUTHORITY_SIZE,
         realloc::payer = cosigner,
         realloc::zero = false
     )]
@@ -278,7 +275,7 @@ pub struct ReallocWhitelist<'info> {
     #[account(mut,
         seeds = [&whitelist.uuid],
         bump = whitelist.bump,
-        realloc = 8 + Whitelist::SIZE,
+        realloc = WHITELIST_SIZE,
         realloc::payer = cosigner,
         realloc::zero = false
     )]
@@ -369,9 +366,10 @@ pub struct Authority {
     pub _reserved: [u8; 64],
 }
 
-impl Authority {
-    pub const SIZE: usize = 1 + (32 * 2) + 64;
-}
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const AUTHORITY_SIZE: usize = 8 + 1 + (32 * 2) + 64;
 
 #[account]
 pub struct Whitelist {
@@ -389,6 +387,11 @@ pub struct Whitelist {
     pub _reserved: [u8; 64],
 }
 
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const WHITELIST_SIZE: usize = 8 + 1 + 1 + 1 + (32 * 3) + 1 + (33 * 2) + 64;
+
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct FullMerkleProof {
     pub proof: Vec<[u8; 32]>,
@@ -396,10 +399,6 @@ pub struct FullMerkleProof {
 }
 
 impl Whitelist {
-    //(!) option takes up 1 extra byte
-    //64 extra
-    pub const SIZE: usize = 1 + 1 + 1 + (32 * 3) + 1 + (33 * 2) + 64;
-
     /// Passed in verification method has to match the verification method stored on the whitelist
     /// Passing neither of the 3 will result in failure
     pub fn verify_whitelist(
@@ -512,9 +511,14 @@ pub struct MintProof {
     pub proof: [[u8; 32]; MAX_PROOF_LEN],
 }
 
-impl MintProof {
-    pub const SIZE: usize = (32 * MAX_PROOF_LEN) + 1;
-}
+// 28-length padded merkle proof -> 2^28 mints supported.
+// 28 is max length b/c of tx size limits.
+pub const MAX_PROOF_LEN: usize = 28;
+// (!) INCLUSIVE of discriminator (8 bytes)
+// (!) Sync with MAX_PROOF_LEN (can't ref teh constant or wont show up in IDL)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const MINT_PROOF_SIZE: usize = 8 + (32 * 28) + 1;
 
 // ----------------------------------- Error codes
 

@@ -48,15 +48,15 @@ pub const SNIPE_MIN_FEE: u64 = 10_000_000;
 #[constant]
 pub const SNIPE_PROFIT_SHARE_BPS: u16 = 2000;
 
+// TODO currently disabled
+#[constant]
+pub const TAKER_BROKER_PCT: u64 = 0;
+
 // --------------------------------------- tswap
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 pub struct TSwapConfig {
     pub fee_bps: u16,
-}
-
-impl TSwapConfig {
-    pub const SIZE: usize = 2;
 }
 
 #[account]
@@ -72,10 +72,12 @@ pub struct TSwap {
     pub cosigner: Pubkey,
 }
 
-impl TSwap {
-    // 2 u8s + config + 3 pubkeys
-    pub const SIZE: usize = 1 + 1 + TSwapConfig::SIZE + 32 * 3;
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const TSWAP_SIZE: usize = 8 + 1 + 1 + 2 + 32 * 3;
 
+impl TSwap {
     pub fn seeds(&self) -> [&[u8]; 1] {
         [&self.bump]
     }
@@ -109,12 +111,6 @@ pub struct PoolConfig {
     pub mm_fee_bps: Option<u16>,
 }
 
-impl PoolConfig {
-    // 2 enums/u8s + 2 u64s + boolean + option<u16> (3 bytes)
-    #[allow(clippy::identity_op)]
-    pub const SIZE: usize = (2 * 1) + (2 * 8) + 1 + 3;
-}
-
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, Default)]
 pub struct PoolStats {
     pub taker_sell_count: u32,
@@ -122,21 +118,10 @@ pub struct PoolStats {
     pub accumulated_mm_profit: u64,
 }
 
-impl PoolStats {
-    // 2 u32s + 1 u64
-    #[allow(clippy::identity_op)]
-    pub const SIZE: usize = (2 * 4) + 8;
-}
-
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, Default)]
 pub struct Frozen {
     pub amount: u64,
     pub time: i64,
-}
-
-impl Frozen {
-    #[allow(clippy::identity_op)]
-    pub const SIZE: usize = 8 + 8;
 }
 
 #[account]
@@ -197,41 +182,59 @@ pub fn calc_tswap_fee(fee_bps: u16, current_price: u64) -> Result<u64> {
     Ok(fee)
 }
 
-pub fn calc_creators_fee(metadata: &Metadata, current_price: u64) -> Result<u64> {
-    //only pay royalties on pNFTs
+pub fn calc_creators_fee(
+    metadata: &Metadata,
+    price: u64,
+    optional_royalty_pct: Option<u16>,
+) -> Result<u64> {
     let creators_fee_bps = if metadata.token_standard.is_some()
         && metadata.token_standard.unwrap() == TokenStandard::ProgrammableNonFungible
     {
+        //for pnfts, pay full royalties
         metadata.data.seller_fee_basis_points
+    } else if let Some(optional_royalty_pct) = optional_royalty_pct {
+        if optional_royalty_pct > 100 {
+            throw_err!(BadRoyaltiesPct);
+        }
+
+        //if optional passed, pay optional royalties
+        unwrap_checked!({
+            metadata
+                .data
+                .seller_fee_basis_points
+                .checked_mul(optional_royalty_pct)?
+                .checked_div(100)
+        })
     } else {
+        //else pay 0
         0
     };
     let fee = unwrap_checked!({
         (creators_fee_bps as u64)
-            .checked_mul(current_price)?
+            .checked_mul(price)?
             .checked_div(HUNDRED_PCT_BPS as u64)
     });
 
     Ok(fee)
 }
 
-impl Pool {
-    #[allow(clippy::identity_op)]
-    pub const SIZE: usize = (3 * 1)
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const POOL_SIZE: usize = 8 + (3 * 1)
         + 8
-        + PoolConfig::SIZE
+        + (2 * 1) + (2 * 8) + 1 + 3 //pool config
         + (5 * 32)
         + (3 * 4)
-        + PoolStats::SIZE
-        //(!) option takes up 1 extra byte
-        + 32 + 1
+        + (2 * 4) + 8 //pool stats
+        + 32 + 1 //(!) option takes up 1 extra byte
         + 1
         + 1
-        //(!) option takes up 1 extra byte
-        + Frozen::SIZE + 1
+        + 8 + 8 + 1 //frozen (!) option takes up 1 extra byte
         + 8
         + 4;
 
+impl Pool {
     pub fn taker_allowed_to_sell(&self) -> Result<()> {
         //0 indicates no restriction on buy count
         if self.max_taker_sell_count == 0 {
@@ -319,7 +322,8 @@ impl Pool {
     }
 
     pub fn calc_creators_fee(&self, metadata: &Metadata, current_price: u64) -> Result<u64> {
-        calc_creators_fee(metadata, current_price)
+        // TODO add ability to pay optional royalties
+        calc_creators_fee(metadata, current_price, None)
     }
 
     pub fn current_price(&self, side: TakerSide) -> Result<u64> {
@@ -419,6 +423,8 @@ pub enum TakerSide {
     Sell, // Selling into the pool.
 }
 
+// --------------------------------------- margin
+
 // TODO: if size ever changes, be sure to update APPROX_SOL_MARGIN_RENT in tensor-infra
 #[account]
 pub struct MarginAccount {
@@ -432,11 +438,12 @@ pub struct MarginAccount {
     pub _reserved: [u8; 64],
 }
 
-impl MarginAccount {
-    // 1 pk + 32;1 + 1 u16 + 1 u8 + 1 u32 + 64 for the future
-    #[allow(clippy::identity_op)]
-    pub const SIZE: usize = 32 + 32 + 2 + 1 + 4 + 64;
-}
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const MARGIN_SIZE: usize = 8 + 32 + 32 + 2 + 1 + 4 + 64;
+
+// --------------------------------------- single listing
 
 #[account]
 pub struct SingleListing {
@@ -447,10 +454,10 @@ pub struct SingleListing {
     pub _reserved: [u8; 64],
 }
 
-impl SingleListing {
-    #[allow(clippy::identity_op)]
-    pub const SIZE: usize = (32 * 2) + 8 + 1 + 64;
-}
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const SINGLE_LISTING_SIZE: usize = 8 + (32 * 2) + 8 + 1 + 64;
 
 // --------------------------------------- receipts
 
@@ -464,9 +471,10 @@ pub struct NftDepositReceipt {
     pub nft_escrow: Pubkey,
 }
 
-impl NftDepositReceipt {
-    pub const SIZE: usize = 1 + 32 * 3;
-}
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const DEPOSIT_RECEIPT_SIZE: usize = 8 + 1 + 32 * 3;
 
 // --------------------------------------- authority
 
@@ -478,9 +486,10 @@ pub struct NftAuthority {
     pub pool: Pubkey,
 }
 
-impl NftAuthority {
-    pub const SIZE: usize = 1 + 32 + 32;
-}
+// (!) INCLUSIVE of discriminator (8 bytes)
+#[constant]
+#[allow(clippy::identity_op)]
+pub const NFT_AUTHORITY_SIZE: usize = 8 + 1 + 32 + 32;
 
 // --------------------------------------- escrows
 

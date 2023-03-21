@@ -21,7 +21,7 @@ pub struct WithdrawTswapFees<'info> {
 }
 
 pub fn handler(ctx: Context<WithdrawTswapFees>, lamports: u64) -> Result<()> {
-    transfer_lamports_from_tswap(
+    transfer_lamports_from_pda(
         &ctx.accounts.tswap.to_account_info(),
         &ctx.accounts.destination.to_account_info(),
         lamports,

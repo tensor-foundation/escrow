@@ -105,6 +105,7 @@ jobs:
           - glob: tests/tswap/singleListing.test.ts
           - glob: tests/twhitelist/whitelist.test.ts
           - glob: tests/twhitelist/mint_proof.test.ts
+          - glob: tests/tbid/tbid.test.ts
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/

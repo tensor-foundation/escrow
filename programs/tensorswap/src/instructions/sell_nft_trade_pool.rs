@@ -5,6 +5,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Token, TokenAccount},
 };
+use mpl_token_metadata::processor::AuthorizationData;
 use vipers::throw_err;
 
 use crate::*;
@@ -34,7 +35,7 @@ pub struct SellNftTradePool<'info> {
             shared.nft_mint.key().as_ref(),
         ],
         bump,
-        space = 8 + NftDepositReceipt::SIZE,
+        space = DEPOSIT_RECEIPT_SIZE,
     )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
@@ -153,7 +154,8 @@ pub fn handler<'a, 'b, 'c, 'info>(
         &ctx.accounts.dest_token_record,
         &ctx.accounts.pnft_shared.authorization_rules_program,
         auth_rules,
-        authorization_data,
+        authorization_data
+            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         None,
         None,
     )?;
@@ -208,7 +210,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     // transfer fee to Tensorswap
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-    transfer_lamports_from_tswap(
+    transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.fee_vault.to_account_info(),
         tswap_fee,
@@ -229,7 +231,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     // transfer remainder to seller
     // (!) fees/royalties are paid by TAKER, which in this case is the SELLER
-    transfer_lamports_from_tswap(
+    transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.seller.to_account_info(),
         left_for_seller,
