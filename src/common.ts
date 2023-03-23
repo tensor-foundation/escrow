@@ -73,9 +73,7 @@ export const decodeAcct = <T extends Idl>(
 
 export const fetchNft = async (conn: Connection, mint: PublicKey) => {
   const mplex = new Metaplex(conn);
-  return await mplex
-    .nfts()
-    .findByMint({ mintAddress: mint, loadJsonMetadata: true });
+  return await mplex.nfts().findByMint({ mintAddress: mint });
 };
 
 //#region Stringify function.

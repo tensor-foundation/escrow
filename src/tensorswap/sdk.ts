@@ -876,7 +876,7 @@ export class TensorSwapSDK {
     nftSource,
     owner,
     config,
-    nftMetadata,
+    metaCreators,
     authData = null,
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
@@ -886,7 +886,11 @@ export class TensorSwapSDK {
     nftSource: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
-    nftMetadata?: PublicKey;
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
+    metaCreators?: {
+      metadata: PublicKey;
+      creators: PublicKey[];
+    };
     authData?: AuthorizationData | null;
     compute?: number;
     priorityMicroLamports?: number;
@@ -920,7 +924,8 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata,
+      nftMetadata: metaCreators?.metadata,
+      nftCreators: metaCreators?.creators,
       nftMint,
       destAta: escrowPda,
       authData,
@@ -1042,7 +1047,7 @@ export class TensorSwapSDK {
     nftDest,
     owner,
     config,
-    nftMetadata,
+    metaCreators,
     authData = null,
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
@@ -1052,7 +1057,11 @@ export class TensorSwapSDK {
     nftDest: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
-    nftMetadata?: PublicKey;
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
+    metaCreators?: {
+      metadata: PublicKey;
+      creators: PublicKey[];
+    };
     authData?: AuthorizationData | null;
     compute?: number;
     priorityMicroLamports?: number;
@@ -1085,7 +1094,8 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata,
+      nftMetadata: metaCreators?.metadata,
+      nftCreators: metaCreators?.creators,
       nftMint,
       destAta: nftDest,
       authData,
@@ -1269,7 +1279,7 @@ export class TensorSwapSDK {
     buyer: PublicKey;
     config: PoolConfigAnchor;
     maxPrice: BN;
-    // If provided, skips RPC call to fetch on-chain metadata + creators.
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
       creators: PublicKey[];
@@ -1435,7 +1445,7 @@ export class TensorSwapSDK {
     seller: PublicKey;
     config: PoolConfigAnchor;
     minPrice: BN;
-    // If provided, skips RPC call to fetch on-chain metadata + creators.
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
       creators: PublicKey[];
@@ -2007,7 +2017,7 @@ export class TensorSwapSDK {
     seller,
     config,
     actualPrice,
-    nftMetadata,
+    metaCreators,
     marginNr,
     cosigner = TSWAP_COSIGNER,
     authData = null,
@@ -2021,8 +2031,11 @@ export class TensorSwapSDK {
     seller: PublicKey;
     config: PoolConfigAnchor;
     actualPrice: BN;
-    // If provided, skips RPC call to fetch on-chain metadata + creators.
-    nftMetadata?: PublicKey;
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
+    metaCreators?: {
+      metadata: PublicKey;
+      creators: PublicKey[];
+    };
     marginNr: number;
     cosigner?: PublicKey;
     authData?: AuthorizationData | null;
@@ -2063,7 +2076,8 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata,
+      nftMetadata: metaCreators?.metadata,
+      nftCreators: metaCreators?.creators,
       nftMint,
       destAta: ownerAtaAcc,
       authData,
@@ -2149,7 +2163,7 @@ export class TensorSwapSDK {
     nftMint,
     nftSource,
     owner,
-    nftMetadata,
+    metaCreators,
     authData = null,
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
@@ -2158,7 +2172,11 @@ export class TensorSwapSDK {
     nftMint: PublicKey;
     nftSource: PublicKey;
     owner: PublicKey;
-    nftMetadata?: PublicKey;
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
+    metaCreators?: {
+      metadata: PublicKey;
+      creators: PublicKey[];
+    };
     authData?: AuthorizationData | null;
     compute?: number;
     priorityMicroLamports?: number;
@@ -2182,7 +2200,8 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata,
+      nftMetadata: metaCreators?.metadata,
+      nftCreators: metaCreators?.creators,
       nftMint,
       destAta: escrowPda,
       authData,
@@ -2249,7 +2268,7 @@ export class TensorSwapSDK {
     nftMint,
     nftDest,
     owner,
-    nftMetadata,
+    metaCreators,
     authData = null,
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
@@ -2257,7 +2276,11 @@ export class TensorSwapSDK {
     nftMint: PublicKey;
     nftDest: PublicKey;
     owner: PublicKey;
-    nftMetadata?: PublicKey;
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
+    metaCreators?: {
+      metadata: PublicKey;
+      creators: PublicKey[];
+    };
     authData?: AuthorizationData | null;
     compute?: number;
     priorityMicroLamports?: number;
@@ -2280,7 +2303,8 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata,
+      nftMetadata: metaCreators?.metadata,
+      nftCreators: metaCreators?.creators,
       nftMint,
       destAta: nftDest,
       authData,
@@ -2358,7 +2382,7 @@ export class TensorSwapSDK {
     owner: PublicKey;
     buyer: PublicKey;
     maxPrice: BN;
-    // If provided, skips RPC call to fetch on-chain metadata + creators.
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
       creators: PublicKey[];

@@ -232,7 +232,7 @@ export class TensorBidSDK {
     nftMint: PublicKey;
     lamports: BN;
     margin?: PublicKey | null;
-    // If provided, skips RPC call to fetch on-chain metadata + creators.
+    /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
       creators: PublicKey[];
