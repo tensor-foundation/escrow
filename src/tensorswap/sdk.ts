@@ -456,6 +456,8 @@ export type TaggedTensorSwapPdaAnchor =
     };
 
 export type TensorSwapEventAnchor = Event<typeof IDL_latest["events"][number]>;
+type BuySellEventAnchor = Event<typeof IDL_latest["events"][0]>;
+type DelistEventAnchor = Event<typeof IDL_latest["events"][1]>;
 
 // ------------- Types for parsed ixs from raw tx.
 
@@ -2696,12 +2698,22 @@ export class TensorSwapSDK {
       case "sellNftTradePool":
       case "sellNftTokenPool":
       case "takeSnipe":
-      case "buySingleListing":
+      case "buySingleListing": {
+        // TODO: Think of a better way to handle multiple events.
         // NB: the actual sell price includes the "MM fee" (really a spread).
-        const event = ix.events[0].data;
-        return event.currentPrice.sub(event.mmFee);
-      case "delist":
-        return ix.events[0].data.currentPrice;
+        const event = ix.events.find((e) => e.name === "BuySellEvent") as
+          | BuySellEventAnchor
+          | undefined;
+        if (!event) return null;
+        return event.data.currentPrice.sub(event.data.mmFee);
+      }
+      case "delist": {
+        const event = ix.events.find((e) => e.name === "DelistEvent") as
+          | DelistEventAnchor
+          | undefined;
+        if (!event) return null;
+        return event.data.currentPrice;
+      }
       case "depositSol":
       case "withdrawSol":
       case "withdrawMmFee":
@@ -2738,8 +2750,12 @@ export class TensorSwapSDK {
       case "sellNftTokenPool":
       case "takeSnipe":
       case "buySingleListing":
-        const event = ix.events[0].data;
-        return event.tswapFee.add(event.creatorsFee);
+        // TODO: Think of a better way to handle multiple events.
+        const event = ix.events.find((e) => e.name === "BuySellEvent") as
+          | BuySellEventAnchor
+          | undefined;
+        if (!event) return null;
+        return event.data.tswapFee.add(event.data.creatorsFee);
       case "list":
       case "delist":
       case "initUpdateTswap":
