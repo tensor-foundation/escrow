@@ -27,9 +27,11 @@ import {
   AUTH_PROG_ID,
   findTSwapPDA,
   isNullLike,
+  TBID_ADDR,
   TENSORSWAP_ADDR,
   TensorSwapSDK,
   TensorWhitelistSDK,
+  TLIST_ADDR,
   TMETA_PROG_ID,
 } from "../src";
 import { getLamports as _getLamports } from "../src/common";
@@ -81,6 +83,7 @@ type BuildAndSendTxArgs = {
   debug?: boolean;
   // Optional, if present signify that a V0 tx should be sent
   lookupTableAccounts?: [AddressLookupTableAccount] | undefined;
+  blockhash?: string;
 };
 
 //simplified version from tensor-common
@@ -170,6 +173,7 @@ export const buildAndSendTx = async ({
   opts,
   debug,
   lookupTableAccounts,
+  blockhash,
 }: BuildAndSendTxArgs) => {
   let tx: Transaction | VersionedTransaction;
 
@@ -190,6 +194,10 @@ export const buildAndSendTx = async ({
         },
       }
     ));
+    //sometimes have to pass manually, eg when updating LUT
+    if (!!blockhash) {
+      tx.recentBlockhash = blockhash;
+    }
     await provider.wallet.signTransaction(tx);
   } else {
     //build v0
@@ -507,6 +515,53 @@ export const createTokenAuthorizationRules = async (
   await buildAndSendTx({ provider, ixs: [createIX], extraSigners: [payer] });
 
   return ruleSetAddress;
+};
+
+export const updateLUT = async (
+  provider = TEST_PROVIDER,
+  slotCommitment: Commitment = "finalized",
+  lookupTableAddress: PublicKey
+) => {
+  const conn = provider.connection;
+
+  //needed else we keep refetching the blockhash
+  const blockhash = (await conn.getLatestBlockhash("confirmed")).blockhash;
+  console.log("blockhash", blockhash);
+
+  //add NEW addresses ONLY
+  const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+    payer: provider.publicKey,
+    authority: provider.publicKey,
+    lookupTable: lookupTableAddress,
+    addresses: [
+      TBID_ADDR,
+      TLIST_ADDR,
+      TENSORSWAP_ADDR,
+      new PublicKey("hadeK9DLv9eA7ya5KCTqSvSvRZeJC3JgD5a9Y3CNbvu"),
+    ],
+  });
+
+  let done = false;
+  while (!done) {
+    try {
+      await buildAndSendTx({
+        provider,
+        ixs: [extendInstruction],
+        blockhash,
+      });
+      done = true;
+    } catch (e) {
+      console.log("failed, try again in 5");
+      await waitMS(5000);
+    }
+  }
+
+  //fetch (this will actually show wrong the first time, need to rerun
+  const lookupTableAccount = (
+    await conn.getAddressLookupTable(lookupTableAddress)
+  ).value;
+
+  console.log("updated LUT", lookupTableAccount);
 };
 
 export const createCoreTswapLUT = async (

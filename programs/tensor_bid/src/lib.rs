@@ -36,7 +36,6 @@ pub mod tensor_bid {
         ctx: Context<'_, '_, '_, 'info, Bid<'info>>,
         lamports: u64,
         expire_in_sec: Option<u64>,
-        fund_margin: bool,
     ) -> Result<()> {
         //record state
         let bid_state = &mut ctx.accounts.bid_state;
@@ -85,21 +84,7 @@ pub mod tensor_bid {
                 if margin_account.owner != *ctx.accounts.bidder.key {
                     throw_err!(BadMargin);
                 }
-
-                //record margin
                 bid_state.margin = Some(margin_account_info.key());
-
-                let margin_rent = Rent::get()?.minimum_balance(margin_account_info.data_len());
-                let margin_balance =
-                    unwrap_int!(margin_account_info.lamports().checked_sub(margin_rent));
-
-                //transfer missing lamports (no need to do this via CPI, just assign extra lamports)
-                if margin_balance < lamports && fund_margin {
-                    let missing_amount = unwrap_int!(lamports.checked_sub(margin_balance));
-                    ctx.accounts
-                        .transfer_lamports(margin_account_info, missing_amount)?;
-                }
-
                 //transfer any existing balance back to user (this is in case they're editing an existing non-marginated bid)
                 let bid_rent = Rent::get()?
                     .minimum_balance(ctx.accounts.bid_state.to_account_info().data_len());
@@ -116,6 +101,7 @@ pub mod tensor_bid {
                         bid_balance,
                     )?;
                 }
+                //(!)We do NOT transfer lamports to margin if insufficient, assume done in a separate ix if needed
             }
             //not marginated
             Err(_) => {

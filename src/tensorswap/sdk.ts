@@ -894,8 +894,9 @@ export class TensorSwapSDK {
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -966,15 +967,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -1065,8 +1063,9 @@ export class TensorSwapSDK {
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -1135,15 +1134,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -1287,8 +1283,9 @@ export class TensorSwapSDK {
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
     marginNr?: number | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
@@ -1389,15 +1386,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -1456,8 +1450,9 @@ export class TensorSwapSDK {
     isCosigned?: boolean;
     cosigner?: PublicKey;
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -1605,15 +1600,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -2041,8 +2033,9 @@ export class TensorSwapSDK {
     marginNr: number;
     cosigner?: PublicKey;
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -2125,15 +2118,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -2180,8 +2170,9 @@ export class TensorSwapSDK {
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
     price: BN;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
@@ -2239,15 +2230,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -2284,8 +2272,9 @@ export class TensorSwapSDK {
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [singleListing, singleListingBump] = findSingleListingPDA({
@@ -2342,15 +2331,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -2390,8 +2376,9 @@ export class TensorSwapSDK {
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
-    compute?: number;
-    priorityMicroLamports?: number;
+    //passing in null or undefined means these ixs are NOT included
+    compute?: number | null;
+    priorityMicroLamports?: number | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [singleListing, singleListingBump] = findSingleListingPDA({
@@ -2463,15 +2450,12 @@ export class TensorSwapSDK {
       })
       .remainingAccounts(remAcc);
 
-    const [modifyComputeUnits, addPriorityFee] = getTotalComputeIxs(
-      compute,
-      priorityMicroLamports
-    );
+    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
     return {
       builder,
       tx: {
-        ixs: [modifyComputeUnits, addPriorityFee, await builder.instruction()],
+        ixs: [...computeIxs, await builder.instruction()],
         extraSigners: [],
       },
       tswapPda,
@@ -2802,14 +2786,23 @@ export class TensorSwapSDK {
 }
 
 export const getTotalComputeIxs = (
-  compute: number,
-  priorityMicroLamports = 1
+  compute: number | null,
+  priorityMicroLamports: number | null
 ) => {
-  const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-    units: compute,
-  });
-  const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-    microLamports: priorityMicroLamports,
-  });
-  return [modifyComputeUnits, addPriorityFee];
+  const finalIxs = [];
+  //optionally include extra compute]
+  if (!isNullLike(compute)) {
+    finalIxs.push(
+      ComputeBudgetProgram.setComputeUnitLimit({
+        units: compute,
+      })
+    );
+  }
+  //optionally include priority fee
+  if (!isNullLike(priorityMicroLamports)) {
+    ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: priorityMicroLamports,
+    });
+  }
+  return finalIxs;
 };

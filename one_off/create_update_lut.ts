@@ -1,9 +1,10 @@
 import { AnchorProvider, Wallet } from "@project-serum/anchor";
-import { Connection, Keypair } from "@solana/web3.js";
-import { createCoreTswapLUT } from "../tests/shared";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { updateLUT } from "../tests/shared";
+import { TSWAP_CORE_LUT } from "../src";
 
 (async () => {
-  console.log("creating lut...");
+  console.log("creating/updating lut...");
 
   const payer = Keypair.fromSecretKey(
     Uint8Array.from(require("/Users/ilmoi/.config/solana/tswap_cosigner.json"))
@@ -16,5 +17,12 @@ import { createCoreTswapLUT } from "../tests/shared";
     skipPreflight: true,
   });
 
-  await createCoreTswapLUT(provider);
+  // await createCoreTswapLUT(provider);
+
+  //test LUT to play with
+  const lookupTableAddress = new PublicKey(
+    "HUaXt5yU96yGWnUnMHLGAHVUPfuDomY3MWvz8XTdXQnm"
+  );
+
+  await updateLUT(provider, undefined, TSWAP_CORE_LUT);
 })();

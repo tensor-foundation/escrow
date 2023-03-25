@@ -56,7 +56,6 @@ const testBid = async ({
   bidAmount,
   prevBidAmount,
   expireIn,
-  fundMargin = true,
 }: {
   bidder: Keypair;
   mint: PublicKey;
@@ -64,7 +63,6 @@ const testBid = async ({
   bidAmount: number;
   prevBidAmount?: number | null;
   expireIn?: number | null;
-  fundMargin?: boolean;
 }) => {
   const {
     tx: { ixs },
@@ -76,7 +74,6 @@ const testBid = async ({
     nftMint: mint,
     lamports: new BN(bidAmount),
     expireIn: !isNullLike(expireIn) ? new BN(expireIn) : null,
-    fundMargin,
   });
   return await withLamports(
     {
@@ -109,15 +106,8 @@ const testBid = async ({
       const currBidStateLamports = await getLamports(bidState);
 
       if (margin) {
-        const currMarginLamports = await getLamports(margin);
         //check bid acc final
         expect(currBidStateLamports).to.eq(await bidSdk.getBidStateRent());
-        //check margin acc final (AT LEAST bid + rent, could be more)
-        if (fundMargin) {
-          expect(currMarginLamports).gte(
-            (await swapSdk.getMarginAccountRent()) + bidAmount
-          );
-        }
         //can't check diff, since need more state to calc toUpload
       } else {
         const bidRent = await bidSdk.getBidStateRent();
@@ -590,100 +580,6 @@ describe("tensor bid", () => {
     }
   });
 
-  it("happy path (bid -> take bid, UNFUNDED)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
-
-    const royaltyBps = 1000;
-    const amount = LAMPORTS_PER_SOL;
-    const expireIn = HOURS / 1000;
-
-    for (const programmable of [true, false]) {
-      const creators = Array(5)
-        .fill(null)
-        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
-        royaltyBps,
-        creators,
-        undefined,
-        undefined,
-        programmable,
-        programmable ? ruleSetAddr : undefined
-      );
-
-      const {
-        marginPda: margin,
-        marginNr,
-        marginRent,
-      } = await testMakeMargin({
-        owner: bidder,
-      });
-      await testDepositIntoMargin({
-        owner: bidder,
-        marginNr,
-        marginPda: margin,
-        amount: amount / 2, //<-- only fund half
-        expectedLamports: amount / 2,
-      });
-
-      await testBid({
-        bidder,
-        mint,
-        margin,
-        bidAmount: amount,
-        expireIn,
-        fundMargin: false, //<-- important
-      });
-
-      //take bid fails because bid is unfunded
-      await expect(
-        testTakeBid({
-          bidder,
-          seller,
-          mint,
-          ata,
-          margin,
-          bidAmount: amount,
-          programmable,
-          creators,
-          royaltyBps,
-          lookupTableAccount,
-        })
-      ).to.be.rejectedWith(INTEGER_OVERFLOW_ERR);
-
-      //fund other half
-      await testDepositIntoMargin({
-        owner: bidder,
-        marginNr,
-        marginPda: margin,
-        amount: amount / 2, //<-- only fund half
-        expectedLamports: amount,
-      });
-
-      //succeed
-      await testTakeBid({
-        bidder,
-        seller,
-        mint,
-        ata,
-        margin,
-        bidAmount: amount,
-        programmable,
-        creators,
-        royaltyBps,
-        lookupTableAccount,
-      });
-    }
-  });
-
   it("happy path (bid -> edit -> take bid)", async () => {
     const [bidder, seller] = await makeNTraders(2);
     const ruleSetAddr = await createTokenAuthorizationRules(
@@ -725,7 +621,7 @@ describe("tensor bid", () => {
           owner: bidder,
           marginNr,
           marginPda,
-          amount, //<-- note this is below the final 2 sol, intentionally
+          amount: amount * 2, //<-- has to match final 2 sol, since we no longer auto top up margin
         });
         margin = marginPda;
       }
@@ -969,8 +865,8 @@ describe("tensor bid", () => {
         owner: bidder,
         marginNr,
         marginPda,
-        amount: 0.3 * LAMPORTS_PER_SOL, //leaves 0.7, either way insufficient
-        expectedLamports: 0.7 * LAMPORTS_PER_SOL,
+        amount: 0.3 * LAMPORTS_PER_SOL,
+        expectedLamports: initialMarginDeposit - 0.3 * LAMPORTS_PER_SOL,
       });
 
       await expect(
@@ -1006,7 +902,7 @@ describe("tensor bid", () => {
 
     for (const [programmable, initialMarginDeposit] of cartesian(
       [true, false],
-      [0.5 * amount, amount]
+      [2 * amount, amount]
     )) {
       const creators = Array(5)
         .fill(null)
