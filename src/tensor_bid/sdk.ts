@@ -171,6 +171,7 @@ export class TensorBidSDK {
   // --------------------------------------- account methods
 
   decode(acct: AccountInfo<Buffer>): TaggedTensorBidPdaAnchor | null {
+    if (!acct.owner.equals(this.program.programId)) return null;
     return decodeAcct(acct, this.discMap);
   }
 

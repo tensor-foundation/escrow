@@ -566,6 +566,7 @@ export class TensorSwapSDK {
   // --------------------------------------- account methods
 
   decode(acct: AccountInfo<Buffer>): TaggedTensorSwapPdaAnchor | null {
+    if (!acct.owner.equals(this.program.programId)) return null;
     return decodeAcct(acct, this.discMap);
   }
 
