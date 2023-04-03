@@ -1,11 +1,24 @@
 // Common helper functions b/w tensor_whitelist & tensorswap.
+import {
+  createCreateOrUpdateInstruction,
+  findRuleSetPDA,
+} from "@metaplex-foundation/mpl-token-auth-rules";
+import { encode } from "@msgpack/msgpack";
 import * as anchor from "@project-serum/anchor";
 import { AnchorProvider, Wallet } from "@project-serum/anchor";
+import {
+  SingleConnectionBroadcaster,
+  SolanaProvider,
+  TransactionEnvelope,
+} from "@saberhq/solana-contrib";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
   AddressLookupTableProgram,
   Commitment,
-  ComputeBudgetProgram,
   ConfirmOptions,
   Connection,
   Keypair,
@@ -23,33 +36,19 @@ import { expect } from "chai";
 import { backOff } from "exponential-backoff";
 import keccak256 from "keccak256";
 import { MerkleTree } from "merkletreejs";
+import { resolve } from "path";
 import {
-  AUTH_PROG_ID,
   findTSwapPDA,
   isNullLike,
   TBID_ADDR,
-  TENSORSWAP_ADDR,
   TensorSwapSDK,
+  TENSORSWAP_ADDR,
   TensorWhitelistSDK,
   TLIST_ADDR,
-  TMETA_PROG_ID,
 } from "../src";
 import { getLamports as _getLamports } from "../src/common";
-import {
-  SingleConnectionBroadcaster,
-  SolanaProvider,
-  TransactionEnvelope,
-} from "@saberhq/solana-contrib";
-import {
-  createCreateOrUpdateInstruction,
-  findRuleSetPDA,
-} from "@metaplex-foundation/mpl-token-auth-rules";
-import { encode } from "@msgpack/msgpack";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
 import { TensorBidSDK } from "../src/tensor_bid";
+import { AUTH_PROG_ID, TMETA_PROG_ID } from "@tensor-hq/tensor-common";
 
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export {
@@ -327,7 +326,7 @@ export const cartesian = <T extends any[][]>(...arr: T): MapCartesian<T>[] =>
   ) as MapCartesian<T>[];
 
 //(!) provider used across all tests
-process.env.ANCHOR_WALLET = "tests/test-keypair.json";
+process.env.ANCHOR_WALLET = resolve(__dirname, "test-keypair.json");
 export const TEST_PROVIDER = anchor.AnchorProvider.local();
 const TEST_KEYPAIR = Keypair.fromSecretKey(
   Buffer.from(

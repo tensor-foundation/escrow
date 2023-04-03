@@ -1,4 +1,17 @@
 import {
+  keypairIdentity,
+  Metaplex,
+  toBigNumber,
+} from "@metaplex-foundation/js";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+  getAccount as _getAccount,
+  getAssociatedTokenAddress,
+  TokenAccountNotFoundError,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import {
   AddressLookupTableAccount,
   Commitment,
   Keypair,
@@ -8,20 +21,8 @@ import {
   SystemProgram,
   SYSVAR_INSTRUCTIONS_PUBKEY,
   Transaction,
+  TransactionInstruction,
 } from "@solana/web3.js";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
-  getAccount as _getAccount,
-  getAssociatedTokenAddress,
-  TOKEN_PROGRAM_ID,
-  TokenAccountNotFoundError,
-} from "@solana/spl-token";
-import {
-  keypairIdentity,
-  Metaplex,
-  toBigNumber,
-} from "@metaplex-foundation/js";
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import {
@@ -30,7 +31,6 @@ import {
   computeMakerAmountCount,
   computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
-  findTokenRecordPDA,
   isNullLike,
   MINUTES,
   OrderType,
@@ -54,14 +54,15 @@ import {
   getLamports,
   HUNDRED_PCT_BPS,
   swapSdk,
-  TEST_PROVIDER,
   testInitWLAuthority,
+  TEST_PROVIDER,
   withLamports,
   wlSdk,
 } from "../shared";
-import { AnchorProvider } from "@project-serum/anchor";
-import chaiAsPromised from "chai-as-promised";
-import { testInitUpdateMintProof } from "../twhitelist/common";
+import {
+  Payload,
+  PROGRAM_ID as AUTH_PROGRAM_ID,
+} from "@metaplex-foundation/mpl-token-auth-rules";
 import {
   createCreateInstruction,
   CreateInstructionAccounts,
@@ -72,10 +73,10 @@ import {
   PROGRAM_ID,
   TokenStandard,
 } from "@metaplex-foundation/mpl-token-metadata";
-import {
-  Payload,
-  PROGRAM_ID as AUTH_PROGRAM_ID,
-} from "@metaplex-foundation/mpl-token-auth-rules";
+import { AnchorProvider } from "@project-serum/anchor";
+import { findTokenRecordPda } from "@tensor-hq/tensor-common";
+import chaiAsPromised from "chai-as-promised";
+import { testInitUpdateMintProof } from "../twhitelist/common";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -212,7 +213,7 @@ export type CreatorInput = {
   authority?: Signer;
 };
 
-export const _createAndMintPNft = async ({
+export const createAndMintPNft = async ({
   owner,
   mint,
   royaltyBps,
@@ -315,7 +316,7 @@ export const _createAndMintPNft = async ({
     ASSOCIATED_TOKEN_PROGRAM_ID
   );
 
-  const [tokenRecord] = findTokenRecordPDA(mint.publicKey, tokenPda);
+  const [tokenRecord] = findTokenRecordPda(mint.publicKey, tokenPda);
 
   const mintAcccounts: MintInstructionAccounts = {
     token: tokenPda,
@@ -420,7 +421,7 @@ const _createAndFundATA = async ({
   if (programmable) {
     //create programmable nft
     ({ metadataAddress, tokenAddress, masterEditionAddress } =
-      await _createAndMintPNft({
+      await createAndMintPNft({
         mint: usedMint,
         owner: usedOwner,
         royaltyBps,
@@ -1058,7 +1059,7 @@ export const testClosePool = async ({
   commitment?: Commitment;
   marginNr?: number;
 }) => {
-  const finalIxs = [];
+  const finalIxs: TransactionInstruction[] = [];
   if (!isNullLike(marginNr)) {
     const {
       tx: { ixs },
@@ -1306,7 +1307,12 @@ export const testDepositNft = async ({
     nftSource: ata,
     owner: owner.publicKey,
     config,
-    nftMetadata,
+    metaCreators: nftMetadata
+      ? {
+          metadata: nftMetadata,
+          creators: [],
+        }
+      : undefined,
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
 

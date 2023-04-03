@@ -1,4 +1,21 @@
 import {
+  AnchorProvider,
+  BN,
+  BorshCoder,
+  Coder,
+  Event,
+  EventParser,
+  Instruction,
+  Program,
+} from "@project-serum/anchor";
+import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/instruction";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  getMinimumBalanceForRentExemptAccount,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import {
   AccountInfo,
   Commitment,
   ComputeBudgetProgram,
@@ -10,16 +27,28 @@ import {
   TransactionResponse,
 } from "@solana/web3.js";
 import {
-  AnchorProvider,
-  BN,
-  BorshCoder,
-  Coder,
-  Event,
-  EventParser,
-  Instruction,
-  Program,
-} from "@project-serum/anchor";
+  AuthorizationData,
+  AUTH_PROG_ID,
+  prepPnftAccounts,
+  TMETA_PROG_ID,
+} from "@tensor-hq/tensor-common";
 import Big from "big.js";
+import { v4 } from "uuid";
+import {
+  AccountSuffix,
+  decodeAcct,
+  DEFAULT_COMPUTE_UNITS,
+  DEFAULT_MICRO_LAMPORTS,
+  DiscMap,
+  genDiscToDecoderMap,
+  getAccountRent,
+  getRentSync,
+  hexCode,
+  isNullLike,
+  parseStrFn,
+} from "../common";
+import { findMintProofPDA } from "../tensor_whitelist";
+import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
 import { TENSORSWAP_ADDR, TSWAP_COSIGNER, TSWAP_OWNER } from "./constants";
 import {
   findMarginPDA,
@@ -32,33 +61,6 @@ import {
   findSolEscrowPDA,
   findTSwapPDA,
 } from "./pda";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-  getMinimumBalanceForRentExemptAccount,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import {
-  AccountSuffix,
-  AUTH_PROG_ID,
-  decodeAcct,
-  DEFAULT_COMPUTE_UNITS,
-  DEFAULT_MICRO_LAMPORTS,
-  DiscMap,
-  genDiscToDecoderMap,
-  getAccountRent,
-  getRentSync,
-  hexCode,
-  isNullLike,
-  parseStrFn,
-  prepPnftAccounts,
-  TMETA_PROG_ID,
-} from "../common";
-import { InstructionDisplay } from "@project-serum/anchor/dist/cjs/coder/borsh/instruction";
-import { CurveType, ParsedAccount, PoolConfig, PoolType } from "../types";
-import { findMintProofPDA } from "../tensor_whitelist";
-import { v4 } from "uuid";
-import { AuthorizationData } from "@metaplex-foundation/mpl-token-metadata";
 
 /*
 Guide for protocol rollout: https://www.notion.so/tensor-hq/Protocol-Deployment-playbook-d345244ec21e48fb8a1f37277b38e38e
@@ -892,6 +894,7 @@ export class TensorSwapSDK {
     /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
+      /// Not used: can pass empty array.
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
@@ -928,8 +931,7 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata: metaCreators?.metadata,
-      nftCreators: metaCreators?.creators,
+      metaCreators,
       nftMint,
       destAta: escrowPda,
       authData,
@@ -1061,8 +1063,11 @@ export class TensorSwapSDK {
     /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
+      /// Not used: can pass empty array.
       creators: PublicKey[];
     };
+    /// If provided, skips RPC call to fetch on-chain metadata.
+    nftRuleSet?: PublicKey;
     authData?: AuthorizationData | null;
     //passing in null or undefined means these ixs are NOT included
     compute?: number | null;
@@ -1096,8 +1101,7 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata: metaCreators?.metadata,
-      nftCreators: metaCreators?.creators,
+      metaCreators,
       nftMint,
       destAta: nftDest,
       authData,
@@ -1321,8 +1325,7 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata: metaCreators?.metadata,
-      nftCreators: metaCreators?.creators,
+      metaCreators,
       nftMint,
       destAta: nftBuyerAcc,
       authData,
@@ -1492,8 +1495,7 @@ export class TensorSwapSDK {
     ] = await Promise.all([
       prepPnftAccounts({
         connection: this.program.provider.connection,
-        nftMetadata: metaCreators?.metadata,
-        nftCreators: metaCreators?.creators,
+        metaCreators,
         nftMint,
         destAta: escrowPda,
         authData,
@@ -1501,8 +1503,7 @@ export class TensorSwapSDK {
       }),
       prepPnftAccounts({
         connection: this.program.provider.connection,
-        nftMetadata: metaCreators?.metadata,
-        nftCreators: metaCreators?.creators,
+        metaCreators,
         nftMint,
         destAta: ownerAtaAcc,
         authData,
@@ -2029,6 +2030,7 @@ export class TensorSwapSDK {
     /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
+      /// Not used: can pass empty array.
       creators: PublicKey[];
     };
     marginNr: number;
@@ -2072,8 +2074,7 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata: metaCreators?.metadata,
-      nftCreators: metaCreators?.creators,
+      metaCreators,
       nftMint,
       destAta: ownerAtaAcc,
       authData,
@@ -2168,6 +2169,7 @@ export class TensorSwapSDK {
     /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
+      /// Not used: can pass empty array.
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
@@ -2194,8 +2196,7 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata: metaCreators?.metadata,
-      nftCreators: metaCreators?.creators,
+      metaCreators,
       nftMint,
       destAta: escrowPda,
       authData,
@@ -2270,6 +2271,7 @@ export class TensorSwapSDK {
     /// If provided, skips RPC call to fetch on-chain metadata + creators.
     metaCreators?: {
       metadata: PublicKey;
+      /// Not used: can pass empty array.
       creators: PublicKey[];
     };
     authData?: AuthorizationData | null;
@@ -2295,8 +2297,7 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata: metaCreators?.metadata,
-      nftCreators: metaCreators?.creators,
+      metaCreators,
       nftMint,
       destAta: nftDest,
       authData,
@@ -2401,8 +2402,7 @@ export class TensorSwapSDK {
       authDataSerialized,
     } = await prepPnftAccounts({
       connection: this.program.provider.connection,
-      nftMetadata: metaCreators?.metadata,
-      nftCreators: metaCreators?.creators,
+      metaCreators,
       nftMint,
       destAta: nftBuyerAcc,
       authData,
