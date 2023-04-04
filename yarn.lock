@@ -1195,9 +1195,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tensor-hq/tensor-common@npm:^0.9.5":
-  version: 0.9.5
-  resolution: "@tensor-hq/tensor-common@npm:0.9.5::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.9.5%2Ff6171c6998274fa7c084f1d90c793efa396639e4"
+"@tensor-hq/tensor-common@npm:^0.9.6":
+  version: 0.9.6
+  resolution: "@tensor-hq/tensor-common@npm:0.9.6::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.9.6%2F3869c66c987bfffd2791dad0251e1c2bfbd308a2"
   dependencies:
     "@metaplex-foundation/mpl-auction-house": ^2.1.1
     "@metaplex-foundation/mpl-token-auth-rules": ^1.2.0
@@ -1208,9 +1208,9 @@ __metadata:
     big.js: ^6.2.1
     bn.js: ^5.2.1
     bs58: ^5.0.0
-    hadeswap-sdk: ^0.8.24
+    hadeswap-sdk: ^0.8.25
     typescript: ^4.7.4
-  checksum: 62e9be60efe6ef87ef968f8a9faf2d2a467555f122e576de819b69253a68884c45a54ccbce1cf0d8575cc234f821a644afab04ad0408d2d413eedcfc7bf4bca5
+  checksum: 8280ee1c3fe935a07ed652dbd2959438e6b116c00cae7e8e430d16838ed365df4e99f7974f621cc29f50a80a0e78c627bbcbd09267c685c8199e4a4d072db913
   languageName: node
   linkType: hard
 
@@ -1228,7 +1228,7 @@ __metadata:
     "@saberhq/solana-contrib": ^1.14.11
     "@solana/spl-token": ^0.3.7
     "@solana/web3.js": ^1.73.0
-    "@tensor-hq/tensor-common": ^0.9.5
+    "@tensor-hq/tensor-common": ^0.9.6
     "@types/big.js": ^6.1.5
     "@types/bn.js": ^5.1.0
     "@types/chai": ^4.3.0
@@ -3376,11 +3376,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hadeswap-sdk@npm:^0.8.24":
-  version: 0.8.24
-  resolution: "hadeswap-sdk@npm:0.8.24"
+"hadeswap-sdk@npm:^0.8.25":
+  version: 0.8.25
+  resolution: "hadeswap-sdk@npm:0.8.25"
   dependencies:
-    "@metaplex-foundation/js": ^0.18.3
     "@metaplex-foundation/mpl-token-metadata": ^2.8.1
     "@project-serum/anchor": ^0.26.0
     "@solana/web3.js": ^1.73.2
@@ -3390,7 +3389,7 @@ __metadata:
     lodash: ^4.17.21
     merkletreejs: ^0.3.9
     npm: ^9.2.0
-  checksum: d64c6b55ae24a046db0a43689046a36c8a33787a1f7ff0d4ee02f27bc5643844508d1f500d39838c88a12fd5ea8bc4b3ddbb8e003b6a91c62a77f5c574bdc29b
+  checksum: 1c9a5ad05318edfb24199197050313f6ba4d047097aad182213bf80120a47114f12dd976d155d8ffb908621a901a0e410e62b20bc4f7944c1fac5afa11472b1e
   languageName: node
   linkType: hard
 
