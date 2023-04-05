@@ -129,10 +129,14 @@ pub struct BuySingleListing<'info> {
     pub dest_token_record: UncheckedAccount<'info>,
 
     pub pnft_shared: ProgNftShared<'info>,
+
+    /// CHECK: validated by mplex's pnft code
+    pub auth_rules: UncheckedAccount<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub taker_broker: UncheckedAccount<'info>,
     // remaining accounts:
-    // CHECK: validate it's present on metadata in handler
-    // 1. optional authorization_rules, only if present on metadata
-    // 2. 0 to N creator accounts.
+    // 1. 0 to N creator accounts.
 }
 
 impl<'info> BuySingleListing<'info> {
@@ -165,6 +169,7 @@ pub fn handler<'info, 'b>(
     max_price: u64,
     rules_acc_present: bool,
     authorization_data: Option<AuthorizationDataLocal>,
+    optional_royalty_pct: Option<u16>,
 ) -> Result<()> {
     let single_listing = &ctx.accounts.single_listing;
 
@@ -172,8 +177,7 @@ pub fn handler<'info, 'b>(
 
     let current_price = single_listing.price;
     let tswap_fee = calc_tswap_fee(STANDARD_FEE_BPS, current_price)?;
-    // TODO add ability to pay optional royalties
-    let creators_fee = calc_creators_fee(metadata, current_price, None)?;
+    let creators_fee = calc_creators_fee(metadata, current_price, optional_royalty_pct)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -189,17 +193,23 @@ pub fn handler<'info, 'b>(
     }
 
     // transfer fee to Tensorswap
+    let broker_fee = unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
+    let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
+    ctx.accounts.transfer_lamports(
+        &ctx.accounts.fee_vault.to_account_info(),
+        tswap_less_broker_fee,
+    )?;
     ctx.accounts
-        .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
+        .transfer_lamports(&ctx.accounts.taker_broker.to_account_info(), broker_fee)?;
 
     // transfer nft to buyer
-    // has to go before creators fee calc below, coz we need to drain 1 optional acc
-    let remaining_accounts = &mut ctx.remaining_accounts.iter();
+    let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
     let auth_rules = if rules_acc_present {
-        Some(next_account_info(remaining_accounts)?)
+        Some(auth_rules_acc_info)
     } else {
         None
     };
+
     send_pnft(
         &ctx.accounts.tswap.to_account_info(),
         &ctx.accounts.buyer.to_account_info(),
@@ -224,6 +234,7 @@ pub fn handler<'info, 'b>(
     )?;
 
     //send royalties
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
     transfer_creators_fee(
         None,
         Some(FromExternal {

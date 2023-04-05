@@ -62,6 +62,60 @@ describe("tswap buy", () => {
     }
   });
 
+  it("buy from nft pool (pay taker broker)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const { owner, buyer } of [
+      { owner: traderA, buyer: traderB },
+      { owner: traderB, buyer: traderA },
+    ]) {
+      const takerBroker = Keypair.generate().publicKey;
+      await testMakePoolBuyNft({
+        tswap,
+        owner,
+        buyer,
+        config: nftPoolConfig,
+        expectedLamports: LAMPORTS_PER_SOL,
+        takerBroker,
+      });
+    }
+  });
+
+  it("buy from nft pool (pay optional royalties)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const optionalRoyaltyPct of [null, 0, 33, 50, 100, 105]) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      if (optionalRoyaltyPct && optionalRoyaltyPct > 100) {
+        await expect(
+          testMakePoolBuyNft({
+            tswap,
+            owner: traderA,
+            buyer: traderB,
+            config: nftPoolConfig,
+            expectedLamports: LAMPORTS_PER_SOL,
+            optionalRoyaltyPct,
+            creators,
+            royaltyBps: 1000,
+          })
+        ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadRoyaltiesPct"));
+        return;
+      }
+      await testMakePoolBuyNft({
+        tswap,
+        owner: traderA,
+        buyer: traderB,
+        config: nftPoolConfig,
+        expectedLamports: LAMPORTS_PER_SOL,
+        optionalRoyaltyPct,
+        creators,
+        royaltyBps: 1000,
+      });
+    }
+  });
+
   it("buy from trade pool", async () => {
     const [traderA, traderB] = await makeNTraders(2);
     // Intentionally do this serially (o/w balances will race).

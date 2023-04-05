@@ -17,6 +17,7 @@ import {
 import {
   beforeHook,
   createAndFundATA,
+  CreatorInput,
   getAccount,
   makeMintTwoAta,
   makeNTraders,
@@ -28,7 +29,7 @@ import {
   TSWAP_FEE_PCT,
 } from "./common";
 import { TokenAccountNotFoundError } from "@solana/spl-token";
-import { isNullLike } from "../../src";
+import { isNullLike, TAKER_BROKER_PCT } from "../../src";
 
 describe("tswap single listing", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -38,6 +39,278 @@ describe("tswap single listing", () => {
   // All tests need these before they start.
   before(async () => {
     ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
+  });
+
+  it("list + delist single listing", async () => {
+    const [owner] = await makeNTraders(1);
+    const royaltyBps = 10000;
+    const price = new BN(LAMPORTS_PER_SOL);
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER,
+      owner
+    );
+    const programmable = true;
+    const creators = Array(5)
+      .fill(null)
+      .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+    const { mint, ata } = await createAndFundATA(
+      owner,
+      undefined,
+      royaltyBps,
+      creators,
+      undefined,
+      undefined,
+      programmable,
+      ruleSetAddr
+    );
+
+    const ownerLamports1 = await getLamports(owner.publicKey);
+    const { escrowPda } = await testMakeList({ mint, price, ata, owner });
+
+    //owner's lamports went down
+    const ownerLamports2 = await getLamports(owner.publicKey);
+    expect(ownerLamports2).lt(ownerLamports1!);
+
+    // --------------------------------------- delist
+
+    const {
+      tx: { ixs: delistIxs },
+    } = await swapSdk.delist({
+      nftMint: mint,
+      nftDest: ata,
+      owner: owner.publicKey,
+    });
+    await buildAndSendTx({
+      ixs: delistIxs,
+      extraSigners: [owner],
+    });
+    let traderAcc = await getAccount(ata);
+    expect(traderAcc.amount.toString()).eq("1");
+    // Escrow closed.
+    await expect(getAccount(escrowPda)).rejectedWith(TokenAccountNotFoundError);
+
+    //owner's lamports up since account got closed
+    const ownerLamports3 = await getLamports(owner.publicKey);
+    expect(ownerLamports3).gt(ownerLamports2!);
+  });
+
+  it("list + delist single listing (separate payer)", async () => {
+    const [owner, payer] = await makeNTraders(2);
+    const royaltyBps = 10000;
+    const price = new BN(LAMPORTS_PER_SOL);
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER,
+      owner
+    );
+    const programmable = true;
+    const creators = Array(5)
+      .fill(null)
+      .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+    const { mint, ata } = await createAndFundATA(
+      owner,
+      undefined,
+      royaltyBps,
+      creators,
+      undefined,
+      undefined,
+      programmable,
+      ruleSetAddr
+    );
+
+    const payerLamports1 = await getLamports(payer.publicKey);
+    const ownerLamports1 = await getLamports(owner.publicKey);
+
+    const { escrowPda } = await testMakeList({
+      mint,
+      price,
+      ata,
+      owner,
+      payer,
+    });
+
+    const payerLamports2 = await getLamports(payer.publicKey);
+    const ownerLamports2 = await getLamports(owner.publicKey);
+
+    //only payer's lamports went down
+    expect(payerLamports2).lt(payerLamports1!);
+    expect(ownerLamports2).eq(ownerLamports1!);
+
+    // --------------------------------------- delist
+
+    const {
+      tx: { ixs: delistIxs },
+    } = await swapSdk.delist({
+      nftMint: mint,
+      nftDest: ata,
+      owner: owner.publicKey,
+      payer: payer.publicKey,
+    });
+    await buildAndSendTx({
+      ixs: delistIxs,
+      extraSigners: [owner, payer],
+    });
+    let traderAcc = await getAccount(ata);
+    expect(traderAcc.amount.toString()).eq("1");
+    // Escrow closed.
+    await expect(getAccount(escrowPda)).rejectedWith(TokenAccountNotFoundError);
+
+    const payerLamports3 = await getLamports(payer.publicKey);
+    const ownerLamports3 = await getLamports(owner.publicKey);
+
+    //payer's lamports up since account got closed
+    expect(payerLamports3).gt(payerLamports2!);
+    expect(ownerLamports3).eq(ownerLamports2!);
+  });
+
+  it("list + edit + buy single listing (taker broker)", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+    const royaltyBps = 10000;
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER,
+      owner
+    );
+    const programmable = true;
+
+    for (const price of [100, LAMPORTS_PER_SOL, 0.5 * LAMPORTS_PER_SOL]) {
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      const takerBroker = Keypair.generate().publicKey;
+      const { mint, ata, otherAta } = await makeMintTwoAta(
+        owner,
+        buyer,
+        royaltyBps,
+        creators,
+        undefined,
+        undefined,
+        programmable,
+        ruleSetAddr
+      );
+
+      await testMakeList({
+        mint,
+        price: new BN(price),
+        ata,
+        owner,
+      });
+
+      // --------------------------------------- edit
+
+      const editedPrice = price * 2;
+      const {
+        tx: { ixs },
+      } = await swapSdk.editSingleListing({
+        nftMint: mint,
+        owner: owner.publicKey,
+        price: new BN(editedPrice),
+      });
+      await buildAndSendTx({
+        ixs,
+        extraSigners: [owner],
+      });
+
+      // --------------------------------------- buy
+
+      const {
+        tx: { ixs: badBuyIxs },
+      } = await swapSdk.buySingleListing({
+        buyer: buyer.publicKey,
+        maxPrice: new BN(price), //<-- original price
+        nftBuyerAcc: otherAta,
+        nftMint: mint,
+        owner: owner.publicKey,
+      });
+      await expect(
+        buildAndSendTx({
+          ixs: badBuyIxs,
+          extraSigners: [buyer],
+        })
+      ).to.be.rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
+
+      await buySingleListing({
+        buyer,
+        expectedLamports: editedPrice,
+        mint,
+        otherAta,
+        owner,
+        creators,
+        royaltyBps,
+        programmable,
+        takerBroker,
+      });
+    }
+  });
+
+  it("list + edit + buy single listing (pay optional royalties)", async () => {
+    const [owner, buyer] = await makeNTraders(2);
+    const royaltyBps = 10000;
+
+    for (const optionalRoyaltyPct of [null, 0, 33, 50, 100]) {
+      const price = LAMPORTS_PER_SOL;
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      const { mint, ata, otherAta } = await makeMintTwoAta(
+        owner,
+        buyer,
+        royaltyBps,
+        creators,
+        undefined,
+        undefined
+      );
+
+      await testMakeList({
+        mint,
+        price: new BN(price),
+        ata,
+        owner,
+      });
+
+      // --------------------------------------- edit
+
+      const editedPrice = price * 2;
+      const {
+        tx: { ixs },
+      } = await swapSdk.editSingleListing({
+        nftMint: mint,
+        owner: owner.publicKey,
+        price: new BN(editedPrice),
+      });
+      await buildAndSendTx({
+        ixs,
+        extraSigners: [owner],
+      });
+
+      // --------------------------------------- buy
+
+      const {
+        tx: { ixs: badBuyIxs },
+      } = await swapSdk.buySingleListing({
+        buyer: buyer.publicKey,
+        maxPrice: new BN(price), //<-- original price
+        nftBuyerAcc: otherAta,
+        nftMint: mint,
+        owner: owner.publicKey,
+        optionalRoyaltyPct,
+      });
+      await expect(
+        buildAndSendTx({
+          ixs: badBuyIxs,
+          extraSigners: [buyer],
+        })
+      ).to.be.rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
+
+      await buySingleListing({
+        buyer,
+        expectedLamports: editedPrice,
+        mint,
+        otherAta,
+        owner,
+        creators,
+        royaltyBps,
+        optionalRoyaltyPct,
+      });
+    }
   });
 
   it("list + delist single listing", async () => {
@@ -82,161 +355,6 @@ describe("tswap single listing", () => {
     expect(traderAcc.amount.toString()).eq("1");
     // Escrow closed.
     await expect(getAccount(escrowPda)).rejectedWith(TokenAccountNotFoundError);
-  });
-
-  it("list + edit + buy single listing", async () => {
-    const [owner, buyer] = await makeNTraders(2);
-    const royaltyBps = 10000;
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
-    const programmable = true;
-
-    for (const price of [100, LAMPORTS_PER_SOL, 0.33 * LAMPORTS_PER_SOL]) {
-      const creators = Array(5)
-        .fill(null)
-        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata, otherAta } = await makeMintTwoAta(
-        owner,
-        buyer,
-        royaltyBps,
-        creators,
-        undefined,
-        undefined,
-        programmable,
-        ruleSetAddr
-      );
-
-      const { escrowPda, tswapPda } = await testMakeList({
-        mint,
-        price: new BN(price),
-        ata,
-        owner,
-      });
-
-      // --------------------------------------- edit
-
-      const editedPrice = price * 2;
-      const {
-        tx: { ixs },
-      } = await swapSdk.editSingleListing({
-        nftMint: mint,
-        owner: owner.publicKey,
-        price: new BN(editedPrice),
-      });
-      await buildAndSendTx({
-        ixs,
-        extraSigners: [owner],
-      });
-
-      // --------------------------------------- buy
-
-      const {
-        tx: { ixs: badBuyIxs },
-      } = await swapSdk.buySingleListing({
-        buyer: buyer.publicKey,
-        maxPrice: new BN(price), //<-- original price
-        nftBuyerAcc: otherAta,
-        nftMint: mint,
-        owner: owner.publicKey,
-      });
-      await expect(
-        buildAndSendTx({
-          ixs: badBuyIxs,
-          extraSigners: [buyer],
-        })
-      ).to.be.rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
-
-      const {
-        tx: { ixs: buyIxs },
-      } = await swapSdk.buySingleListing({
-        buyer: buyer.publicKey,
-        maxPrice: new BN(editedPrice),
-        nftBuyerAcc: otherAta,
-        nftMint: mint,
-        owner: owner.publicKey,
-      });
-      return await withLamports(
-        {
-          prevFeeAccLamports: tswapPda,
-          prevSellerLamports: owner.publicKey,
-          prevBuyerLamports: buyer.publicKey,
-        },
-        async ({
-          prevFeeAccLamports,
-          prevSellerLamports,
-          prevBuyerLamports,
-        }) => {
-          await buildAndSendTx({
-            ixs: buyIxs,
-            extraSigners: [buyer],
-          });
-
-          //NFT moved from escrow to trader
-          const traderAcc = await getAccount(otherAta);
-          expect(traderAcc.amount.toString()).eq("1");
-          // Escrow closed.
-          await expect(getAccount(escrowPda)).rejectedWith(
-            TokenAccountNotFoundError
-          );
-
-          const feeAccLamports = await getLamports(tswapPda);
-          const tswapFee = Math.trunc(editedPrice * TSWAP_FEE_PCT);
-          //paid tswap fees (NB: fee account may be un-init before).
-          expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
-
-          // Check creators' balances.
-          let creatorsFee = 0;
-          // Trade pools (when being bought from) charge no royalties.
-          if (!!creators?.length && royaltyBps) {
-            //skip creators when royalties not enough to cover rent
-            let skippedCreators = 0;
-            for (const c of creators) {
-              if (c.share <= 1) {
-                skippedCreators++;
-              }
-            }
-
-            creatorsFee = Math.trunc(
-              (programmable ? royaltyBps / 1e4 : 0) *
-                editedPrice *
-                (1 - skippedCreators / 100)
-            );
-
-            for (const c of creators) {
-              const cBal = await getLamports(c.address);
-              //only run the test if share > 1, else it's skipped && cBal exists (it wont if 0 royalties were paid)
-              if (c.share > 1 && !isNullLike(cBal)) {
-                expect(cBal).eq(
-                  Math.trunc(
-                    ((creatorsFee / (1 - skippedCreators / 100)) * c.share) /
-                      100
-                  )
-                );
-              }
-            }
-          }
-
-          // Buyer pays full amount.
-          const currBuyerLamports = await getLamports(buyer.publicKey);
-          //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
-          if (!programmable) {
-            expect(currBuyerLamports! - prevBuyerLamports!).eq(
-              -1 * (editedPrice + tswapFee + creatorsFee)
-            );
-          }
-
-          // amount sent to owner's wallet
-          const currSellerLamports = await getLamports(owner.publicKey);
-          expect(currSellerLamports! - prevSellerLamports!).eq(
-            editedPrice +
-              (await swapSdk.getSingleListingRent()) +
-              (await swapSdk.getTokenAcctRent())
-          );
-        }
-      );
-    }
   });
 
   it("can't list twice", async () => {
@@ -419,3 +537,146 @@ describe("tswap single listing", () => {
     ).to.be.rejectedWith("0xbc4");
   });
 });
+
+const buySingleListing = async ({
+  mint,
+  otherAta,
+  owner,
+  buyer,
+  expectedLamports,
+  royaltyBps,
+  creators,
+  programmable,
+  lookupTableAccount,
+  optionalRoyaltyPct = null,
+  takerBroker = null,
+}: {
+  mint: PublicKey;
+  otherAta: PublicKey;
+  owner: Keypair;
+  buyer: Keypair;
+  expectedLamports: number;
+  royaltyBps?: number;
+  creators?: CreatorInput[];
+  programmable?: boolean;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+  optionalRoyaltyPct?: number | null;
+  takerBroker?: PublicKey | null;
+}) => {
+  const {
+    tx: { ixs: buyIxs },
+    tswapPda,
+    escrowPda,
+  } = await swapSdk.buySingleListing({
+    buyer: buyer.publicKey,
+    maxPrice: new BN(expectedLamports),
+    nftBuyerAcc: otherAta,
+    nftMint: mint,
+    owner: owner.publicKey,
+    optionalRoyaltyPct,
+    takerBroker,
+  });
+  return await withLamports(
+    {
+      prevFeeAccLamports: tswapPda,
+      prevSellerLamports: owner.publicKey,
+      prevBuyerLamports: buyer.publicKey,
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
+    },
+    async ({
+      prevFeeAccLamports,
+      prevSellerLamports,
+      prevBuyerLamports,
+      prevTakerBroker,
+    }) => {
+      await buildAndSendTx({
+        ixs: buyIxs,
+        extraSigners: [buyer],
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
+      });
+
+      //NFT moved from escrow to trader
+      const traderAcc = await getAccount(otherAta);
+      expect(traderAcc.amount.toString()).eq("1");
+      // Escrow closed.
+      await expect(getAccount(escrowPda)).rejectedWith(
+        TokenAccountNotFoundError
+      );
+
+      //fee for tswap and broker
+      const feeAccLamports = await getLamports(tswapPda);
+      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE_PCT);
+
+      const tswapFeeLessBroker = takerBroker
+        ? Math.trunc((tswapFee * (100 - TAKER_BROKER_PCT)) / 100)
+        : tswapFee;
+      const brokerFee = takerBroker
+        ? Math.trunc((tswapFee * TAKER_BROKER_PCT) / 100)
+        : 0;
+
+      //paid tswap fees (NB: fee account may be un-init before).
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).approximately(
+        tswapFeeLessBroker,
+        1
+      );
+
+      //paid broker
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0 && brokerFee > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
+
+      // Check creators' balances.
+      let creatorsFee = 0;
+      // Trade pools (when being bought from) charge no royalties.
+      if (!!creators?.length && royaltyBps) {
+        //skip creators when royalties not enough to cover rent
+        let skippedCreators = 0;
+        for (const c of creators) {
+          if (c.share <= 1) {
+            skippedCreators++;
+          }
+        }
+
+        const temp = Math.trunc(
+          (programmable
+            ? royaltyBps / 1e4
+            : !isNullLike(optionalRoyaltyPct)
+            ? ((royaltyBps / 1e4) * optionalRoyaltyPct) / 100
+            : 0) *
+            expectedLamports *
+            (1 - skippedCreators / 100)
+        );
+
+        for (const c of creators) {
+          const cBal = await getLamports(c.address);
+          //only run the test if share > 1, else it's skipped && cBal exists (it wont if 0 royalties were paid)
+          if (c.share > 1 && !isNullLike(cBal)) {
+            const expected = Math.trunc((temp * c.share) / 100);
+            expect(cBal).eq(expected);
+            creatorsFee += expected;
+          }
+        }
+      }
+
+      // Buyer pays full amount.
+      const currBuyerLamports = await getLamports(buyer.publicKey);
+      //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
+      if (!programmable) {
+        expect(currBuyerLamports! - prevBuyerLamports!).eq(
+          -1 * (expectedLamports + tswapFee + creatorsFee)
+        );
+      }
+
+      // amount sent to owner's wallet
+      const currSellerLamports = await getLamports(owner.publicKey);
+      expect(currSellerLamports! - prevSellerLamports!).eq(
+        expectedLamports +
+          (await swapSdk.getSingleListingRent()) +
+          (await swapSdk.getTokenAcctRent())
+      );
+    }
+  );
+};

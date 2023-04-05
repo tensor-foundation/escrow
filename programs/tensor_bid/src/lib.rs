@@ -150,7 +150,6 @@ pub mod tensor_bid {
 
         // transfer nft directly to bidder
         // has to go before any transfer_lamports, o/w we get `sum of account balances before and after instruction do not match`
-        // has to go before creators fee calc below, coz we need to drain 1 optional acc
         let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
         let auth_rules = if rules_acc_present {
             Some(auth_rules_acc_info)
@@ -301,21 +300,18 @@ pub mod tensor_bid {
 
         // transfer fee to Tensorswap and the broker
         left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-        let tswap_less_broker = unwrap_checked!({
-            tswap_fee
-                .checked_mul(100 - TAKER_BROKER_PCT)?
-                .checked_div(100)
-        });
-        let broker = unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
+        let broker_fee =
+            unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
+        let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
         transfer_lamports_from_pda(
             &ctx.accounts.bid_state.to_account_info(),
             &ctx.accounts.fee_vault.to_account_info(),
-            tswap_less_broker,
+            tswap_less_broker_fee,
         )?;
         transfer_lamports_from_pda(
             &ctx.accounts.bid_state.to_account_info(),
             &ctx.accounts.taker_broker.to_account_info(),
-            broker,
+            broker_fee,
         )?;
 
         // transfer royalties

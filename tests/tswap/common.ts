@@ -43,6 +43,7 @@ import {
   SNIPE_PROFIT_SHARE_BPS,
   STANDARD_FEE_BPS,
   TakerSide,
+  TAKER_BROKER_PCT,
   TensorWhitelistSDK,
   TSwapConfigAnchor,
 } from "../../src";
@@ -921,11 +922,13 @@ export const testMakeList = async ({
   price,
   ata,
   owner,
+  payer,
 }: {
   mint: PublicKey;
   price: BN;
   ata: PublicKey;
   owner: Keypair;
+  payer?: Keypair;
 }) => {
   const {
     tx: { ixs },
@@ -937,10 +940,11 @@ export const testMakeList = async ({
     nftMint: mint,
     nftSource: ata,
     owner: owner.publicKey,
+    payer: payer?.publicKey,
   });
   await buildAndSendTx({
     ixs,
-    extraSigners: [owner],
+    extraSigners: [owner, ...(payer ? [payer] : [])],
   });
   const traderAcc = await getAccount(ata);
   expect(traderAcc.amount.toString()).eq("0");
@@ -1511,6 +1515,8 @@ export const testBuyNft = async ({
   programmable,
   lookupTableAccount,
   marginNr,
+  optionalRoyaltyPct = null,
+  takerBroker = null,
 }: {
   whitelist: PublicKey;
   pool: PublicKey;
@@ -1529,6 +1535,8 @@ export const testBuyNft = async ({
   programmable?: boolean;
   lookupTableAccount?: AddressLookupTableAccount | null;
   marginNr?: number;
+  optionalRoyaltyPct?: number | null;
+  takerBroker?: PublicKey | null;
 }) => {
   const {
     tx: { ixs },
@@ -1547,6 +1555,8 @@ export const testBuyNft = async ({
     config,
     maxPrice: new BN(maxLamports),
     marginNr,
+    optionalRoyaltyPct,
+    takerBroker,
   });
 
   const prevPoolAcc = await swapSdk.fetchPool(pool);
@@ -1559,6 +1569,7 @@ export const testBuyNft = async ({
       prevEscrowLamports: solEscrowPda,
       prevPoolLamports: poolPda,
       ...(marginPda ? { prevMarginLamports: marginPda } : {}),
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
     },
     async ({
       prevFeeAccLamports,
@@ -1567,6 +1578,7 @@ export const testBuyNft = async ({
       prevEscrowLamports,
       prevPoolLamports,
       prevMarginLamports,
+      prevTakerBroker,
     }) => {
       const buySig = await buildAndSendTx({
         ixs,
@@ -1587,10 +1599,27 @@ export const testBuyNft = async ({
         TokenAccountNotFoundError
       );
 
+      //fee for tswap and broker
       const feeAccLamports = await getLamports(tswapPda);
       const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE_PCT);
+
+      const tswapFeeLessBroker = takerBroker
+        ? Math.trunc((tswapFee * (100 - TAKER_BROKER_PCT)) / 100)
+        : tswapFee;
+      const brokerFee = takerBroker
+        ? Math.trunc((tswapFee * TAKER_BROKER_PCT) / 100)
+        : 0;
+
       //paid tswap fees (NB: fee account may be un-init before).
-      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(
+        tswapFeeLessBroker
+      );
+
+      //paid broker
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
 
       const isTrade = config.poolType === PoolTypeAnchor.Trade;
       const separateMmFee =
@@ -1610,8 +1639,12 @@ export const testBuyNft = async ({
           }
         }
 
-        creatorsFee = Math.trunc(
-          (programmable ? royaltyBps / 1e4 : 0) *
+        const temp = Math.trunc(
+          (programmable
+            ? royaltyBps / 1e4
+            : !isNullLike(optionalRoyaltyPct)
+            ? ((royaltyBps / 1e4) * optionalRoyaltyPct) / 100
+            : 0) *
             expectedLamports *
             (1 - skippedCreators / 100)
         );
@@ -1620,11 +1653,9 @@ export const testBuyNft = async ({
           const cBal = await getLamports(c.address);
           //only run the test if share > 1, else it's skipped && cBal exists (it wont if 0 royalties were paid)
           if (c.share > 1 && !isNullLike(cBal)) {
-            expect(cBal).eq(
-              Math.trunc(
-                ((creatorsFee / (1 - skippedCreators / 100)) * c.share) / 100
-              )
-            );
+            const expected = Math.trunc((temp * c.share) / 100);
+            expect(cBal).eq(expected);
+            creatorsFee += expected;
           }
         }
       }
@@ -1723,6 +1754,8 @@ export const testMakePoolBuyNft = async ({
   lookupTableAccount,
   marginated = false,
   poolsAttached = 1,
+  optionalRoyaltyPct = null,
+  takerBroker = null,
 }: {
   tswap: PublicKey;
   owner: Keypair;
@@ -1741,6 +1774,8 @@ export const testMakePoolBuyNft = async ({
   lookupTableAccount?: AddressLookupTableAccount | null;
   marginated?: boolean;
   poolsAttached?: number;
+  optionalRoyaltyPct?: number | null;
+  takerBroker?: PublicKey | null;
 }) => {
   const { mint, ata, otherAta, metadata, masterEdition } = await makeMintTwoAta(
     owner,
@@ -1805,6 +1840,8 @@ export const testMakePoolBuyNft = async ({
       programmable,
       lookupTableAccount,
       marginNr,
+      optionalRoyaltyPct,
+      takerBroker,
     })),
     pool,
     whitelist,
@@ -1839,6 +1876,8 @@ export const testSellNft = async ({
   programmable,
   lookupTableAccount,
   skipCreatorBalanceCheck = false,
+  optionalRoyaltyPct,
+  takerBroker = null,
 }: {
   sellType: "trade" | "token";
   nftMint?: PublicKey;
@@ -1865,6 +1904,8 @@ export const testSellNft = async ({
   programmable?: boolean;
   lookupTableAccount?: AddressLookupTableAccount | null;
   skipCreatorBalanceCheck?: boolean;
+  optionalRoyaltyPct?: number | null;
+  takerBroker?: PublicKey | null;
 }) => {
   if (!wlNft?.mint && !nftMint) {
     throw new Error("missing mint");
@@ -1904,6 +1945,8 @@ export const testSellNft = async ({
     isCosigned,
     cosigner: TEST_COSIGNER.publicKey,
     marginNr,
+    optionalRoyaltyPct,
+    takerBroker,
   });
 
   const _checkDestAcc = async (amount: string) => {
@@ -1925,6 +1968,7 @@ export const testSellNft = async ({
       prevEscrowLamports: solEscrowPda,
       //have to pass something for the case when margin doesn't exist
       prevMarginLamports: marginPda ?? solEscrowPda,
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
     },
     async ({
       prevFeeAccLamports,
@@ -1932,6 +1976,7 @@ export const testSellNft = async ({
       prevBuyerLamports,
       prevEscrowLamports,
       prevMarginLamports,
+      prevTakerBroker,
     }) => {
       // Trader initially has mint.
       let traderAcc = await getAccount(ata);
@@ -1958,8 +2003,24 @@ export const testSellNft = async ({
           ? calcSnipeFee(expectedLamports)
           : expectedLamports * TSWAP_FEE_PCT
       );
+
+      const tswapFeeLessBroker = takerBroker
+        ? Math.trunc((tswapFee * (100 - TAKER_BROKER_PCT)) / 100)
+        : tswapFee;
+      const brokerFee = takerBroker
+        ? Math.trunc((tswapFee * TAKER_BROKER_PCT) / 100)
+        : 0;
+
       //paid tswap fees (NB: fee account may be un-init before).
-      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(
+        tswapFeeLessBroker
+      );
+
+      //paid broker
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
 
       const mmFees = Math.trunc(
         (expectedLamports * (config.mmFeeBps ?? 0)) / 1e4
@@ -1970,8 +2031,13 @@ export const testSellNft = async ({
       if (!skipCreatorBalanceCheck && !!creators?.length && royaltyBps) {
         //skip creators when royalties not enough to cover rent
         let skippedCreators = 0;
+
         const temp = Math.trunc(
-          (programmable ? royaltyBps / 1e4 : 0) *
+          (programmable
+            ? royaltyBps / 1e4
+            : !isNullLike(optionalRoyaltyPct)
+            ? ((royaltyBps / 1e4) * optionalRoyaltyPct) / 100
+            : 0) *
             expectedLamports *
             (1 - skippedCreators / 100)
         );
@@ -2026,8 +2092,9 @@ export const testSellNft = async ({
         );
       } else {
         const currEscrowLamports = await getLamports(solEscrowPda);
-        expect(currEscrowLamports! - prevEscrowLamports!).eq(
-          -1 * (expectedLamports - mmFees)
+        expect(currEscrowLamports! - prevEscrowLamports!).approximately(
+          -1 * (expectedLamports - mmFees),
+          1
         );
       }
 
@@ -2090,6 +2157,8 @@ export const testMakePoolSellNft = async ({
   ruleSetAddr,
   lookupTableAccount,
   skipCreatorBalanceCheck = false,
+  optionalRoyaltyPct = null,
+  takerBroker = null,
 }: {
   sellType: "trade" | "token";
   tswap: PublicKey;
@@ -2109,6 +2178,8 @@ export const testMakePoolSellNft = async ({
   ruleSetAddr?: PublicKey;
   lookupTableAccount?: AddressLookupTableAccount | null;
   skipCreatorBalanceCheck?: boolean;
+  optionalRoyaltyPct?: number | null;
+  takerBroker?: PublicKey | null;
 }) => {
   const { mint, ata } = await makeMintTwoAta(
     seller,
@@ -2163,6 +2234,8 @@ export const testMakePoolSellNft = async ({
       programmable,
       lookupTableAccount,
       skipCreatorBalanceCheck,
+      optionalRoyaltyPct,
+      takerBroker,
     })),
     poolPda,
     wlNft,

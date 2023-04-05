@@ -155,9 +155,9 @@ pub struct WithdrawNft<'info> {
     pub dest_token_record: UncheckedAccount<'info>,
 
     pub pnft_shared: ProgNftShared<'info>,
-    // remaining accounts:
-    // CHECK: validate it's present on metadata in handler
-    // 1. optional authorization_rules, only if present on metadata
+
+    /// CHECK: validated by mplex's pnft code
+    pub auth_rules: UncheckedAccount<'info>,
 }
 
 impl<'info> WithdrawNft<'info> {
@@ -189,9 +189,15 @@ impl<'info> Validate<'info> for WithdrawNft<'info> {
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, WithdrawNft<'info>>,
     authorization_data: Option<AuthorizationDataLocal>,
+    rules_acc_present: bool,
 ) -> Result<()> {
-    let rem_acc = &mut ctx.remaining_accounts.iter().peekable();
-    let auth_rules = rem_acc.peek().copied();
+    let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
+    let auth_rules = if rules_acc_present {
+        Some(auth_rules_acc_info)
+    } else {
+        None
+    };
+
     send_pnft(
         &ctx.accounts.tswap.to_account_info(),
         &ctx.accounts.owner.to_account_info(),

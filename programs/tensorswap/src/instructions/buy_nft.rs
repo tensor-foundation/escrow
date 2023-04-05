@@ -173,12 +173,17 @@ pub struct BuyNft<'info> {
     pub dest_token_record: UncheckedAccount<'info>,
 
     pub pnft_shared: ProgNftShared<'info>,
+
+    /// CHECK: validated by mplex's pnft code
+    pub auth_rules: UncheckedAccount<'info>,
+    /// CHECK: optional, manually handled in handler: 1)seeds, 2)program owner, 3)normal owner, 4)margin acc stored on pool
+    #[account(mut)]
+    pub margin_account: UncheckedAccount<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub taker_broker: UncheckedAccount<'info>,
     // remaining accounts:
-    // CHECK: validate it's present on metadata in handler
-    // 1. optional authorization_rules, only if present on metadata
-    // CHECK: 1)seeds, 2)program owner, 3)normal owner, 4)margin acc stored on pool
-    // 2. optional margin account (even without sniping can be used)
-    // 3. 0 to N creator accounts.
+    // 1. optional 0 to N creator accounts.
 }
 
 impl<'info> BuyNft<'info> {
@@ -226,6 +231,7 @@ pub fn handler<'info, 'b>(
     max_price: u64,
     rules_acc_present: bool,
     authorization_data: Option<AuthorizationDataLocal>,
+    optional_royalty_pct: Option<u16>,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
 
@@ -233,7 +239,7 @@ pub fn handler<'info, 'b>(
 
     let current_price = pool.current_price(TakerSide::Buy)?;
     let tswap_fee = pool.calc_tswap_fee(current_price)?;
-    let creators_fee = pool.calc_creators_fee(metadata, current_price)?;
+    let creators_fee = pool.calc_creators_fee(metadata, current_price, optional_royalty_pct)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -249,13 +255,14 @@ pub fn handler<'info, 'b>(
     }
 
     // transfer nft to buyer
-    // has to go before creators fee calc below, coz we need to drain 1 optional acc
-    let remaining_accounts = &mut ctx.remaining_accounts.iter();
+    // has to go before any transfer_lamports, o/w we get `sum of account balances before and after instruction do not match`
+    let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
     let auth_rules = if rules_acc_present {
-        Some(next_account_info(remaining_accounts)?)
+        Some(auth_rules_acc_info)
     } else {
         None
     };
+
     send_pnft(
         &ctx.accounts.tswap.to_account_info(),
         &ctx.accounts.buyer.to_account_info(),
@@ -282,8 +289,14 @@ pub fn handler<'info, 'b>(
     // --------------------------------------- SOL transfers
 
     // transfer fee to Tensorswap (on top of current price)
+    let broker_fee = unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
+    let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
+    ctx.accounts.transfer_lamports(
+        &ctx.accounts.fee_vault.to_account_info(),
+        tswap_less_broker_fee,
+    )?;
     ctx.accounts
-        .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
+        .transfer_lamports(&ctx.accounts.taker_broker.to_account_info(), broker_fee)?;
 
     //(!) this block has to come before royalties transfer due to remaining_accounts
     let destination = match pool.config.pool_type {
@@ -293,7 +306,7 @@ pub fn handler<'info, 'b>(
         // NB: no explicit MM fees here: that's because it goes directly to the escrow anyways.
         PoolType::Trade => match &pool.margin {
             Some(stored_margin_account) => {
-                let margin_account_info = next_account_info(remaining_accounts)?;
+                let margin_account_info = &ctx.accounts.margin_account.to_account_info();
                 assert_decode_margin_account(
                     margin_account_info,
                     &ctx.accounts.tswap.to_account_info(),
@@ -310,6 +323,7 @@ pub fn handler<'info, 'b>(
     };
 
     // transfer royalties (on top of current price)
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
     transfer_creators_fee(
         None,
         Some(FromExternal {

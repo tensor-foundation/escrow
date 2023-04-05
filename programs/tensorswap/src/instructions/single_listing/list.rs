@@ -22,7 +22,7 @@ pub struct List<'info> {
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(
         init, //<-- this HAS to be init, not init_if_needed for safety (else single listings and pool listings can get mixed)
-        payer = owner,
+        payer = payer,
         seeds=[
             b"nft_escrow".as_ref(),
             nft_mint.key().as_ref(),
@@ -34,7 +34,7 @@ pub struct List<'info> {
 
     #[account(
         init, //<-- this HAS to be init, not init_if_needed for safety (else single listings and pool listings can get mixed)
-        payer = owner,
+        payer = payer,
         seeds=[
             b"single_listing".as_ref(),
             nft_mint.key().as_ref(),
@@ -113,21 +113,31 @@ pub struct List<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 
     pub pnft_shared: ProgNftShared<'info>,
-    // remaining accounts:
-    // CHECK: validate it's present on metadata in handler
-    // 1. optional authorization_rules, only if present on metadata
+
+    /// CHECK: validated by mplex's pnft code
+    pub auth_rules: UncheckedAccount<'info>,
+
+    //separate payer so that a program can list with owner being a PDA
+    #[account(mut)]
+    pub payer: Signer<'info>,
 }
 
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, List<'info>>,
     price: u64,
     authorization_data: Option<AuthorizationDataLocal>,
+    rules_acc_present: bool,
 ) -> Result<()> {
-    let rem_acc = &mut ctx.remaining_accounts.iter().peekable();
-    let auth_rules = rem_acc.peek().copied();
+    let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
+    let auth_rules = if rules_acc_present {
+        Some(auth_rules_acc_info)
+    } else {
+        None
+    };
+
     send_pnft(
         &ctx.accounts.owner.to_account_info(),
-        &ctx.accounts.owner.to_account_info(),
+        &ctx.accounts.payer.to_account_info(),
         &ctx.accounts.nft_source,
         &ctx.accounts.nft_escrow,
         &ctx.accounts.tswap.to_account_info(),

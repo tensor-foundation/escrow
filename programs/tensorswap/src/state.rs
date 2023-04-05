@@ -191,7 +191,7 @@ pub fn calc_creators_fee(
         && metadata.token_standard.unwrap() == TokenStandard::ProgrammableNonFungible
     {
         //for pnfts, pay full royalties
-        metadata.data.seller_fee_basis_points
+        metadata.data.seller_fee_basis_points as u64
     } else if let Some(optional_royalty_pct) = optional_royalty_pct {
         if optional_royalty_pct > 100 {
             throw_err!(BadRoyaltiesPct);
@@ -199,18 +199,16 @@ pub fn calc_creators_fee(
 
         //if optional passed, pay optional royalties
         unwrap_checked!({
-            metadata
-                .data
-                .seller_fee_basis_points
-                .checked_mul(optional_royalty_pct)?
-                .checked_div(100)
+            (metadata.data.seller_fee_basis_points as u64)
+                .checked_mul(optional_royalty_pct as u64)?
+                .checked_div(100_u64)
         })
     } else {
         //else pay 0
-        0
+        0_u64
     };
     let fee = unwrap_checked!({
-        (creators_fee_bps as u64)
+        creators_fee_bps
             .checked_mul(price)?
             .checked_div(HUNDRED_PCT_BPS as u64)
     });
@@ -321,9 +319,13 @@ impl Pool {
         Ok(fee)
     }
 
-    pub fn calc_creators_fee(&self, metadata: &Metadata, current_price: u64) -> Result<u64> {
-        // TODO add ability to pay optional royalties
-        calc_creators_fee(metadata, current_price, None)
+    pub fn calc_creators_fee(
+        &self,
+        metadata: &Metadata,
+        current_price: u64,
+        optional_royalty_pct: Option<u16>,
+    ) -> Result<u64> {
+        calc_creators_fee(metadata, current_price, optional_royalty_pct)
     }
 
     pub fn current_price(&self, side: TakerSide) -> Result<u64> {

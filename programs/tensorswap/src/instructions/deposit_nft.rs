@@ -156,9 +156,9 @@ pub struct DepositNft<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 
     pub pnft_shared: ProgNftShared<'info>,
-    // remaining accounts:
-    // CHECK: validate it's present on metadata in handler
-    // 1. optional authorization_rules, only if present on metadata
+
+    /// CHECK: validated by mplex's pnft code
+    pub auth_rules: UncheckedAccount<'info>,
 }
 
 impl<'info> DepositNft<'info> {
@@ -188,9 +188,15 @@ impl<'info> Validate<'info> for DepositNft<'info> {
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, DepositNft<'info>>,
     authorization_data: Option<AuthorizationDataLocal>,
+    rules_acc_present: bool,
 ) -> Result<()> {
-    let rem_acc = &mut ctx.remaining_accounts.iter().peekable();
-    let auth_rules = rem_acc.peek().copied();
+    let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
+    let auth_rules = if rules_acc_present {
+        Some(auth_rules_acc_info)
+    } else {
+        None
+    };
+
     send_pnft(
         &ctx.accounts.owner.to_account_info(),
         &ctx.accounts.owner.to_account_info(),

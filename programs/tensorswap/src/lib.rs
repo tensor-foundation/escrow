@@ -59,16 +59,18 @@ pub mod tensorswap {
         ctx: Context<'_, '_, '_, 'info, DepositNft<'info>>,
         _config: PoolConfig,
         authorization_data: Option<AuthorizationDataLocal>,
+        rules_acc_present: bool,
     ) -> Result<()> {
-        instructions::deposit_nft::handler(ctx, authorization_data)
+        instructions::deposit_nft::handler(ctx, authorization_data, rules_acc_present)
     }
 
     pub fn withdraw_nft<'info>(
         ctx: Context<'_, '_, '_, 'info, WithdrawNft<'info>>,
         _config: PoolConfig,
         authorization_data: Option<AuthorizationDataLocal>,
+        rules_acc_present: bool,
     ) -> Result<()> {
-        instructions::withdraw_nft::handler(ctx, authorization_data)
+        instructions::withdraw_nft::handler(ctx, authorization_data, rules_acc_present)
     }
 
     pub fn deposit_sol<'info>(
@@ -93,8 +95,15 @@ pub mod tensorswap {
         max_price: u64,
         rules_acc_present: bool,
         authorization_data: Option<AuthorizationDataLocal>,
+        optional_royalty_pct: Option<u16>,
     ) -> Result<()> {
-        instructions::buy_nft::handler(ctx, max_price, rules_acc_present, authorization_data)
+        instructions::buy_nft::handler(
+            ctx,
+            max_price,
+            rules_acc_present,
+            authorization_data,
+            optional_royalty_pct,
+        )
     }
 
     pub fn sell_nft_token_pool<'info>(
@@ -103,12 +112,14 @@ pub mod tensorswap {
         min_price: u64,
         rules_acc_present: bool,
         authorization_data: Option<AuthorizationDataLocal>,
+        optional_royalty_pct: Option<u16>,
     ) -> Result<()> {
         instructions::sell_nft_token_pool::handler(
             ctx,
             min_price,
             rules_acc_present,
             authorization_data,
+            optional_royalty_pct,
         )
     }
 
@@ -118,12 +129,14 @@ pub mod tensorswap {
         min_price: u64,
         rules_acc_present: bool,
         authorization_data: Option<AuthorizationDataLocal>,
+        optional_royalty_pct: Option<u16>,
     ) -> Result<()> {
         instructions::sell_nft_trade_pool::handler(
             ctx,
             min_price,
             rules_acc_present,
             authorization_data,
+            optional_royalty_pct,
         )
     }
 
@@ -225,15 +238,17 @@ pub mod tensorswap {
         ctx: Context<'_, '_, '_, 'info, List<'info>>,
         price: u64,
         authorization_data: Option<AuthorizationDataLocal>,
+        rules_acc_present: bool,
     ) -> Result<()> {
-        instructions::list::handler(ctx, price, authorization_data)
+        instructions::list::handler(ctx, price, authorization_data, rules_acc_present)
     }
 
     pub fn delist<'info>(
         ctx: Context<'_, '_, '_, 'info, Delist<'info>>,
         authorization_data: Option<AuthorizationDataLocal>,
+        rules_acc_present: bool,
     ) -> Result<()> {
-        instructions::delist::handler(ctx, authorization_data)
+        instructions::delist::handler(ctx, authorization_data, rules_acc_present)
     }
 
     pub fn buy_single_listing<'info>(
@@ -241,12 +256,14 @@ pub mod tensorswap {
         max_price: u64,
         rules_acc_present: bool,
         authorization_data: Option<AuthorizationDataLocal>,
+        optional_royalty_pct: Option<u16>,
     ) -> Result<()> {
         instructions::buy_single_listing::handler(
             ctx,
             max_price,
             rules_acc_present,
             authorization_data,
+            optional_royalty_pct,
         )
     }
 

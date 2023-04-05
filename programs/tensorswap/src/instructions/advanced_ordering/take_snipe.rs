@@ -94,6 +94,7 @@ pub struct TakeSnipe<'info> {
     pub dest_token_record: UncheckedAccount<'info>,
 
     pub pnft_shared: ProgNftShared<'info>,
+    // TODO if we ever re-instate this ix, get rid of optional accounts
     // remaining accounts:
     // CHECK: validate it's present on metadata in handler
     // 1. optional authorization_rules, only if present on metadata
@@ -136,6 +137,8 @@ pub fn handler<'info>(
     authorization_data: Option<AuthorizationDataLocal>,
 ) -> Result<()> {
     let pool = &ctx.accounts.shared.pool;
+
+    // TODO if we ever re-instate this ix, get rid of optional accounts
     let rem_acc = &mut ctx.remaining_accounts.iter().peekable();
     let auth_rules = rem_acc.peek().copied();
 

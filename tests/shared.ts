@@ -20,7 +20,6 @@ import {
   AddressLookupTableProgram,
   Commitment,
   ConfirmOptions,
-  Connection,
   Keypair,
   PublicKey,
   Signer,
@@ -29,7 +28,6 @@ import {
   SYSVAR_RENT_PUBKEY,
   Transaction,
   TransactionInstruction,
-  TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
 import { expect } from "chai";
@@ -41,14 +39,20 @@ import {
   findTSwapPDA,
   isNullLike,
   TBID_ADDR,
-  TensorSwapSDK,
+  TensorBidSDK,
   TENSORSWAP_ADDR,
+  TensorSwapSDK,
   TensorWhitelistSDK,
   TLIST_ADDR,
 } from "../src";
 import { getLamports as _getLamports } from "../src/common";
-import { TensorBidSDK } from "../src/tensor_bid";
-import { AUTH_PROG_ID, TMETA_PROG_ID } from "@tensor-hq/tensor-common";
+import {
+  AUTH_PROG_ID,
+  buildTx,
+  buildTxV0,
+  TMETA_PROG_ID,
+  waitMS,
+} from "@tensor-hq/tensor-common";
 
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export {
@@ -64,14 +68,14 @@ export {
   TakerSide,
 } from "../src";
 
+export { waitMS } from "@tensor-hq/tensor-common";
+
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
 // Vipers IntegerOverflow error.
 export const INTEGER_OVERFLOW_ERR = "0x44f";
 
 export const getLamports = (acct: PublicKey) =>
   _getLamports(TEST_PROVIDER.connection, acct);
-
-export const waitMS = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 type BuildAndSendTxArgs = {
   provider?: AnchorProvider;
@@ -83,86 +87,6 @@ type BuildAndSendTxArgs = {
   // Optional, if present signify that a V0 tx should be sent
   lookupTableAccounts?: [AddressLookupTableAccount] | undefined;
   blockhash?: string;
-};
-
-//simplified version from tensor-common
-const _buildTx = async ({
-  connections,
-  feePayer,
-  instructions,
-  additionalSigners,
-  commitment = "confirmed",
-}: {
-  //(!) ideally this should be the same RPC node that will then try to send/confirm the tx
-  connections: Array<Connection>;
-  feePayer: PublicKey;
-  instructions: TransactionInstruction[];
-  additionalSigners?: Array<Signer>;
-  commitment?: Commitment;
-}) => {
-  if (!instructions.length) {
-    throw new Error("must pass at least one instruction");
-  }
-
-  const tx = new Transaction();
-  tx.add(...instructions);
-  tx.feePayer = feePayer;
-
-  const latestBlockhash = await connections[0].getLatestBlockhash({
-    commitment,
-  });
-  tx.recentBlockhash = latestBlockhash.blockhash;
-  const lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
-
-  if (additionalSigners) {
-    additionalSigners
-      .filter((s): s is Signer => s !== undefined)
-      .forEach((kp) => {
-        tx.partialSign(kp);
-      });
-  }
-
-  return { tx, lastValidBlockHeight };
-};
-
-//simplified version from tensor-common
-const _buildTxV0 = async ({
-  connections,
-  feePayer,
-  instructions,
-  additionalSigners,
-  commitment = "confirmed",
-  addressLookupTableAccs,
-}: {
-  //(!) ideally this should be the same RPC node that will then try to send/confirm the tx
-  connections: Array<Connection>;
-  feePayer: PublicKey;
-  instructions: TransactionInstruction[];
-  additionalSigners?: Array<Signer>;
-  commitment?: Commitment;
-  addressLookupTableAccs: AddressLookupTableAccount[];
-}) => {
-  if (!instructions.length) {
-    throw new Error("must pass at least one instruction");
-  }
-
-  const latestBlockhash = await connections[0].getLatestBlockhash({
-    commitment,
-  });
-  const lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
-
-  const msg = new TransactionMessage({
-    payerKey: feePayer,
-    recentBlockhash: latestBlockhash.blockhash,
-    instructions,
-  }).compileToV0Message(addressLookupTableAccs);
-  const tx = new VersionedTransaction(msg);
-
-  if (additionalSigners) {
-    tx.sign(additionalSigners.filter((s): s is Signer => s !== undefined));
-  }
-
-  return { tx, lastValidBlockHeight };
 };
 
 export const buildAndSendTx = async ({
@@ -180,7 +104,7 @@ export const buildAndSendTx = async ({
     //build legacy
     ({ tx } = await backOff(
       () =>
-        _buildTx({
+        buildTx({
           connections: [provider.connection],
           instructions: ixs,
           additionalSigners: extraSigners,
@@ -202,7 +126,7 @@ export const buildAndSendTx = async ({
     //build v0
     ({ tx } = await backOff(
       () =>
-        _buildTxV0({
+        buildTxV0({
           connections: [provider.connection],
           instructions: ixs,
           //have to add TEST_KEYPAIR here instead of wallet.signTx() since partialSign not impl on v0 txs

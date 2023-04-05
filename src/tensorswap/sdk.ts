@@ -70,52 +70,46 @@ import {
   IDL as IDL_v0_1_32,
   Tensorswap as Tensorswap_v0_1_32,
 } from "./idl/tensorswap_v0_1_32";
-
 import {
   IDL as IDL_v0_2_0,
   Tensorswap as Tensorswap_v0_2_0,
 } from "./idl/tensorswap_v0_2_0";
-
 import {
   IDL as IDL_v0_3_0,
   Tensorswap as Tensorswap_v0_3_0,
 } from "./idl/tensorswap_v0_3_0";
-
 import {
   IDL as IDL_v0_3_5,
   Tensorswap as Tensorswap_v0_3_5,
 } from "./idl/tensorswap_v0_3_5";
-
 import {
   IDL as IDL_v1_0_0,
   Tensorswap as Tensorswap_v1_0_0,
 } from "./idl/tensorswap_v1_0_0";
-
 import {
   IDL as IDL_v1_1_0,
   Tensorswap as Tensorswap_v1_1_0,
 } from "./idl/tensorswap_v1_1_0";
-
 import {
   IDL as IDL_v1_3_0,
   Tensorswap as Tensorswap_v1_3_0,
 } from "./idl/tensorswap_v1_3_0";
-
 import {
   IDL as IDL_v1_4_0,
   Tensorswap as Tensorswap_v1_4_0,
 } from "./idl/tensorswap_v1_4_0";
-
 import {
   IDL as IDL_v1_5_0,
   Tensorswap as Tensorswap_v1_5_0,
 } from "./idl/tensorswap_v1_5_0";
-
 import {
   IDL as IDL_v1_6_0,
   Tensorswap as Tensorswap_v1_6_0,
 } from "./idl/tensorswap_v1_6_0";
-
+import {
+  IDL as IDL_v1_7_0,
+  Tensorswap as Tensorswap_v1_7_0,
+} from "./idl/tensorswap_v1_7_0";
 import {
   IDL as IDL_latest,
   Tensorswap as Tensorswap_latest,
@@ -166,8 +160,12 @@ export const TensorswapIDL_v1_6_0 = IDL_v1_6_0;
 export const TensorswapIDL_v1_6_0_EffSlot = 182972833;
 
 // add cpi ix for TBID + export acc size as constants https://solscan.io/tx/5jhCkfL622mQm6LXCmzsKbYCMHcyFjHcSLqJPV2G6HApS7iFK9UMyg7gaoeW8aUW6kPFsfAdraibpvNRe3fnSc3h
+export const TensorswapIDL_v1_7_0 = IDL_v1_7_0;
+export const TensorswapIDL_v1_7_0_EffSlot = 183869296;
+
+// add optional royalties + remove optional accs + add broker + add payer for list/delist - https://solscan.io/tx/JtcwNt69DQnJt7622LJwYFBeJbaBLwuabnWLes9YdncxPR3nsSXpH1GqLcZQKVmWQhCqrUKSueirogrBVrTK811
 export const TensorswapIDL_latest = IDL_latest;
-export const TensorswapIDL_latest_EffSlot = 183869296;
+export const TensorswapIDL_latest_EffSlot = 186744215;
 
 export type TensorswapIDL =
   | Tensorswap_v0_1_32
@@ -180,6 +178,7 @@ export type TensorswapIDL =
   | Tensorswap_v1_4_0
   | Tensorswap_v1_5_0
   | Tensorswap_v1_6_0
+  | Tensorswap_v1_7_0
   | Tensorswap_latest;
 
 // Use this function to figure out which IDL to use based on the slot # of historical txs.
@@ -195,7 +194,8 @@ export const triageIDL = (slot: number | bigint): TensorswapIDL | null => {
   if (slot < TensorswapIDL_v1_4_0_EffSlot) return TensorswapIDL_v1_3_0;
   if (slot < TensorswapIDL_v1_5_0_EffSlot) return TensorswapIDL_v1_4_0;
   if (slot < TensorswapIDL_v1_6_0_EffSlot) return TensorswapIDL_v1_5_0;
-  if (slot < TensorswapIDL_latest_EffSlot) return TensorswapIDL_v1_6_0;
+  if (slot < TensorswapIDL_v1_7_0_EffSlot) return TensorswapIDL_v1_6_0;
+  if (slot < TensorswapIDL_latest_EffSlot) return TensorswapIDL_v1_7_0;
   return TensorswapIDL_latest;
 };
 
@@ -937,13 +937,9 @@ export class TensorSwapSDK {
       authData,
       sourceAta: nftSource,
     });
-    const remAcc = [];
-    if (!!ruleSet) {
-      remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
-    }
 
     const builder = this.program.methods
-      .depositNft(config as any, authDataSerialized)
+      .depositNft(config as any, authDataSerialized, !!ruleSet)
       .accounts({
         tswap: tswapPda,
         pool: poolPda,
@@ -967,8 +963,8 @@ export class TensorSwapSDK {
           tokenMetadataProgram: TMETA_PROG_ID,
           instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
         },
-      })
-      .remainingAccounts(remAcc);
+        authRules: ruleSet ?? SystemProgram.programId,
+      });
 
     const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
@@ -1107,13 +1103,9 @@ export class TensorSwapSDK {
       authData,
       sourceAta: escrowPda,
     });
-    const remAcc = [];
-    if (!!ruleSet) {
-      remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
-    }
 
     const builder = this.program.methods
-      .withdrawNft(config as any, authDataSerialized)
+      .withdrawNft(config as any, authDataSerialized, !!ruleSet)
       .accounts({
         tswap: tswapPda,
         pool: poolPda,
@@ -1136,8 +1128,8 @@ export class TensorSwapSDK {
           tokenMetadataProgram: TMETA_PROG_ID,
           instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
         },
-      })
-      .remainingAccounts(remAcc);
+        authRules: ruleSet ?? SystemProgram.programId,
+      });
 
     const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
@@ -1274,6 +1266,8 @@ export class TensorSwapSDK {
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
     marginNr = null,
+    optionalRoyaltyPct = null,
+    takerBroker = null,
   }: {
     whitelist: PublicKey;
     nftMint: PublicKey;
@@ -1292,6 +1286,10 @@ export class TensorSwapSDK {
     compute?: number | null;
     priorityMicroLamports?: number | null;
     marginNr?: number | null;
+    //optional % OF full royalty amount, so eg 50% of 10% royalty would be 5%
+    optionalRoyaltyPct?: number | null;
+    //optional taker broker account
+    takerBroker?: PublicKey | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -1331,14 +1329,7 @@ export class TensorSwapSDK {
       authData,
       sourceAta: escrowPda,
     });
-    const remAcc = [];
 
-    //1.optional ruleset
-    if (!!ruleSet) {
-      remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
-    }
-
-    //2.optional margin
     let marginPda;
     let marginBump;
     if (!isNullLike(marginNr)) {
@@ -1347,21 +1338,17 @@ export class TensorSwapSDK {
         owner,
         marginNr,
       });
-      remAcc.push({ pubkey: marginPda, isSigner: false, isWritable: true });
     }
-
-    //3.optional creators
-    creators.map((c) => {
-      remAcc.push({
-        pubkey: c,
-        isWritable: true,
-        isSigner: false,
-      });
-    });
 
     const builder = this.program.methods
       // TODO: Proofs disabled for buys for now until tx size limit increases.
-      .buyNft(config as any, maxPrice, !!ruleSet, authDataSerialized)
+      .buyNft(
+        config as any,
+        maxPrice,
+        !!ruleSet,
+        authDataSerialized,
+        optionalRoyaltyPct
+      )
       .accounts({
         tswap: tswapPda,
         feeVault: tSwapAcc.feeVault,
@@ -1387,8 +1374,19 @@ export class TensorSwapSDK {
           tokenMetadataProgram: TMETA_PROG_ID,
           instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
         },
+        authRules: ruleSet ?? SystemProgram.programId,
+        marginAccount: marginPda ?? buyer,
+        takerBroker: takerBroker ?? tSwapAcc.feeVault,
       })
-      .remainingAccounts(remAcc);
+      .remainingAccounts(
+        creators.map((c) => {
+          return {
+            pubkey: c,
+            isWritable: true,
+            isSigner: false,
+          };
+        })
+      );
 
     const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
@@ -1436,6 +1434,8 @@ export class TensorSwapSDK {
     authData = null,
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
+    optionalRoyaltyPct = null,
+    takerBroker = null,
   }: {
     type: "trade" | "token";
     whitelist: PublicKey;
@@ -1457,6 +1457,10 @@ export class TensorSwapSDK {
     //passing in null or undefined means these ixs are NOT included
     compute?: number | null;
     priorityMicroLamports?: number | null;
+    //optional % OF full royalty amount, so eg 50% of 10% royalty would be 5%
+    optionalRoyaltyPct?: number | null;
+    //optional taker broker account
+    takerBroker?: PublicKey | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -1511,18 +1515,6 @@ export class TensorSwapSDK {
       }),
     ]);
 
-    const remAcc = [];
-    //1.optional ruleset
-    if (!!ruleSet) {
-      remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
-    }
-
-    //2.optional cosigner
-    if (isCosigned && type === "token") {
-      remAcc.push({ pubkey: cosigner, isSigner: true, isWritable: false });
-    }
-
-    //3.optional margin
     let marginPda;
     let marginBump;
     if (!isNullLike(marginNr)) {
@@ -1531,10 +1523,15 @@ export class TensorSwapSDK {
         owner,
         marginNr,
       });
-      remAcc.push({ pubkey: marginPda, isSigner: false, isWritable: true });
     }
 
-    //4.optional creators (last)
+    //1.optional cosigner
+    const remAcc = [];
+    if (isCosigned && type === "token") {
+      remAcc.push({ pubkey: cosigner, isSigner: true, isWritable: false });
+    }
+
+    //2.optional creators (last)
     creators.map((c) => {
       remAcc.push({
         pubkey: c,
@@ -1583,7 +1580,8 @@ export class TensorSwapSDK {
       config as any,
       minPrice,
       !!ruleSet,
-      authDataSerialized
+      authDataSerialized,
+      optionalRoyaltyPct
     )
       .accounts({
         shared,
@@ -1598,6 +1596,9 @@ export class TensorSwapSDK {
           tokenMetadataProgram: TMETA_PROG_ID,
           instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
         },
+        authRules: ruleSet ?? SystemProgram.programId,
+        marginAccount: marginPda ?? seller,
+        takerBroker: takerBroker ?? tSwapAcc.feeVault,
         ...accounts,
       })
       .remainingAccounts(remAcc);
@@ -2152,7 +2153,7 @@ export class TensorSwapSDK {
 
   // --------------------------------------- single listings
 
-  //main signature owner
+  //main signature owner + payer
   async list({
     nftMint,
     nftSource,
@@ -2162,6 +2163,7 @@ export class TensorSwapSDK {
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
     price,
+    payer = null,
   }: {
     nftMint: PublicKey;
     nftSource: PublicKey;
@@ -2177,6 +2179,8 @@ export class TensorSwapSDK {
     compute?: number | null;
     priorityMicroLamports?: number | null;
     price: BN;
+    //optional separate payer account (useful when you want the listing to be done by another program)
+    payer?: PublicKey | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [singleListing, singleListingBump] = findSingleListingPDA({
@@ -2202,13 +2206,9 @@ export class TensorSwapSDK {
       authData,
       sourceAta: nftSource,
     });
-    const remAcc = [];
-    if (!!ruleSet) {
-      remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
-    }
 
     const builder = this.program.methods
-      .list(price, authDataSerialized)
+      .list(price, authDataSerialized, !!ruleSet)
       .accounts({
         tswap: tswapPda,
         nftMint,
@@ -2229,8 +2229,9 @@ export class TensorSwapSDK {
           tokenMetadataProgram: TMETA_PROG_ID,
           instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
         },
-      })
-      .remainingAccounts(remAcc);
+        authRules: ruleSet ?? SystemProgram.programId,
+        payer: payer ?? owner,
+      });
 
     const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
@@ -2264,6 +2265,7 @@ export class TensorSwapSDK {
     authData = null,
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
+    payer = null,
   }: {
     nftMint: PublicKey;
     nftDest: PublicKey;
@@ -2278,6 +2280,8 @@ export class TensorSwapSDK {
     //passing in null or undefined means these ixs are NOT included
     compute?: number | null;
     priorityMicroLamports?: number | null;
+    //optional separate payer account (useful when you want the listing to be done by another program)
+    payer?: PublicKey | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [singleListing, singleListingBump] = findSingleListingPDA({
@@ -2303,13 +2307,9 @@ export class TensorSwapSDK {
       authData,
       sourceAta: escrowPda,
     });
-    const remAcc = [];
-    if (!!ruleSet) {
-      remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
-    }
 
     const builder = this.program.methods
-      .delist(authDataSerialized)
+      .delist(authDataSerialized, !!ruleSet)
       .accounts({
         tswap: tswapPda,
         singleListing,
@@ -2330,8 +2330,9 @@ export class TensorSwapSDK {
           tokenMetadataProgram: TMETA_PROG_ID,
           instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
         },
-      })
-      .remainingAccounts(remAcc);
+        authRules: ruleSet ?? SystemProgram.programId,
+        payer: payer ?? owner,
+      });
 
     const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 
@@ -2366,6 +2367,8 @@ export class TensorSwapSDK {
     authData = null,
     compute = DEFAULT_COMPUTE_UNITS,
     priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
+    optionalRoyaltyPct = null,
+    takerBroker = null,
   }: {
     nftMint: PublicKey;
     nftBuyerAcc: PublicKey;
@@ -2381,6 +2384,10 @@ export class TensorSwapSDK {
     //passing in null or undefined means these ixs are NOT included
     compute?: number | null;
     priorityMicroLamports?: number | null;
+    //optional % OF full royalty amount, so eg 50% of 10% royalty would be 5%
+    optionalRoyaltyPct?: number | null;
+    //optional taker broker account
+    takerBroker?: PublicKey | null;
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [singleListing, singleListingBump] = findSingleListingPDA({
@@ -2408,24 +2415,14 @@ export class TensorSwapSDK {
       authData,
       sourceAta: escrowPda,
     });
-    const remAcc = [];
-
-    //1.optional ruleset
-    if (!!ruleSet) {
-      remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
-    }
-
-    //2.optional creators
-    creators.map((c) => {
-      remAcc.push({
-        pubkey: c,
-        isWritable: true,
-        isSigner: false,
-      });
-    });
 
     const builder = this.program.methods
-      .buySingleListing(maxPrice, !!ruleSet, authDataSerialized)
+      .buySingleListing(
+        maxPrice,
+        !!ruleSet,
+        authDataSerialized,
+        optionalRoyaltyPct
+      )
       .accounts({
         tswap: tswapPda,
         singleListing,
@@ -2448,8 +2445,18 @@ export class TensorSwapSDK {
           tokenMetadataProgram: TMETA_PROG_ID,
           instructions: SYSVAR_INSTRUCTIONS_PUBKEY,
         },
+        authRules: ruleSet ?? SystemProgram.programId,
+        takerBroker: takerBroker ?? tSwapAcc.feeVault,
       })
-      .remainingAccounts(remAcc);
+      .remainingAccounts(
+        creators.map((c) => {
+          return {
+            pubkey: c,
+            isWritable: true,
+            isSigner: false,
+          };
+        })
+      );
 
     const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
 

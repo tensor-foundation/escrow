@@ -84,6 +84,89 @@ describe("tswap sell", () => {
     }
   });
 
+  it("sell into token/trade pool (pay taker broker)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const [{ owner, seller }, config] of cartesian(
+      [
+        { owner: traderA, seller: traderB },
+        { owner: traderB, seller: traderA },
+      ],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      const expectedLamports = defaultSellExpectedLamports(
+        config === tokenPoolConfig
+      );
+      const takerBroker = Keypair.generate().publicKey;
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner,
+        seller,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(
+          config === tokenPoolConfig,
+          expectedLamports
+        ),
+        takerBroker,
+      });
+    }
+  });
+
+  it("sell into token/trade pool (pay optional royalties)", async () => {
+    const [traderA, traderB] = await makeNTraders(2);
+    // Intentionally do this serially (o/w balances will race).
+    for (const [optionalRoyaltyPct, config] of cartesian(
+      [null, 0, 33, 50, 100],
+      [tokenPoolConfig, tradePoolConfig]
+    )) {
+      const expectedLamports = defaultSellExpectedLamports(
+        config === tokenPoolConfig
+      );
+      const creators = Array(5)
+        .fill(null)
+        .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+      if (optionalRoyaltyPct && optionalRoyaltyPct > 100) {
+        await expect(
+          testMakePoolSellNft({
+            sellType: config === tradePoolConfig ? "trade" : "token",
+            tswap,
+            owner: traderA,
+            seller: traderB,
+            config,
+            expectedLamports,
+            minLamports: adjustSellMinLamports(
+              config === tokenPoolConfig,
+              expectedLamports
+            ),
+            optionalRoyaltyPct,
+            creators,
+            royaltyBps: 1000,
+            lookupTableAccount,
+          })
+        ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadRoyaltiesPct"));
+        return;
+      }
+      await testMakePoolSellNft({
+        sellType: config === tradePoolConfig ? "trade" : "token",
+        tswap,
+        owner: traderA,
+        seller: traderB,
+        config,
+        expectedLamports,
+        minLamports: adjustSellMinLamports(
+          config === tokenPoolConfig,
+          expectedLamports
+        ),
+        optionalRoyaltyPct,
+        creators,
+        royaltyBps: 1000,
+        lookupTableAccount,
+      });
+    }
+  });
+
   it("sell into cosigned token pool", async () => {
     const [traderA, traderB] = await makeNTraders(2);
     // Intentionally do this serially (o/w balances will race).

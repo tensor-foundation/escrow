@@ -15,7 +15,7 @@ pub struct Delist<'info> {
 
     #[account(
         init_if_needed,
-        payer = owner,
+        payer = payer,
         associated_token::mint = nft_mint,
         associated_token::authority = owner,
     )]
@@ -48,7 +48,7 @@ pub struct Delist<'info> {
         bump = single_listing.bump[0],
         has_one = nft_mint,
         has_one = owner,
-        close = owner,
+        close = payer,
     )]
     pub single_listing: Box<Account<'info, SingleListing>>,
 
@@ -121,9 +121,13 @@ pub struct Delist<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 
     pub pnft_shared: ProgNftShared<'info>,
-    // remaining accounts:
-    // CHECK: validate it's present on metadata in handler
-    // 1. optional authorization_rules, only if present on metadata
+
+    /// CHECK: validated by mplex's pnft code
+    pub auth_rules: UncheckedAccount<'info>,
+
+    //separate payer so that a program can list with owner being a PDA
+    #[account(mut)]
+    pub payer: Signer<'info>,
 }
 
 impl<'info> Delist<'info> {
@@ -132,7 +136,7 @@ impl<'info> Delist<'info> {
             self.token_program.to_account_info(),
             CloseAccount {
                 account: self.nft_escrow.to_account_info(),
-                destination: self.owner.to_account_info(),
+                destination: self.payer.to_account_info(),
                 authority: self.tswap.to_account_info(),
             },
         )
@@ -142,12 +146,18 @@ impl<'info> Delist<'info> {
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, Delist<'info>>,
     authorization_data: Option<AuthorizationDataLocal>,
+    rules_acc_present: bool,
 ) -> Result<()> {
-    let rem_acc = &mut ctx.remaining_accounts.iter().peekable();
-    let auth_rules = rem_acc.peek().copied();
+    let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
+    let auth_rules = if rules_acc_present {
+        Some(auth_rules_acc_info)
+    } else {
+        None
+    };
+
     send_pnft(
         &ctx.accounts.tswap.to_account_info(),
-        &ctx.accounts.owner.to_account_info(),
+        &ctx.accounts.payer.to_account_info(),
         &ctx.accounts.nft_escrow,
         &ctx.accounts.nft_dest,
         &ctx.accounts.owner,

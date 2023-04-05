@@ -100,14 +100,19 @@ pub struct SellNftTokenPool<'info> {
         bump
     )]
     pub temp_escrow_token_record: UncheckedAccount<'info>,
+
+    /// CHECK: validated by mplex's pnft code
+    pub auth_rules: UncheckedAccount<'info>,
+    /// CHECK: optional, manually handled in handler: 1)seeds, 2)program owner, 3)normal owner, 4)margin acc stored on pool
+    #[account(mut)]
+    pub margin_account: UncheckedAccount<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub taker_broker: UncheckedAccount<'info>,
     // remaining accounts:
-    // CHECK: validate it's present on metadata in handler
-    // 1. optional authorization_rules, only if present on metadata
     // CHECK: 1)is signer, 2)cosigner stored on tswap
-    // 2. optional co-signer (will be drawn first if necessary)
-    // CHECK: 1)seeds, 2)program owner, 3)normal owner, 4)margin acc stored on pool
-    // 3. optional margin account (even without sniping can be used)
-    // 4. optional 0 to N creator accounts.
+    // 1. optional co-signer (will be drawn first if necessary)
+    // 2. optional 0 to N creator accounts.
 }
 
 impl<'info> Validate<'info> for SellNftTokenPool<'info> {
@@ -151,17 +156,17 @@ pub fn handler<'info>(
     min_price: u64,
     rules_acc_present: bool,
     authorization_data: Option<AuthorizationDataLocal>,
+    optional_royalty_pct: Option<u16>,
 ) -> Result<()> {
     let pool = &ctx.accounts.shared.pool;
-    let remaining_accounts = &mut ctx.remaining_accounts.iter();
 
     // --------------------------------------- send pnft
 
     // transfer nft directly to owner (ATA)
     // has to go before any transfer_lamports, o/w we get `sum of account balances before and after instruction do not match`
-    // has to go before creators fee calc below, coz we need to drain 1 optional acc
+    let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();
     let auth_rules = if rules_acc_present {
-        Some(next_account_info(remaining_accounts)?)
+        Some(auth_rules_acc_info)
     } else {
         None
     };
@@ -248,6 +253,7 @@ pub fn handler<'info>(
 
     // --------------------------------------- end pnft
 
+    let remaining_accounts = &mut ctx.remaining_accounts.iter();
     if pool.is_cosigned {
         let cosigner = next_account_info(remaining_accounts)?;
         if &ctx.accounts.shared.tswap.cosigner != cosigner.key {
@@ -265,7 +271,7 @@ pub fn handler<'info>(
 
     let current_price = pool.current_price(TakerSide::Sell)?;
     let tswap_fee = pool.calc_tswap_fee(current_price)?;
-    let creators_fee = pool.calc_creators_fee(metadata, current_price)?;
+    let creators_fee = pool.calc_creators_fee(metadata, current_price, optional_royalty_pct)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -287,7 +293,7 @@ pub fn handler<'info>(
     //decide where we're sending the money from - margin (marginated pool) or escrow (normal pool)
     let from = match &pool.margin {
         Some(stored_margin_account) => {
-            let margin_account_info = next_account_info(remaining_accounts)?;
+            let margin_account_info = &ctx.accounts.margin_account.to_account_info();
             assert_decode_margin_account(
                 margin_account_info,
                 &ctx.accounts.shared.tswap.to_account_info(),
@@ -303,10 +309,17 @@ pub fn handler<'info>(
 
     // transfer fee to Tensorswap
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
+    let broker_fee = unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
+    let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
     transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.fee_vault.to_account_info(),
-        tswap_fee,
+        tswap_less_broker_fee,
+    )?;
+    transfer_lamports_from_pda(
+        &from,
+        &ctx.accounts.taker_broker.to_account_info(),
+        broker_fee,
     )?;
 
     // transfer royalties
