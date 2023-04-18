@@ -234,8 +234,8 @@ pub const POOL_SIZE: usize = 8 + (3 * 1)
 
 impl Pool {
     pub fn taker_allowed_to_sell(&self) -> Result<()> {
-        //0 indicates no restriction on buy count
-        if self.max_taker_sell_count == 0 {
+        //0 indicates no restriction on buy count / if no margin not relevant
+        if self.max_taker_sell_count == 0 || self.margin.is_none() {
             return Ok(());
         }
 
@@ -244,7 +244,8 @@ impl Pool {
             return Ok(());
         }
 
-        if self.stats.taker_sell_count - self.stats.taker_buy_count >= self.max_taker_sell_count {
+        //<= because equal means taker can no longer sell
+        if self.max_taker_sell_count <= self.stats.taker_sell_count - self.stats.taker_buy_count {
             throw_err!(MaxTakerSellCountExceeded);
         }
         Ok(())
@@ -262,8 +263,25 @@ impl Pool {
             return Ok(());
         }
 
+        //< without = because we should let them edit the cap to stop sales
         if new_count < self.stats.taker_sell_count - self.stats.taker_buy_count {
             throw_err!(MaxTakerSellCountTooSmall);
+        }
+
+        Ok(())
+    }
+
+    /// This check is against the following scenario:
+    /// 1. user sets cap to 1 and reaches it (so 1/1)
+    /// 2. user detaches margin
+    /// 3. user sells more into the pool (so 2/1)
+    /// 4. user attaches margin again, but 2/1 is theoretically invalid
+    pub fn adjust_pool_max_taker_sell_count(&mut self) -> Result<()> {
+        if self
+            .valid_max_sell_count(self.max_taker_sell_count)
+            .is_err()
+        {
+            self.max_taker_sell_count = self.stats.taker_sell_count - self.stats.taker_buy_count;
         }
 
         Ok(())

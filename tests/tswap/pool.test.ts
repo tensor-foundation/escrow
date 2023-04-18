@@ -30,8 +30,10 @@ import {
   testAttachPoolToMargin,
   testBuyNft,
   testClosePool,
+  testDepositIntoMargin,
   testDepositNft,
   testDepositSol,
+  testDetachPoolFromMargin,
   testEditPool,
   testMakeMargin,
   testMakePool,
@@ -493,12 +495,22 @@ describe("tswap pool", () => {
     const expectedLamports = defaultSellExpectedLamports(true);
     const minLamports = adjustSellMinLamports(true, expectedLamports);
 
-    await testDepositSol({
-      pool: poolPda,
-      config,
+    const { marginNr, marginPda, marginRent } = await testMakeMargin({
       owner,
-      lamports: expectedLamports * 10, //more than enough
+    });
+    await testAttachPoolToMargin({
+      config,
+      marginNr,
+      owner,
       whitelist,
+      poolsAttached: 1,
+    });
+
+    await testDepositIntoMargin({
+      owner,
+      marginNr,
+      marginPda,
+      amount: expectedLamports * 10, //more than enough
     });
 
     //sel once = ok
@@ -515,6 +527,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //try to sell again = fails
@@ -532,6 +545,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
 
@@ -562,6 +576,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //try to sell again = fails
@@ -579,6 +594,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
 
@@ -621,6 +637,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
   });
 
@@ -653,12 +670,22 @@ describe("tswap pool", () => {
       const expectedLamports = LAMPORTS_PER_SOL;
       const minLamports = adjustSellMinLamports(isToken, expectedLamports, 0);
 
-      await testDepositSol({
-        pool: poolPda,
-        config,
+      const { marginNr, marginPda, marginRent } = await testMakeMargin({
         owner,
-        lamports: expectedLamports * 10, //more than enough
+      });
+      await testAttachPoolToMargin({
+        config,
+        marginNr,
+        owner,
         whitelist,
+        poolsAttached: 1,
+      });
+
+      await testDepositIntoMargin({
+        owner,
+        marginNr,
+        marginPda,
+        amount: expectedLamports * 10, //more than enough
       });
 
       //sel once = ok
@@ -675,6 +702,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       });
 
       //try to sell again = fails
@@ -692,6 +720,7 @@ describe("tswap pool", () => {
           expectedLamports,
           minLamports,
           treeSize: 100,
+          marginNr,
         })
       ).to.be.rejectedWith(
         swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded")
@@ -722,6 +751,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       });
 
       //try to sell again = fails
@@ -739,6 +769,7 @@ describe("tswap pool", () => {
           expectedLamports,
           minLamports,
           treeSize: 100,
+          marginNr,
         })
       ).to.be.rejectedWith(
         swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded")
@@ -782,6 +813,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       });
     }
   });
@@ -825,12 +857,22 @@ describe("tswap pool", () => {
     const expectedLamports = LAMPORTS_PER_SOL;
     const minLamports = adjustSellMinLamports(false, expectedLamports, 0);
 
-    await testDepositSol({
-      pool: poolPda,
-      config,
+    const { marginNr, marginPda, marginRent } = await testMakeMargin({
       owner,
-      lamports: expectedLamports * 10, //more than enough
+    });
+    await testAttachPoolToMargin({
+      config,
+      marginNr,
+      owner,
       whitelist,
+      poolsAttached: 1,
+    });
+
+    await testDepositIntoMargin({
+      owner,
+      marginNr,
+      marginPda,
+      amount: expectedLamports * 10, //more than enough
     });
 
     //after: takerSell = 1, takerBuy = 0, cap = 1, left till cap = 0
@@ -847,6 +889,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //try to sell again = fails
@@ -864,6 +907,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
 
@@ -886,6 +930,7 @@ describe("tswap pool", () => {
       buyer: taker,
       config,
       expectedLamports: LAMPORTS_PER_SOL,
+      marginNr,
     });
 
     //after: takerSell = 2, takerBuy = 1, cap = 1, left till cap = 0
@@ -902,6 +947,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //try to sell again = fails
@@ -919,6 +965,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
 
@@ -947,6 +994,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //try to sell again = fails
@@ -964,6 +1012,7 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
 
@@ -1003,6 +1052,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
   });
 
@@ -1045,12 +1095,22 @@ describe("tswap pool", () => {
     const expectedLamports = LAMPORTS_PER_SOL;
     const minLamports = adjustSellMinLamports(false, expectedLamports, 0);
 
-    await testDepositSol({
-      pool: poolPda,
-      config,
+    const { marginNr, marginPda, marginRent } = await testMakeMargin({
       owner,
-      lamports: expectedLamports * 10, //more than enough
+    });
+    await testAttachPoolToMargin({
+      config,
+      marginNr,
+      owner,
       whitelist,
+      poolsAttached: 1,
+    });
+
+    await testDepositIntoMargin({
+      owner,
+      marginNr,
+      marginPda,
+      amount: expectedLamports * 10, //more than enough
     });
 
     // --------------------------------------- buy
@@ -1074,6 +1134,7 @@ describe("tswap pool", () => {
       buyer: taker,
       config,
       expectedLamports: LAMPORTS_PER_SOL,
+      marginNr,
     });
 
     //after: takerSell = 0, takerBuy = 2, cap = 1, left till cap = 3
@@ -1095,6 +1156,7 @@ describe("tswap pool", () => {
       buyer: taker,
       config,
       expectedLamports: LAMPORTS_PER_SOL,
+      marginNr,
     });
 
     // --------------------------------------- sell
@@ -1113,6 +1175,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //after: takerSell = 2, takerBuy = 2, cap = 1, left till cap = 1
@@ -1129,6 +1192,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //after: takerSell = 3, takerBuy = 2, cap = 1, left till cap = 0
@@ -1145,6 +1209,7 @@ describe("tswap pool", () => {
       expectedLamports,
       minLamports,
       treeSize: 100,
+      marginNr,
     });
 
     //try to sell again = fails
@@ -1162,8 +1227,197 @@ describe("tswap pool", () => {
         expectedLamports,
         minLamports,
         treeSize: 100,
+        marginNr,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+  });
+
+  it("maxTakerSellCount (market-making pool, with attaching/detaching margin)", async () => {
+    const [owner, taker] = await makeNTraders(2);
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(taker, owner);
+    const { mint: mint4, ata: ata4 } = await makeMintTwoAta(taker, owner);
+    const {
+      mint: mint5,
+      ata: ata5,
+      otherAta: otherAta5,
+    } = await makeMintTwoAta(owner, taker);
+    const {
+      mint: mint6,
+      ata: ata6,
+      otherAta: otherAta6,
+    } = await makeMintTwoAta(owner, taker);
+    const {
+      proofs: [wlNft1, wlNft2, wlNft3, wlNft4, wlNft5, wlNft6],
+      whitelist,
+    } = await makeProofWhitelist(
+      [mint1, mint2, mint3, mint4, mint5, mint6],
+      100
+    );
+    const { marginNr, marginPda, marginRent } = await testMakeMargin({
+      owner,
+    });
+
+    // --------------------------------------- allowed sell count 1
+
+    //make the pool with no delta / mm fee so that math is easy
+    const config = { ...tradePoolConfig, delta: new BN(0), mmFeeBps: 0 };
+    const { poolPda, nftAuthPda } = await testMakePool({
+      tswap,
+      owner,
+      config,
+      whitelist,
+      maxTakerSellCount: 1,
+    });
+    const expectedLamports = LAMPORTS_PER_SOL;
+    const minLamports = adjustSellMinLamports(false, expectedLamports, 0);
+
+    await testAttachPoolToMargin({
+      config,
+      marginNr,
+      owner,
+      whitelist,
+      poolsAttached: 1,
+    });
+
+    await testDepositIntoMargin({
+      owner,
+      marginNr,
+      marginPda,
+      amount: expectedLamports * 10, //more than enough
+    });
+
+    // --------------------------------------- buy
+
+    //after: takerSell = 0, takerBuy = 1, cap = 1, left till cap = 2
+    await testDepositNft({
+      nftAuthPda,
+      pool: poolPda,
+      config,
+      owner,
+      ata: ata5,
+      wlNft: wlNft5,
+      whitelist,
+    });
+    await testBuyNft({
+      pool: poolPda,
+      wlNft: wlNft5,
+      whitelist,
+      otherAta: otherAta5,
+      owner,
+      buyer: taker,
+      config,
+      expectedLamports: LAMPORTS_PER_SOL,
+      marginNr,
+    });
+
+    // --------------------------------------- sell
+
+    //after: takerSell = 1, takerBuy = 1, cap = 1, left till cap = 1
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft1,
+      ata: ata1,
+      nftAuthPda,
+      poolPda,
+      sellType: "trade",
+      owner,
+      seller: taker,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+      marginNr,
+    });
+
+    //after: takerSell = 2, takerBuy = 1, cap = 1, left till cap = 0
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft2,
+      ata: ata2,
+      nftAuthPda,
+      poolPda,
+      sellType: "trade",
+      owner,
+      seller: taker,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+      marginNr,
+    });
+
+    //try to sell again = fails
+    await expect(
+      testSellNft({
+        whitelist,
+        wlNft: wlNft4,
+        ata: ata4,
+        nftAuthPda,
+        poolPda,
+        sellType: "trade",
+        owner,
+        seller: taker,
+        config,
+        expectedLamports,
+        minLamports,
+        treeSize: 100,
+        marginNr,
+      })
+    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MaxTakerSellCountExceeded"));
+
+    //detach margin
+    await testDetachPoolFromMargin({
+      owner,
+      config,
+      whitelist,
+      marginNr,
+      poolsAttached: 0,
+    });
+
+    //fund escrow since we detached margin
+    await testDepositSol({
+      pool: poolPda,
+      config,
+      owner,
+      lamports: expectedLamports * 10, //more than enough
+      whitelist,
+    });
+
+    //sell one more, shifting cap into negative
+    //after: takerSell = 3, takerBuy = 1, cap = 1, left till cap = -1
+    await testSellNft({
+      whitelist,
+      wlNft: wlNft3,
+      ata: ata3,
+      nftAuthPda,
+      poolPda,
+      sellType: "trade",
+      owner,
+      seller: taker,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize: 100,
+    });
+
+    //cap still at 1
+    let pool = await swapSdk.fetchPool(poolPda);
+    expect(pool.maxTakerSellCount).to.equal(1);
+
+    //attach margin again
+    await testAttachPoolToMargin({
+      config,
+      marginNr,
+      owner,
+      whitelist,
+      poolsAttached: 1,
+    });
+
+    //cap should reset to 3 - 1 = 2;
+    pool = await swapSdk.fetchPool(poolPda);
+    expect(pool.maxTakerSellCount).to.equal(2);
   });
 
   it("editing pool transfers stats & balances ok", async () => {

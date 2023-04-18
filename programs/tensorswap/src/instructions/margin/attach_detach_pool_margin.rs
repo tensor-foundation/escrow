@@ -106,9 +106,13 @@ impl<'info> AttachDetachPoolMargin<'info> {
 
 #[access_control(ctx.accounts.validate())]
 pub fn attach_handler(ctx: Context<AttachDetachPoolMargin>) -> Result<()> {
-    if ctx.accounts.pool.margin.is_some() {
+    let pool = &mut ctx.accounts.pool;
+    if pool.margin.is_some() {
         throw_err!(PoolMarginated);
     }
+
+    //if needed adjust max taker sell count
+    pool.adjust_pool_max_taker_sell_count()?;
 
     //move balance to margin
     ctx.accounts.empty_escrow()?;

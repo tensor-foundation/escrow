@@ -56,6 +56,7 @@ describe("prices helper functions", () => {
           mmCompoundFees: true,
         },
         takerSide,
+        marginated: true,
       });
 
       expect(price!.toNumber()).eq(expected.toNumber());
@@ -82,6 +83,7 @@ describe("prices helper functions", () => {
           mmCompoundFees: true,
         },
         takerSide,
+        marginated: true,
       };
       const price = computeTakerDisplayPrice(args);
       expect(price!.toNumber()).eq(computeTakerPrice(args)!.toNumber());
@@ -105,6 +107,7 @@ describe("prices helper functions", () => {
           mmCompoundFees: true,
         },
         takerSide: TakerSide.Sell,
+        marginated: true,
       };
 
       const expectedPrice =
@@ -218,6 +221,7 @@ describe("prices helper functions", () => {
         },
         takerSide,
         extraNFTsSelected: 1,
+        marginated: true,
       };
       expect(computeTakerPrice(config)!.toNumber()).eq(expectedPrice);
       expect(computeTakerDisplayPrice(config)!.toNumber()).eq(expectedPrice);
@@ -261,6 +265,7 @@ describe("prices helper functions", () => {
       },
       takerSide: TakerSide.Sell,
       maxTakerSellCount: 1,
+      marginated: true,
     };
     const { totalAmount, allowedCount, initialPrice } =
       computeMakerAmountCount(baseArgs);
@@ -295,6 +300,7 @@ describe("prices helper functions", () => {
         mmCompoundFees: true,
       },
       takerSide: TakerSide.Sell,
+      marginated: true,
     };
     // startSellPrice * mm Fee = 1.9*0.966
     const startPrice = 1.8354 * LAMPORTS_PER_SOL;
@@ -387,6 +393,7 @@ describe("prices helper functions", () => {
         mmCompoundFees: true,
       },
       takerSide: TakerSide.Sell,
+      marginated: true,
     };
     // No sells: 0.1 start price, can sell twice.
     let { totalAmount, allowedCount, initialPrice } =
@@ -466,6 +473,7 @@ describe("prices helper functions", () => {
         mmCompoundFees: true,
       },
       takerSide: TakerSide.Sell,
+      marginated: true,
     };
     // sell price * mm fee = 1/1.1 * 0.9
     const startPrice = 818181818;
@@ -527,6 +535,7 @@ it("(4) computeMakerAmountCount max count works for infinite expo sell curve", a
     takerSide: TakerSide.Sell,
     // Check that this works.
     maxCountWhenInfinite: maxCount,
+    marginated: true,
   };
   let { totalAmount, allowedCount, initialPrice } =
     computeMakerAmountCount(baseArgs);
@@ -568,6 +577,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
           mmCompoundFees: true,
         },
         takerSide: TakerSide.Buy,
+        marginated: true,
       };
 
       {
@@ -647,6 +657,7 @@ it("(5)/(6) computeMakerAmountCount works for buy from token/trade", async () =>
         mmCompoundFees: true,
       },
       takerSide: TakerSide.Buy,
+      marginated: true,
     };
     // Negative slippage!
     // 0.1% negative slippage * 5 buys: 1.001 * (10 + 10*1.1 + 10*1.1^2 + 10*1.1^3 + 10*1.1^4)
