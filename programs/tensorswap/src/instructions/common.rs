@@ -420,7 +420,7 @@ pub fn prep_pnft_transfer_ix<'info>(
 
     if let Some(standard) = metadata.token_standard {
         if standard == TokenStandard::ProgrammableNonFungible {
-            msg!("programmable standard triggered");
+            // msg!("programmable standard triggered");
             //1. add to builder
             builder
                 .owner_token_record(owner_token_record.key())
@@ -437,7 +437,7 @@ pub fn prep_pnft_transfer_ix<'info>(
         match config {
             V1 { rule_set } => {
                 if let Some(rule_set) = rule_set {
-                    msg!("ruleset triggered");
+                    // msg!("ruleset triggered");
                     //safe to unwrap here, it's expected
                     let rules_acc = rules_acc.unwrap();
 
@@ -507,7 +507,7 @@ pub fn prep_pnft_transfer_ix<'info>(
                             rules_acc.to_account_info(),
                         ];
 
-                        msg!("invoking delegate");
+                        // msg!("invoking delegate");
                         //always invoked normally
                         invoke(&delegate_ix, &delegate_account_infos)?;
 
@@ -566,7 +566,7 @@ pub fn send_pnft<'info>(
     if metadata.token_standard.is_none()
         || metadata.token_standard.unwrap() != TokenStandard::ProgrammableNonFungible
     {
-        msg!("non-pnft / no token std, normal transfer");
+        // msg!("non-pnft / no token std, normal transfer");
 
         let ctx = CpiContext::new(
             token_program.to_account_info(),

@@ -131,7 +131,7 @@ pub fn send_pnft<'info>(
     if metadata.token_standard.is_none()
         || metadata.token_standard.unwrap() != TokenStandard::ProgrammableNonFungible
     {
-        msg!("non-pnft / no token std, normal transfer");
+        // msg!("non-pnft / no token std, normal transfer");
 
         let ctx = CpiContext::new(
             token_program.to_account_info(),

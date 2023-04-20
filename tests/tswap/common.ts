@@ -637,6 +637,7 @@ export const computeDepositAmount = ({
       maxTakerSellCount: 0,
       statsTakerSellCount: 0,
       statsTakerBuyCount: 0,
+      marginated: false,
     }).totalAmount.toNumber()
   );
 
@@ -663,6 +664,7 @@ export const computeTakerPrice = ({
       maxTakerSellCount: 0,
       statsTakerSellCount: 0,
       statsTakerBuyCount: 0,
+      marginated: false,
       slippage,
     })!.toNumber()
   );
