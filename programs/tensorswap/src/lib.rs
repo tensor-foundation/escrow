@@ -12,8 +12,9 @@ pub use state::*;
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
 
-static TENSOR_SWAP_ADDR: &str = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN";
-static TENSOR_WHITELIST_ADDR: &str = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW";
+pub static TENSOR_SWAP_ADDR: &str = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN";
+pub static TENSOR_WHITELIST_ADDR: &str = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW";
+pub static TSWAP_ADDR: &str = "4zdNGgAtFsW1cQgHqkiWyRsxaAgxrSRRynnuunxzjxue";
 
 // TODO: future account optimizations:
 //  1. get rid of tswap (have single instance of program with hardcoded variables)
@@ -288,6 +289,15 @@ pub mod tensorswap {
         lamports: u64,
     ) -> Result<()> {
         instructions::withdraw_margin_account::handler_cpi(ctx, lamports)
+    }
+
+    pub fn withdraw_margin_account_cpi_tcomp(
+        ctx: Context<WithdrawMarginAccountCpiTcomp>,
+        _bump: u8,
+        _bid_id: Pubkey,
+        lamports: u64,
+    ) -> Result<()> {
+        instructions::withdraw_margin_account::handler_cpi_tcomp(ctx, lamports)
     }
 
     // OFFLINE BY DEFAULT

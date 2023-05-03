@@ -16,7 +16,7 @@ test-ledger
 *.key
 .env
 
-# macOS
+# macOS/
 .DS_Store
 
 # WSL
