@@ -124,8 +124,8 @@ pub struct WithdrawMarginAccountCpiTcomp<'info> {
     )]
     pub margin_account: Box<Account<'info, MarginAccount>>,
 
-    // this bid state can only be derived from TBID program for a given mint and owner
-    // and because it's a signer only TBID can call this
+    // this bid state can only be derived from TCOMP program for a given mint and owner
+    // and because it's a signer only TCOMP can call this
     #[account(mut,
         seeds=[b"bid_state".as_ref(), owner.key().as_ref(), bid_id.as_ref()],
         seeds::program = Pubkey::from_str("TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp").unwrap(),

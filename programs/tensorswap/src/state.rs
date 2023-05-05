@@ -454,6 +454,8 @@ pub struct MarginAccount {
     pub bump: [u8; 1],
     //needed to know if we can close margin account
     pub pools_attached: u32,
+    // TODO: we forgot to track bids attached.
+    // Revisit this maybe for margin account V2.
     //(!) this is important - otherwise rent will be miscalculated by anchor client-side
     pub _reserved: [u8; 64],
 }

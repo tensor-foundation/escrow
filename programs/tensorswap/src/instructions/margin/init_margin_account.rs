@@ -13,6 +13,7 @@ pub struct InitMarginAccount<'info> {
         init, payer = owner,
         seeds = [
             b"margin".as_ref(),
+            // TODO: remove tswap from seed in V2 (annoying to have to pass account eg in CPIs).
             tswap.key().as_ref(),
             owner.key().as_ref(),
             &margin_nr.to_le_bytes()
