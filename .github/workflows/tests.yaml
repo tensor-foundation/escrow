@@ -52,7 +52,7 @@ jobs:
       - uses: ./.github/actions/setup/
 
       - uses: actions/cache@v2
-        name: Cache Cargo registry + index
+        name: Cache Anchor
         id: cache-anchor
         with:
           path: |
@@ -113,7 +113,7 @@ jobs:
       - uses: ./.github/actions/setup-solana/
 
       - uses: actions/cache@v2
-        name: Cache Cargo registry + index
+        name: Cache Anchor
         id: cache-anchor
         with:
           path: |
