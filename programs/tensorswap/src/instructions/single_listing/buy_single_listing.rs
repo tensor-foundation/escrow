@@ -164,6 +164,13 @@ impl<'info> BuySingleListing<'info> {
     }
 }
 
+impl<'info> Validate<'info> for BuySingleListing<'info> {
+    fn validate(&self) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[access_control(ctx.accounts.validate())]
 pub fn handler<'info, 'b>(
     ctx: Context<'_, 'b, '_, 'info, BuySingleListing<'info>>,
     max_price: u64,
