@@ -112,6 +112,9 @@ jobs:
       - uses: ./.github/actions/setup-ts/
       - uses: ./.github/actions/setup-solana/
 
+      - run: grep -Evqz 'it.only\(|describe.only\(' ${{ matrix.node.glob }}
+        name: No only tests
+
       - uses: actions/cache@v2
         name: Cache Anchor
         id: cache-anchor
