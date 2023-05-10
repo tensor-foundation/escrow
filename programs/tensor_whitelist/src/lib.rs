@@ -3,7 +3,7 @@
 
 use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 use anchor_spl::token::Mint;
-use mpl_token_metadata::state::Metadata;
+use mpl_token_metadata::state::{Collection, Creator, Metadata};
 use vipers::{throw_err, unwrap_int, Validate};
 
 declare_id!("TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW");
@@ -496,6 +496,68 @@ impl Whitelist {
                 }
             }
 
+            return Ok(());
+        }
+
+        //should never be getting to here
+        throw_err!(BadWhitelist);
+    }
+
+    pub fn verify_whitelist_tcomp(
+        &self,
+        collection: Option<Collection>,
+        creators: Option<Vec<Creator>>,
+    ) -> Result<()> {
+        //Priority 1: Merkle proof (because we manually control this = highest priority)
+        if self.root_hash != ZERO_ARRAY {
+            // TODO: currently unsupported for tcomp
+            throw_err!(FailedMerkleProofVerification);
+        }
+
+        //Priority 2: VOC
+        if self.voc.is_some() {
+            match collection {
+                Some(collection) => {
+                    //collection not verified? fail
+                    if !collection.verified {
+                        throw_err!(FailedVocVerification);
+                    }
+                    //collection key doesn't match? fail
+                    if collection.key != self.voc.unwrap() {
+                        throw_err!(FailedVocVerification);
+                    }
+                }
+                //didn't pass in metadata? fail
+                None => {
+                    throw_err!(FailedVocVerification);
+                }
+            }
+            return Ok(());
+        }
+
+        //Priority 3: FVC
+        if self.fvc.is_some() {
+            match creators {
+                Some(creators) => {
+                    let fvc = creators.iter().find(|c| c.verified);
+                    match fvc {
+                        Some(fvc) => {
+                            //fvc doesn't match? fail
+                            if self.fvc.unwrap() != fvc.address {
+                                throw_err!(FailedFvcVerification);
+                            }
+                        }
+                        //failed to find an FVC? fail
+                        None => {
+                            throw_err!(FailedFvcVerification);
+                        }
+                    }
+                }
+                //no creators array? fail
+                None => {
+                    throw_err!(FailedFvcVerification);
+                }
+            }
             return Ok(());
         }
 
