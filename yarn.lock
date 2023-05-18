@@ -1245,6 +1245,7 @@ __metadata:
     exponential-backoff: ^3.1.0
     jsbi: ^4.1.0
     keccak256: ^1.0.6
+    math-expression-evaluator: ^2.0.2
     merkletreejs: ^0.2.32
     mocha: ^10.0.0
     prettier: ^2.5.1
@@ -4269,6 +4270,13 @@ __metadata:
     socks-proxy-agent: ^7.0.0
     ssri: ^10.0.0
   checksum: f718d6b6945d967fa02ae8c6b1146c6e36335b0f9654c5757fd57211a5bcc13bf1dfbaa0d2fdfe8bdd13f78b0e2aa79b4d4438f824dcf0d2ea74883baae1ae31
+  languageName: node
+  linkType: hard
+
+"math-expression-evaluator@npm:^2.0.2":
+  version: 2.0.2
+  resolution: "math-expression-evaluator@npm:2.0.2"
+  checksum: d8a94a49aaf8bf9455f8c86fa6ead47a70032e7667922c282e7d6fbc4f32c835bba126cc38c47b6439323cbece023c9825aba465f59a1d69f62eeec77c424924
   languageName: node
   linkType: hard
 
