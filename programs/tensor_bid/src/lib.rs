@@ -17,9 +17,9 @@ use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
 use mpl_token_metadata::processor::AuthorizationData;
 pub use pnft::*;
 use tensorswap::{
-    self, assert_decode_margin_account, assert_decode_metadata, calc_creators_fee, calc_tswap_fee,
-    prep_pnft_transfer_ix, program::Tensorswap, transfer_creators_fee, transfer_lamports_from_pda,
-    TSwap, TAKER_BROKER_PCT,
+    self, assert_decode_margin_account, assert_decode_metadata, calc_creators_fee,
+    calc_fees_rebates, prep_pnft_transfer_ix, program::Tensorswap, transfer_creators_fee,
+    transfer_lamports_from_pda, TSwap,
 };
 use vipers::{prelude::*, throw_err};
 
@@ -29,6 +29,8 @@ declare_id!("TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv");
 
 #[program]
 pub mod tensor_bid {
+    use tensorswap::Fees;
+
     use super::*;
 
     //can be called multiple times to re-bid
@@ -240,7 +242,12 @@ pub mod tensor_bid {
 
         let metadata = &assert_decode_metadata(&ctx.accounts.nft_mint, &ctx.accounts.nft_metadata)?;
 
-        let tswap_fee = calc_tswap_fee(TBID_FEE_BPS, lamports)?;
+        let Fees {
+            tswap_fee,
+            maker_rebate: _,
+            broker_fee,
+            taker_fee,
+        } = calc_fees_rebates(lamports)?;
         let creators_fee = calc_creators_fee(metadata, lamports, optional_royalty_pct)?;
 
         // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -249,7 +256,7 @@ pub mod tensor_bid {
             bidder: bid_state.bidder,
             expiry: bid_state.expiry,
             lamports: bid_state.bid_amount,
-            tswap_fee,
+            tswap_fee: taker_fee,
             creators_fee
         });
 
@@ -298,15 +305,12 @@ pub mod tensor_bid {
             )?;
         }
 
-        // transfer fee to Tensorswap and the broker
-        left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-        let broker_fee =
-            unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
-        let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
+        // transfer fees
+        left_for_seller = unwrap_int!(left_for_seller.checked_sub(taker_fee));
         transfer_lamports_from_pda(
             &ctx.accounts.bid_state.to_account_info(),
             &ctx.accounts.fee_vault.to_account_info(),
-            tswap_less_broker_fee,
+            tswap_fee,
         )?;
         transfer_lamports_from_pda(
             &ctx.accounts.bid_state.to_account_info(),
@@ -327,6 +331,7 @@ pub mod tensor_bid {
 
         // transfer remainder to seller
         // (!) fees/royalties are paid by TAKER, which in this case is the SELLER
+        // (!) maker rebate already taken out of this amount
         transfer_lamports_from_pda(
             &ctx.accounts.bid_state.to_account_info(),
             &ctx.accounts.seller.to_account_info(),
@@ -601,8 +606,9 @@ pub struct CloseExpiredBid<'info> {
 
 #[constant]
 pub const CURRENT_TBID_VERSION: u8 = 1;
+//(!) Keep in sync with TSWAP_FEE_BPS
 #[constant]
-pub const TBID_FEE_BPS: u16 = 100;
+pub const TBID_TAKER_FEE_BPS: u16 = 140;
 #[constant]
 pub const MAX_EXPIRY_SEC: i64 = 5184000; //60 days
 

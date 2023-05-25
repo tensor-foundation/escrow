@@ -26,13 +26,14 @@ import {
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
+  MAKER_REBATE_PCT,
   nftPoolConfig,
   testDepositNft,
   testMakePool,
   testMakePoolBuyNft,
   tokenPoolConfig,
   tradePoolConfig,
-  TSWAP_FEE_PCT,
+  TAKER_FEE_PCT,
 } from "./common";
 
 describe("tswap buy", () => {
@@ -738,7 +739,7 @@ describe("tswap buy", () => {
     );
     expect(swapSdk.getSolAmount(ix)?.toNumber()).eq(expectedLamports);
     expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-      Math.trunc(expectedLamports * TSWAP_FEE_PCT)
+      Math.trunc(expectedLamports * TAKER_FEE_PCT)
     );
 
     expect(swapSdk.getAccountByName(ix, "Pool")?.pubkey.toBase58()).eq(

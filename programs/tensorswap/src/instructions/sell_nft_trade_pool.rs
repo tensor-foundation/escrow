@@ -172,7 +172,12 @@ pub fn handler<'a, 'b, 'c, 'info>(
     )?;
 
     let current_price = pool.current_price(TakerSide::Sell)?;
-    let tswap_fee = pool.calc_tswap_fee(current_price)?;
+    let Fees {
+        tswap_fee,
+        maker_rebate: _,
+        broker_fee,
+        taker_fee,
+    } = calc_fees_rebates(current_price)?;
     let creators_fee = pool.calc_creators_fee(metadata, current_price, optional_royalty_pct)?;
     let mm_fee = pool.calc_mm_fee(current_price)?;
 
@@ -180,7 +185,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
     emit!(BuySellEvent {
         current_price,
-        tswap_fee,
+        tswap_fee: taker_fee,
         //record MM here instead of buy tx (when it's technically paid to the MMer)
         //this is because offchain we use the event to determine "true" price paid by taker, which in this case is current price - mm fee
         mm_fee,
@@ -214,14 +219,12 @@ pub fn handler<'a, 'b, 'c, 'info>(
         None => ctx.accounts.shared.sol_escrow.to_account_info(),
     };
 
-    // transfer fee to Tensorswap
-    left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-    let broker_fee = unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
-    let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
+    // transfer fees
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(taker_fee));
     transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.fee_vault.to_account_info(),
-        tswap_less_broker_fee,
+        tswap_fee,
     )?;
     transfer_lamports_from_pda(
         &from,
@@ -245,6 +248,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
 
     // transfer remainder to seller
     // (!) fees/royalties are paid by TAKER, which in this case is the SELLER
+    // (!) maker rebate already taken out of this amount
     transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.seller.to_account_info(),

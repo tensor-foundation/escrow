@@ -16,6 +16,7 @@ import {
 } from "../shared";
 import {
   beforeHook,
+  calcFeesRebates,
   createAndFundATA,
   CreatorInput,
   getAccount,
@@ -26,7 +27,6 @@ import {
   testDepositNft,
   testMakeList,
   testMakePool,
-  TSWAP_FEE_PCT,
 } from "./common";
 import { TokenAccountNotFoundError } from "@solana/spl-token";
 import { isNullLike, TAKER_BROKER_PCT } from "../../src";
@@ -605,24 +605,14 @@ const buySingleListing = async ({
         TokenAccountNotFoundError
       );
 
-      //fee for tswap and broker
+      //fees
       const feeAccLamports = await getLamports(tswapPda);
-      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE_PCT);
-
-      const tswapFeeLessBroker = takerBroker
-        ? Math.trunc((tswapFee * (100 - TAKER_BROKER_PCT)) / 100)
-        : tswapFee;
-      const brokerFee = takerBroker
-        ? Math.trunc((tswapFee * TAKER_BROKER_PCT) / 100)
-        : 0;
-
-      //paid tswap fees (NB: fee account may be un-init before).
+      const { tswapFee, brokerFee, makerRebate, takerFee } =
+        calcFeesRebates(expectedLamports);
       expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).approximately(
-        tswapFeeLessBroker,
+        tswapFee,
         1
       );
-
-      //paid broker
       if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0 && brokerFee > 0) {
         const brokerLamports = await getLamports(takerBroker);
         expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
@@ -666,7 +656,7 @@ const buySingleListing = async ({
       //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
       if (!programmable) {
         expect(currBuyerLamports! - prevBuyerLamports!).eq(
-          -1 * (expectedLamports + tswapFee + creatorsFee)
+          -1 * (expectedLamports + takerFee + creatorsFee)
         );
       }
 
@@ -674,6 +664,7 @@ const buySingleListing = async ({
       const currSellerLamports = await getLamports(owner.publicKey);
       expect(currSellerLamports! - prevSellerLamports!).eq(
         expectedLamports +
+          makerRebate +
           (await swapSdk.getSingleListingRent()) +
           (await swapSdk.getTokenAcctRent())
       );

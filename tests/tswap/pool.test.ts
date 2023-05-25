@@ -26,6 +26,7 @@ import {
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
+  MAKER_REBATE_PCT,
   nftPoolConfig,
   testAttachPoolToMargin,
   testBuyNft,
@@ -352,7 +353,7 @@ describe("tswap pool", () => {
 
         const expected =
           // Proceeds from sale, minus the rent we paid to create the mint + ATA initially.
-          buyPrice -
+          buyPrice * (1 + MAKER_REBATE_PCT) -
           metaRent -
           editionRent -
           proofRent -
@@ -1555,12 +1556,12 @@ describe("tswap pool", () => {
       );
       expect(await getLamports(newSolEscrowPda2)).eq(
         (await swapSdk.getSolEscrowRent()) +
-          (marginated ? 0 : 3 * LAMPORTS_PER_SOL)
+          (marginated ? 0 : 3 * LAMPORTS_PER_SOL * (1 + MAKER_REBATE_PCT))
       );
       if (marginPda) {
         expect(await getLamports(marginPda)).eq(
           (await swapSdk.getMarginAccountRent()) +
-            (marginated ? 3 * LAMPORTS_PER_SOL : 0)
+            (marginated ? 3 * LAMPORTS_PER_SOL * (1 + MAKER_REBATE_PCT) : 0)
         );
       }
     }

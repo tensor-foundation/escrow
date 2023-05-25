@@ -34,6 +34,7 @@ import {
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
+  MAKER_REBATE_PCT,
   makeVocWhitelist,
   nftPoolConfig,
   testDepositSol,
@@ -42,7 +43,7 @@ import {
   testSellNft,
   tokenPoolConfig,
   tradePoolConfig,
-  TSWAP_FEE_PCT,
+  TAKER_FEE_PCT,
 } from "./common";
 import { castPoolTypeAnchor, findNftEscrowPDA, PoolType } from "../../src";
 
@@ -928,8 +929,7 @@ describe("tswap sell", () => {
           pool,
           config,
           owner,
-          // Deposit 1 lamport less than required.
-          lamports: expectedLamports - 1,
+          lamports: expectedLamports * (1 - MAKER_REBATE_PCT) - 100,
           whitelist,
         });
 
@@ -1247,7 +1247,7 @@ describe("tswap sell", () => {
           Math.trunc((expectedLamports * (config.mmFeeBps ?? 0)) / 1e4)
       );
       expect(swapSdk.getFeeAmount(ix)?.toNumber()).eq(
-        Math.trunc(expectedLamports * TSWAP_FEE_PCT)
+        Math.trunc(expectedLamports * TAKER_FEE_PCT)
       );
 
       if (config === tradePoolConfig)

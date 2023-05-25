@@ -634,3 +634,35 @@ pub struct ProgNftShared<'info> {
     #[account(address = mpl_token_auth_rules::id())]
     pub authorization_rules_program: UncheckedAccount<'info>,
 }
+
+pub struct Fees {
+    pub tswap_fee: u64,
+    pub maker_rebate: u64,
+    pub broker_fee: u64,
+    pub taker_fee: u64,
+}
+
+pub fn calc_fees_rebates(amount: u64) -> Result<Fees> {
+    let taker_fee = unwrap_checked!({
+        (TSWAP_TAKER_FEE_BPS as u64)
+            .checked_mul(amount)?
+            .checked_div(HUNDRED_PCT_BPS as u64)
+    });
+
+    let maker_rebate = unwrap_checked!({
+        (MAKER_REBATE_BPS as u64)
+            .checked_mul(amount)?
+            .checked_div(HUNDRED_PCT_BPS as u64)
+    });
+
+    let rem_fee = unwrap_checked!({ taker_fee.checked_sub(maker_rebate) });
+    let broker_fee = unwrap_checked!({ rem_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
+    let tswap_fee = unwrap_checked!({ rem_fee.checked_sub(broker_fee) });
+
+    Ok(Fees {
+        tswap_fee,
+        maker_rebate,
+        broker_fee,
+        taker_fee,
+    })
+}

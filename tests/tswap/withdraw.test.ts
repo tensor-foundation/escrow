@@ -29,7 +29,7 @@ import {
   testWithdrawSol,
   tokenPoolConfig,
   tradePoolConfig,
-  TSWAP_FEE_PCT,
+  TAKER_FEE_PCT,
 } from "./common";
 
 describe("tswap withdraws", () => {
@@ -382,7 +382,7 @@ describe("tswap withdraws", () => {
       expectedLamports: LAMPORTS_PER_SOL,
     });
 
-    const funds = LAMPORTS_PER_SOL * (1 - TSWAP_FEE_PCT);
+    const funds = LAMPORTS_PER_SOL * (1 - TAKER_FEE_PCT);
 
     await withLamports(
       { prevLamports: owner.publicKey },

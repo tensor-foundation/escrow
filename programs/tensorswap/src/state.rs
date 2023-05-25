@@ -31,9 +31,12 @@ pub const SPREAD_TICKS: u8 = 1;
 
 // --------------------------------------- fees
 
-//standard fee for tswap txs = 1%
+//(!) Keep in sync with TBID_FEE_BPS
 #[constant]
-pub const STANDARD_FEE_BPS: u16 = 100;
+pub const TSWAP_TAKER_FEE_BPS: u16 = 140;
+//taken out of taker fee
+#[constant]
+pub const MAKER_REBATE_BPS: u16 = 40;
 
 //fixed fee applied on top of initial snipe value
 //eg if user wants to snipe for 100, we charge 1.5% on top
@@ -307,7 +310,7 @@ impl Pool {
 
     pub fn calc_tswap_fee(&self, current_price: u64) -> Result<u64> {
         let fee_bps = match self.order_type {
-            0 => STANDARD_FEE_BPS,
+            0 => TSWAP_TAKER_FEE_BPS,
             1 => SNIPE_FEE_BPS,
             _ => unimplemented!(),
         };
@@ -715,7 +718,7 @@ mod tests {
 
         assert_eq!(
             p.calc_tswap_fee(LAMPORTS_PER_SOL).unwrap(),
-            LAMPORTS_PER_SOL * STANDARD_FEE_BPS as u64 / 10000
+            LAMPORTS_PER_SOL * TSWAP_TAKER_FEE_BPS as u64 / 10000
         );
     }
 

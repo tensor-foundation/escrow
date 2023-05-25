@@ -270,14 +270,19 @@ pub fn handler<'info>(
     )?;
 
     let current_price = pool.current_price(TakerSide::Sell)?;
-    let tswap_fee = pool.calc_tswap_fee(current_price)?;
+    let Fees {
+        tswap_fee,
+        maker_rebate: _,
+        broker_fee,
+        taker_fee,
+    } = calc_fees_rebates(current_price)?;
     let creators_fee = pool.calc_creators_fee(metadata, current_price, optional_royalty_pct)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
     emit!(BuySellEvent {
         current_price,
-        tswap_fee,
+        tswap_fee: taker_fee,
         mm_fee: 0, // no MM fee for token pool
         creators_fee,
     });
@@ -307,14 +312,12 @@ pub fn handler<'info>(
         None => ctx.accounts.shared.sol_escrow.to_account_info(),
     };
 
-    // transfer fee to Tensorswap
-    left_for_seller = unwrap_int!(left_for_seller.checked_sub(tswap_fee));
-    let broker_fee = unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
-    let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
+    // transfer fees
+    left_for_seller = unwrap_int!(left_for_seller.checked_sub(taker_fee));
     transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.fee_vault.to_account_info(),
-        tswap_less_broker_fee,
+        tswap_fee,
     )?;
     transfer_lamports_from_pda(
         &from,
@@ -333,7 +336,8 @@ pub fn handler<'info>(
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
 
     // transfer remainder to seller
-    //(!) fees/royalties are paid by TAKER, which in this case is the SELLER
+    // (!) fees/royalties are paid by TAKER, which in this case is the SELLER
+    // (!) maker rebate already taken out of this amount
     transfer_lamports_from_pda(
         &from,
         &ctx.accounts.shared.seller.to_account_info(),

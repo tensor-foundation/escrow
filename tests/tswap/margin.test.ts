@@ -5,6 +5,7 @@ import {
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
+  MAKER_REBATE_PCT,
   testAttachPoolToMargin,
   testClosePool,
   testDepositIntoMargin,
@@ -306,7 +307,8 @@ describe("margin account", () => {
       const marginBalance = await getLamports(marginPda);
       expect(marginBalance).approximately(
         (await swapSdk.getMarginAccountRent()) +
-          (isToken ? 0 : (amount * config.mmFeeBps!) / 100_00),
+          (isToken ? 0 : (amount * config.mmFeeBps!) / 100_00) +
+          amount * MAKER_REBATE_PCT,
         10
       );
     }
@@ -329,6 +331,8 @@ describe("margin account", () => {
     });
 
     const config = tokenPoolConfig;
+
+    let totalRebate = 0;
 
     //create and execute 3 marginated bids, all pulling from the same account
     let i = 1;
@@ -391,10 +395,14 @@ describe("margin account", () => {
         isCosigned: true,
         lookupTableAccount, //<-- make it a v0
       });
+
+      totalRebate += coef * LAMPORTS_PER_SOL * MAKER_REBATE_PCT;
     }
 
     const marginBalance = await getLamports(marginPda);
-    expect(marginBalance).to.eq(await swapSdk.getMarginAccountRent());
+    expect(marginBalance).to.eq(
+      (await swapSdk.getMarginAccountRent()) + totalRebate
+    );
   });
 
   it("correctly handles pool count", async () => {
@@ -624,7 +632,8 @@ describe("margin account", () => {
       const marginBalance = await getLamports(marginPda);
       expect(marginBalance).approximately(
         (await swapSdk.getMarginAccountRent()) +
-          (isToken ? 0 : (amount * config.mmFeeBps!) / 100_00),
+          (isToken ? 0 : (amount * config.mmFeeBps!) / 100_00) +
+          amount * MAKER_REBATE_PCT,
         10
       );
     }

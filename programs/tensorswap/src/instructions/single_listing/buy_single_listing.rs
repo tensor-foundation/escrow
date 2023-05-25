@@ -183,14 +183,19 @@ pub fn handler<'info, 'b>(
     let metadata = &assert_decode_metadata(&ctx.accounts.nft_mint, &ctx.accounts.nft_metadata)?;
 
     let current_price = single_listing.price;
-    let tswap_fee = calc_tswap_fee(STANDARD_FEE_BPS, current_price)?;
+    let Fees {
+        tswap_fee,
+        maker_rebate,
+        broker_fee,
+        taker_fee,
+    } = calc_fees_rebates(current_price)?;
     let creators_fee = calc_creators_fee(metadata, current_price, optional_royalty_pct)?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
     emit!(BuySellEvent {
         current_price,
-        tswap_fee,
+        tswap_fee: taker_fee,
         mm_fee: 0, // no MM fee for buying
         creators_fee,
     });
@@ -199,15 +204,13 @@ pub fn handler<'info, 'b>(
         throw_err!(PriceMismatch);
     }
 
-    // transfer fee to Tensorswap
-    let broker_fee = unwrap_checked!({ tswap_fee.checked_mul(TAKER_BROKER_PCT)?.checked_div(100) });
-    let tswap_less_broker_fee = unwrap_checked!({ tswap_fee.checked_sub(broker_fee) });
-    ctx.accounts.transfer_lamports(
-        &ctx.accounts.fee_vault.to_account_info(),
-        tswap_less_broker_fee,
-    )?;
+    // transfer fees
+    ctx.accounts
+        .transfer_lamports(&ctx.accounts.fee_vault.to_account_info(), tswap_fee)?;
     ctx.accounts
         .transfer_lamports(&ctx.accounts.taker_broker.to_account_info(), broker_fee)?;
+    ctx.accounts
+        .transfer_lamports(&ctx.accounts.owner.to_account_info(), maker_rebate)?;
 
     // transfer nft to buyer
     let auth_rules_acc_info = &ctx.accounts.auth_rules.to_account_info();

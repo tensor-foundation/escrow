@@ -1,12 +1,12 @@
-import { Keypair, LAMPORTS_PER_SOL, Transaction } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
-  swapSdk,
-  buildAndSendTx,
-  TEST_PROVIDER,
-  createTokenAuthorizationRules,
-  withLamports,
-  getLamports,
   bidSdk,
+  buildAndSendTx,
+  createTokenAuthorizationRules,
+  getLamports,
+  swapSdk,
+  TEST_PROVIDER,
+  withLamports,
   wlSdk,
 } from "../shared";
 import chai, { expect } from "chai";
@@ -14,24 +14,16 @@ import chaiAsPromised from "chai-as-promised";
 import {
   beforeHook,
   createFundedWallet,
-  makeMintTwoAta,
   makeNTraders,
   TEST_COSIGNER,
   testMakePoolBuyNft,
   tradePoolConfig,
   TSWAP_CONFIG,
-  TSWAP_FEE_PCT,
+  TAKER_FEE_PCT,
+  MAKER_REBATE_PCT,
 } from "./common";
 import BN from "bn.js";
-import {
-  ACCOUNT_SIZE,
-  createAssociatedTokenAccountInstruction,
-  createMint,
-  getAssociatedTokenAddress,
-  getOrCreateAssociatedTokenAccount,
-  mintTo,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
+import { ACCOUNT_SIZE } from "@solana/spl-token";
 import { APPROX_BID_STATE_RENT } from "../../src/tensor_bid";
 import {
   APPROX_AUTHORITY_RENT,
@@ -157,7 +149,9 @@ describe("tswap init_update_tswap", () => {
 
     //withdraws all fees earned
     const destination = Keypair.generate();
-    const earnedFee = new BN(LAMPORTS_PER_SOL * TSWAP_FEE_PCT * 2);
+    const earnedFee = new BN(
+      LAMPORTS_PER_SOL * (TAKER_FEE_PCT - MAKER_REBATE_PCT) * 2
+    );
     const {
       tx: { ixs },
     } = await swapSdk.withdrawTswapFee({

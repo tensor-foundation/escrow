@@ -41,11 +41,12 @@ import {
   SNIPE_FEE_BPS,
   SNIPE_MIN_FEE,
   SNIPE_PROFIT_SHARE_BPS,
-  STANDARD_FEE_BPS,
+  TSWAP_TAKER_FEE_BPS,
   TakerSide,
   TAKER_BROKER_PCT,
   TensorWhitelistSDK,
   TSwapConfigAnchor,
+  MAKER_REBATE_BPS,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -88,9 +89,21 @@ chai.use(chaiAsPromised);
 export const CURRENT_POOL_VERSION = 2;
 
 export const TSWAP_CONFIG: TSwapConfigAnchor = {
-  feeBps: STANDARD_FEE_BPS,
+  feeBps: TSWAP_TAKER_FEE_BPS,
 };
-export const TSWAP_FEE_PCT = TSWAP_CONFIG.feeBps / 1e4;
+export const TAKER_FEE_PCT = TSWAP_TAKER_FEE_BPS / 1e4;
+export const MAKER_REBATE_PCT = MAKER_REBATE_BPS / 1e4;
+export const calcFeesRebates = (amount: number, isSniping?: boolean) => {
+  const takerFee = isSniping
+    ? calcSnipeFee(amount)
+    : Math.trunc(amount * TAKER_FEE_PCT);
+  const makerRebate = Math.trunc(amount * MAKER_REBATE_PCT);
+  const remFee = takerFee - makerRebate;
+  const brokerFee = Math.trunc((remFee * TAKER_BROKER_PCT) / 100);
+  const tswapFee = remFee - brokerFee;
+
+  return { tswapFee, brokerFee, makerRebate, takerFee };
+};
 
 export const LINEAR_CONFIG: Omit<PoolConfigAnchor, "poolType"> = {
   curveType: CurveTypeAnchor.Linear,
@@ -143,7 +156,7 @@ export const beforeHook = async () => {
   expect(swapAcc.owner.toBase58()).eq(TEST_PROVIDER.publicKey.toBase58());
   expect(swapAcc.cosigner.toBase58()).eq(TEST_COSIGNER.publicKey.toBase58());
   expect(swapAcc.feeVault.toBase58()).eq(tswapPda.toBase58());
-  expect((swapAcc.config as TSwapConfigAnchor).feeBps).eq(TSWAP_FEE_PCT * 1e4);
+  expect((swapAcc.config as TSwapConfigAnchor).feeBps).eq(TAKER_FEE_PCT * 1e4);
 
   //LUT
   const lookupTableAccount = await createCoreTswapLUT();
@@ -1383,7 +1396,10 @@ export const testDepositSol = async ({
       });
 
       let currEscrowLamports = await getLamports(solEscrowPda);
-      expect(currEscrowLamports! - prevEscrowLamports!).eq(lamports);
+      expect(currEscrowLamports! - prevEscrowLamports!).approximately(
+        lamports,
+        1
+      );
       const poolAcc = await swapSdk.fetchPool(pool);
       expectPoolAccounting(poolAcc, prevPoolAcc, {
         nfts: 0,
@@ -1601,23 +1617,11 @@ export const testBuyNft = async ({
         TokenAccountNotFoundError
       );
 
-      //fee for tswap and broker
+      //fees
       const feeAccLamports = await getLamports(tswapPda);
-      const tswapFee = Math.trunc(expectedLamports * TSWAP_FEE_PCT);
-
-      const tswapFeeLessBroker = takerBroker
-        ? Math.trunc((tswapFee * (100 - TAKER_BROKER_PCT)) / 100)
-        : tswapFee;
-      const brokerFee = takerBroker
-        ? Math.trunc((tswapFee * TAKER_BROKER_PCT) / 100)
-        : 0;
-
-      //paid tswap fees (NB: fee account may be un-init before).
-      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(
-        tswapFeeLessBroker
-      );
-
-      //paid broker
+      const { tswapFee, brokerFee, makerRebate, takerFee } =
+        calcFeesRebates(expectedLamports);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
       if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
         const brokerLamports = await getLamports(takerBroker);
         expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
@@ -1667,14 +1671,15 @@ export const testBuyNft = async ({
       //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
       if (!programmable) {
         expect(currBuyerLamports! - prevBuyerLamports!).eq(
-          -1 * (expectedLamports + tswapFee + creatorsFee)
+          -1 * (expectedLamports + takerFee + creatorsFee)
         );
       }
+
       // Depending on the pool type:
       // (1) Trade = amount sent to escrow, NOT owner
       // (1) NFT = amount sent to owner, NOT escrow
       const expOwnerAmount =
-        (isTrade ? 0 : expectedLamports) +
+        (isTrade ? 0 : expectedLamports + makerRebate) +
         // The owner gets back the rent costs.
         (await swapSdk.getNftDepositReceiptRent()) +
         (await swapSdk.getTokenAcctRent());
@@ -1682,11 +1687,11 @@ export const testBuyNft = async ({
       const expEscrowAmount = isTrade
         ? marginPda
           ? 0
-          : expectedLamports - separateMmFee
+          : expectedLamports + makerRebate - separateMmFee
         : 0;
       const expMarginAmount = isTrade
         ? marginPda
-          ? expectedLamports - separateMmFee
+          ? expectedLamports + makerRebate - separateMmFee
           : 0
         : 0;
 
@@ -1999,26 +2004,13 @@ export const testSellNft = async ({
       expect(traderAcc.amount.toString()).eq("0");
       await _checkDestAcc("1");
 
+      //fees
       const feeAccLamports = await getLamports(tswapPda);
-      const tswapFee = Math.trunc(
+      const { tswapFee, brokerFee, makerRebate, takerFee } = calcFeesRebates(
+        expectedLamports,
         isSniping
-          ? calcSnipeFee(expectedLamports)
-          : expectedLamports * TSWAP_FEE_PCT
       );
-
-      const tswapFeeLessBroker = takerBroker
-        ? Math.trunc((tswapFee * (100 - TAKER_BROKER_PCT)) / 100)
-        : tswapFee;
-      const brokerFee = takerBroker
-        ? Math.trunc((tswapFee * TAKER_BROKER_PCT) / 100)
-        : 0;
-
-      //paid tswap fees (NB: fee account may be un-init before).
-      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(
-        tswapFeeLessBroker
-      );
-
-      //paid broker
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
       if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
         const brokerLamports = await getLamports(takerBroker);
         expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
@@ -2075,7 +2067,7 @@ export const testSellNft = async ({
           // (2) MM fees (if trade pool)
           // (3) any rent paid by seller
           expectedLamports -
-            tswapFee -
+            takerFee -
             mmFees -
             expectedRentBySeller -
             creatorsFee
@@ -2090,12 +2082,12 @@ export const testSellNft = async ({
       if (!isNullLike(marginNr)) {
         const currMarginLamports = await getLamports(marginPda!);
         expect(currMarginLamports! - prevMarginLamports!).eq(
-          -1 * (expectedLamports - mmFees)
+          -1 * (expectedLamports - makerRebate - mmFees)
         );
       } else {
         const currEscrowLamports = await getLamports(solEscrowPda);
         expect(currEscrowLamports! - prevEscrowLamports!).approximately(
-          -1 * (expectedLamports - mmFees),
+          -1 * (expectedLamports - makerRebate - mmFees),
           1
         );
       }

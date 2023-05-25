@@ -21,6 +21,7 @@ import {
 } from "../shared";
 import {
   beforeHook,
+  calcFeesRebates,
   CreatorInput,
   getAccount,
   makeMintTwoAta,
@@ -29,14 +30,13 @@ import {
   testDepositIntoMargin,
   testMakeMargin,
   testWithdrawFromMargin,
-  TSWAP_FEE_PCT,
 } from "../tswap/common";
 import BN from "bn.js";
 import {
   CURRENT_TBID_VERSION,
   MAX_EXPIRY_SEC,
   TBID_ADDR,
-  TBID_FEE_BPS,
+  TBID_TAKER_FEE_BPS,
 } from "../../src/tensor_bid";
 import {
   DAYS,
@@ -209,23 +209,11 @@ const testTakeBid = async ({
       expect(sellerAcc.amount.toString()).eq("0");
       expect(bidderAcc.amount.toString()).eq("1");
 
-      //fee for tswap and broker
+      //fees
       const feeAccLamports = await getLamports(tswapPda);
-      const tswapFee = Math.trunc((bidAmount * TBID_FEE_BPS) / 1e4);
-
-      const tswapFeeLessBroker = takerBroker
-        ? Math.trunc((tswapFee * (100 - TAKER_BROKER_PCT)) / 100)
-        : tswapFee;
-      const brokerFee = takerBroker
-        ? Math.trunc((tswapFee * TAKER_BROKER_PCT) / 100)
-        : 0;
-
-      //paid tswap fees (NB: fee account may be un-init before).
-      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(
-        tswapFeeLessBroker
-      );
-
-      //paid broker
+      const { tswapFee, brokerFee, makerRebate, takerFee } =
+        calcFeesRebates(bidAmount);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
       if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
         const brokerLamports = await getLamports(takerBroker);
         expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
@@ -263,19 +251,20 @@ const testTakeBid = async ({
       //skip check for programmable, since you create additional PDAs that cost lamports (not worth tracking)
       if (!programmable) {
         expect(currSellerLamports! - prevSellerLamports!).eq(
-          bidAmount - tswapFee - creatorsFee
+          bidAmount - takerFee - creatorsFee
         );
       } else {
         //check roughly correct (their acc is a few mm)
         expect(currSellerLamports! - prevSellerLamports!).gt(
-          bidAmount - tswapFee - creatorsFee - 3_000_000
+          bidAmount - takerFee - creatorsFee - 3_000_000
         );
       }
 
-      // bidder gets back rent
+      // bidder gets back rent + rebate
       const currBidderLamports = await getLamports(bidder.publicKey);
       expect(currBidderLamports! - prevBidderLamports!).equal(
-        await bidSdk.getBidStateRent()
+        //note that rebate goes back to owner since we close the bid state
+        (await bidSdk.getBidStateRent()) + makerRebate
       );
 
       // Sol escrow should have the NFT cost deducted (minus mm fees owner gets back).
