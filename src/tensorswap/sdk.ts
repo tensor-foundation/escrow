@@ -1410,7 +1410,7 @@ export class TensorSwapSDK {
       tx: {
         ixs: [
           ...computeIxs,
-          ...(await this.clearDelegate(nftBuyerAcc, buyer)),
+          // ...(await this.clearDelegate(nftBuyerAcc, buyer)),
           await builder.instruction(),
         ],
         extraSigners: [],
@@ -2488,7 +2488,7 @@ export class TensorSwapSDK {
       tx: {
         ixs: [
           ...computeIxs,
-          ...(await this.clearDelegate(nftBuyerAcc, buyer)),
+          // ...(await this.clearDelegate(nftBuyerAcc, buyer)),
           await builder.instruction(),
         ],
         extraSigners: [],
