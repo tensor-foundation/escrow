@@ -26,14 +26,13 @@ import {
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
-  MAKER_REBATE_PCT,
   nftPoolConfig,
+  TAKER_FEE_PCT,
   testDepositNft,
   testMakePool,
   testMakePoolBuyNft,
   tokenPoolConfig,
   tradePoolConfig,
-  TAKER_FEE_PCT,
 } from "./common";
 
 describe("tswap buy", () => {

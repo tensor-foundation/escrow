@@ -9,8 +9,8 @@ on:
     branches:
       - main
 env:
-  SOLANA_CLI_VERSION: 1.10.35
-  NODE_VERSION: 17.0.1
+  SOLANA_CLI_VERSION: 1.14.14
+  NODE_VERSION: 16.16.0
   GH_AUTH_TOKEN: ${{ secrets.TENSORSWAP_GPR_PAT }}
 
 jobs:

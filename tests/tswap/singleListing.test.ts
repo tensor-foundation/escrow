@@ -28,7 +28,10 @@ import {
   testMakeList,
   testMakePool,
 } from "./common";
-import { TokenAccountNotFoundError } from "@solana/spl-token";
+import {
+  createApproveInstruction,
+  TokenAccountNotFoundError,
+} from "@solana/spl-token";
 import { isNullLike, TAKER_BROKER_PCT } from "../../src";
 
 describe("tswap single listing", () => {
@@ -70,6 +73,83 @@ describe("tswap single listing", () => {
     //owner's lamports went down
     const ownerLamports2 = await getLamports(owner.publicKey);
     expect(ownerLamports2).lt(ownerLamports1!);
+
+    // --------------------------------------- delist
+
+    const {
+      tx: { ixs: delistIxs },
+    } = await swapSdk.delist({
+      nftMint: mint,
+      nftDest: ata,
+      owner: owner.publicKey,
+    });
+    await buildAndSendTx({
+      ixs: delistIxs,
+      extraSigners: [owner],
+    });
+    let traderAcc = await getAccount(ata);
+    expect(traderAcc.amount.toString()).eq("1");
+    // Escrow closed.
+    await expect(getAccount(escrowPda)).rejectedWith(TokenAccountNotFoundError);
+
+    //owner's lamports up since account got closed
+    const ownerLamports3 = await getLamports(owner.publicKey);
+    expect(ownerLamports3).gt(ownerLamports2!);
+  });
+
+  it("delegate: list + delist works", async () => {
+    const [owner] = await makeNTraders(1);
+    const royaltyBps = 10000;
+    const price = new BN(LAMPORTS_PER_SOL);
+    const ruleSetAddr = await createTokenAuthorizationRules(
+      TEST_PROVIDER,
+      owner
+    );
+    const programmable = true;
+    const creators = Array(5)
+      .fill(null)
+      .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
+    const { mint, ata } = await createAndFundATA(
+      owner,
+      undefined,
+      royaltyBps,
+      creators,
+      undefined,
+      undefined,
+      programmable,
+      ruleSetAddr
+    );
+
+    // --------------------------------------- list
+
+    const ownerLamports1 = await getLamports(owner.publicKey);
+    const { escrowPda } = await testMakeList({
+      mint,
+      price,
+      ata,
+      owner,
+    });
+
+    //owner's lamports went down
+    const ownerLamports2 = await getLamports(owner.publicKey);
+    expect(ownerLamports2).lt(ownerLamports1!);
+
+    // --------------------------------------- delegate
+
+    //setup a delegate (!) WHILE the NFT is listed
+    const delegate = Keypair.generate();
+    const approveIx = createApproveInstruction(
+      ata,
+      delegate.publicKey,
+      owner.publicKey,
+      10
+    );
+    await buildAndSendTx({
+      ixs: [approveIx],
+      extraSigners: [owner],
+    });
+    const acc = await getAccount(ata);
+    expect(acc.delegate?.toString()).to.eq(delegate.publicKey.toString());
 
     // --------------------------------------- delist
 
