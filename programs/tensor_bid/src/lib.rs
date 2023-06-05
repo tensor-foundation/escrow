@@ -587,17 +587,6 @@ pub struct CloseExpiredBid<'info> {
     #[account(mut)]
     pub bidder: UncheckedAccount<'info>,
 
-    #[account(
-        seeds = [],
-        bump = tswap.bump[0],
-        seeds::program = tensorswap::id(),
-        has_one = cosigner,
-    )]
-    pub tswap: Box<Account<'info, TSwap>>,
-
-    /// CHECK: on tswap
-    pub cosigner: Signer<'info>,
-
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }

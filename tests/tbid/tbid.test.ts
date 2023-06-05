@@ -26,7 +26,6 @@ import {
   getAccount,
   makeMintTwoAta,
   makeNTraders,
-  TEST_COSIGNER,
   testDepositIntoMargin,
   testMakeMargin,
   testWithdrawFromMargin,
@@ -308,7 +307,6 @@ const testCancelCloseBid = async ({
     } = await bidSdk.closeExpiredBid({
       bidder: bidder.publicKey,
       nftMint: mint,
-      cosigner: TEST_COSIGNER.publicKey,
     }));
   } else {
     ({
@@ -333,7 +331,7 @@ const testCancelCloseBid = async ({
     }) => {
       await buildAndSendTx({
         ixs,
-        extraSigners: [closeWithCosigner ? TEST_COSIGNER : bidder],
+        extraSigners: closeWithCosigner ? [] : [bidder],
       });
 
       await expect(bidSdk.fetchBidState(bidState)).to.be.rejectedWith(
