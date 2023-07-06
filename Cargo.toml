@@ -4,7 +4,7 @@ members = [
     "lib/*"
 ]
 exclude = [
-    "deps/metaplex-auth/program"
+    "deps/metaplex-auth/programs"
 ]
 
 # size optimization

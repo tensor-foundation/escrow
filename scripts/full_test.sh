@@ -13,7 +13,7 @@ git submodule update
 pushd deps/metaplex-mpl/token-metadata/program
 cargo build-bpf
 popd
-pushd deps/metaplex-auth/program
+pushd deps/metaplex-auth/programs/token-auth-rules
 cargo build-bpf
 popd
 

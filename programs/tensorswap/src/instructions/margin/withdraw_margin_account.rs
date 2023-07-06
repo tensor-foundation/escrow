@@ -79,6 +79,7 @@ pub struct WithdrawMarginAccountCpi<'info> {
 
     // this bid state can only be derived from TBID program for a given mint and owner
     // and because it's a signer only TBID can call this
+    // Don't want to import tensor_bid package just because of the key, so hardcoding
     #[account(mut,
         seeds=[b"bid_state".as_ref(), owner.key().as_ref(), nft_mint.key().as_ref()],
         seeds::program = Pubkey::from_str("TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv").unwrap(),
@@ -115,7 +116,7 @@ pub struct WithdrawMarginAccountCpiTcomp<'info> {
         mut,
         seeds = [
             b"margin".as_ref(),
-            Pubkey::from_str(TSWAP_ADDR).unwrap().as_ref(),
+            get_tswap_addr().as_ref(),
             owner.key().as_ref(),
             &margin_account.nr.to_le_bytes()
         ],
@@ -126,6 +127,7 @@ pub struct WithdrawMarginAccountCpiTcomp<'info> {
 
     // this bid state can only be derived from TCOMP program for a given mint and owner
     // and because it's a signer only TCOMP can call this
+    // Don't want to import tcomp package just because of the key, so hardcoding
     #[account(mut,
         seeds=[b"bid_state".as_ref(), owner.key().as_ref(), bid_id.as_ref()],
         seeds::program = Pubkey::from_str("TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp").unwrap(),

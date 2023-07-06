@@ -15,7 +15,7 @@ program = "./deps/metaplex-mpl/token-metadata/target/deploy/mpl_token_metadata.s
 
 [[test.genesis]]
 address = "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg"
-program = "./deps/metaplex-auth/program/target/deploy/mpl_token_auth_rules.so"
+program = "./deps/metaplex-auth/programs/token-auth-rules/target/deploy/mpl_token_auth_rules.so"
 
 [registry]
 url = "https://api.apr.dev"

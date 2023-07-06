@@ -92,7 +92,7 @@ describe("tswap init_update_tswap", () => {
     });
     await buildAndSendTx({
       ixs: goodIxs,
-      extraSigners: [initialOwner, randomCosigner],
+      extraSigners: [initialOwner, randomCosigner, randomOwner],
     });
     tswapAcc = await swapSdk.fetchTSwap(tswap);
     expect(tswapAcc.owner.toBase58()).eq(randomOwner.publicKey.toBase58());

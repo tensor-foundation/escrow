@@ -1,4 +1,4 @@
-use std::{slice::Iter, str::FromStr};
+use std::slice::Iter;
 
 use anchor_lang::{
     prelude::Accounts,
@@ -10,7 +10,7 @@ use anchor_lang::{
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, Mint, Token, TokenAccount, Transfer},
+    token::{Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::{
     self,
@@ -81,7 +81,7 @@ pub fn assert_decode_metadata<'info>(
 }
 
 pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
-    let program_id = &Pubkey::from_str(TENSOR_SWAP_ADDR).unwrap();
+    let program_id = &crate::id();
     Pubkey::find_program_address(
         &[
             b"margin".as_ref(),
@@ -101,7 +101,7 @@ pub fn assert_decode_margin_account<'info>(
 ) -> Result<Account<'info, MarginAccount>> {
     let margin_account: Account<'info, MarginAccount> = Account::try_from(margin_account_info)?;
 
-    let program_id = &Pubkey::from_str(TENSOR_SWAP_ADDR).unwrap();
+    let program_id = &crate::id();
     let (key, _) = margin_pda(&tswap.key(), &owner.key(), margin_account.nr);
     if key != *margin_account_info.key {
         throw_err!(BadMargin);
@@ -124,7 +124,7 @@ pub fn assert_decode_mint_proof<'info>(
     nft_mint: &Account<'info, Mint>,
     mint_proof: &UncheckedAccount<'info>,
 ) -> Result<Account<'info, MintProof>> {
-    let program_id = &Pubkey::from_str(TENSOR_WHITELIST_ADDR).unwrap();
+    let program_id = &tensor_whitelist::id();
     let (key, _) = Pubkey::find_program_address(
         &[
             b"mint_proof".as_ref(),
@@ -558,36 +558,6 @@ pub fn send_pnft<'info>(
     //if passed, we assign a delegate first, and the call signed_invoke() instead of invoke()
     delegate: Option<&AccountInfo<'info>>,
 ) -> Result<()> {
-    // TODO temp for non-pNFTs, do a normal transfer, while metaplex fixes their stuff
-    // else we get this error https://solscan.io/tx/5iZSYkpccN1X49vEtHwh5CoRU2TbaCN5Ebf3BPUGmbjnFevS12hAeaqpxwRbabqhao1og7rV1sg7w1ofNxZvM58m
-
-    let metadata = assert_decode_metadata(nft_mint, nft_metadata)?;
-
-    if metadata.token_standard.is_none()
-        || metadata.token_standard.unwrap() != TokenStandard::ProgrammableNonFungible
-    {
-        // msg!("non-pnft / no token std, normal transfer");
-
-        let ctx = CpiContext::new(
-            token_program.to_account_info(),
-            Transfer {
-                from: source_ata.to_account_info(),
-                to: dest_ata.to_account_info(),
-                authority: authority_and_owner.to_account_info(),
-            },
-        );
-
-        if let Some(tswap) = tswap {
-            token::transfer(ctx.with_signer(&[&tswap.seeds()]), 1)?;
-        } else {
-            token::transfer(ctx, 1)?;
-        }
-
-        return Ok(());
-    }
-
-    // --------------------------------------- pnft transfer
-
     let (transfer_ix, account_infos) = prep_pnft_transfer_ix(
         authority_and_owner,
         payer,
@@ -665,4 +635,9 @@ pub fn calc_fees_rebates(amount: u64) -> Result<Fees> {
         broker_fee,
         taker_fee,
     })
+}
+
+pub fn get_tswap_addr() -> Pubkey {
+    let (pda, _) = Pubkey::find_program_address(&[], &crate::id());
+    pda
 }

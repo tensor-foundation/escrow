@@ -112,6 +112,10 @@ pub fn handler<'info>(
 ) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
 
+    if config.starting_price < 1 {
+        throw_err!(StartingPriceTooSmall);
+    }
+
     pool.version = CURRENT_POOL_VERSION;
     pool.bump = [unwrap_bump!(ctx, "pool")];
     pool.sol_escrow_bump = [unwrap_bump!(ctx, "sol_escrow")];

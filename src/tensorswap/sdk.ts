@@ -603,16 +603,15 @@ export class TensorSwapSDK {
   }) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
 
-    const builder = this.program.methods
-      .initUpdateTswap(newOwner, config)
-      .accounts({
-        tswap: tswapPda,
-        owner,
-        cosigner,
-        //tswap itself is the default fee vault
-        feeVault: feeVault ?? tswapPda,
-        systemProgram: SystemProgram.programId,
-      });
+    const builder = this.program.methods.initUpdateTswap(config).accounts({
+      tswap: tswapPda,
+      owner,
+      cosigner,
+      newOwner,
+      //tswap itself is the default fee vault
+      feeVault: feeVault ?? tswapPda,
+      systemProgram: SystemProgram.programId,
+    });
 
     return {
       builder,

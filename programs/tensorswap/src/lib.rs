@@ -1,8 +1,8 @@
 #![allow(unknown_lints)] //needed otherwise complains during github actions
 #![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
 
-use anchor_lang::prelude::*;
-use vipers::prelude::*;
+pub use anchor_lang::prelude::*;
+pub use vipers::prelude::*;
 
 pub mod instructions;
 pub mod state;
@@ -12,10 +12,6 @@ pub use state::*;
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
 
-pub static TENSOR_SWAP_ADDR: &str = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN";
-pub static TENSOR_WHITELIST_ADDR: &str = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW";
-pub static TSWAP_ADDR: &str = "4zdNGgAtFsW1cQgHqkiWyRsxaAgxrSRRynnuunxzjxue";
-
 // TODO: future account optimizations:
 //  1. get rid of tswap (have single instance of program with hardcoded variables)
 //  2. combine pool state acc + pool escrow balance (there's 1 per pool anyway)
@@ -23,12 +19,8 @@ pub static TSWAP_ADDR: &str = "4zdNGgAtFsW1cQgHqkiWyRsxaAgxrSRRynnuunxzjxue";
 pub mod tensorswap {
     use super::*;
 
-    pub fn init_update_tswap(
-        ctx: Context<InitUpdateTSwap>,
-        new_owner: Pubkey,
-        config: TSwapConfig,
-    ) -> Result<()> {
-        instructions::admin::init_update_tswap::handler(ctx, new_owner, config)
+    pub fn init_update_tswap(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
+        instructions::admin::init_update_tswap::handler(ctx, config)
     }
 
     pub fn init_pool<'info>(
@@ -390,6 +382,8 @@ pub enum ErrorCode {
     PoolFeesCompounded = 36,
     #[msg("royalties percentage passed in must be between 0 and 100")]
     BadRoyaltiesPct = 37,
+    #[msg("starting price can't be smaller than 1 lamport")]
+    StartingPriceTooSmall,
 }
 
 #[derive(Accounts)]

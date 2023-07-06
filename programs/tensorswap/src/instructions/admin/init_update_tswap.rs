@@ -19,6 +19,8 @@ pub struct InitUpdateTSwap<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,
+
+    pub new_owner: Signer<'info>,
 }
 
 impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
@@ -34,16 +36,12 @@ impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler(
-    ctx: Context<InitUpdateTSwap>,
-    new_owner: Pubkey,
-    config: TSwapConfig,
-) -> Result<()> {
+pub fn handler(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
     let tswap = &mut ctx.accounts.tswap;
 
     tswap.version = CURRENT_TSWAP_VERSION;
     tswap.bump = [unwrap_bump!(ctx, "tswap")];
-    tswap.owner = new_owner;
+    tswap.owner = ctx.accounts.new_owner.key();
     tswap.config = config;
     tswap.fee_vault = ctx.accounts.fee_vault.key();
     tswap.cosigner = ctx.accounts.cosigner.key();
