@@ -4,10 +4,25 @@ import {
   toBigNumber,
 } from "@metaplex-foundation/js";
 import {
+  Payload,
+  PROGRAM_ID as AUTH_PROGRAM_ID,
+} from "@metaplex-foundation/mpl-token-auth-rules";
+import {
+  createCreateInstruction,
+  CreateInstructionAccounts,
+  CreateInstructionArgs,
+  createMintInstruction,
+  MintInstructionAccounts,
+  MintInstructionArgs,
+  PROGRAM_ID,
+  TokenStandard,
+} from "@metaplex-foundation/mpl-token-metadata";
+import { AnchorProvider } from "@project-serum/anchor";
+import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
   getAccount as _getAccount,
-  getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
   TokenAccountNotFoundError,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
@@ -23,8 +38,10 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
+import { findTokenRecordPda } from "@tensor-hq/tensor-common";
 import BN from "bn.js";
 import chai, { expect } from "chai";
+import chaiAsPromised from "chai-as-promised";
 import {
   castPoolConfigAnchor,
   castPoolTypeAnchor,
@@ -32,6 +49,7 @@ import {
   computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
   isNullLike,
+  MAKER_REBATE_BPS,
   MINUTES,
   OrderType,
   PoolAnchor,
@@ -41,12 +59,11 @@ import {
   SNIPE_FEE_BPS,
   SNIPE_MIN_FEE,
   SNIPE_PROFIT_SHARE_BPS,
-  TSWAP_TAKER_FEE_BPS,
   TakerSide,
   TAKER_BROKER_PCT,
   TensorWhitelistSDK,
   TSwapConfigAnchor,
-  MAKER_REBATE_BPS,
+  TSWAP_TAKER_FEE_BPS,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -61,23 +78,6 @@ import {
   withLamports,
   wlSdk,
 } from "../shared";
-import {
-  Payload,
-  PROGRAM_ID as AUTH_PROGRAM_ID,
-} from "@metaplex-foundation/mpl-token-auth-rules";
-import {
-  createCreateInstruction,
-  CreateInstructionAccounts,
-  CreateInstructionArgs,
-  createMintInstruction,
-  MintInstructionAccounts,
-  MintInstructionArgs,
-  PROGRAM_ID,
-  TokenStandard,
-} from "@metaplex-foundation/mpl-token-metadata";
-import { AnchorProvider } from "@project-serum/anchor";
-import { findTokenRecordPda } from "@tensor-hq/tensor-common";
-import chaiAsPromised from "chai-as-promised";
 import { testInitUpdateMintProof } from "../twhitelist/common";
 
 // Enables rejectedWith.
@@ -208,7 +208,7 @@ const _createATA = async (
   mint: PublicKey,
   owner: Keypair
 ) => {
-  const ata = await getAssociatedTokenAddress(mint, owner.publicKey);
+  const ata = await getAssociatedTokenAddressSync(mint, owner.publicKey);
   const createAtaIx = createAssociatedTokenAccountInstruction(
     owner.publicKey,
     ata,

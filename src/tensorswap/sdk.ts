@@ -12,7 +12,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createRevokeInstruction,
   getAccount,
-  getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
   getMinimumBalanceForRentExemptAccount,
   TOKEN_PROGRAM_ID,
   Account,
@@ -1494,7 +1494,7 @@ export class TensorSwapSDK {
       curveType: curveTypeU8(config.curveType),
     });
     const [solEscrowPda, solEscrowBump] = findSolEscrowPDA({ pool: poolPda });
-    const ownerAtaAcc = await getAssociatedTokenAddress(nftMint, owner);
+    const ownerAtaAcc = getAssociatedTokenAddressSync(nftMint, owner, true);
     const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
     const [receiptPda, receiptBump] = findNftDepositReceiptPDA({ nftMint });
     const [mintProofPda] = findMintProofPDA({ mint: nftMint, whitelist });
@@ -2071,7 +2071,7 @@ export class TensorSwapSDK {
       curveType: curveTypeU8(config.curveType),
     });
     const [solEscrowPda, solEscrowBump] = findSolEscrowPDA({ pool: poolPda });
-    const ownerAtaAcc = await getAssociatedTokenAddress(nftMint, owner);
+    const ownerAtaAcc = getAssociatedTokenAddressSync(nftMint, owner, true);
     const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
     const [receiptPda, receiptBump] = findNftDepositReceiptPDA({ nftMint });
     const [mintProofPda] = findMintProofPDA({ mint: nftMint, whitelist });
