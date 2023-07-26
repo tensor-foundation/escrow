@@ -7,6 +7,7 @@ tensorswap = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN"
 tensor_whitelist = "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW"
 tensor_bid = "TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv"
 
+# (!!) Sync deps target dirs with 'cache_cargo/action.yaml'!
 # From https://github.com/armaniferrante/auction-house/blob/45518c16f00c68509e06432925403046f2b64463/Anchor.toml
 # Required for tests.
 [[test.genesis]]
