@@ -1,4 +1,4 @@
-import { BN, LangErrorCode } from "@project-serum/anchor";
+import { BN, LangErrorCode } from "@coral-xyz/anchor";
 import {
   AddressLookupTableAccount,
   Keypair,

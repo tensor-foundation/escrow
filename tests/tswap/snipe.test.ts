@@ -36,7 +36,7 @@ import {
 } from "../shared";
 import { findMarginPDA, OrderType } from "../../src";
 import { expect } from "chai";
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 
 describe("snipe", () => {
   // Keep these coupled global vars b/w tests at a minimal.

@@ -1,8 +1,8 @@
 import { createTokenAuthorizationRules, TEST_PROVIDER } from "../tests/shared";
 import { createAndMintPNft, createAndFundATA } from "../tests/tswap/common";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
-import { AnchorProvider } from "@project-serum/anchor";
+import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
+import { AnchorProvider } from "@coral-xyz/anchor";
 import { keypairIdentity, Metaplex } from "@metaplex-foundation/js";
 
 (async () => {

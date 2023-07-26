@@ -4,8 +4,8 @@ import {
   findRuleSetPDA,
 } from "@metaplex-foundation/mpl-token-auth-rules";
 import { encode } from "@msgpack/msgpack";
-import * as anchor from "@project-serum/anchor";
-import { AnchorProvider, Wallet } from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
+import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import {
   SingleConnectionBroadcaster,
   SolanaProvider,

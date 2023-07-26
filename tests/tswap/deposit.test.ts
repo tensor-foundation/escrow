@@ -1,4 +1,4 @@
-import { LangErrorCode } from "@project-serum/anchor";
+import { LangErrorCode } from "@coral-xyz/anchor";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { expect } from "chai";
 import {

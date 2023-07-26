@@ -1,4 +1,4 @@
-import { AccountClient, BN, Idl, Program, utils } from "@project-serum/anchor";
+import { AccountClient, BN, Idl, Program, utils } from "@coral-xyz/anchor";
 import { AccountInfo, Connection, PublicKey } from "@solana/web3.js";
 import Mexp from "math-expression-evaluator";
 

@@ -7,7 +7,7 @@ import {
   EventParser,
   Instruction,
   Program,
-} from "@project-serum/anchor";
+} from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createRevokeInstruction,

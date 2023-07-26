@@ -1,4 +1,4 @@
-import { AnchorProvider, Wallet } from "@project-serum/anchor";
+import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { updateLUT } from "../tests/shared";
 import { TSWAP_CORE_LUT } from "../src";

@@ -8,7 +8,7 @@ import {
   Program,
   Provider,
   Wallet,
-} from "@project-serum/anchor";
+} from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,

@@ -17,7 +17,7 @@ import {
   PROGRAM_ID,
   TokenStandard,
 } from "@metaplex-foundation/mpl-token-metadata";
-import { AnchorProvider } from "@project-serum/anchor";
+import { AnchorProvider } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,

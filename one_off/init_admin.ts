@@ -1,7 +1,7 @@
 import Transport from "@ledgerhq/hw-transport-node-hid";
 import Solana from "@ledgerhq/hw-app-solana";
-import { AnchorProvider, Wallet } from "@project-serum/anchor";
-import { Wallet as BaseWallet } from "@project-serum/anchor/dist/cjs/provider";
+import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
+import { Wallet as BaseWallet } from "@coral-xyz/anchor/dist/cjs/provider";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import {
   findTSwapPDA,
