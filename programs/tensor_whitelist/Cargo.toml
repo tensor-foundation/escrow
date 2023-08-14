@@ -17,8 +17,8 @@ default = []
 testing = []
 
 [dependencies]
+merkle_proof = { version="0.1.0", git="ssh://git@github.com/tensor-hq/tensor-common-rs.git" }
+vipers = { version="2.0.6", git="ssh://git@github.com/tensor-hq/tensor-common-rs.git" }
 anchor-lang = { version="0.26.0", features=["init-if-needed"] }
 anchor-spl = "0.26.0"
 mpl-token-metadata = { version="1.8.3", features = [ "no-entrypoint" ] }
-vipers = {path= '../../lib/vipers' }
-merkle_proof = {path= '../../lib/merkle_proof' }

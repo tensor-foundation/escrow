@@ -8,6 +8,7 @@ pub mod instructions;
 pub mod state;
 
 pub use instructions::*;
+pub use pnft::*;
 pub use state::*;
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");

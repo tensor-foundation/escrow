@@ -6,6 +6,7 @@ use anchor_spl::{
     token::{Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
+use pnft::*;
 use vipers::throw_err;
 
 use crate::*;
@@ -144,26 +145,28 @@ pub fn handler<'a, 'b, 'c, 'info>(
     };
 
     send_pnft(
-        &ctx.accounts.shared.seller.to_account_info(),
-        &ctx.accounts.shared.seller.to_account_info(),
-        &ctx.accounts.shared.nft_seller_acc,
-        &ctx.accounts.nft_escrow,
-        &ctx.accounts.shared.tswap.to_account_info(),
-        &ctx.accounts.shared.nft_mint,
-        &ctx.accounts.shared.nft_metadata,
-        &ctx.accounts.nft_edition,
-        &ctx.accounts.system_program,
-        &ctx.accounts.token_program,
-        &ctx.accounts.associated_token_program,
-        &ctx.accounts.pnft_shared.instructions,
-        &ctx.accounts.owner_token_record,
-        &ctx.accounts.dest_token_record,
-        &ctx.accounts.pnft_shared.authorization_rules_program,
-        auth_rules,
-        authorization_data
-            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         None,
-        None,
+        PnftTransferArgs {
+            authority_and_owner: &ctx.accounts.shared.seller.to_account_info(),
+            payer: &ctx.accounts.shared.seller.to_account_info(),
+            source_ata: &ctx.accounts.shared.nft_seller_acc,
+            dest_ata: &ctx.accounts.nft_escrow,
+            dest_owner: &ctx.accounts.shared.tswap.to_account_info(),
+            nft_mint: &ctx.accounts.shared.nft_mint,
+            nft_metadata: &ctx.accounts.shared.nft_metadata,
+            nft_edition: &ctx.accounts.nft_edition,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            ata_program: &ctx.accounts.associated_token_program,
+            instructions: &ctx.accounts.pnft_shared.instructions,
+            owner_token_record: &ctx.accounts.owner_token_record,
+            dest_token_record: &ctx.accounts.dest_token_record,
+            authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+            rules_acc: auth_rules,
+            authorization_data: authorization_data
+                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            delegate: None,
+        },
     )?;
 
     let metadata = &assert_decode_metadata(

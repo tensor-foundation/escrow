@@ -3,6 +3,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Token, TokenAccount},
 };
+use pnft::*;
 use vipers::throw_err;
 
 use crate::*;
@@ -146,25 +147,27 @@ pub fn handler<'info>(
     // has to go before any transfer_lamports, o/w we get `sum of account balances before and after instruction do not match`
     // has to go before creators fee calc below, coz we need to drain 1 optional acc
     send_pnft(
-        &ctx.accounts.shared.seller.to_account_info(),
-        &ctx.accounts.shared.seller.to_account_info(),
-        &ctx.accounts.shared.nft_seller_acc,
-        &ctx.accounts.owner_ata_acc,
-        &ctx.accounts.shared.owner.to_account_info(),
-        &ctx.accounts.shared.nft_mint,
-        &ctx.accounts.shared.nft_metadata,
-        &ctx.accounts.nft_edition,
-        &ctx.accounts.system_program,
-        &ctx.accounts.token_program,
-        &ctx.accounts.associated_token_program,
-        &ctx.accounts.pnft_shared.instructions,
-        &ctx.accounts.owner_token_record,
-        &ctx.accounts.dest_token_record,
-        &ctx.accounts.pnft_shared.authorization_rules_program,
-        auth_rules,
-        authorization_data,
-        Some(&ctx.accounts.shared.tswap),
-        Some(&ctx.accounts.shared.tswap),
+        Some(&[&ctx.accounts.shared.tswap.seeds()]),
+        PnftTransferArgs {
+            authority_and_owner: &ctx.accounts.shared.seller.to_account_info(),
+            payer: &ctx.accounts.shared.seller.to_account_info(),
+            source_ata: &ctx.accounts.shared.nft_seller_acc,
+            dest_ata: &ctx.accounts.owner_ata_acc,
+            dest_owner: &ctx.accounts.shared.owner.to_account_info(),
+            nft_mint: &ctx.accounts.shared.nft_mint,
+            nft_metadata: &ctx.accounts.shared.nft_metadata,
+            nft_edition: &ctx.accounts.nft_edition,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            ata_program: &ctx.accounts.associated_token_program,
+            instructions: &ctx.accounts.pnft_shared.instructions,
+            owner_token_record: &ctx.accounts.owner_token_record,
+            dest_token_record: &ctx.accounts.dest_token_record,
+            authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+            rules_acc: auth_rules,
+            authorization_data: authorization_data,
+            delegate: Some(&ctx.accounts.shared.tswap),
+        },
     )?;
 
     let current_price = pool.current_price(TakerSide::Sell)?;

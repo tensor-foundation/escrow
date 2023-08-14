@@ -1,13 +1,9 @@
 #![allow(unknown_lints)] //needed otherwise complains during github actions
 #![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
 
-pub mod pnft;
 use anchor_lang::{
     prelude::*,
-    solana_program::{
-        program::{invoke, invoke_signed},
-        system_instruction,
-    },
+    solana_program::{program::invoke, system_instruction},
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -15,15 +11,30 @@ use anchor_spl::{
 };
 use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
 use mpl_token_metadata::processor::AuthorizationData;
-pub use pnft::*;
+use pnft::*;
 use tensorswap::{
     self, assert_decode_margin_account, assert_decode_metadata, calc_creators_fee,
-    calc_fees_rebates, prep_pnft_transfer_ix, program::Tensorswap, transfer_creators_fee,
-    transfer_lamports_from_pda, TSwap,
+    calc_fees_rebates, program::Tensorswap, transfer_creators_fee, transfer_lamports_from_pda,
+    TSwap,
 };
 use vipers::{prelude::*, throw_err};
 
 declare_id!("TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv");
+
+#[derive(Accounts)]
+pub struct ProgNftShared<'info> {
+    //can't deserialize directly coz Anchor traits not implemented
+    /// CHECK: address below
+    #[account(address = mpl_token_metadata::id())]
+    pub token_metadata_program: UncheckedAccount<'info>,
+    //sysvar ixs don't deserialize in anchor
+    /// CHECK: address below
+    #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+    /// CHECK: address below
+    #[account(address = mpl_token_auth_rules::id())]
+    pub authorization_rules_program: UncheckedAccount<'info>,
+}
 
 // --------------------------------------- ixs
 
@@ -161,51 +172,56 @@ pub mod tensor_bid {
 
         //STEP 1/2: SEND TO ESCROW
         send_pnft(
-            &ctx.accounts.seller.to_account_info(),
-            &ctx.accounts.seller.to_account_info(),
-            &ctx.accounts.nft_seller_acc,
-            &ctx.accounts.nft_temp_acc, //<- send to escrow first
-            &ctx.accounts.bid_state.to_account_info(),
-            &ctx.accounts.nft_mint,
-            &ctx.accounts.nft_metadata,
-            &ctx.accounts.nft_edition,
-            &ctx.accounts.system_program,
-            &ctx.accounts.token_program,
-            &ctx.accounts.associated_token_program,
-            &ctx.accounts.pnft_shared.instructions,
-            &ctx.accounts.seller_token_record,
-            &ctx.accounts.temp_token_record,
-            &ctx.accounts.pnft_shared.authorization_rules_program,
-            auth_rules,
-            authorization_data
-                .clone()
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
             None,
-            None,
+            PnftTransferArgs {
+                authority_and_owner: &ctx.accounts.seller.to_account_info(),
+                payer: &ctx.accounts.seller.to_account_info(),
+                source_ata: &ctx.accounts.nft_seller_acc,
+                dest_ata: &ctx.accounts.nft_temp_acc, //<- send to escrow first
+                dest_owner: &ctx.accounts.bid_state.to_account_info(),
+                nft_mint: &ctx.accounts.nft_mint,
+                nft_metadata: &ctx.accounts.nft_metadata,
+                nft_edition: &ctx.accounts.nft_edition,
+                system_program: &ctx.accounts.system_program,
+                token_program: &ctx.accounts.token_program,
+                ata_program: &ctx.accounts.associated_token_program,
+                instructions: &ctx.accounts.pnft_shared.instructions,
+                owner_token_record: &ctx.accounts.seller_token_record,
+                dest_token_record: &ctx.accounts.temp_token_record,
+                authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+                rules_acc: auth_rules,
+                authorization_data: authorization_data.clone().map(|authorization_data| {
+                    AuthorizationData::try_from(authorization_data).unwrap()
+                }),
+                delegate: None,
+            },
         )?;
 
         //STEP 2/2: SEND FROM ESCROW
         send_pnft(
-            &ctx.accounts.bid_state.to_account_info(),
-            &ctx.accounts.seller.to_account_info(),
-            &ctx.accounts.nft_temp_acc,
-            &ctx.accounts.nft_bidder_acc,
-            &ctx.accounts.bidder.to_account_info(),
-            &ctx.accounts.nft_mint,
-            &ctx.accounts.nft_metadata,
-            &ctx.accounts.nft_edition,
-            &ctx.accounts.system_program,
-            &ctx.accounts.token_program,
-            &ctx.accounts.associated_token_program,
-            &ctx.accounts.pnft_shared.instructions,
-            &ctx.accounts.temp_token_record,
-            &ctx.accounts.bidder_token_record,
-            &ctx.accounts.pnft_shared.authorization_rules_program,
-            auth_rules,
-            authorization_data
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
-            Some(&ctx.accounts.bid_state),
-            None,
+            Some(&[&ctx.accounts.bid_state.seeds()]),
+            PnftTransferArgs {
+                authority_and_owner: &ctx.accounts.bid_state.to_account_info(),
+                payer: &ctx.accounts.seller.to_account_info(),
+                source_ata: &ctx.accounts.nft_temp_acc,
+                dest_ata: &ctx.accounts.nft_bidder_acc,
+                dest_owner: &ctx.accounts.bidder.to_account_info(),
+                nft_mint: &ctx.accounts.nft_mint,
+                nft_metadata: &ctx.accounts.nft_metadata,
+                nft_edition: &ctx.accounts.nft_edition,
+                system_program: &ctx.accounts.system_program,
+                token_program: &ctx.accounts.token_program,
+                ata_program: &ctx.accounts.associated_token_program,
+                instructions: &ctx.accounts.pnft_shared.instructions,
+                owner_token_record: &ctx.accounts.temp_token_record,
+                dest_token_record: &ctx.accounts.bidder_token_record,
+                authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+                rules_acc: auth_rules,
+                authorization_data: authorization_data.map(|authorization_data| {
+                    AuthorizationData::try_from(authorization_data).unwrap()
+                }),
+                delegate: None,
+            },
         )?;
 
         // close temp nft escrow account, so it's not dangling
@@ -664,4 +680,79 @@ pub struct TakeBidEvent {
     pub expiry: i64,
     pub mint: Pubkey,
     pub bidder: Pubkey,
+}
+
+// --------------------------------------- replicating mplex type for anchor IDL export
+//have to do this because anchor won't include foreign structs in the IDL
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct AuthorizationDataLocal {
+    pub payload: Vec<TaggedPayload>,
+}
+impl From<AuthorizationDataLocal> for AuthorizationData {
+    fn from(val: AuthorizationDataLocal) -> Self {
+        let mut p = Payload::new();
+        val.payload.into_iter().for_each(|tp| {
+            p.insert(tp.name, PayloadType::try_from(tp.payload).unwrap());
+        });
+        AuthorizationData { payload: p }
+    }
+}
+
+//Unfortunately anchor doesn't like HashMaps, nor Tuples, so you can't pass in:
+// HashMap<String, PayloadType>, nor
+// Vec<(String, PayloadTypeLocal)>
+// so have to create this stupid temp struct for IDL to serialize correctly
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct TaggedPayload {
+    pub name: String,
+    pub payload: PayloadTypeLocal,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub enum PayloadTypeLocal {
+    /// A plain `Pubkey`.
+    Pubkey(Pubkey),
+    /// PDA derivation seeds.
+    Seeds(SeedsVecLocal),
+    /// A merkle proof.
+    MerkleProof(ProofInfoLocal),
+    /// A plain `u64` used for `Amount`.
+    Number(u64),
+}
+impl From<PayloadTypeLocal> for PayloadType {
+    fn from(val: PayloadTypeLocal) -> Self {
+        match val {
+            PayloadTypeLocal::Pubkey(pubkey) => PayloadType::Pubkey(pubkey),
+            PayloadTypeLocal::Seeds(seeds) => {
+                PayloadType::Seeds(SeedsVec::try_from(seeds).unwrap())
+            }
+            PayloadTypeLocal::MerkleProof(proof) => {
+                PayloadType::MerkleProof(ProofInfo::try_from(proof).unwrap())
+            }
+            PayloadTypeLocal::Number(number) => PayloadType::Number(number),
+        }
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct SeedsVecLocal {
+    /// The vector of derivation seeds.
+    pub seeds: Vec<Vec<u8>>,
+}
+impl From<SeedsVecLocal> for SeedsVec {
+    fn from(val: SeedsVecLocal) -> Self {
+        SeedsVec { seeds: val.seeds }
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct ProofInfoLocal {
+    /// The merkle proof.
+    pub proof: Vec<[u8; 32]>,
+}
+impl From<ProofInfoLocal> for ProofInfo {
+    fn from(val: ProofInfoLocal) -> Self {
+        ProofInfo { proof: val.proof }
+    }
 }

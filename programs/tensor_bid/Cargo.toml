@@ -17,12 +17,13 @@ default = []
 testing = []
 
 [dependencies]
+merkle_proof = { version="0.1.0", git="ssh://git@github.com/tensor-hq/tensor-common-rs.git" }
+pnft = { version="0.1.0", git="ssh://git@github.com/tensor-hq/tensor-common-rs.git" }
+vipers = { version="2.0.6", git="ssh://git@github.com/tensor-hq/tensor-common-rs.git" }
 anchor-lang = "0.26.0"
 anchor-spl = { version = "0.26.0", features =  ["default"] }
 mpl-token-metadata = { version="1.8.3", features = [ "no-entrypoint" ] }
 mpl-token-auth-rules = "1.2.0"
-vipers = {path= '../../lib/vipers' }
-merkle_proof = {path= '../../lib/merkle_proof' }
 spl-math = { version = "0.1.0", features = [ "no-entrypoint" ] }
 tensorswap = { path = '../tensorswap', features = ["cpi"] }
 static_assertions = "1.1.0"

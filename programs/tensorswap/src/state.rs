@@ -565,8 +565,8 @@ impl From<AuthorizationDataLocal> for AuthorizationData {
 // so have to create this stupid temp struct for IDL to serialize correctly
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct TaggedPayload {
-    name: String,
-    payload: PayloadTypeLocal,
+    pub name: String,
+    pub payload: PayloadTypeLocal,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]

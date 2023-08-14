@@ -6,6 +6,7 @@ use anchor_spl::{
     token::{self, CloseAccount, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
+use pnft::*;
 use vipers::throw_err;
 
 use crate::*;
@@ -173,51 +174,55 @@ pub fn handler<'info>(
 
     //STEP 1/2: SEND TO ESCROW
     send_pnft(
-        &ctx.accounts.shared.seller.to_account_info(),
-        &ctx.accounts.shared.seller.to_account_info(),
-        &ctx.accounts.shared.nft_seller_acc,
-        &ctx.accounts.nft_escrow, //<- send to escrow first
-        &ctx.accounts.shared.tswap.to_account_info(),
-        &ctx.accounts.shared.nft_mint,
-        &ctx.accounts.shared.nft_metadata,
-        &ctx.accounts.nft_edition,
-        &ctx.accounts.system_program,
-        &ctx.accounts.token_program,
-        &ctx.accounts.associated_token_program,
-        &ctx.accounts.pnft_shared.instructions,
-        &ctx.accounts.owner_token_record,
-        &ctx.accounts.temp_escrow_token_record,
-        &ctx.accounts.pnft_shared.authorization_rules_program,
-        auth_rules,
-        authorization_data
-            .clone()
-            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         None,
-        None,
+        PnftTransferArgs {
+            authority_and_owner: &ctx.accounts.shared.seller.to_account_info(),
+            payer: &ctx.accounts.shared.seller.to_account_info(),
+            source_ata: &ctx.accounts.shared.nft_seller_acc,
+            dest_ata: &ctx.accounts.nft_escrow, //<- send to escrow first
+            dest_owner: &ctx.accounts.shared.tswap.to_account_info(),
+            nft_mint: &ctx.accounts.shared.nft_mint,
+            nft_metadata: &ctx.accounts.shared.nft_metadata,
+            nft_edition: &ctx.accounts.nft_edition,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            ata_program: &ctx.accounts.associated_token_program,
+            instructions: &ctx.accounts.pnft_shared.instructions,
+            owner_token_record: &ctx.accounts.owner_token_record,
+            dest_token_record: &ctx.accounts.temp_escrow_token_record,
+            authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+            rules_acc: auth_rules,
+            authorization_data: authorization_data
+                .clone()
+                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            delegate: None,
+        },
     )?;
 
     //STEP 2/2: SEND FROM ESCROW
     send_pnft(
-        &ctx.accounts.shared.tswap.to_account_info(),
-        &ctx.accounts.shared.seller.to_account_info(),
-        &ctx.accounts.nft_escrow,
-        &ctx.accounts.owner_ata_acc,
-        &ctx.accounts.shared.owner.to_account_info(),
-        &ctx.accounts.shared.nft_mint,
-        &ctx.accounts.shared.nft_metadata,
-        &ctx.accounts.nft_edition,
-        &ctx.accounts.system_program,
-        &ctx.accounts.token_program,
-        &ctx.accounts.associated_token_program,
-        &ctx.accounts.pnft_shared.instructions,
-        &ctx.accounts.temp_escrow_token_record,
-        &ctx.accounts.dest_token_record,
-        &ctx.accounts.pnft_shared.authorization_rules_program,
-        auth_rules,
-        authorization_data
-            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
-        Some(&ctx.accounts.shared.tswap),
-        None,
+        Some(&[&ctx.accounts.shared.tswap.seeds()]),
+        PnftTransferArgs {
+            authority_and_owner: &ctx.accounts.shared.tswap.to_account_info(),
+            payer: &ctx.accounts.shared.seller.to_account_info(),
+            source_ata: &ctx.accounts.nft_escrow,
+            dest_ata: &ctx.accounts.owner_ata_acc,
+            dest_owner: &ctx.accounts.shared.owner.to_account_info(),
+            nft_mint: &ctx.accounts.shared.nft_mint,
+            nft_metadata: &ctx.accounts.shared.nft_metadata,
+            nft_edition: &ctx.accounts.nft_edition,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            ata_program: &ctx.accounts.associated_token_program,
+            instructions: &ctx.accounts.pnft_shared.instructions,
+            owner_token_record: &ctx.accounts.temp_escrow_token_record,
+            dest_token_record: &ctx.accounts.dest_token_record,
+            authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+            rules_acc: auth_rules,
+            authorization_data: authorization_data
+                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            delegate: None,
+        },
     )?;
 
     // close temp nft escrow account, so it's not dangling

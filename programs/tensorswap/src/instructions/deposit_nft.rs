@@ -5,6 +5,7 @@ use anchor_spl::{
     token::{Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
+use pnft::*;
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -198,26 +199,28 @@ pub fn handler<'info>(
     };
 
     send_pnft(
-        &ctx.accounts.owner.to_account_info(),
-        &ctx.accounts.owner.to_account_info(),
-        &ctx.accounts.nft_source,
-        &ctx.accounts.nft_escrow,
-        &ctx.accounts.tswap.to_account_info(),
-        &ctx.accounts.nft_mint,
-        &ctx.accounts.nft_metadata,
-        &ctx.accounts.nft_edition,
-        &ctx.accounts.system_program,
-        &ctx.accounts.token_program,
-        &ctx.accounts.associated_token_program,
-        &ctx.accounts.pnft_shared.instructions,
-        &ctx.accounts.owner_token_record,
-        &ctx.accounts.dest_token_record,
-        &ctx.accounts.pnft_shared.authorization_rules_program,
-        auth_rules,
-        authorization_data
-            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
         None,
-        None,
+        PnftTransferArgs {
+            authority_and_owner: &ctx.accounts.owner.to_account_info(),
+            payer: &ctx.accounts.owner.to_account_info(),
+            source_ata: &ctx.accounts.nft_source,
+            dest_ata: &ctx.accounts.nft_escrow,
+            dest_owner: &ctx.accounts.tswap.to_account_info(),
+            nft_mint: &ctx.accounts.nft_mint,
+            nft_metadata: &ctx.accounts.nft_metadata,
+            nft_edition: &ctx.accounts.nft_edition,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            ata_program: &ctx.accounts.associated_token_program,
+            instructions: &ctx.accounts.pnft_shared.instructions,
+            owner_token_record: &ctx.accounts.owner_token_record,
+            dest_token_record: &ctx.accounts.dest_token_record,
+            authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+            rules_acc: auth_rules,
+            authorization_data: authorization_data
+                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            delegate: None,
+        },
     )?;
 
     //update pool

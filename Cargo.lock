@@ -1087,6 +1087,7 @@ dependencies = [
 [[package]]
 name = "merkle_proof"
 version = "0.1.0"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#6b38cabdc249a06a956dadac3c7ef7553bdd8707"
 dependencies = [
  "anchor-lang",
 ]
@@ -1288,6 +1289,18 @@ name = "percent-encoding"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "478c572c3d73181ff3c2539045f6eb99e5491218eae919370993b890cdbdd98e"
+
+[[package]]
+name = "pnft"
+version = "0.1.0"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#6b38cabdc249a06a956dadac3c7ef7553bdd8707"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "mpl-token-auth-rules",
+ "mpl-token-metadata",
+ "vipers",
+]
 
 [[package]]
 name = "polyval"
@@ -1958,18 +1971,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "static-pubkey"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0547d5945c93f55e1b18bf2a67d1a3d0548561f2687645b22c1c1d4fbb9a8e90"
-dependencies = [
- "bs58 0.4.0",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2013,6 +2014,7 @@ dependencies = [
  "merkle_proof",
  "mpl-token-auth-rules",
  "mpl-token-metadata",
+ "pnft",
  "spl-math",
  "static_assertions",
  "tensorswap",
@@ -2039,6 +2041,7 @@ dependencies = [
  "merkle_proof",
  "mpl-token-auth-rules",
  "mpl-token-metadata",
+ "pnft",
  "spl-math",
  "static_assertions",
  "tensor_whitelist",
@@ -2191,13 +2194,11 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vipers"
 version = "2.0.6"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#6b38cabdc249a06a956dadac3c7ef7553bdd8707"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
  "num-traits",
- "spl-associated-token-account",
- "spl-token",
- "static-pubkey",
 ]
 
 [[package]]

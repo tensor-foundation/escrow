@@ -3,6 +3,7 @@ use anchor_spl::{
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
+use pnft::*;
 
 use crate::*;
 
@@ -156,26 +157,28 @@ pub fn handler<'info>(
     };
 
     send_pnft(
-        &ctx.accounts.tswap.to_account_info(),
-        &ctx.accounts.payer.to_account_info(),
-        &ctx.accounts.nft_escrow,
-        &ctx.accounts.nft_dest,
-        &ctx.accounts.owner,
-        &ctx.accounts.nft_mint,
-        &ctx.accounts.nft_metadata,
-        &ctx.accounts.nft_edition,
-        &ctx.accounts.system_program,
-        &ctx.accounts.token_program,
-        &ctx.accounts.associated_token_program,
-        &ctx.accounts.pnft_shared.instructions,
-        &ctx.accounts.owner_token_record,
-        &ctx.accounts.dest_token_record,
-        &ctx.accounts.pnft_shared.authorization_rules_program,
-        auth_rules,
-        authorization_data
-            .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
-        Some(&ctx.accounts.tswap),
-        None,
+        Some(&[&ctx.accounts.tswap.seeds()]),
+        PnftTransferArgs {
+            authority_and_owner: &ctx.accounts.tswap.to_account_info(),
+            payer: &ctx.accounts.payer.to_account_info(),
+            source_ata: &ctx.accounts.nft_escrow,
+            dest_ata: &ctx.accounts.nft_dest,
+            dest_owner: &ctx.accounts.owner,
+            nft_mint: &ctx.accounts.nft_mint,
+            nft_metadata: &ctx.accounts.nft_metadata,
+            nft_edition: &ctx.accounts.nft_edition,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            ata_program: &ctx.accounts.associated_token_program,
+            instructions: &ctx.accounts.pnft_shared.instructions,
+            owner_token_record: &ctx.accounts.owner_token_record,
+            dest_token_record: &ctx.accounts.dest_token_record,
+            authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
+            rules_acc: auth_rules,
+            authorization_data: authorization_data
+                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            delegate: None,
+        },
     )?;
 
     // close nft escrow account

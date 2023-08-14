@@ -8,9 +8,7 @@ on:
     branches:
       - main
 env:
-  SOLANA_CLI_VERSION: 1.14.14
-  NODE_VERSION: 16.16.0
-  GH_AUTH_TOKEN: ${{ secrets.TENSORSWAP_GPR_PAT }}
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
 
 jobs:
   test-rust:
@@ -20,6 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup/
+        with:
+          tcommon-deploy-key: ${{ secrets.TENSOR_COMMON_RS_RO_DEPLOY_KEY }}
 
       - run: cargo build
       - run: cargo fmt -- --check
@@ -35,6 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: ./.github/actions/setup/
+        with:
+          tcommon-deploy-key: ${{ secrets.TENSOR_COMMON_RS_RO_DEPLOY_KEY }}
       - uses: ./.github/actions/cache-cargo/
       - run: yarn build:all
       # This ensures the IDL generated matches what's checked in!
@@ -68,6 +70,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup/
+        with:
+          tcommon-deploy-key: ${{ secrets.TENSOR_COMMON_RS_RO_DEPLOY_KEY }}
 
       - run: grep -Evqz 'it.only\(|describe.only\(' ${{ matrix.node.glob }}
         name: No only tests
