@@ -18,6 +18,7 @@ sed -i '' -e 's/tensorswap.git/tensorswap-sdk.git/g' ../tensorswap-sdk/package.j
 sed -i '' -e 's/https:\/\/npm.pkg.github.com/https:\/\/registry.npmjs.org/g' ../tensorswap-sdk/package.json
 sed -i '' -e 's/pubpush/publish:public/g' ../tensorswap-sdk/package.json
 sed -i '' -e 's/yarn npm publish && yarn push/npm publish --access public --registry https:\/\/registry.npmjs.org/g' ../tensorswap-sdk/package.json
+sed -i '' -e 's/ && yarn tsc --p tsconfig.tests.json//g' ../tensorswap-sdk/package.json
 
 pushd ../tensorswap-sdk
 yarn

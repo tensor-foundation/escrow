@@ -14,13 +14,12 @@
     "declaration": true
   },
   "include": [
-    "src/*",
-    "tests/**/*.ts" // Include test files for type-checking but they won't be part of the output
+    "src/*"
   ],
   "exclude": [
     "node_modules",
     "target",
     "migrations",
-    "tests" // Exclude test files from the compiled output
+    "tests"
   ]
 }
