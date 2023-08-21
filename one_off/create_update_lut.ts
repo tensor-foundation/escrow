@@ -1,6 +1,6 @@
 import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { updateLUT } from "../tests/shared";
+import { createCoreTswapLUT, updateLUT } from "../tests/shared";
 import { TSWAP_CORE_LUT } from "../src";
 
 (async () => {
@@ -24,5 +24,5 @@ import { TSWAP_CORE_LUT } from "../src";
     "HUaXt5yU96yGWnUnMHLGAHVUPfuDomY3MWvz8XTdXQnm"
   );
 
-  await updateLUT(provider, undefined, TSWAP_CORE_LUT);
+  await updateLUT(provider, TSWAP_CORE_LUT);
 })();

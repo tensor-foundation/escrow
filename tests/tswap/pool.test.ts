@@ -3,8 +3,10 @@ import {
   getMinimumBalanceForRentExemptMint,
 } from "@solana/spl-token";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
 import BN from "bn.js";
 import { expect } from "chai";
+import { castPoolTypeAnchor, PoolType } from "../../src";
 import {
   buildAndSendTx,
   cartesian,
@@ -21,7 +23,8 @@ import {
 import {
   adjustSellMinLamports,
   beforeHook,
-  createAndFundATA,
+  createAndFundAta,
+  CREATE_META_TAX,
   defaultSellExpectedLamports,
   makeMintTwoAta,
   makeNTraders,
@@ -44,7 +47,6 @@ import {
   tokenPoolConfig,
   tradePoolConfig,
 } from "./common";
-import { castPoolTypeAnchor, PoolType } from "../../src";
 
 describe("tswap pool", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -58,10 +60,10 @@ describe("tswap pool", () => {
   //#region Create pool.
 
   it("pool adds the created unix timestamp (in seconds)", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint } = await createAndFundATA(owner);
+        const { mint } = await createAndFundAta({ owner });
         const { whitelist } = await makeProofWhitelist([mint]);
 
         const { poolPda } = await testMakePool({
@@ -80,10 +82,10 @@ describe("tswap pool", () => {
   });
 
   it("cannot init exponential pool with 100% delta", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint } = await createAndFundATA(owner);
+        const { mint } = await createAndFundAta({ owner });
         const { whitelist } = await makeProofWhitelist([mint]);
 
         await expect(
@@ -103,10 +105,10 @@ describe("tswap pool", () => {
   });
 
   it("cannot init non-trade pool with mmFees", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig].map(async (config) => {
-        const { mint } = await createAndFundATA(owner);
+        const { mint } = await createAndFundAta({ owner });
         const { whitelist } = await makeProofWhitelist([mint]);
 
         await expect(
@@ -125,9 +127,9 @@ describe("tswap pool", () => {
   });
 
   it("cannot init trade pool with no fees or high fees", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = tradePoolConfig;
-    const { mint } = await createAndFundATA(owner);
+    const { mint } = await createAndFundAta({ owner });
     const { whitelist } = await makeProofWhitelist([mint]);
 
     await expect(
@@ -166,8 +168,8 @@ describe("tswap pool", () => {
   });
 
   it("properly parses raw init/edit/close pool tx", async () => {
-    const [owner] = await makeNTraders(1);
-    const { mint } = await createAndFundATA(owner);
+    const [owner] = await makeNTraders({ n: 1 });
+    const { mint } = await createAndFundAta({ owner });
     const { whitelist } = await makeProofWhitelist([mint]);
 
     await Promise.all(
@@ -182,7 +184,6 @@ describe("tswap pool", () => {
           owner,
           config,
           whitelist,
-          commitment: "confirmed",
         });
         const newConfig = { ...config, delta: new BN(0) };
         const {
@@ -195,7 +196,6 @@ describe("tswap pool", () => {
           newConfig,
           oldConfig: config,
           whitelist,
-          commitment: "confirmed",
         });
 
         // Edit/move stuff back so we can use the old pool/config again.
@@ -205,14 +205,12 @@ describe("tswap pool", () => {
           newConfig: config,
           oldConfig: newConfig,
           whitelist,
-          commitment: "confirmed",
         });
 
         const { sig: closeSig } = await testClosePool({
           owner,
           config,
           whitelist,
-          commitment: "confirmed",
         });
 
         for (const { sig, name } of [
@@ -220,11 +218,13 @@ describe("tswap pool", () => {
           { sig: editSig, name: "editPool" },
           { sig: closeSig, name: "closePool" },
         ]) {
-          const tx = (await TEST_PROVIDER.connection.getTransaction(sig, {
-            commitment: "confirmed",
-          }))!;
+          const tx = await getTransactionConvertedToLegacy(
+            TEST_PROVIDER.connection,
+            sig,
+            "confirmed"
+          );
           expect(tx).not.null;
-          const ixs = swapSdk.parseIxs(tx);
+          const ixs = swapSdk.parseIxs(tx!);
           expect(ixs).length(1);
 
           const ix = ixs[0];
@@ -278,12 +278,12 @@ describe("tswap pool", () => {
   //#region Close pool.
 
   it("close pool roundtrips fees + any deposited SOL", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     for (const [config, lamports] of cartesian(
       [tokenPoolConfig, tradePoolConfig],
       [0, 69 * LAMPORTS_PER_SOL]
     )) {
-      const { mint } = await createAndFundATA(owner);
+      const { mint } = await createAndFundAta({ owner });
       const { whitelist } = await makeProofWhitelist([mint]);
 
       await withLamports(
@@ -317,7 +317,7 @@ describe("tswap pool", () => {
   });
 
   it("close pool withdraws SOL from any buys from the TRADE pool", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
     // We know for TOKEN pools SOL goes directly to owner.
     const config = tradePoolConfig;
     const buyPrice = LAMPORTS_PER_SOL;
@@ -360,7 +360,8 @@ describe("tswap pool", () => {
           (await getMinimumBalanceForRentExemptMint(conn)) -
           // NB: for some reason if we close the ATA beforehand (and now have this adjustment)
           // the resulting amount credited differs depending on which tests run before this one (wtf??)
-          (await getMinimumBalanceForRentExemptAccount(conn));
+          (await getMinimumBalanceForRentExemptAccount(conn)) -
+          CREATE_META_TAX; // Metaplex tax
         // No addn from rent since we roundtrip it from deposit.
 
         // For some reason running this test by itself is fine, but running it with the other tests before
@@ -371,10 +372,10 @@ describe("tswap pool", () => {
   });
 
   it("close pool fails if nfts still deposited", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     await Promise.all(
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint, ata } = await createAndFundATA(owner);
+        const { mint, ata } = await createAndFundAta({ owner });
         const {
           proofs: [wlNft],
           whitelist,
@@ -404,7 +405,7 @@ describe("tswap pool", () => {
   });
 
   it("close pool fails if someone sold nfts into it", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
     // Only works for trade pool o/w nft goes directly to buyer.
     const config = tradePoolConfig;
     const isToken = false;
@@ -432,11 +433,11 @@ describe("tswap pool", () => {
   //#region Edit pool.
 
   it("editing pool works", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
 
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint } = await createAndFundATA(owner);
+        const { mint } = await createAndFundAta({ owner });
         const { whitelist } = await makeProofWhitelist([mint]);
 
         // --------------------------------------- init new pool
@@ -474,10 +475,19 @@ describe("tswap pool", () => {
   });
 
   it("init/edit correctly handles maxTakerSellCount", async () => {
-    const [owner, seller] = await makeNTraders(2);
-    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(seller, owner);
-    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(seller, owner);
-    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(seller, owner);
+    const [owner, seller] = await makeNTraders({ n: 2 });
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+    });
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+    });
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+    });
     const {
       proofs: [wlNft1, wlNft2, wlNft3],
       whitelist,
@@ -643,16 +653,25 @@ describe("tswap pool", () => {
   });
 
   it("init/edit correctly handles maxTakerSellCount (use edit in place)", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //make the pool with no delta / mm fee so that math is easy
     for (const config of [
       { ...tokenPoolConfig, delta: new BN(0) },
       { ...tradePoolConfig, delta: new BN(0), mmFeeBps: 0 },
     ]) {
-      const { mint: mint1, ata: ata1 } = await makeMintTwoAta(seller, owner);
-      const { mint: mint2, ata: ata2 } = await makeMintTwoAta(seller, owner);
-      const { mint: mint3, ata: ata3 } = await makeMintTwoAta(seller, owner);
+      const { mint: mint1, ata: ata1 } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+      });
+      const { mint: mint2, ata: ata2 } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+      });
+      const { mint: mint3, ata: ata3 } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+      });
       const {
         proofs: [wlNft1, wlNft2, wlNft3],
         whitelist,
@@ -820,21 +839,33 @@ describe("tswap pool", () => {
   });
 
   it("maxTakerSellCount (both buys & sells, market-making pool)", async () => {
-    const [owner, taker] = await makeNTraders(2);
-    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint4, ata: ata4 } = await makeMintTwoAta(taker, owner);
+    const [owner, taker] = await makeNTraders({ n: 2 });
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint4, ata: ata4 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
     const {
       mint: mint5,
       ata: ata5,
       otherAta: otherAta5,
-    } = await makeMintTwoAta(owner, taker);
+    } = await makeMintTwoAta({ owner: owner, other: taker });
     const {
       mint: mint6,
       ata: ata6,
       otherAta: otherAta6,
-    } = await makeMintTwoAta(owner, taker);
+    } = await makeMintTwoAta({ owner: owner, other: taker });
     const {
       proofs: [wlNft1, wlNft2, wlNft3, wlNft4, wlNft5, wlNft6],
       whitelist,
@@ -1058,21 +1089,33 @@ describe("tswap pool", () => {
   });
 
   it("maxTakerSellCount (negative, market-making pool)", async () => {
-    const [owner, taker] = await makeNTraders(2);
-    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint4, ata: ata4 } = await makeMintTwoAta(taker, owner);
+    const [owner, taker] = await makeNTraders({ n: 2 });
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint4, ata: ata4 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
     const {
       mint: mint5,
       ata: ata5,
       otherAta: otherAta5,
-    } = await makeMintTwoAta(owner, taker);
+    } = await makeMintTwoAta({ owner: owner, other: taker });
     const {
       mint: mint6,
       ata: ata6,
       otherAta: otherAta6,
-    } = await makeMintTwoAta(owner, taker);
+    } = await makeMintTwoAta({ owner: owner, other: taker });
     const {
       proofs: [wlNft1, wlNft2, wlNft3, wlNft4, wlNft5, wlNft6],
       whitelist,
@@ -1234,21 +1277,33 @@ describe("tswap pool", () => {
   });
 
   it("maxTakerSellCount (market-making pool, with attaching/detaching margin)", async () => {
-    const [owner, taker] = await makeNTraders(2);
-    const { mint: mint1, ata: ata1 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint2, ata: ata2 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint3, ata: ata3 } = await makeMintTwoAta(taker, owner);
-    const { mint: mint4, ata: ata4 } = await makeMintTwoAta(taker, owner);
+    const [owner, taker] = await makeNTraders({ n: 2 });
+    const { mint: mint1, ata: ata1 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint2, ata: ata2 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint3, ata: ata3 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
+    const { mint: mint4, ata: ata4 } = await makeMintTwoAta({
+      owner: taker,
+      other: owner,
+    });
     const {
       mint: mint5,
       ata: ata5,
       otherAta: otherAta5,
-    } = await makeMintTwoAta(owner, taker);
+    } = await makeMintTwoAta({ owner: owner, other: taker });
     const {
       mint: mint6,
       ata: ata6,
       otherAta: otherAta6,
-    } = await makeMintTwoAta(owner, taker);
+    } = await makeMintTwoAta({ owner: owner, other: taker });
     const {
       proofs: [wlNft1, wlNft2, wlNft3, wlNft4, wlNft5, wlNft6],
       whitelist,
@@ -1422,7 +1477,7 @@ describe("tswap pool", () => {
   });
 
   it("editing pool transfers stats & balances ok", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const [{ owner, buyer }, marginated] of cartesian(
       [
@@ -1440,12 +1495,12 @@ describe("tswap pool", () => {
         mint: mintA,
         ata: ataA,
         otherAta: otherAtaA,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         mint: mintB,
         ata: ataB,
         otherAta: otherAtaB,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
@@ -1568,8 +1623,8 @@ describe("tswap pool", () => {
   });
 
   it("edited pool buys nft ok", async () => {
-    const [owner, seller] = await makeNTraders(2);
-    const { mint, ata } = await makeMintTwoAta(seller, owner);
+    const [owner, seller] = await makeNTraders({ n: 2 });
+    const { mint, ata } = await makeMintTwoAta({ owner: seller, other: owner });
     const {
       whitelist,
       proofs: [wlNft],
@@ -1625,8 +1680,8 @@ describe("tswap pool", () => {
   });
 
   it("editing isCosigned works", async () => {
-    const [owner, seller] = await makeNTraders(2);
-    const { mint, ata } = await makeMintTwoAta(seller, owner);
+    const [owner, seller] = await makeNTraders({ n: 2 });
+    const { mint, ata } = await makeMintTwoAta({ owner: seller, other: owner });
     const {
       whitelist,
       proofs: [wlNft],
@@ -1682,7 +1737,7 @@ describe("tswap pool", () => {
         whitelist,
         wlNft,
       })
-    ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadCosigner"));
+    ).to.be.rejectedWith("insufficient account keys for instruction");
 
     //succeeds with
     await testSellNft({
@@ -1702,8 +1757,11 @@ describe("tswap pool", () => {
   });
 
   it("edited pool sells nft ok", async () => {
-    const [owner, buyer] = await makeNTraders(2);
-    const { mint, ata, otherAta } = await makeMintTwoAta(owner, buyer);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
+    const { mint, ata, otherAta } = await makeMintTwoAta({
+      owner: owner,
+      other: buyer,
+    });
     const {
       whitelist,
       proofs: [wlNft],
@@ -1757,11 +1815,11 @@ describe("tswap pool", () => {
   });
 
   it("editing pool fails due to diff pool types", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
 
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint } = await createAndFundATA(owner);
+        const { mint } = await createAndFundAta({ owner });
         const { whitelist } = await makeProofWhitelist([mint]);
 
         // --------------------------------------- init new pool
@@ -1813,7 +1871,7 @@ describe("tswap pool", () => {
   //#region MM Profit Accounting.
 
   it("correctly account for MM profit", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
       { owner: traderA, buyer: traderB },
@@ -1828,12 +1886,12 @@ describe("tswap pool", () => {
         mint: mintA,
         ata: ataA,
         otherAta: otherAtaA,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         mint: mintB,
         ata: ataB,
         otherAta: otherAtaB,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
@@ -1965,10 +2023,10 @@ describe("tswap pool", () => {
   });
 
   it("tries to creates 2x pools with same nft_auth", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     await Promise.all(
       [tokenPoolConfig, nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint } = await createAndFundATA(owner);
+        const { mint } = await createAndFundAta({ owner });
         const { whitelist } = await makeProofWhitelist([mint]);
 
         //creates pool once
@@ -2011,7 +2069,7 @@ describe("tswap pool", () => {
   //#region MM Segregated fees.
 
   it("correctly handles & withdraws segregated MM profit (normal and marginated)", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     for (const [{ owner, buyer }, marginated] of cartesian(
       [
         { owner: traderA, buyer: traderB },
@@ -2029,12 +2087,12 @@ describe("tswap pool", () => {
         mint: mintA,
         ata: ataA,
         otherAta: otherAtaA,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         mint: mintB,
         ata: ataB,
         otherAta: otherAtaB,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
@@ -2235,7 +2293,7 @@ describe("tswap pool", () => {
   });
 
   it("editing works for segregated MM pools (normal and marginated)", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     for (const [{ owner, buyer }, marginated] of cartesian(
       [
         { owner: traderA, buyer: traderB },
@@ -2253,12 +2311,12 @@ describe("tswap pool", () => {
         mint: mintA,
         ata: ataA,
         otherAta: otherAtaA,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         mint: mintB,
         ata: ataB,
         otherAta: otherAtaB,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,
@@ -2496,7 +2554,7 @@ describe("tswap pool", () => {
   });
 
   it("fails to withdraw segregated MM profit from a compounded account", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
       { owner: traderA, buyer: traderB },
@@ -2512,12 +2570,12 @@ describe("tswap pool", () => {
         mint: mintA,
         ata: ataA,
         otherAta: otherAtaA,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         mint: mintB,
         ata: ataB,
         otherAta: otherAtaB,
-      } = await makeMintTwoAta(owner, buyer);
+      } = await makeMintTwoAta({ owner: owner, other: buyer });
       const {
         proofs: [wlNftA, wlNftB],
         whitelist,

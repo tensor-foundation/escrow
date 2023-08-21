@@ -56,7 +56,7 @@ import {
   TEST_PROVIDER,
   wlSdk,
 } from "../tests/shared";
-import { createAndFundATA } from "../tests/tswap/common";
+import { createAndFundAta } from "../tests/tswap/common";
 
 const _readKP = (file: string) =>
   Keypair.fromSeed(
@@ -189,10 +189,10 @@ const idempotentTxs = async () => {
   {
     const {
       tx: { ixs },
-    } = await wlSdk.initUpdateAuthority(
-      TEST_PROVIDER.publicKey,
-      TEST_PROVIDER.publicKey
-    );
+    } = await wlSdk.initUpdateAuthority({
+      newCosigner: TEST_PROVIDER.publicKey,
+      newOwner: TEST_PROVIDER.publicKey,
+    });
     await buildAndSendTx({ ixs });
   }
 
@@ -264,7 +264,7 @@ const initWalletMints = async () => {
             console.log(
               `creating ata for trader ${trader.publicKey.toBase58()} mint ${mint.publicKey.toBase58()}`
             );
-            await createAndFundATA(trader, mint);
+            await createAndFundAta(trader, mint);
           }
 
           //   Create ATA for other traders.

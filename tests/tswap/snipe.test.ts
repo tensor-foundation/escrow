@@ -1,10 +1,25 @@
+import { BN } from "@coral-xyz/anchor";
+import {
+  AddressLookupTableAccount,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+} from "@solana/web3.js";
+import { expect } from "chai";
+import { findMarginPDA, OrderType } from "../../src";
+import {
+  buildAndSendTx,
+  cartesian,
+  createTokenAuthorizationRules,
+  getLamports,
+  swapSdk,
+} from "../shared";
 import {
   beforeHook,
   calcSnipeBidWithFee,
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
-  TEST_COSIGNER,
   testAttachPoolToMargin,
   testClosePool,
   testDepositIntoMargin,
@@ -17,26 +32,9 @@ import {
   testSetFreeze,
   testTakeSnipe,
   testWithdrawSol,
+  TEST_COSIGNER,
   tokenPoolConfig,
-  tradePoolConfig,
 } from "./common";
-import {
-  AddressLookupTableAccount,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-} from "@solana/web3.js";
-import {
-  buildAndSendTx,
-  cartesian,
-  createTokenAuthorizationRules,
-  getLamports,
-  swapSdk,
-  TEST_PROVIDER,
-} from "../shared";
-import { findMarginPDA, OrderType } from "../../src";
-import { expect } from "chai";
-import { BN } from "@coral-xyz/anchor";
 
 describe("snipe", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -49,7 +47,7 @@ describe("snipe", () => {
   });
 
   it("freezes > unfreezes", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -59,7 +57,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -223,7 +226,7 @@ describe("snipe", () => {
   });
 
   it("fails to freeze w/ wrong cosigner", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -233,7 +236,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -276,7 +284,7 @@ describe("snipe", () => {
   });
 
   it("fails to freeze an already frozen pool", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -286,7 +294,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -338,7 +351,7 @@ describe("snipe", () => {
   });
 
   it("fails to unfreeze an already unfrozen pool", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -348,7 +361,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -394,7 +412,7 @@ describe("snipe", () => {
       [true, false],
       [0.8, 1, 0]
     )) {
-      const [owner, seller] = await makeNTraders(2);
+      const [owner, seller] = await makeNTraders({ n: 2 });
 
       //create margin acc
       const { marginNr } = await testMakeMargin({ owner });
@@ -404,7 +422,12 @@ describe("snipe", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
+        creators,
+      });
       const {
         proofs: [wlNft],
         whitelist,
@@ -469,7 +492,7 @@ describe("snipe", () => {
       [true, false],
       [0.8, 1, 0]
     )) {
-      const [owner, seller] = await makeNTraders(2);
+      const [owner, seller] = await makeNTraders({ n: 2 });
 
       //create margin acc
       const { marginNr } = await testMakeMargin({ owner });
@@ -479,7 +502,12 @@ describe("snipe", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
+        creators,
+      });
       const {
         proofs: [wlNft],
         whitelist,
@@ -541,7 +569,7 @@ describe("snipe", () => {
 
   it("fails to snipe if order non-sniping", async () => {
     for (const freeze of [true, false]) {
-      const [owner, seller] = await makeNTraders(2);
+      const [owner, seller] = await makeNTraders({ n: 2 });
 
       //create margin acc
       const { marginNr } = await testMakeMargin({ owner });
@@ -551,7 +579,12 @@ describe("snipe", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
+        creators,
+      });
       const {
         proofs: [wlNft],
         whitelist,
@@ -620,7 +653,7 @@ describe("snipe", () => {
 
   it("fails to snipe if wrong cosigner", async () => {
     for (const freeze of [true, false]) {
-      const [owner, seller] = await makeNTraders(2);
+      const [owner, seller] = await makeNTraders({ n: 2 });
 
       //create margin acc
       const { marginNr } = await testMakeMargin({ owner });
@@ -630,7 +663,12 @@ describe("snipe", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
+        creators,
+      });
       const {
         proofs: [wlNft],
         whitelist,
@@ -697,7 +735,7 @@ describe("snipe", () => {
   });
 
   it("fails to snipe if order not marginated", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -707,7 +745,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -758,7 +801,7 @@ describe("snipe", () => {
   });
 
   it("fails to deposit into marginate bid's escrow", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -768,7 +811,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -805,7 +853,7 @@ describe("snipe", () => {
   });
 
   it("fails to withdraw from marginated bid's escrow", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -815,7 +863,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -867,7 +920,7 @@ describe("snipe", () => {
   });
 
   it("correctly moves lamports between escrow and margin", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -877,7 +930,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -940,7 +998,7 @@ describe("snipe", () => {
   });
 
   it("fail scenarios for attaching/detaching", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr } = await testMakeMargin({ owner });
@@ -954,7 +1012,12 @@ describe("snipe", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: owner,
+      royaltyBps: 1000,
+      creators,
+    });
     const {
       proofs: [wlNft],
       whitelist,
@@ -1011,7 +1074,7 @@ describe("snipe", () => {
       [true, false],
       [0.8, 1, 0]
     )) {
-      const [owner, seller] = await makeNTraders(2);
+      const [owner, seller] = await makeNTraders({ n: 2 });
 
       //create margin acc
       const { marginNr } = await testMakeMargin({ owner });
@@ -1021,15 +1084,13 @@ describe("snipe", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        owner,
-        1000,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
         creators,
-        undefined,
-        undefined,
-        true
-      );
+        programmable: true,
+      });
       const {
         proofs: [wlNft],
         whitelist,
@@ -1095,12 +1156,9 @@ describe("snipe", () => {
       [true, false],
       [0.8, 1, 0]
     )) {
-      const [owner, seller] = await makeNTraders(2);
+      const [owner, seller] = await makeNTraders({ n: 2 });
 
-      const ruleSetAddr = await createTokenAuthorizationRules(
-        TEST_PROVIDER,
-        owner
-      );
+      const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
 
       //create margin acc
       const { marginNr } = await testMakeMargin({ owner });
@@ -1110,16 +1168,14 @@ describe("snipe", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        owner,
-        1000,
-        creators,
-        undefined,
-        undefined,
-        true,
-        ruleSetAddr
-      );
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
+        creators: creators,
+        programmable: true,
+        ruleSetAddr,
+      });
       const {
         proofs: [wlNft],
         whitelist,

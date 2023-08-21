@@ -1,16 +1,14 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import { expect } from "chai";
 import { MAX_PROOF_LEN, TensorWhitelistSDK } from "../../src";
 import {
   buildAndSendTx,
   generateTreeOfSize,
   testInitWLAuthority,
   TEST_PROVIDER,
-  waitMS,
   wlSdk,
 } from "../shared";
-import { createAndFundATA, createFundedWallet } from "../tswap/common";
+import { createAndFundAta, createFundedWallet } from "../tswap/common";
 import { testInitUpdateMintProof } from "./common";
 
 // ---------------------------- Mint proofs
@@ -29,8 +27,8 @@ describe("tensor_whitelist mint proofs", () => {
     );
     const nameBuffer = TensorWhitelistSDK.nameToBuffer("hello_world");
     const owner = await createFundedWallet();
-    const { mint } = await createAndFundATA(owner);
-    const { mint: badMint } = await createAndFundATA(owner);
+    const { mint } = await createAndFundAta({ owner });
+    const { mint: badMint } = await createAndFundAta({ owner });
     const {
       root,
       proofs: [wlNft],

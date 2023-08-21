@@ -1,15 +1,8 @@
 {
   "compilerOptions": {
-    "types": [
-      "mocha",
-      "chai"
-    ],
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-    "lib": [
-      "esnext"
-    ],
+    "types": ["mocha", "chai"],
+    "typeRoots": ["./node_modules/@types"],
+    "lib": ["esnext"],
     "module": "commonjs",
     "target": "esnext",
     "esModuleInterop": true,
@@ -22,11 +15,12 @@
   },
   "include": [
     "src/*",
+    "tests/**/*.ts" // Include test files for type-checking but they won't be part of the output
   ],
   "exclude": [
     "node_modules",
     "target",
-    "tests",
-    "migrations"
+    "migrations",
+    "tests" // Exclude test files from the compiled output
   ]
 }

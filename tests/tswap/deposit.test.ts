@@ -1,5 +1,6 @@
 import { LangErrorCode } from "@coral-xyz/anchor";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
 import { expect } from "chai";
 import {
   buildAndSendTx,
@@ -12,7 +13,7 @@ import {
 } from "../shared";
 import {
   beforeHook,
-  createAndFundATA,
+  createAndFundAta,
   makeEverythingWhitelist,
   makeFvcWhitelist,
   makeNTraders,
@@ -37,9 +38,9 @@ describe("tswap deposits", () => {
   //#region Deposit NFT
 
   it("can deposit with long proof", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
-    const { mint, ata } = await createAndFundATA(owner);
+    const { mint, ata } = await createAndFundAta({ owner });
     const {
       whitelist,
       proofs: [wlNft],
@@ -59,14 +60,13 @@ describe("tswap deposits", () => {
       ata,
       wlNft,
       whitelist,
-      commitment: "confirmed",
     });
   });
 
   it("can deposit with REALLY long proof", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
-    const { mint, ata } = await createAndFundATA(owner);
+    const { mint, ata } = await createAndFundAta({ owner });
     const {
       whitelist,
       proofs: [wlNft],
@@ -95,17 +95,16 @@ describe("tswap deposits", () => {
         ata,
         wlNft,
         whitelist,
-        commitment: "confirmed",
       })
     ).rejectedWith(wlSdk.getErrorCodeHex("FailedMerkleProofVerification"));
   });
 
   it("deposit non-WL nft fails", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
-    const { mint, ata } = await createAndFundATA(owner);
+    const { mint, ata } = await createAndFundAta({ owner });
     const { proofs, whitelist } = await makeProofWhitelist([mint]);
-    const { mint: badMint, ata: badAta } = await createAndFundATA(owner);
+    const { mint: badMint, ata: badAta } = await createAndFundAta({ owner });
     const { poolPda, nftAuthPda } = await testMakePool({
       tswap,
       owner,
@@ -167,9 +166,9 @@ describe("tswap deposits", () => {
   });
 
   it("properly parses raw deposit nft tx", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
-    const { mint, ata } = await createAndFundATA(owner);
+    const { mint, ata } = await createAndFundAta({ owner });
     const {
       whitelist,
       proofs: [wlNft],
@@ -189,14 +188,15 @@ describe("tswap deposits", () => {
       ata,
       wlNft,
       whitelist,
-      commitment: "confirmed",
     });
 
-    const tx = (await TEST_PROVIDER.connection.getTransaction(depSig, {
-      commitment: "confirmed",
-    }))!;
+    const tx = await getTransactionConvertedToLegacy(
+      TEST_PROVIDER.connection,
+      depSig,
+      "confirmed"
+    );
     expect(tx).not.null;
-    const ixs = swapSdk.parseIxs(tx);
+    const ixs = swapSdk.parseIxs(tx!);
     expect(ixs).length(1);
 
     const ix = ixs[0];
@@ -227,21 +227,20 @@ describe("tswap deposits", () => {
   // --------------------------------------- fvc
 
   it("deposits successfully using FVC verification", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
     const creator = Keypair.generate();
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      [
+      royaltyBps: 10000,
+      creators: [
         {
           address: creator.publicKey,
           share: 100,
           authority: creator,
         },
-      ]
-    );
+      ],
+    });
     const { whitelist } = await makeFvcWhitelist(creator.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -258,20 +257,18 @@ describe("tswap deposits", () => {
       whitelist,
       nftMint: mint,
       nftMetadata: metadata,
-      commitment: "confirmed",
     });
   });
 
   it("deposits successfully using FVC verification (2nd creator)", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
     const creator = Keypair.generate();
     const creator2 = Keypair.generate();
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      [
+      royaltyBps: 10000,
+      creators: [
         {
           address: creator.publicKey,
           share: 50,
@@ -281,8 +278,8 @@ describe("tswap deposits", () => {
           share: 50,
           authority: creator2,
         },
-      ]
-    );
+      ],
+    });
     const { whitelist } = await makeFvcWhitelist(creator2.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -299,20 +296,18 @@ describe("tswap deposits", () => {
       whitelist,
       nftMint: mint,
       nftMetadata: metadata,
-      commitment: "confirmed",
     });
   });
 
   it("fails FVC verification when wrong creator verified", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
     const creator = Keypair.generate();
     const creator2 = Keypair.generate();
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      [
+      royaltyBps: 10000,
+      creators: [
         {
           address: creator.publicKey,
           share: 50,
@@ -322,8 +317,8 @@ describe("tswap deposits", () => {
           address: creator2.publicKey,
           share: 50,
         },
-      ]
-    );
+      ],
+    });
     const { whitelist } = await makeFvcWhitelist(creator2.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -341,27 +336,25 @@ describe("tswap deposits", () => {
         whitelist,
         nftMint: mint,
         nftMetadata: metadata,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x1777");
   });
 
   it("fails FVC verification when creator not verified", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
     const creator = Keypair.generate();
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      [
+      royaltyBps: 10000,
+      creators: [
         {
           address: creator.publicKey,
           share: 100,
           //not verified
         },
-      ]
-    );
+      ],
+    });
     const { whitelist } = await makeFvcWhitelist(creator.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -379,21 +372,19 @@ describe("tswap deposits", () => {
         whitelist,
         nftMint: mint,
         nftMetadata: metadata,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x1777");
   });
 
   it("fails FVC verification when creator not present", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
     const creator = Keypair.generate();
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      0
+      royaltyBps: 0,
       //no creators
-    );
+    });
     const { whitelist } = await makeFvcWhitelist(creator.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -411,27 +402,25 @@ describe("tswap deposits", () => {
         whitelist,
         nftMint: mint,
         nftMetadata: metadata,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x1777");
   });
 
   it("fails FVC verification when wrong creator entirely", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
     const creator = Keypair.generate();
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      [
+      royaltyBps: 10000,
+      creators: [
         {
           address: creator.publicKey,
           share: 100,
           authority: creator,
         },
-      ]
-    );
+      ],
+    });
     const { whitelist } = await makeFvcWhitelist(Keypair.generate().publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -449,7 +438,6 @@ describe("tswap deposits", () => {
         whitelist,
         nftMint: mint,
         nftMetadata: metadata,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x1777");
   });
@@ -457,17 +445,15 @@ describe("tswap deposits", () => {
   // --------------------------------------- voc
 
   it("deposits successfully using VOC verification", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const collection = Keypair.generate();
     const config = nftPoolConfig;
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      undefined,
+      royaltyBps: 10000,
       collection,
-      true
-    );
+      collectionVerified: true,
+    });
     const { whitelist } = await makeVocWhitelist(collection.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -484,22 +470,19 @@ describe("tswap deposits", () => {
       whitelist,
       nftMint: mint,
       nftMetadata: metadata,
-      commitment: "confirmed",
     });
   });
 
   it("fails VOC verification when collection not verified", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const collection = Keypair.generate();
     const config = nftPoolConfig;
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      undefined,
+      royaltyBps: 10000,
       collection,
-      false
-    );
+      collectionVerified: false,
+    });
     const { whitelist } = await makeVocWhitelist(collection.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -517,21 +500,18 @@ describe("tswap deposits", () => {
         whitelist,
         nftMint: mint,
         nftMetadata: metadata,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x1776");
   });
 
   it("fails VOC verification when no collection", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const collection = Keypair.generate();
     const config = nftPoolConfig;
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      undefined
-    );
+      royaltyBps: 10000,
+    });
     const { whitelist } = await makeVocWhitelist(collection.publicKey);
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -549,24 +529,21 @@ describe("tswap deposits", () => {
         whitelist,
         nftMint: mint,
         nftMetadata: metadata,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x1776");
   });
 
   it("fails VOC verification when wrong collection", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const collection = Keypair.generate();
     const collection2 = Keypair.generate();
     const config = nftPoolConfig;
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      undefined,
+      royaltyBps: 10000,
       collection,
-      true
-    );
+      collectionVerified: true,
+    });
     const { whitelist } = await makeVocWhitelist(collection2.publicKey); //<-- wrong
     const { poolPda: pool, nftAuthPda } = await testMakePool({
       tswap,
@@ -584,7 +561,6 @@ describe("tswap deposits", () => {
         whitelist,
         nftMint: mint,
         nftMetadata: metadata,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x1776");
   });
@@ -592,17 +568,15 @@ describe("tswap deposits", () => {
   // --------------------------------------- mixed together
 
   it("correctly prioritizes merkle proof over VOC", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const collection = Keypair.generate();
     const config = nftPoolConfig;
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      undefined,
+      royaltyBps: 10000,
       collection,
-      true
-    );
+      collectionVerified: true,
+    });
     const {
       whitelist,
       proofs: [wlNft],
@@ -641,15 +615,16 @@ describe("tswap deposits", () => {
   });
 
   it("correctly prioritizes merkle proof over FVC", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const creator = Keypair.generate();
     const config = nftPoolConfig;
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      [{ address: creator.publicKey, share: 100, authority: creator }]
-    );
+      royaltyBps: 10000,
+      creators: [
+        { address: creator.publicKey, share: 100, authority: creator },
+      ],
+    });
     const {
       whitelist,
       proofs: [wlNft],
@@ -693,18 +668,19 @@ describe("tswap deposits", () => {
   });
 
   it("correctly prioritizes merkle proof over both VOC and FVC", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const creator = Keypair.generate();
     const collection = Keypair.generate();
     const config = nftPoolConfig;
-    const { mint, ata, metadata } = await createAndFundATA(
+    const { mint, ata, metadata } = await createAndFundAta({
       owner,
-      undefined,
-      10000,
-      [{ address: creator.publicKey, share: 100, authority: creator }],
+      royaltyBps: 10000,
+      creators: [
+        { address: creator.publicKey, share: 100, authority: creator },
+      ],
       collection,
-      true
-    );
+      collectionVerified: true,
+    });
     const {
       whitelist,
       proofs: [wlNft],
@@ -752,9 +728,9 @@ describe("tswap deposits", () => {
   //#region Deposit SOL
 
   it("deposit SOL into NFT pool fails", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
-    const { mint } = await createAndFundATA(owner);
+    const { mint } = await createAndFundAta({ owner });
     const { whitelist } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
@@ -774,9 +750,9 @@ describe("tswap deposits", () => {
   });
 
   it("properly parses raw deposit sol tx", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = tokenPoolConfig;
-    const { mint } = await createAndFundATA(owner);
+    const { mint } = await createAndFundAta({ owner });
     const { whitelist } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
@@ -792,14 +768,15 @@ describe("tswap deposits", () => {
       owner,
       whitelist,
       lamports: amount,
-      commitment: "confirmed",
     });
 
-    const tx = (await TEST_PROVIDER.connection.getTransaction(depSig, {
-      commitment: "confirmed",
-    }))!;
+    const tx = await getTransactionConvertedToLegacy(
+      TEST_PROVIDER.connection,
+      depSig,
+      "confirmed"
+    );
     expect(tx).not.null;
-    const ixs = swapSdk.parseIxs(tx);
+    const ixs = swapSdk.parseIxs(tx!);
     expect(ixs).length(1);
 
     const ix = ixs[0];
@@ -827,18 +804,13 @@ describe("tswap deposits", () => {
   //#endregion
 
   it("deposits a pNft (no rulesets)", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
 
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      true
-    );
+      programmable: true,
+    });
     const {
       whitelist,
       proofs: [wlNft],
@@ -860,29 +832,20 @@ describe("tswap deposits", () => {
       ata,
       wlNft,
       whitelist,
-      commitment: "confirmed",
     });
   });
 
   it("deposits a pNft (1 ruleset)", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
 
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
 
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      true,
-      ruleSetAddr
-    );
+      programmable: true,
+      ruleSetAddr,
+    });
     const {
       whitelist,
       proofs: [wlNft],
@@ -904,7 +867,6 @@ describe("tswap deposits", () => {
       ata,
       wlNft,
       whitelist,
-      commitment: "confirmed",
     });
   });
 });

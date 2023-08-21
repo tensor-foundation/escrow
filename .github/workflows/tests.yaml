@@ -38,9 +38,21 @@ jobs:
         with:
           tcommon-deploy-key: ${{ secrets.TENSOR_COMMON_RS_RO_DEPLOY_KEY }}
       - uses: ./.github/actions/cache-cargo/
-      - run: yarn build:all
+      - run: yarn build:test
       # This ensures the IDL generated matches what's checked in!
       - uses: ./.github/actions/git-diff/
+
+  typescript-checks:
+    name: Typescript checks
+    runs-on: [self-hosted, linux, x64, solana]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup/
+        with:
+          tcommon-deploy-key: ${{ secrets.TENSOR_COMMON_RS_RO_DEPLOY_KEY }}
+
+      - run: yarn build:ts
+        name: Typechecks
 
   test-typescript:
     needs: build-all

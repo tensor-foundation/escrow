@@ -1,4 +1,20 @@
 import {
+  AddressLookupTableAccount,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+} from "@solana/web3.js";
+import BN from "bn.js";
+import { expect } from "chai";
+import { castPoolTypeAnchor, PoolType, TensorWhitelistSDK } from "../../src";
+import {
+  buildAndSendTx,
+  createTokenAuthorizationRules,
+  getLamports,
+  PoolConfigAnchor,
+  swapSdk,
+} from "../shared";
+import {
   adjustSellMinLamports,
   beforeHook,
   defaultSellExpectedLamports,
@@ -18,23 +34,6 @@ import {
   tokenPoolConfig,
   tradePoolConfig,
 } from "./common";
-import {
-  AddressLookupTableAccount,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-} from "@solana/web3.js";
-import {
-  buildAndSendTx,
-  createTokenAuthorizationRules,
-  getLamports,
-  PoolConfigAnchor,
-  swapSdk,
-  TEST_PROVIDER,
-} from "../shared";
-import { castPoolTypeAnchor, PoolType, TensorWhitelistSDK } from "../../src";
-import { expect } from "chai";
-import BN from "bn.js";
 
 describe("margin account", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -47,7 +46,7 @@ describe("margin account", () => {
   });
 
   it("inits > deposits > withdraws > closes margin acc", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const { marginPda, marginNr, marginRent } = await testMakeMargin({ owner });
 
     //deposit
@@ -99,7 +98,6 @@ describe("margin account", () => {
     });
     await buildAndSendTx({
       ixs: ixsClose,
-      provider: TEST_PROVIDER,
       extraSigners: [owner],
     });
     const postCloseOwnerBalance = await getLamports(owner.publicKey);
@@ -107,7 +105,7 @@ describe("margin account", () => {
   });
 
   it("creates multiple margin accs", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const name = "hello_world";
     const nameBuffer = TensorWhitelistSDK.nameToBuffer(name);
 
@@ -118,7 +116,6 @@ describe("margin account", () => {
     await expect(
       buildAndSendTx({
         ixs,
-        provider: TEST_PROVIDER,
         extraSigners: [owner],
       })
     ).to.be.rejectedWith("0x0");
@@ -210,7 +207,7 @@ describe("margin account", () => {
   // });
 
   it("multiple normal orders all successfully withdrawing from same margin acc (token and trade)", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     for (const config of [
       tokenPoolConfig,
@@ -247,12 +244,12 @@ describe("margin account", () => {
           ...config,
           startingPrice: new BN(coef * LAMPORTS_PER_SOL),
         };
-        const { mint, ata } = await makeMintTwoAta(
-          seller,
-          owner,
-          1000,
-          creators
-        );
+        const { mint, ata } = await makeMintTwoAta({
+          owner: seller,
+          other: owner,
+          royaltyBps: 1000,
+          creators,
+        });
         const {
           proofs: [wlNft],
           whitelist,
@@ -317,7 +314,7 @@ describe("margin account", () => {
   //we have tests testing each individually but not together
   //this one is especially important coz we're passing in 7 extra accounts: cosigner, margin, 5 creators
   it("cosigned + marginated sell now works for edited pool", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr, marginPda, marginRent } = await testMakeMargin({ owner });
@@ -345,7 +342,12 @@ describe("margin account", () => {
         ...config,
         startingPrice: new BN(coef * LAMPORTS_PER_SOL),
       };
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
+        creators,
+      });
       const {
         proofs: [wlNft],
         whitelist,
@@ -406,7 +408,7 @@ describe("margin account", () => {
   });
 
   it("correctly handles pool count", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     //create margin acc
     const { marginNr, marginPda, marginRent } = await testMakeMargin({ owner });
@@ -436,7 +438,12 @@ describe("margin account", () => {
         ...config,
         startingPrice: new BN(LAMPORTS_PER_SOL),
       };
-      const { mint, ata } = await makeMintTwoAta(seller, owner, 1000, creators);
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: owner,
+        royaltyBps: 1000,
+        creators,
+      });
       const {
         proofs: [wlNft],
         whitelist,
@@ -484,7 +491,6 @@ describe("margin account", () => {
     await expect(
       buildAndSendTx({
         ixs: ixsClose,
-        provider: TEST_PROVIDER,
         extraSigners: [owner],
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("MarginInUse"));
@@ -518,13 +524,12 @@ describe("margin account", () => {
     //now should close ok
     await buildAndSendTx({
       ixs: ixsClose,
-      provider: TEST_PROVIDER,
       extraSigners: [owner],
     });
   });
 
   it("MAX ACC CHECK: cosigned + marginated + pnft + 5 creators (8 extra accs) sell now works", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
 
     for (const config of [
       tokenPoolConfig,
@@ -541,10 +546,7 @@ describe("margin account", () => {
         owner,
       });
 
-      const ruleSetAddr = await createTokenAuthorizationRules(
-        TEST_PROVIDER,
-        owner
-      );
+      const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
 
       //deposit into it once, but for 3x orders
       await testDepositIntoMargin({
@@ -565,16 +567,16 @@ describe("margin account", () => {
           ...config,
           startingPrice: new BN(coef * LAMPORTS_PER_SOL),
         };
-        const { mint, ata } = await makeMintTwoAta(
-          seller,
-          owner,
-          1000,
+        const { mint, ata } = await makeMintTwoAta({
+          owner: seller,
+          other: owner,
+          royaltyBps: 1000,
           creators,
-          undefined,
-          undefined,
-          true,
-          ruleSetAddr
-        );
+          collection: undefined,
+          collectionVerified: undefined,
+          programmable: true,
+          ruleSetAddr,
+        });
         const {
           proofs: [wlNft],
           whitelist,

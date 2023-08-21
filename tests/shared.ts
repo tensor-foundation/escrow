@@ -1,11 +1,11 @@
 // Common helper functions b/w tensor_whitelist & tensorswap.
+import * as anchor from "@coral-xyz/anchor";
+import { Wallet } from "@coral-xyz/anchor";
 import {
   createCreateOrUpdateInstruction,
   findRuleSetPDA,
 } from "@metaplex-foundation/mpl-token-auth-rules";
 import { encode } from "@msgpack/msgpack";
-import * as anchor from "@coral-xyz/anchor";
-import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import {
   SingleConnectionBroadcaster,
   SolanaProvider,
@@ -16,45 +16,40 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
-  AddressLookupTableAccount,
   AddressLookupTableProgram,
   Commitment,
-  ConfirmOptions,
+  Connection,
   Keypair,
   PublicKey,
-  Signer,
   SystemProgram,
   SYSVAR_INSTRUCTIONS_PUBKEY,
   SYSVAR_RENT_PUBKEY,
-  Transaction,
   TransactionInstruction,
-  VersionedTransaction,
 } from "@solana/web3.js";
+import {
+  AUTH_PROG_ID,
+  Overwrite,
+  test_utils,
+  TMETA_PROG_ID,
+  waitMS,
+} from "@tensor-hq/tensor-common";
 import { expect } from "chai";
-import { backOff } from "exponential-backoff";
 import keccak256 from "keccak256";
 import { MerkleTree } from "merkletreejs";
 import { resolve } from "path";
 import {
   findTSwapPDA,
-  isNullLike,
   TBID_ADDR,
   TensorBidSDK,
-  TENSORSWAP_ADDR,
   TensorSwapSDK,
+  TENSORSWAP_ADDR,
   TensorWhitelistSDK,
   TLIST_ADDR,
 } from "../src";
 import { getLamports as _getLamports } from "../src/common";
-import {
-  AUTH_PROG_ID,
-  buildTx,
-  buildTxV0,
-  TMETA_PROG_ID,
-  waitMS,
-} from "@tensor-hq/tensor-common";
 
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
+export { waitMS } from "@tensor-hq/tensor-common";
 export {
   castPoolConfigAnchor,
   CurveTypeAnchor,
@@ -68,8 +63,6 @@ export {
   TakerSide,
 } from "../src";
 
-export { waitMS } from "@tensor-hq/tensor-common";
-
 export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
 // Vipers IntegerOverflow error.
 export const INTEGER_OVERFLOW_ERR = "0x44f";
@@ -77,94 +70,22 @@ export const INTEGER_OVERFLOW_ERR = "0x44f";
 export const getLamports = (acct: PublicKey) =>
   _getLamports(TEST_PROVIDER.connection, acct);
 
-type BuildAndSendTxArgs = {
-  provider?: AnchorProvider;
-  ixs: TransactionInstruction[];
-  extraSigners?: Signer[];
-  opts?: ConfirmOptions;
-  // Prints out transaction (w/ logs) to stdout
-  debug?: boolean;
-  // Optional, if present signify that a V0 tx should be sent
-  lookupTableAccounts?: [AddressLookupTableAccount] | undefined;
-  blockhash?: string;
-};
-
 export const buildAndSendTx = async ({
-  provider = TEST_PROVIDER,
-  ixs,
-  extraSigners,
-  opts,
-  debug,
-  lookupTableAccounts,
-  blockhash,
-}: BuildAndSendTxArgs) => {
-  let tx: Transaction | VersionedTransaction;
-
-  if (isNullLike(lookupTableAccounts)) {
-    //build legacy
-    ({ tx } = await backOff(
-      () =>
-        buildTx({
-          connections: [provider.connection],
-          instructions: ixs,
-          additionalSigners: extraSigners,
-          feePayer: provider.publicKey,
-        }),
-      {
-        // Retry blockhash errors (happens during tests sometimes).
-        retry: (e: any) => {
-          return e.message.includes("blockhash");
-        },
-      }
-    ));
-    //sometimes have to pass manually, eg when updating LUT
-    if (!!blockhash) {
-      tx.recentBlockhash = blockhash;
-    }
-    await provider.wallet.signTransaction(tx);
-  } else {
-    //build v0
-    ({ tx } = await backOff(
-      () =>
-        buildTxV0({
-          connections: [provider.connection],
-          instructions: ixs,
-          //have to add TEST_KEYPAIR here instead of wallet.signTx() since partialSign not impl on v0 txs
-          additionalSigners: [TEST_KEYPAIR, ...(extraSigners ?? [])],
-          feePayer: provider.publicKey,
-          addressLookupTableAccs: lookupTableAccounts,
-        }),
-      {
-        // Retry blockhash errors (happens during tests sometimes).
-        retry: (e: any) => {
-          return e.message.includes("blockhash");
-        },
-      }
-    ));
+  conn = TEST_CONN_PAYER.conn,
+  payer = TEST_CONN_PAYER.payer,
+  ...args
+}: Overwrite<
+  test_utils.BuildAndSendTxArgs,
+  {
+    conn?: Connection;
+    payer?: Keypair;
   }
-
-  try {
-    if (debug) opts = { ...opts, commitment: "confirmed" };
-    const sig = await provider.connection.sendRawTransaction(
-      tx.serialize(),
-      opts
-    );
-    await provider.connection.confirmTransaction(sig, "confirmed");
-    if (debug) {
-      console.log(
-        await provider.connection.getTransaction(sig, {
-          commitment: "confirmed",
-        })
-      );
-    }
-    return sig;
-  } catch (e) {
-    //this is needed to see program error logs
-    console.error("❌ FAILED TO SEND TX, FULL ERROR: ❌");
-    console.error(e);
-    throw e;
-  }
-};
+>) =>
+  test_utils.buildAndSendTx({
+    conn,
+    payer,
+    ...args,
+  });
 
 export const generateTreeOfSize = (size: number, targetMints: PublicKey[]) => {
   const leaves = targetMints.map((m) => m.toBuffer());
@@ -261,6 +182,10 @@ const TEST_KEYPAIR = Keypair.fromSecretKey(
     )
   )
 );
+export const TEST_CONN_PAYER = {
+  conn: TEST_PROVIDER.connection,
+  payer: TEST_KEYPAIR,
+};
 
 export const swapSdk = new TensorSwapSDK({ provider: TEST_PROVIDER });
 export const wlSdk = new TensorWhitelistSDK({ provider: TEST_PROVIDER });
@@ -319,13 +244,17 @@ export const calcMinRent = async (address: PublicKey) => {
   }
 };
 
-export const createTokenAuthorizationRules = async (
-  provider: AnchorProvider,
-  payer: Keypair,
-  name = "a", //keep it short or we wont have space for tx to pass
-  data?: Uint8Array,
-  whitelistedProgram = TENSORSWAP_ADDR
-) => {
+export const createTokenAuthorizationRules = async ({
+  payer,
+  name = "a",
+  data,
+  whitelistedProgram = TENSORSWAP_ADDR,
+}: {
+  payer: Keypair;
+  name?: string;
+  data?: Uint8Array;
+  whitelistedProgram?: anchor.web3.PublicKey;
+}) => {
   const [ruleSetAddress] = await findRuleSetPDA(payer.publicKey, name);
 
   //ruleset relevant for transfers
@@ -435,26 +364,21 @@ export const createTokenAuthorizationRules = async (
     AUTH_PROG_ID
   );
 
-  await buildAndSendTx({ provider, ixs: [createIX], extraSigners: [payer] });
+  await buildAndSendTx({ ixs: [createIX], extraSigners: [payer] });
 
   return ruleSetAddress;
 };
 
 export const updateLUT = async (
-  provider = TEST_PROVIDER,
-  slotCommitment: Commitment = "finalized",
+  provider: anchor.AnchorProvider,
   lookupTableAddress: PublicKey
 ) => {
   const conn = provider.connection;
 
-  //needed else we keep refetching the blockhash
-  const blockhash = (await conn.getLatestBlockhash("confirmed")).blockhash;
-  console.log("blockhash", blockhash);
-
   //add NEW addresses ONLY
   const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-    payer: provider.publicKey,
-    authority: provider.publicKey,
+    authority: provider.wallet.publicKey,
+    payer: provider.wallet.publicKey,
     lookupTable: lookupTableAddress,
     addresses: [
       TBID_ADDR,
@@ -468,9 +392,7 @@ export const updateLUT = async (
   while (!done) {
     try {
       await buildAndSendTx({
-        provider,
         ixs: [extendInstruction],
-        blockhash,
       });
       done = true;
     } catch (e) {
@@ -488,25 +410,23 @@ export const updateLUT = async (
 };
 
 export const createCoreTswapLUT = async (
-  provider = TEST_PROVIDER,
+  provider: anchor.AnchorProvider = TEST_PROVIDER,
   slotCommitment: Commitment = "finalized"
 ) => {
-  const conn = provider.connection;
-
   //use finalized, otherwise get "is not a recent slot err"
-  const slot = await conn.getSlot(slotCommitment);
+  const slot = await provider.connection.getSlot(slotCommitment);
 
   //create
   const [lookupTableInst, lookupTableAddress] =
     AddressLookupTableProgram.createLookupTable({
-      authority: provider.publicKey,
-      payer: provider.publicKey,
+      authority: provider.wallet.publicKey,
+      payer: provider.wallet.publicKey,
       recentSlot: slot,
     });
 
   //see if already created
   let lookupTableAccount = (
-    await conn.getAddressLookupTable(lookupTableAddress)
+    await provider.connection.getAddressLookupTable(lookupTableAddress)
   ).value;
   if (!!lookupTableAccount) {
     console.log("LUT exists", lookupTableAddress.toBase58());
@@ -519,8 +439,8 @@ export const createCoreTswapLUT = async (
 
   //add addresses
   const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-    payer: provider.publicKey,
-    authority: provider.publicKey,
+    authority: provider.wallet.publicKey,
+    payer: provider.wallet.publicKey,
     lookupTable: lookupTableAddress,
     addresses: [
       tswapPda,
@@ -538,7 +458,6 @@ export const createCoreTswapLUT = async (
   while (!done) {
     try {
       await buildAndSendTx({
-        provider,
         ixs: [lookupTableInst, extendInstruction],
       });
       done = true;
@@ -551,8 +470,9 @@ export const createCoreTswapLUT = async (
   console.log("new LUT created", lookupTableAddress.toBase58());
 
   //fetch
-  lookupTableAccount = (await conn.getAddressLookupTable(lookupTableAddress))
-    .value;
+  lookupTableAccount = (
+    await provider.connection.getAddressLookupTable(lookupTableAddress)
+  ).value;
 
   return lookupTableAccount;
 };

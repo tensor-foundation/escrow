@@ -1,15 +1,15 @@
+import { Keypair, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
+import { simulateTxTable, swapSdk, wlSdk } from "../shared";
 import {
   beforeHook,
-  createAndFundATA,
+  createAndFundAta,
   makeNTraders,
   makeProofWhitelist,
   nftPoolConfig,
-  TEST_COSIGNER,
   testMakePool,
+  TEST_COSIGNER,
 } from "./common";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { simulateTxTable, swapSdk, wlSdk } from "../shared";
-import BN from "bn.js";
 
 // This is a useful test to quickly get tx size info
 describe.skip("tx sizer", () => {
@@ -22,17 +22,16 @@ describe.skip("tx sizer", () => {
   });
 
   it("tx sizer", async () => {
-    const [owner, seller, buyer] = await makeNTraders(3);
+    const [owner, seller, buyer] = await makeNTraders({ n: 3 });
     const config = nftPoolConfig;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
-      10,
-      creators
-    );
+      royaltyBps: 10,
+      creators,
+    });
 
     const {
       whitelist,

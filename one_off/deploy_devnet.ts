@@ -1,18 +1,11 @@
-import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import {
-  buildAndSendTx,
-  generateTreeOfSize,
-  TEST_PROVIDER,
-  wlSdk,
-} from "../tests/shared";
 import { AnchorProvider } from "@coral-xyz/anchor";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
-import { makeProofWhitelist } from "../tests/tswap/common";
-import * as path from "path";
-import * as anchor from "@coral-xyz/anchor";
-import { MerkleTree } from "merkletreejs";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import keccak256 from "keccak256";
+import { MerkleTree } from "merkletreejs";
+import * as path from "path";
+import { TensorSwapSDK, TensorWhitelistSDK } from "../src";
+import { buildAndSendTx, wlSdk } from "../tests/shared";
 
 const payer = Keypair.fromSecretKey(
   Uint8Array.from(require("/Users/ilmoi/.config/solana/id.json"))
@@ -32,8 +25,11 @@ const wlSDK = new TensorWhitelistSDK({ provider });
 const initWhitelistProgram = async () => {
   const {
     tx: { ixs },
-  } = await wlSDK.initUpdateAuthority(payer.publicKey, payer.publicKey);
-  const sig = await buildAndSendTx({ ixs, provider });
+  } = await wlSDK.initUpdateAuthority({
+    newCosigner: payer.publicKey,
+    newOwner: payer.publicKey,
+  });
+  const sig = await buildAndSendTx({ ixs, conn: provider.connection, payer });
   console.log(sig);
 };
 
@@ -80,7 +76,7 @@ const initWhitelistForDonkeys = async () => {
     rootHash: root,
     name: Buffer.from(name.padEnd(32, "\0")).toJSON().data,
   });
-  const sig = await buildAndSendTx({ provider, ixs });
+  const sig = await buildAndSendTx({ ixs, conn: provider.connection, payer });
   console.log(sig, whitelistPda.toBase58());
 };
 
@@ -93,10 +89,10 @@ const initTswap = async () => {
     tx: { ixs },
   } = await swapSDK.initUpdateTSwap({
     owner: payer.publicKey,
-    newCosigner: payer.publicKey,
+    newOwner: payer.publicKey,
     config: { feeBps: 500 },
   });
-  const sig = await buildAndSendTx({ ixs, provider });
+  const sig = await buildAndSendTx({ ixs, conn: provider.connection, payer });
   console.log(sig);
 };
 

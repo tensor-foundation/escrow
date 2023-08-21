@@ -5,6 +5,7 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
+import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
 import { expect } from "chai";
 import {
   buildAndSendTx,
@@ -46,7 +47,7 @@ describe("tswap buy", () => {
   });
 
   it("buy from nft pool", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
       { owner: traderA, buyer: traderB },
@@ -63,7 +64,7 @@ describe("tswap buy", () => {
   });
 
   it("buy from nft pool (pay taker broker)", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
       { owner: traderA, buyer: traderB },
@@ -82,7 +83,7 @@ describe("tswap buy", () => {
   });
 
   it("buy from nft pool (pay optional royalties)", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const optionalRoyaltyPct of [null, 0, 33, 50, 100, 105]) {
       const creators = Array(5)
@@ -117,7 +118,7 @@ describe("tswap buy", () => {
   });
 
   it("buy from trade pool", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
       { owner: traderA, buyer: traderB },
@@ -134,7 +135,7 @@ describe("tswap buy", () => {
   });
 
   it("buy from nft/trade pool works with royalties (both < & > 0.9%)", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
 
     // Intentionally do this serially (o/w balances will race).
     for (const [royaltyBps, config] of cartesian(
@@ -158,7 +159,7 @@ describe("tswap buy", () => {
   });
 
   it("buy from nft/trade pool works with royalties (check for InsufficientFundsForRent)", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
 
     // Intentionally do this serially (o/w balances will race).
     for (const [royaltyBps, config] of cartesian([50], [nftPoolConfig])) {
@@ -182,7 +183,7 @@ describe("tswap buy", () => {
 
   // TODO: proof ignored (so this works).
   it("buy from nft pool works with 5 creators (max) and large proofs", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
 
     // Intentionally do this serially (o/w balances will race).
     const creators = Array(5)
@@ -202,7 +203,7 @@ describe("tswap buy", () => {
   });
 
   it("buy from token pool fails", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     await expect(
       testMakePoolBuyNft({
         tswap,
@@ -215,7 +216,7 @@ describe("tswap buy", () => {
   });
 
   it("buy at higher max price works (a steal!)", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
 
     // needs to be serial ugh
     for (const [config, price] of cartesian(
@@ -235,7 +236,7 @@ describe("tswap buy", () => {
   });
 
   it("buy at lower max price fails", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
 
     await Promise.all(
       cartesian(
@@ -262,16 +263,16 @@ describe("tswap buy", () => {
   it("buy non-WL nft fails", async () => {
     await Promise.all(
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const [owner, buyer] = await makeNTraders(2);
+        const [owner, buyer] = await makeNTraders({ n: 2 });
         const {
           mint,
           ata,
           otherAta: buyerAta,
-        } = await makeMintTwoAta(owner, buyer);
-        const { mint: badMint, otherAta: badBuyerAta } = await makeMintTwoAta(
+        } = await makeMintTwoAta({ owner, other: buyer });
+        const { mint: badMint, otherAta: badBuyerAta } = await makeMintTwoAta({
           owner,
-          buyer
-        );
+          other: buyer,
+        });
         const {
           proofs: [wlNft],
           whitelist,
@@ -416,11 +417,17 @@ describe("tswap buy", () => {
   // });
 
   it("buy nft from another pool fails", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
 
     for (const config of [nftPoolConfig, tradePoolConfig]) {
-      const { mint: mintA, ata: ataA } = await makeMintTwoAta(traderA, traderB);
-      const { mint: mintB, ata: ataB } = await makeMintTwoAta(traderB, traderA);
+      const { mint: mintA, ata: ataA } = await makeMintTwoAta({
+        owner: traderA,
+        other: traderB,
+      });
+      const { mint: mintB, ata: ataB } = await makeMintTwoAta({
+        owner: traderB,
+        other: traderA,
+      });
 
       // Reuse whitelist fine.
       const {
@@ -498,7 +505,7 @@ describe("tswap buy", () => {
 
   it("alternate deposits & buys", async () => {
     const numBuys = 10;
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     await Promise.all(
       cartesian(
         [PoolTypeAnchor.NFT, PoolTypeAnchor.Trade],
@@ -525,7 +532,7 @@ describe("tswap buy", () => {
               mint,
               ata: ataA,
               otherAta: ataB,
-            } = await makeMintTwoAta(traderA, traderB);
+            } = await makeMintTwoAta({ owner: traderA, other: traderB });
             return { mint, ataA, ataB };
           })
         );
@@ -618,7 +625,7 @@ describe("tswap buy", () => {
     // prime #
     const numBuys = 109;
 
-    const [traderA, traderB] = await makeNTraders(2, 1_000_000);
+    const [traderA, traderB] = await makeNTraders({ n: 2, sol: 1_000_000 });
     const config: PoolConfigAnchor = {
       poolType: PoolTypeAnchor.NFT,
       curveType: CurveTypeAnchor.Exponential,
@@ -637,7 +644,7 @@ describe("tswap buy", () => {
           mint,
           ata: ataA,
           otherAta: ataB,
-        } = await makeMintTwoAta(traderA, traderB);
+        } = await makeMintTwoAta({ owner: traderA, other: traderB });
         return { mint, ataA, ataB };
       })
     );
@@ -710,7 +717,7 @@ describe("tswap buy", () => {
   });
 
   it("properly parses raw buy tx", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
 
     const expectedLamports = nftPoolConfig.startingPrice.toNumber();
     const { buySig, wlNft, whitelist, pool, solEscrowPda } =
@@ -720,15 +727,16 @@ describe("tswap buy", () => {
         buyer,
         config: nftPoolConfig,
         expectedLamports,
-        commitment: "confirmed",
         royaltyBps: 50,
       });
 
-    const tx = (await TEST_PROVIDER.connection.getTransaction(buySig, {
-      commitment: "confirmed",
-    }))!;
+    const tx = await getTransactionConvertedToLegacy(
+      TEST_PROVIDER.connection,
+      buySig,
+      "confirmed"
+    );
     expect(tx).not.null;
-    const ixs = swapSdk.parseIxs(tx);
+    const ixs = swapSdk.parseIxs(tx!);
     expect(ixs).length(1);
 
     const ix = ixs[0];
@@ -762,7 +770,7 @@ describe("tswap buy", () => {
   });
 
   it("buy pNft from nft pool (no ruleset)", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
       { owner: traderA, buyer: traderB },
@@ -786,12 +794,9 @@ describe("tswap buy", () => {
   });
 
   it("buy pNft from trade pool (1 ruleset) (should NOT require LUT)", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
 
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      traderA
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: traderA });
 
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
@@ -816,12 +821,9 @@ describe("tswap buy", () => {
   });
 
   it("MAX ACC CHECK: buy pNft from trade pool (1 ruleset) (should require LUT) (margin)", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
 
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      traderA
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: traderA });
 
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [

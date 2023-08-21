@@ -1,9 +1,4 @@
 import {
-  keypairIdentity,
-  Metaplex,
-  toBigNumber,
-} from "@metaplex-foundation/js";
-import {
   Payload,
   PROGRAM_ID as AUTH_PROGRAM_ID,
 } from "@metaplex-foundation/mpl-token-auth-rules";
@@ -12,15 +7,12 @@ import {
   CreateInstructionAccounts,
   CreateInstructionArgs,
   createMintInstruction,
+  createVerifyCollectionInstruction,
   MintInstructionAccounts,
   MintInstructionArgs,
-  PROGRAM_ID,
-  TokenStandard,
 } from "@metaplex-foundation/mpl-token-metadata";
-import { AnchorProvider } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
   getAccount as _getAccount,
   getAssociatedTokenAddressSync,
   TokenAccountNotFoundError,
@@ -28,17 +20,21 @@ import {
 } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
-  Commitment,
+  Connection,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
   Signer,
-  SystemProgram,
   SYSVAR_INSTRUCTIONS_PUBKEY,
-  Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { findTokenRecordPda } from "@tensor-hq/tensor-common";
+import {
+  findMasterEditionPda,
+  findMetadataPda,
+  findTokenRecordPda,
+  test_utils,
+  TokenStandard,
+} from "@tensor-hq/tensor-common";
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -74,6 +70,7 @@ import {
   HUNDRED_PCT_BPS,
   swapSdk,
   testInitWLAuthority,
+  TEST_CONN_PAYER,
   TEST_PROVIDER,
   withLamports,
   wlSdk,
@@ -87,6 +84,8 @@ chai.use(chaiAsPromised);
 
 //this has to match the current version in state.rs
 export const CURRENT_POOL_VERSION = 2;
+
+export const CREATE_META_TAX = 0.01 * LAMPORTS_PER_SOL; // Metaplex tax for create nft.
 
 export const TSWAP_CONFIG: TSwapConfigAnchor = {
   feeBps: TSWAP_TAKER_FEE_BPS,
@@ -186,84 +185,88 @@ const expectPoolAccounting = (
 
 //#region ATA/wallet helper functions.
 
-const _createFundedWallet = async (
-  provider: AnchorProvider,
-  sol: number = 1000
-): Promise<Keypair> => {
-  const keypair = Keypair.generate();
-  //airdrops are funky, best to move from provider wallet
-  const tx = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: provider.publicKey,
-      toPubkey: keypair.publicKey,
-      lamports: sol * LAMPORTS_PER_SOL,
-    })
-  );
-  await buildAndSendTx({ provider, ixs: tx.instructions });
-  return keypair;
-};
-
-const _createATA = async (
-  provider: AnchorProvider,
-  mint: PublicKey,
-  owner: Keypair
-) => {
-  const ata = await getAssociatedTokenAddressSync(mint, owner.publicKey);
-  const createAtaIx = createAssociatedTokenAccountInstruction(
-    owner.publicKey,
-    ata,
-    owner.publicKey,
-    mint,
-    TOKEN_PROGRAM_ID,
-    ASSOCIATED_TOKEN_PROGRAM_ID
-  );
-  await buildAndSendTx({ provider, ixs: [createAtaIx], extraSigners: [owner] });
-  return { mint, owner, ata };
-};
-
 export type CreatorInput = {
   address: PublicKey;
   share: number;
   authority?: Signer;
 };
 
-export const createAndMintPNft = async ({
+export const createFundedWallet = (sol?: number) =>
+  test_utils.createFundedWallet({
+    ...TEST_CONN_PAYER,
+    sol,
+  });
+
+export const createAta = (mint: PublicKey, owner: Keypair) =>
+  test_utils.createAta({
+    ...TEST_CONN_PAYER,
+    owner,
+    mint,
+  });
+
+export const createAndFundAta = ({
   owner,
   mint,
   royaltyBps,
   creators,
   collection,
+  collectionVerified,
+  programmable,
+  ruleSetAddr,
+}: {
+  owner?: Keypair;
+  mint?: Keypair;
+  royaltyBps?: number;
+  creators?: CreatorInput[];
+  collection?: Keypair;
+  collectionVerified?: boolean;
+  programmable?: boolean;
+  ruleSetAddr?: PublicKey;
+} = {}) =>
+  test_utils.createAndFundAta({
+    ...TEST_CONN_PAYER,
+    owner,
+    mint,
+    royaltyBps,
+    creators,
+    collection,
+    collectionVerified,
+    programmable,
+    ruleSetAddr,
+  });
+
+export const getAccount = (acct: PublicKey) =>
+  _getAccount(TEST_PROVIDER.connection, acct);
+
+//#endregion
+
+export const createNft = async ({
+  conn,
+  payer,
+  owner,
+  mint,
+  tokenStandard,
+  royaltyBps,
+  creators,
+  collection,
   collectionVerified = true,
   ruleSet = null,
-  provider = TEST_PROVIDER,
 }: {
+  conn: Connection;
+  payer: Keypair;
   owner: Keypair;
   mint: Keypair;
+  tokenStandard: TokenStandard;
   royaltyBps?: number;
   creators?: CreatorInput[];
   collection?: Keypair;
   collectionVerified?: boolean;
   ruleSet?: PublicKey | null;
-  provider?: AnchorProvider;
 }) => {
   // --------------------------------------- create
 
-  // metadata account
-  const [metadata] = PublicKey.findProgramAddressSync(
-    [Buffer.from("metadata"), PROGRAM_ID.toBuffer(), mint.publicKey.toBuffer()],
-    PROGRAM_ID
-  );
-
-  // master edition account
-  const [masterEdition] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("metadata"),
-      PROGRAM_ID.toBuffer(),
-      mint.publicKey.toBuffer(),
-      Buffer.from("edition"),
-    ],
-    PROGRAM_ID
-  );
+  const [metadata] = findMetadataPda(mint.publicKey);
+  const [masterEdition] = findMasterEditionPda(mint.publicKey);
 
   const accounts: CreateInstructionAccounts = {
     metadata,
@@ -294,9 +297,10 @@ export const createAndMintPNft = async ({
           }) ?? null,
         primarySaleHappened: true,
         isMutable: true,
-        tokenStandard: TokenStandard.ProgrammableNonFungible,
+        tokenStandard,
         collection: collection
-          ? { verified: collectionVerified, key: collection.publicKey }
+          ? // Must be verified as separate ix for nfts.
+            { verified: false, key: collection.publicKey }
           : null,
         uses: null,
         collectionDetails: null,
@@ -321,13 +325,9 @@ export const createAndMintPNft = async ({
   // --------------------------------------- mint
 
   // mint instrution will initialize a ATA account
-  const [tokenPda] = PublicKey.findProgramAddressSync(
-    [
-      owner.publicKey.toBuffer(),
-      TOKEN_PROGRAM_ID.toBuffer(),
-      mint.publicKey.toBuffer(),
-    ],
-    ASSOCIATED_TOKEN_PROGRAM_ID
+  const tokenPda = getAssociatedTokenAddressSync(
+    mint.publicKey,
+    owner.publicKey
   );
 
   const [tokenRecord] = findTokenRecordPda(mint.publicKey, tokenPda);
@@ -363,12 +363,30 @@ export const createAndMintPNft = async ({
   };
 
   const mintIx = createMintInstruction(mintAcccounts, mintArgs);
+  // Have to do separately o/w for regular NFTs it'll complain about
+  // collection verified can't be set.
+  const verifyIxs =
+    collection && collectionVerified
+      ? [
+          createVerifyCollectionInstruction({
+            metadata,
+            collectionAuthority: owner.publicKey,
+            payer: owner.publicKey,
+            collectionMint: collection.publicKey,
+            collection: findMetadataPda(collection.publicKey)[0],
+            collectionMasterEditionAccount: findMasterEditionPda(
+              collection.publicKey
+            )[0],
+          }),
+        ]
+      : [];
 
   // --------------------------------------- send
 
   await buildAndSendTx({
-    provider,
-    ixs: [createIx, mintIx],
+    conn,
+    payer,
+    ixs: [createIx, mintIx, ...verifyIxs],
     extraSigners: [owner, mint],
   });
 
@@ -379,129 +397,30 @@ export const createAndMintPNft = async ({
   };
 };
 
-const _createAndFundATA = async ({
-  provider,
+// Creates a mint + 2 ATAs. The `owner` will have the mint initially.
+export const makeMintTwoAta = async ({
   owner,
-  mint,
+  other,
   royaltyBps,
   creators,
   collection,
   collectionVerified,
-  programmable = false,
+  programmable,
   ruleSetAddr,
 }: {
-  provider: AnchorProvider;
-  owner?: Keypair;
-  mint?: Keypair;
+  owner: Keypair;
+  other: Keypair;
   royaltyBps?: number;
   creators?: CreatorInput[];
   collection?: Keypair;
   collectionVerified?: boolean;
   programmable?: boolean;
   ruleSetAddr?: PublicKey;
-}): Promise<{
-  mint: PublicKey;
-  ata: PublicKey;
-  owner: Keypair;
-  metadata: PublicKey;
-  masterEdition: PublicKey;
-}> => {
-  const usedOwner = owner ?? (await _createFundedWallet(provider));
-  const usedMint = mint ?? Keypair.generate();
-
-  const mplex = new Metaplex(provider.connection).use(
-    keypairIdentity(usedOwner)
-  );
-
-  //create a verified collection
-  if (collection) {
-    await mplex.nfts().create({
-      useNewMint: collection,
-      tokenOwner: usedOwner.publicKey,
-      uri: "https://www.tensor.trade",
-      name: "Whatever",
-      sellerFeeBasisPoints: royaltyBps ?? 0,
-      isCollection: true,
-      collectionIsSized: true,
-    });
-
-    // console.log(
-    //   "coll",
-    //   await mplex.nfts().findByMint({ mintAddress: collection.publicKey })
-    // );
-  }
-
-  let metadataAddress, tokenAddress, masterEditionAddress;
-  if (programmable) {
-    //create programmable nft
-    ({ metadataAddress, tokenAddress, masterEditionAddress } =
-      await createAndMintPNft({
-        mint: usedMint,
-        owner: usedOwner,
-        royaltyBps,
-        creators,
-        collection,
-        collectionVerified,
-        ruleSet: ruleSetAddr,
-      }));
-  } else {
-    //create normal nft
-    ({ metadataAddress, tokenAddress, masterEditionAddress } = await mplex
-      .nfts()
-      .create({
-        useNewMint: usedMint,
-        tokenOwner: usedOwner.publicKey,
-        uri: "https://www.tensor.trade",
-        name: "Whatever",
-        sellerFeeBasisPoints: royaltyBps ?? 0,
-        creators,
-        maxSupply: toBigNumber(1),
-        collection: collection?.publicKey,
-      }));
-
-    if (collection && collectionVerified) {
-      await mplex.nfts().verifyCollection({
-        mintAddress: usedMint.publicKey,
-        collectionMintAddress: collection.publicKey,
-      });
-    }
-  }
-
-  // console.log(
-  //   "nft",
-  //   await mplex.nfts().findByMint({ mintAddress: usedMint.publicKey })
-  // );
-
-  return {
-    mint: usedMint.publicKey,
-    ata: tokenAddress,
-    owner: usedOwner,
-    metadata: metadataAddress,
-    masterEdition: masterEditionAddress,
-  };
-};
-
-export const createFundedWallet = (sol?: number) =>
-  _createFundedWallet(TEST_PROVIDER, sol);
-
-export const createATA = (mint: PublicKey, owner: Keypair) =>
-  _createATA(TEST_PROVIDER, mint, owner);
-
-export const createAndFundATA = (
-  owner?: Keypair,
-  mint?: Keypair,
-  royaltyBps?: number,
-  creators?: CreatorInput[],
-  collection?: Keypair,
-  collectionVerified?: boolean,
-  programmable?: boolean,
-  ruleSetAddr?: PublicKey,
-  provider?: AnchorProvider
-) =>
-  _createAndFundATA({
-    provider: provider ?? TEST_PROVIDER,
+}) => {
+  return test_utils.makeMintTwoAta({
+    ...TEST_CONN_PAYER,
     owner,
-    mint,
+    other,
     royaltyBps,
     creators,
     collection,
@@ -509,47 +428,14 @@ export const createAndFundATA = (
     programmable,
     ruleSetAddr,
   });
-
-export const getAccount = (acct: PublicKey) =>
-  _getAccount(TEST_PROVIDER.connection, acct);
-
-//#endregion
-
-//#region Non-expect helper functions (no expects run).
-
-// Creates a mint + 2 ATAs. The `owner` will have the mint initially.
-export const makeMintTwoAta = async (
-  owner: Keypair,
-  other: Keypair,
-  royaltyBps?: number,
-  creators?: CreatorInput[],
-  collection?: Keypair,
-  collectionVerified?: boolean,
-  programmable?: boolean,
-  ruleSetAddr?: PublicKey
-) => {
-  const { mint, ata, metadata, masterEdition } = await createAndFundATA(
-    owner,
-    undefined,
-    royaltyBps,
-    creators,
-    collection,
-    collectionVerified,
-    programmable,
-    ruleSetAddr
-  );
-
-  const { ata: otherAta } = await createATA(mint, other);
-
-  return { mint, metadata, ata, otherAta, masterEdition };
 };
 
-export const makeNTraders = async (n: number, sol?: number) => {
-  return await Promise.all(
-    Array(n)
-      .fill(null)
-      .map(async () => await createFundedWallet(sol))
-  );
+export const makeNTraders = async ({ n, sol }: { n: number; sol?: number }) => {
+  return test_utils.makeNTraders({
+    ...TEST_CONN_PAYER,
+    n,
+    sol,
+  });
 };
 
 export const makeProofWhitelist = async (
@@ -568,7 +454,7 @@ export const makeProofWhitelist = async (
     rootHash: root,
     name: TensorWhitelistSDK.nameToBuffer(name),
   });
-  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+  await buildAndSendTx({ ixs });
 
   return { proofs, whitelist: whitelistPda };
 };
@@ -585,7 +471,7 @@ export const makeFvcWhitelist = async (fvc: PublicKey) => {
     name: TensorWhitelistSDK.nameToBuffer(name),
     fvc,
   });
-  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+  await buildAndSendTx({ ixs });
 
   return { fvc, whitelist: whitelistPda };
 };
@@ -602,7 +488,7 @@ export const makeVocWhitelist = async (voc: PublicKey) => {
     name: TensorWhitelistSDK.nameToBuffer(name),
     voc,
   });
-  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+  await buildAndSendTx({ ixs });
 
   return { voc, whitelist: whitelistPda };
 };
@@ -627,7 +513,7 @@ export const makeEverythingWhitelist = async (
     voc,
     fvc,
   });
-  await buildAndSendTx({ provider: TEST_PROVIDER, ixs });
+  await buildAndSendTx({ ixs });
 
   return { proofs, whitelist: whitelistPda, voc, fvc };
 };
@@ -728,7 +614,6 @@ export const testMakeMargin = async ({ owner }: { owner: Keypair }) => {
   });
   await buildAndSendTx({
     ixs,
-    provider: TEST_PROVIDER,
     extraSigners: [owner],
   });
   //state
@@ -836,7 +721,6 @@ export const testDepositIntoMargin = async ({
   });
   await buildAndSendTx({
     ixs,
-    provider: TEST_PROVIDER,
     extraSigners: [owner],
   });
   const marginRent = await swapSdk.getMarginAccountRent();
@@ -866,7 +750,6 @@ export const testWithdrawFromMargin = async ({
   });
   await buildAndSendTx({
     ixs,
-    provider: TEST_PROVIDER,
     extraSigners: [owner],
   });
   const marginRent = await swapSdk.getMarginAccountRent();
@@ -980,7 +863,6 @@ export const testMakePool = async ({
   owner,
   whitelist,
   config,
-  commitment,
   isCosigned = false,
   orderType = OrderType.Standard,
   maxTakerSellCount,
@@ -989,7 +871,6 @@ export const testMakePool = async ({
   owner: Keypair;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
-  commitment?: Commitment;
   customAuthSeed?: number[];
   isCosigned?: boolean;
   orderType?: OrderType;
@@ -1013,7 +894,6 @@ export const testMakePool = async ({
   const sig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
-    opts: { commitment },
   });
 
   const poolAcc = await swapSdk.fetchPool(poolPda);
@@ -1069,13 +949,11 @@ export const testClosePool = async ({
   owner,
   whitelist,
   config,
-  commitment,
   marginNr,
 }: {
   owner: Keypair;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
-  commitment?: Commitment;
   marginNr?: number;
 }) => {
   const finalIxs: TransactionInstruction[] = [];
@@ -1105,7 +983,6 @@ export const testClosePool = async ({
   const sig = await buildAndSendTx({
     ixs: finalIxs,
     extraSigners: [owner],
-    opts: { commitment },
   });
 
   // These should no longer exist.
@@ -1131,7 +1008,6 @@ export const testEditPool = async ({
   whitelist,
   oldConfig,
   newConfig,
-  commitment,
   isCosigned = null,
   maxTakerSellCount,
   mmCompoundFees,
@@ -1141,7 +1017,6 @@ export const testEditPool = async ({
   whitelist: PublicKey;
   oldConfig: PoolConfigAnchor;
   newConfig?: PoolConfigAnchor;
-  commitment?: Commitment;
   isCosigned?: null | boolean;
   maxTakerSellCount?: number;
   mmCompoundFees?: boolean | null;
@@ -1179,7 +1054,6 @@ export const testEditPool = async ({
   const sig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
-    opts: { commitment },
   });
 
   let newPool;
@@ -1284,7 +1158,6 @@ export const testDepositNft = async ({
   wlNft,
   nftMint,
   whitelist,
-  commitment,
   nftMetadata,
   skipPoolAccounting = false,
 }: {
@@ -1296,7 +1169,6 @@ export const testDepositNft = async ({
   wlNft?: WhitelistedNft;
   nftMint?: PublicKey;
   whitelist: PublicKey;
-  commitment?: Commitment;
   nftMetadata?: PublicKey;
   skipPoolAccounting?: boolean;
 }) => {
@@ -1338,7 +1210,6 @@ export const testDepositNft = async ({
   const depSig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
-    opts: { commitment },
   });
 
   //NFT moved from trader to escrow
@@ -1366,14 +1237,12 @@ export const testDepositSol = async ({
   config,
   owner,
   lamports,
-  commitment,
 }: {
   pool: PublicKey;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
   owner: Keypair;
   lamports: number;
-  commitment?: Commitment;
 }) => {
   let {
     tx: { ixs },
@@ -1392,7 +1261,6 @@ export const testDepositSol = async ({
       const depSig = await buildAndSendTx({
         ixs,
         extraSigners: [owner],
-        opts: { commitment },
       });
 
       let currEscrowLamports = await getLamports(solEscrowPda);
@@ -1420,7 +1288,6 @@ export const testWithdrawNft = async ({
   ata,
   wlNft,
   whitelist,
-  commitment,
 }: {
   pool: PublicKey;
   config: PoolConfigAnchor;
@@ -1428,7 +1295,6 @@ export const testWithdrawNft = async ({
   ata: PublicKey;
   wlNft: WhitelistedNft;
   whitelist: PublicKey;
-  commitment?: Commitment;
 }) => {
   let {
     tx: { ixs },
@@ -1446,7 +1312,6 @@ export const testWithdrawNft = async ({
   const withdrawSig = await buildAndSendTx({
     ixs,
     extraSigners: [owner],
-    opts: { commitment },
   });
 
   //NFT moved from escrow to trader
@@ -1473,14 +1338,12 @@ export const testWithdrawSol = async ({
   config,
   owner,
   lamports,
-  commitment,
 }: {
   pool: PublicKey;
   whitelist: PublicKey;
   config: PoolConfigAnchor;
   owner: Keypair;
   lamports: number;
-  commitment?: Commitment;
 }) => {
   let {
     tx: { ixs },
@@ -1499,7 +1362,6 @@ export const testWithdrawSol = async ({
       const withdrawSig = await buildAndSendTx({
         ixs,
         extraSigners: [owner],
-        opts: { commitment },
       });
 
       let currEscrowLamports = await getLamports(solEscrowPda);
@@ -1527,7 +1389,6 @@ export const testBuyNft = async ({
   config,
   expectedLamports,
   maxLamports = expectedLamports,
-  commitment,
   royaltyBps,
   creators,
   programmable,
@@ -1547,7 +1408,6 @@ export const testBuyNft = async ({
   // If specified, uses this as the maxPrice for the buy instr.
   // All expects will still use expectedLamports.
   maxLamports?: number;
-  commitment?: Commitment;
   royaltyBps?: number;
   creators?: CreatorInput[];
   programmable?: boolean;
@@ -1601,9 +1461,6 @@ export const testBuyNft = async ({
       const buySig = await buildAndSendTx({
         ixs,
         extraSigners: [buyer],
-        opts: {
-          commitment,
-        },
         lookupTableAccounts: lookupTableAccount
           ? [lookupTableAccount]
           : undefined,
@@ -1752,7 +1609,6 @@ export const testMakePoolBuyNft = async ({
   config,
   expectedLamports,
   maxLamports = expectedLamports,
-  commitment,
   royaltyBps,
   creators,
   treeSize,
@@ -1772,7 +1628,6 @@ export const testMakePoolBuyNft = async ({
   // If specified, uses this as the maxPrice for the buy instr.
   // All expects will still use expectedLamports.
   maxLamports?: number;
-  commitment?: Commitment;
   royaltyBps?: number;
   creators?: CreatorInput[];
   treeSize?: number;
@@ -1785,14 +1640,14 @@ export const testMakePoolBuyNft = async ({
   takerBroker?: PublicKey | null;
 }) => {
   const { mint, ata, otherAta, metadata, masterEdition } = await makeMintTwoAta(
-    owner,
-    buyer,
-    royaltyBps,
-    creators,
-    undefined,
-    undefined,
-    programmable,
-    ruleSetAddr
+    {
+      owner,
+      other: buyer,
+      royaltyBps,
+      creators,
+      programmable,
+      ruleSetAddr,
+    }
   );
   const {
     proofs: [wlNft],
@@ -1841,7 +1696,6 @@ export const testMakePoolBuyNft = async ({
       config,
       expectedLamports,
       maxLamports,
-      commitment,
       royaltyBps,
       creators,
       programmable,
@@ -1873,11 +1727,11 @@ export const testSellNft = async ({
   config,
   expectedLamports,
   minLamports = expectedLamports,
-  commitment,
   royaltyBps,
   creators,
   treeSize,
   isCosigned = false,
+  cosigner = TEST_COSIGNER,
   marginNr = null,
   isSniping = false,
   programmable,
@@ -1901,11 +1755,11 @@ export const testSellNft = async ({
   // If specified, uses this as the minPrice for the sell instr.
   // All expects will still use expectedLamports.
   minLamports?: number;
-  commitment?: Commitment;
   royaltyBps?: number;
   creators?: CreatorInput[];
   treeSize?: number;
   isCosigned?: boolean;
+  cosigner?: Keypair;
   marginNr?: null | number;
   isSniping?: boolean;
   programmable?: boolean;
@@ -1950,7 +1804,7 @@ export const testSellNft = async ({
     config,
     minPrice: new BN(minLamports),
     isCosigned,
-    cosigner: TEST_COSIGNER.publicKey,
+    cosigner: cosigner.publicKey,
     marginNr,
     optionalRoyaltyPct,
     takerBroker,
@@ -1992,8 +1846,7 @@ export const testSellNft = async ({
 
       const sellSig = await buildAndSendTx({
         ixs,
-        extraSigners: isCosigned ? [seller, TEST_COSIGNER] : [seller],
-        opts: { commitment },
+        extraSigners: isCosigned ? [seller, cosigner] : [seller],
         lookupTableAccounts: lookupTableAccount
           ? [lookupTableAccount]
           : undefined,
@@ -2142,7 +1995,6 @@ export const testMakePoolSellNft = async ({
   config,
   expectedLamports,
   minLamports = expectedLamports,
-  commitment,
   royaltyBps,
   creators,
   treeSize,
@@ -2163,7 +2015,6 @@ export const testMakePoolSellNft = async ({
   // If specified, uses this as the minPrice for the sell instr.
   // All expects will still use expectedLamports.
   minLamports?: number;
-  commitment?: Commitment;
   royaltyBps?: number;
   creators?: CreatorInput[];
   treeSize?: number;
@@ -2175,16 +2026,16 @@ export const testMakePoolSellNft = async ({
   optionalRoyaltyPct?: number | null;
   takerBroker?: PublicKey | null;
 }) => {
-  const { mint, ata } = await makeMintTwoAta(
-    seller,
-    owner,
+  const { mint, ata } = await makeMintTwoAta({
+    owner: seller,
+    other: owner,
     royaltyBps,
     creators,
-    undefined,
-    undefined,
+    collection: undefined,
+    collectionVerified: undefined,
     programmable,
-    ruleSetAddr
-  );
+    ruleSetAddr,
+  });
   const {
     proofs: [wlNft],
     whitelist,
@@ -2220,7 +2071,6 @@ export const testMakePoolSellNft = async ({
       config,
       expectedLamports,
       minLamports,
-      commitment,
       royaltyBps,
       creators,
       treeSize,
@@ -2249,7 +2099,6 @@ export const testTakeSnipe = async ({
   config,
   initialBidAmount,
   actualSnipeAmount,
-  commitment,
   treeSize,
   marginNr,
   frozen,
@@ -2267,7 +2116,6 @@ export const testTakeSnipe = async ({
   // Expected value for the current/base price.
   initialBidAmount: number;
   actualSnipeAmount: number;
-  commitment?: Commitment;
   treeSize?: number;
   marginNr: number;
   // Whether we're "taking" a frozen order
@@ -2339,7 +2187,6 @@ export const testTakeSnipe = async ({
       const snipeSig = await buildAndSendTx({
         ixs,
         extraSigners: [seller, cosigner],
-        opts: { commitment },
       });
 
       //NFT moved from trader to escrow

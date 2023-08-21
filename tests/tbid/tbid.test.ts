@@ -5,8 +5,21 @@ import {
   PublicKey,
   TransactionInstruction,
 } from "@solana/web3.js";
+import BN from "bn.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
+import {
+  HOURS,
+  isNullLike,
+  MINUTES,
+  SECONDS,
+  TAKER_BROKER_PCT,
+} from "../../src";
+import {
+  CURRENT_TBID_VERSION,
+  MAX_EXPIRY_SEC,
+  TBID_ADDR,
+} from "../../src/tensor_bid";
 import {
   bidSdk,
   buildAndSendTx,
@@ -15,7 +28,6 @@ import {
   getLamports,
   INTEGER_OVERFLOW_ERR,
   swapSdk,
-  TEST_PROVIDER,
   waitMS,
   withLamports,
 } from "../shared";
@@ -30,21 +42,6 @@ import {
   testMakeMargin,
   testWithdrawFromMargin,
 } from "../tswap/common";
-import BN from "bn.js";
-import {
-  CURRENT_TBID_VERSION,
-  MAX_EXPIRY_SEC,
-  TBID_ADDR,
-  TBID_TAKER_FEE_BPS,
-} from "../../src/tensor_bid";
-import {
-  DAYS,
-  HOURS,
-  isNullLike,
-  MINUTES,
-  SECONDS,
-  TAKER_BROKER_PCT,
-} from "../../src";
 
 chai.use(chaiAsPromised);
 
@@ -379,14 +376,11 @@ describe("tensor bid", () => {
   });
 
   it("happy path (bid -> take bid)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -399,16 +393,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       let margin = null;
       if (marginated) {
@@ -441,14 +433,11 @@ describe("tensor bid", () => {
   });
 
   it("happy path (bid -> take bid, TAKER BROKER)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -462,16 +451,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       let margin = null;
       if (marginated) {
@@ -505,14 +492,11 @@ describe("tensor bid", () => {
   });
 
   it("happy path (bid -> take bid, CUSTOM ROYALTIES)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -525,16 +509,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       let margin = null;
       if (marginated) {
@@ -568,14 +550,11 @@ describe("tensor bid", () => {
   });
 
   it("happy path (bid -> edit -> take bid)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -588,16 +567,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       let margin = null;
       if (marginated) {
@@ -677,32 +654,27 @@ describe("tensor bid", () => {
   });
 
   it("happy path (bid -> cancel bid)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
+    const [bidder, seller] = await makeNTraders({ n: 2 });
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     for (const [programmable, marginated] of cartesian(
       [true, false],
       [true, false]
     )) {
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
-        1000,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
+        royaltyBps: 1000,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       const amount = LAMPORTS_PER_SOL;
       const expireIn = HOURS / 1000;
@@ -727,32 +699,27 @@ describe("tensor bid", () => {
   });
 
   it("happy path (bid -> close expired bid)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
+    const [bidder, seller] = await makeNTraders({ n: 2 });
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     for (const [programmable, marginated] of cartesian(
       [true, false],
       [true, false]
     )) {
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
-        1000,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
+        royaltyBps: 1000,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       const amount = LAMPORTS_PER_SOL;
       const expireIn = (5 * SECONDS) / 1000;
@@ -798,14 +765,11 @@ describe("tensor bid", () => {
   });
 
   it("edge case (margin balance insufficient)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -818,16 +782,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       const { marginPda, marginNr, marginRent } = await testMakeMargin({
         owner: bidder,
@@ -874,14 +836,11 @@ describe("tensor bid", () => {
   });
 
   it("edge case (bid/take with someone else's margin / with wrong amount)", async () => {
-    const [bidder, seller, rando] = await makeNTraders(3);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller, rando] = await makeNTraders({ n: 3 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -894,16 +853,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       const { marginPda: marginBad, marginNr: marginNrBad } =
         await testMakeMargin({
@@ -1011,14 +968,11 @@ describe("tensor bid", () => {
   });
 
   it("edge case (bid expires)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -1031,16 +985,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       let margin = null;
       if (marginated) {
@@ -1079,14 +1031,11 @@ describe("tensor bid", () => {
   });
 
   it("edge case (expiry too large)", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -1095,16 +1044,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       let margin = null;
       if (marginated) {
@@ -1133,14 +1080,11 @@ describe("tensor bid", () => {
   });
 
   it("edit: switch between marginated and not bids", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -1150,16 +1094,14 @@ describe("tensor bid", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata } = await makeMintTwoAta(
-        seller,
-        bidder,
+      const { mint, ata } = await makeMintTwoAta({
+        owner: seller,
+        other: bidder,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        programmable ? ruleSetAddr : undefined
-      );
+        ruleSetAddr: programmable ? ruleSetAddr : undefined,
+      });
 
       const { marginPda, marginNr, marginRent } = await testMakeMargin({
         owner: bidder,
@@ -1208,14 +1150,11 @@ describe("tensor bid", () => {
   });
 
   it("edit: expiry date", async () => {
-    const [bidder, seller] = await makeNTraders(2);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      seller,
-      undefined,
-      undefined,
-      TBID_ADDR
-    );
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const ruleSetAddr = await createTokenAuthorizationRules({
+      payer: seller,
+      whitelistedProgram: TBID_ADDR,
+    });
 
     const royaltyBps = 1000;
     const amount = LAMPORTS_PER_SOL;
@@ -1223,16 +1162,13 @@ describe("tensor bid", () => {
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await makeMintTwoAta(
-      seller,
-      bidder,
+    const { mint, ata } = await makeMintTwoAta({
+      owner: seller,
+      other: bidder,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
-      false,
-      undefined
-    );
+      programmable: false,
+    });
 
     //initial bid
     const { bidState } = await testBid({

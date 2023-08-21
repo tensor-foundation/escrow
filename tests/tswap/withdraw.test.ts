@@ -1,4 +1,5 @@
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
 import BN from "bn.js";
 import { expect } from "chai";
 import {
@@ -14,13 +15,13 @@ import {
 import { testInitUpdateMintProof } from "../twhitelist/common";
 import {
   beforeHook,
-  createAndFundATA,
-  createATA,
-  getAccount,
+  createAndFundAta,
+  createAta,
   makeMintTwoAta,
   makeNTraders,
   makeProofWhitelist,
   nftPoolConfig,
+  TAKER_FEE_PCT,
   testDepositNft,
   testDepositSol,
   testMakePool,
@@ -29,7 +30,6 @@ import {
   testWithdrawSol,
   tokenPoolConfig,
   tradePoolConfig,
-  TAKER_FEE_PCT,
 } from "./common";
 
 describe("tswap withdraws", () => {
@@ -44,11 +44,11 @@ describe("tswap withdraws", () => {
   //#region Withdraw NFT.
 
   it("withdraw from pool after depositing", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
 
     await Promise.all(
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint, ata } = await createAndFundATA(owner);
+        const { mint, ata } = await createAndFundAta({ owner });
         const {
           proofs: [wlNft],
           whitelist,
@@ -74,12 +74,12 @@ describe("tswap withdraws", () => {
   });
 
   it("withdraw from TRADE pool after someone sells", async () => {
-    const [owner, seller] = await makeNTraders(2);
+    const [owner, seller] = await makeNTraders({ n: 2 });
     const config = tradePoolConfig;
 
     // Create pool + ATAs.
-    const { mint, ata } = await createAndFundATA(seller);
-    const { ata: ownerAta } = await createATA(mint, owner);
+    const { mint, ata } = await createAndFundAta({ owner: seller });
+    const { ata: ownerAta } = await createAta(mint, owner);
     const {
       proofs: [wlNft],
       whitelist,
@@ -136,11 +136,11 @@ describe("tswap withdraws", () => {
   });
 
   it("withdraw from token pool fails", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = tokenPoolConfig;
 
     // Create pool + ATAs.
-    const { mint, ata } = await createAndFundATA(owner);
+    const { mint, ata } = await createAndFundAta({ owner });
     const {
       proofs: [wlNft],
       whitelist,
@@ -182,19 +182,19 @@ describe("tswap withdraws", () => {
   });
 
   it("withdraw from another pool fails", async () => {
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
 
     for (const config of [nftPoolConfig, tradePoolConfig]) {
       const {
         mint: mintA,
         ata: ataA,
         otherAta: ataAforB,
-      } = await makeMintTwoAta(traderA, traderB);
+      } = await makeMintTwoAta({ owner: traderA, other: traderB });
       const {
         mint: mintB,
         ata: ataB,
         otherAta: ataBforA,
-      } = await makeMintTwoAta(traderB, traderA);
+      } = await makeMintTwoAta({ owner: traderB, other: traderA });
 
       // Reuse whitelist fine.
       const {
@@ -259,9 +259,9 @@ describe("tswap withdraws", () => {
   });
 
   it("properly parses raw withdraw nft tx", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
-    const { mint, ata } = await createAndFundATA(owner);
+    const { mint, ata } = await createAndFundAta({ owner });
     const {
       whitelist,
       proofs: [wlNft],
@@ -280,7 +280,6 @@ describe("tswap withdraws", () => {
       ata,
       wlNft,
       whitelist,
-      commitment: "confirmed",
     });
 
     const { withdrawSig, receiptPda } = await testWithdrawNft({
@@ -290,14 +289,15 @@ describe("tswap withdraws", () => {
       ata,
       wlNft,
       whitelist,
-      commitment: "confirmed",
     });
 
-    const tx = (await TEST_PROVIDER.connection.getTransaction(withdrawSig, {
-      commitment: "confirmed",
-    }))!;
+    const tx = await getTransactionConvertedToLegacy(
+      TEST_PROVIDER.connection,
+      withdrawSig,
+      "confirmed"
+    );
     expect(tx).not.null;
-    const ixs = swapSdk.parseIxs(tx);
+    const ixs = swapSdk.parseIxs(tx!);
     expect(ixs).length(1);
 
     const ix = ixs[0];
@@ -330,13 +330,13 @@ describe("tswap withdraws", () => {
   //#region Withdraw SOL
 
   it("withdraw can roundtrip deposits", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     for (const [lamports, config] of cartesian(
       [0, 0.0001 * LAMPORTS_PER_SOL, 69 * LAMPORTS_PER_SOL],
       [tokenPoolConfig, tradePoolConfig]
     )) {
       // Create pool + ATAs.
-      const { mint } = await createAndFundATA(owner);
+      const { mint } = await createAndFundAta({ owner });
       const { whitelist } = await makeProofWhitelist([mint]);
       const { poolPda: pool } = await testMakePool({
         tswap,
@@ -371,7 +371,7 @@ describe("tswap withdraws", () => {
   });
 
   it("withdraw works after someone buys from trade pool", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
     const config = tradePoolConfig;
 
     const { pool, whitelist } = await testMakePoolBuyNft({
@@ -402,13 +402,13 @@ describe("tswap withdraws", () => {
   });
 
   it("cannot withdraw more than deposited (eating into rent amount)", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     for (const [lamports, config] of cartesian(
       [0, 69 * LAMPORTS_PER_SOL],
       [tokenPoolConfig, tradePoolConfig]
     )) {
       // Create pool + ATAs.
-      const { mint } = await createAndFundATA(owner);
+      const { mint } = await createAndFundAta({ owner });
       const { whitelist } = await makeProofWhitelist([mint]);
       const { poolPda: pool } = await testMakePool({
         tswap,
@@ -438,11 +438,11 @@ describe("tswap withdraws", () => {
   });
 
   it("withdraw sol from NFT pool fails", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
 
     // Create pool + ATAs.
-    const { mint } = await createAndFundATA(owner);
+    const { mint } = await createAndFundAta({ owner });
     const { whitelist } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
@@ -463,9 +463,9 @@ describe("tswap withdraws", () => {
   });
 
   it("properly parses raw withdraw sol tx", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const config = tokenPoolConfig;
-    const { mint } = await createAndFundATA(owner);
+    const { mint } = await createAndFundAta({ owner });
     const { whitelist } = await makeProofWhitelist([mint]);
     const { poolPda: pool } = await testMakePool({
       tswap,
@@ -481,7 +481,6 @@ describe("tswap withdraws", () => {
       owner,
       whitelist,
       lamports: amount,
-      commitment: "confirmed",
     });
 
     const { withdrawSig, solEscrowPda } = await testWithdrawSol({
@@ -490,14 +489,15 @@ describe("tswap withdraws", () => {
       owner,
       whitelist,
       lamports: amount,
-      commitment: "confirmed",
     });
 
-    const tx = (await TEST_PROVIDER.connection.getTransaction(withdrawSig, {
-      commitment: "confirmed",
-    }))!;
+    const tx = await getTransactionConvertedToLegacy(
+      TEST_PROVIDER.connection,
+      withdrawSig,
+      "confirmed"
+    );
     expect(tx).not.null;
-    const ixs = swapSdk.parseIxs(tx);
+    const ixs = swapSdk.parseIxs(tx!);
     expect(ixs).length(1);
 
     const ix = ixs[0];
@@ -525,19 +525,14 @@ describe("tswap withdraws", () => {
   //endregion
 
   it("withdraws a pNft (no rulesets)", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
 
     await Promise.all(
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint, ata } = await createAndFundATA(
+        const { mint, ata } = await createAndFundAta({
           owner,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          true
-        );
+          programmable: true,
+        });
 
         const {
           proofs: [wlNft],
@@ -565,25 +560,17 @@ describe("tswap withdraws", () => {
   });
 
   it("withdraws a pNft (1 ruleset)", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
 
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
 
     await Promise.all(
       [nftPoolConfig, tradePoolConfig].map(async (config) => {
-        const { mint, ata } = await createAndFundATA(
+        const { mint, ata } = await createAndFundAta({
           owner,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          true,
-          ruleSetAddr
-        );
+          programmable: true,
+          ruleSetAddr,
+        });
 
         const {
           proofs: [wlNft],

@@ -1,7 +1,6 @@
 import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { TensorSwapSDK } from "../src";
-import { getLamports, swapSdk } from "../tests/shared";
 
 (async () => {
   const payer = Keypair.fromSecretKey(

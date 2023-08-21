@@ -1,7 +1,0 @@
-[submodule "deps/metaplex-auth"]
-	path = deps/metaplex-auth
-	url = https://github.com/metaplex-foundation/mpl-token-auth-rules/
-
-[submodule "deps/metaplex-mpl"]
-	path = deps/metaplex-mpl
-	url = https://github.com/metaplex-foundation/metaplex-program-library

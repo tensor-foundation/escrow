@@ -1,23 +1,27 @@
 import { BN } from "@coral-xyz/anchor";
 import {
+  createApproveInstruction,
+  TokenAccountNotFoundError,
+} from "@solana/spl-token";
+import {
   AddressLookupTableAccount,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
 import { expect } from "chai";
+import { isNullLike, TAKER_BROKER_PCT } from "../../src";
 import {
   buildAndSendTx,
   createTokenAuthorizationRules,
   getLamports,
   swapSdk,
-  TEST_PROVIDER,
   withLamports,
 } from "../shared";
 import {
   beforeHook,
   calcFeesRebates,
-  createAndFundATA,
+  createAndFundAta,
   CreatorInput,
   getAccount,
   makeMintTwoAta,
@@ -28,11 +32,6 @@ import {
   testMakeList,
   testMakePool,
 } from "./common";
-import {
-  createApproveInstruction,
-  TokenAccountNotFoundError,
-} from "@solana/spl-token";
-import { isNullLike, TAKER_BROKER_PCT } from "../../src";
 
 describe("tswap single listing", () => {
   // Keep these coupled global vars b/w tests at a minimal.
@@ -45,27 +44,21 @@ describe("tswap single listing", () => {
   });
 
   it("list + delist single listing", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const royaltyBps = 10000;
     const price = new BN(LAMPORTS_PER_SOL);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     const ownerLamports1 = await getLamports(owner.publicKey);
     const { escrowPda } = await testMakeList({ mint, price, ata, owner });
@@ -98,27 +91,21 @@ describe("tswap single listing", () => {
   });
 
   it("delegate: list + delist works", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const royaltyBps = 10000;
     const price = new BN(LAMPORTS_PER_SOL);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     // --------------------------------------- list
 
@@ -175,27 +162,21 @@ describe("tswap single listing", () => {
   });
 
   it("list + delist single listing (separate payer)", async () => {
-    const [owner, payer] = await makeNTraders(2);
+    const [owner, payer] = await makeNTraders({ n: 2 });
     const royaltyBps = 10000;
     const price = new BN(LAMPORTS_PER_SOL);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     const payerLamports1 = await getLamports(payer.publicKey);
     const ownerLamports1 = await getLamports(owner.publicKey);
@@ -243,12 +224,9 @@ describe("tswap single listing", () => {
   });
 
   it("list + edit + buy single listing (taker broker)", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
     const royaltyBps = 10000;
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
 
     for (const price of [100, LAMPORTS_PER_SOL, 0.5 * LAMPORTS_PER_SOL]) {
@@ -256,16 +234,14 @@ describe("tswap single listing", () => {
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
       const takerBroker = Keypair.generate().publicKey;
-      const { mint, ata, otherAta } = await makeMintTwoAta(
+      const { mint, ata, otherAta } = await makeMintTwoAta({
         owner,
-        buyer,
+        other: buyer,
         royaltyBps,
         creators,
-        undefined,
-        undefined,
         programmable,
-        ruleSetAddr
-      );
+        ruleSetAddr,
+      });
 
       await testMakeList({
         mint,
@@ -322,7 +298,7 @@ describe("tswap single listing", () => {
   });
 
   it("list + edit + buy single listing (pay optional royalties)", async () => {
-    const [owner, buyer] = await makeNTraders(2);
+    const [owner, buyer] = await makeNTraders({ n: 2 });
     const royaltyBps = 10000;
 
     for (const optionalRoyaltyPct of [null, 0, 33, 50, 100]) {
@@ -330,14 +306,12 @@ describe("tswap single listing", () => {
       const creators = Array(5)
         .fill(null)
         .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-      const { mint, ata, otherAta } = await makeMintTwoAta(
+      const { mint, ata, otherAta } = await makeMintTwoAta({
         owner,
-        buyer,
+        other: buyer,
         royaltyBps,
         creators,
-        undefined,
-        undefined
-      );
+      });
 
       await testMakeList({
         mint,
@@ -394,27 +368,21 @@ describe("tswap single listing", () => {
   });
 
   it("list + delist single listing", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const royaltyBps = 10000;
     const price = new BN(LAMPORTS_PER_SOL);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     const { escrowPda } = await testMakeList({ mint, price, ata, owner });
 
@@ -438,27 +406,21 @@ describe("tswap single listing", () => {
   });
 
   it("can't list twice", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const royaltyBps = 10000;
     const price = new BN(LAMPORTS_PER_SOL);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     await testMakeList({ mint, price, ata, owner });
     await expect(testMakeList({ mint, price, ata, owner })).to.be.rejectedWith(
@@ -467,27 +429,21 @@ describe("tswap single listing", () => {
   });
 
   it("can't list if nft already in pool escrow", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const royaltyBps = 10000;
     const price = new BN(LAMPORTS_PER_SOL);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     // --------------------------------------- deposit
 
@@ -513,7 +469,6 @@ describe("tswap single listing", () => {
       ata,
       wlNft,
       whitelist,
-      commitment: "confirmed",
     });
 
     // --------------------------------------- list
@@ -524,27 +479,21 @@ describe("tswap single listing", () => {
   });
 
   it("can't deposit into pool escrow if nft already single listed", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const royaltyBps = 10000;
     const price = new BN(LAMPORTS_PER_SOL);
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     // --------------------------------------- list
 
@@ -575,32 +524,25 @@ describe("tswap single listing", () => {
         ata,
         wlNft,
         whitelist,
-        commitment: "confirmed",
       })
     ).to.be.rejectedWith("0x0");
   });
 
   it("can't edit a listing that wasnt created", async () => {
-    const [owner] = await makeNTraders(1);
+    const [owner] = await makeNTraders({ n: 1 });
     const royaltyBps = 10000;
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      owner
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: owner });
     const programmable = true;
     const creators = Array(5)
       .fill(null)
       .map((_) => ({ address: Keypair.generate().publicKey, share: 20 }));
-    const { mint, ata } = await createAndFundATA(
+    const { mint, ata } = await createAndFundAta({
       owner,
-      undefined,
       royaltyBps,
       creators,
-      undefined,
-      undefined,
       programmable,
-      ruleSetAddr
-    );
+      ruleSetAddr,
+    });
 
     const {
       tx: { ixs },

@@ -1,30 +1,8 @@
+import { ACCOUNT_SIZE } from "@solana/spl-token";
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import {
-  bidSdk,
-  buildAndSendTx,
-  createTokenAuthorizationRules,
-  getLamports,
-  swapSdk,
-  TEST_PROVIDER,
-  withLamports,
-  wlSdk,
-} from "../shared";
+import BN from "bn.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import {
-  beforeHook,
-  createFundedWallet,
-  makeNTraders,
-  TEST_COSIGNER,
-  testMakePoolBuyNft,
-  tradePoolConfig,
-  TSWAP_CONFIG,
-  TAKER_FEE_PCT,
-  MAKER_REBATE_PCT,
-} from "./common";
-import BN from "bn.js";
-import { ACCOUNT_SIZE } from "@solana/spl-token";
-import { APPROX_BID_STATE_RENT } from "../../src/tensor_bid";
 import {
   APPROX_AUTHORITY_RENT,
   APPROX_DEPOSIT_RECEIPT_RENT,
@@ -38,6 +16,28 @@ import {
   APPROX_WHITELIST_RENT,
   getRentSync,
 } from "../../src";
+import { APPROX_BID_STATE_RENT } from "../../src/tensor_bid";
+import {
+  bidSdk,
+  buildAndSendTx,
+  createTokenAuthorizationRules,
+  getLamports,
+  swapSdk,
+  TEST_PROVIDER,
+  withLamports,
+  wlSdk,
+} from "../shared";
+import {
+  beforeHook,
+  createFundedWallet,
+  makeNTraders,
+  MAKER_REBATE_PCT,
+  TAKER_FEE_PCT,
+  testMakePoolBuyNft,
+  TEST_COSIGNER,
+  tradePoolConfig,
+  TSWAP_CONFIG,
+} from "./common";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -119,12 +119,9 @@ describe("tswap init_update_tswap", () => {
 
   it("withdraws fees ok", async () => {
     const { tswapPda: tswap } = await beforeHook();
-    const [traderA, traderB] = await makeNTraders(2);
+    const [traderA, traderB] = await makeNTraders({ n: 2 });
 
-    const ruleSetAddr = await createTokenAuthorizationRules(
-      TEST_PROVIDER,
-      traderA
-    );
+    const ruleSetAddr = await createTokenAuthorizationRules({ payer: traderA });
 
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
