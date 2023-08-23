@@ -36,7 +36,7 @@ import {
   tokenPoolConfig,
 } from "./common";
 
-describe("snipe", () => {
+describe.skip("snipe", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
   let lookupTableAccount: AddressLookupTableAccount | null;

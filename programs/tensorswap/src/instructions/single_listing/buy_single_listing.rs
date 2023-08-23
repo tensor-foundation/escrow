@@ -4,7 +4,6 @@ use anchor_spl::{
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
-use pnft::*;
 use vipers::throw_err;
 
 use crate::*;
@@ -190,7 +189,12 @@ pub fn handler<'info, 'b>(
         broker_fee,
         taker_fee,
     } = calc_fees_rebates(current_price)?;
-    let creators_fee = calc_creators_fee(metadata, current_price, optional_royalty_pct)?;
+    let creators_fee = calc_creators_fee(
+        metadata.data.seller_fee_basis_points,
+        current_price,
+        metadata.token_standard,
+        optional_royalty_pct,
+    )?;
 
     // for keeping track of current price + fees charged (computed dynamically)
     // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
@@ -249,12 +253,18 @@ pub fn handler<'info, 'b>(
     //send royalties
     let remaining_accounts = &mut ctx.remaining_accounts.iter();
     transfer_creators_fee(
-        None,
-        Some(FromExternal {
+        &FromAcc::External(&FromExternal {
             from: &ctx.accounts.buyer.to_account_info(),
             sys_prog: &ctx.accounts.system_program,
         }),
-        metadata,
+        &metadata
+            .data
+            .creators
+            .clone()
+            .unwrap_or(Vec::new())
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         remaining_accounts,
         creators_fee,
     )?;

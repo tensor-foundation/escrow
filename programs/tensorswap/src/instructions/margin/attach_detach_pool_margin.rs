@@ -90,7 +90,7 @@ impl<'info> Validate<'info> for AttachDetachPoolMargin<'info> {
 
 impl<'info> AttachDetachPoolMargin<'info> {
     fn empty_escrow(&self) -> Result<()> {
-        transfer_all_lamports_from_tswap(
+        transfer_all_lamports_from_pda(
             &self.sol_escrow.to_account_info(),
             &self.margin_account.to_account_info(),
         )

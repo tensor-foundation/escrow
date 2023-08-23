@@ -10,9 +10,9 @@ import { castPoolTypeAnchor, PoolType, TensorWhitelistSDK } from "../../src";
 import {
   buildAndSendTx,
   createTokenAuthorizationRules,
-  getLamports,
+  getLamports, COMMON_CREATOR_MISMATCH_ERR,
   PoolConfigAnchor,
-  swapSdk,
+  swapSdk, COMMON_INSUFFICIENT_FUNDS_ERR,
 } from "../shared";
 import {
   adjustSellMinLamports,
@@ -74,7 +74,7 @@ describe("margin account", () => {
         amount: 1,
       })
     ).to.be.rejectedWith(
-      swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+      COMMON_INSUFFICIENT_FUNDS_ERR
     );
 
     //deposit again, so we can see if it's withdrawn correctly

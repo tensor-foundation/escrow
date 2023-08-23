@@ -1,10 +1,7 @@
 use std::{cmp, fmt::Debug};
 
 use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
-use mpl_token_metadata::{
-    processor::AuthorizationData,
-    state::{Metadata, TokenStandard},
-};
+use mpl_token_metadata::{processor::AuthorizationData, state::Metadata};
 use spl_math::precise_number::PreciseNumber;
 use vipers::throw_err;
 
@@ -185,40 +182,6 @@ pub fn calc_tswap_fee(fee_bps: u16, current_price: u64) -> Result<u64> {
     Ok(fee)
 }
 
-pub fn calc_creators_fee(
-    metadata: &Metadata,
-    price: u64,
-    optional_royalty_pct: Option<u16>,
-) -> Result<u64> {
-    let creators_fee_bps = if metadata.token_standard.is_some()
-        && metadata.token_standard.unwrap() == TokenStandard::ProgrammableNonFungible
-    {
-        //for pnfts, pay full royalties
-        metadata.data.seller_fee_basis_points as u64
-    } else if let Some(optional_royalty_pct) = optional_royalty_pct {
-        if optional_royalty_pct > 100 {
-            throw_err!(BadRoyaltiesPct);
-        }
-
-        //if optional passed, pay optional royalties
-        unwrap_checked!({
-            (metadata.data.seller_fee_basis_points as u64)
-                .checked_mul(optional_royalty_pct as u64)?
-                .checked_div(100_u64)
-        })
-    } else {
-        //else pay 0
-        0_u64
-    };
-    let fee = unwrap_checked!({
-        creators_fee_bps
-            .checked_mul(price)?
-            .checked_div(HUNDRED_PCT_BPS as u64)
-    });
-
-    Ok(fee)
-}
-
 // (!) INCLUSIVE of discriminator (8 bytes)
 #[constant]
 #[allow(clippy::identity_op)]
@@ -346,7 +309,12 @@ impl Pool {
         current_price: u64,
         optional_royalty_pct: Option<u16>,
     ) -> Result<u64> {
-        calc_creators_fee(metadata, current_price, optional_royalty_pct)
+        calc_creators_fee(
+            metadata.data.seller_fee_basis_points,
+            current_price,
+            metadata.token_standard,
+            optional_royalty_pct,
+        )
     }
 
     pub fn current_price(&self, side: TakerSide) -> Result<u64> {

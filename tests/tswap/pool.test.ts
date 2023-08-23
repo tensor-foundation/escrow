@@ -8,17 +8,17 @@ import BN from "bn.js";
 import { expect } from "chai";
 import { castPoolTypeAnchor, PoolType } from "../../src";
 import {
-  buildAndSendTx,
-  cartesian,
-  castPoolConfigAnchor,
-  CurveTypeAnchor,
-  getLamports,
-  HUNDRED_PCT_BPS,
-  PoolTypeAnchor,
-  swapSdk,
-  TEST_PROVIDER,
-  withLamports,
-  wlSdk,
+    buildAndSendTx,
+    cartesian,
+    castPoolConfigAnchor, COMMON_INSUFFICIENT_FUNDS_ERR,
+    CurveTypeAnchor,
+    getLamports,
+    HUNDRED_PCT_BPS,
+    PoolTypeAnchor,
+    swapSdk,
+    TEST_PROVIDER,
+    withLamports,
+    wlSdk,
 } from "../shared";
 import {
   adjustSellMinLamports,
@@ -2270,7 +2270,7 @@ describe("tswap pool", () => {
 
       //try to withdraw too much
       await expect(withdrawFees(new BN(mmProfit6 + 1))).to.be.rejectedWith(
-        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+        COMMON_INSUFFICIENT_FUNDS_ERR
       );
 
       //try to withdraw a little
@@ -2287,7 +2287,7 @@ describe("tswap pool", () => {
 
       //try to withdraw again
       await expect(withdrawFees(new BN(1))).to.be.rejectedWith(
-        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+        COMMON_INSUFFICIENT_FUNDS_ERR
       );
     }
   });
@@ -2531,7 +2531,7 @@ describe("tswap pool", () => {
 
       //try to withdraw too much
       await expect(withdrawFees(new BN(mmProfit6 + 1))).to.be.rejectedWith(
-        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+        COMMON_INSUFFICIENT_FUNDS_ERR
       );
 
       //try to withdraw a little
@@ -2548,7 +2548,7 @@ describe("tswap pool", () => {
 
       //try to withdraw again
       await expect(withdrawFees(new BN(1))).to.be.rejectedWith(
-        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+        COMMON_INSUFFICIENT_FUNDS_ERR
       );
     }
   });
@@ -2657,7 +2657,7 @@ describe("tswap pool", () => {
       await expect(
         buildAndSendTx({ ixs, extraSigners: [owner] })
       ).to.be.rejectedWith(
-        swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+        COMMON_INSUFFICIENT_FUNDS_ERR
       );
     }
   });

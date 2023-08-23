@@ -5,7 +5,7 @@ import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
-  castPoolConfigAnchor,
+  castPoolConfigAnchor, COMMON_INSUFFICIENT_FUNDS_ERR,
   createTokenAuthorizationRules,
   getLamports,
   swapSdk,
@@ -433,7 +433,7 @@ describe("tswap withdraws", () => {
           // +1 lamport dips into rent.
           lamports: lamports + 1,
         })
-      ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientTswapAccBalance"));
+      ).rejectedWith(COMMON_INSUFFICIENT_FUNDS_ERR);
     }
   });
 

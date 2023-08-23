@@ -3,7 +3,6 @@ use anchor_spl::{
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
-use pnft::*;
 
 use crate::*;
 

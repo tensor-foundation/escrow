@@ -67,6 +67,14 @@ export const ACCT_NOT_EXISTS_ERR = "Account does not exist";
 // Vipers IntegerOverflow error.
 export const INTEGER_OVERFLOW_ERR = "0x44f";
 
+//tensor common errors
+export const COMMON_BAD_ROYALTY_ERR = "0x3a99";
+export const COMMON_INSUFFICIENT_FUNDS_ERR = "0x3a9a";
+export const COMMON_CREATOR_MISMATCH_ERR = "0x3a9b";
+export const COMMON_ARITHMETIC_ERR = "0x3a9d";
+export const COMMON_BAD_METADATA_ERR = "0x3a9e";
+export const COMMON_BAD_RULESET_ERR = "0x3a9f";
+
 export const getLamports = (acct: PublicKey) =>
   _getLamports(TEST_PROVIDER.connection, acct);
 

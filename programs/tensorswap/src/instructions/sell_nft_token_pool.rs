@@ -6,7 +6,6 @@ use anchor_spl::{
     token::{self, CloseAccount, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
-use pnft::*;
 use vipers::throw_err;
 
 use crate::*;
@@ -332,9 +331,15 @@ pub fn handler<'info>(
 
     // transfer royalties
     let actual_creators_fee = transfer_creators_fee(
-        Some(&from),
-        None,
-        metadata,
+        &FromAcc::Pda(&from),
+        &metadata
+            .data
+            .creators
+            .clone()
+            .unwrap_or(Vec::new())
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         remaining_accounts,
         creators_fee,
     )?;

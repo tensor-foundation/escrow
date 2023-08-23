@@ -3,7 +3,6 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Token, TokenAccount},
 };
-use pnft::*;
 use vipers::throw_err;
 
 use crate::*;

@@ -1,72 +1,10 @@
-use std::slice::Iter;
-
-use anchor_lang::{
-    prelude::Accounts,
-    solana_program::{program::invoke, system_instruction},
-};
+use anchor_lang::prelude::Accounts;
 use anchor_spl::token::{Mint, TokenAccount};
-use mpl_token_metadata::{
-    self,
-    state::{Metadata, TokenMetadataAccount},
-};
+use mpl_token_metadata::{self, state::TokenStandard};
 use tensor_whitelist::{self, FullMerkleProof, MintProof, Whitelist, ZERO_ARRAY};
 use vipers::throw_err;
 
 use crate::*;
-
-pub fn transfer_all_lamports_from_tswap<'info>(
-    tswap_owned_acc: &AccountInfo<'info>,
-    to: &AccountInfo<'info>,
-) -> Result<()> {
-    let rent = Rent::get()?.minimum_balance(tswap_owned_acc.data_len());
-    let to_move = unwrap_int!(tswap_owned_acc.lamports().checked_sub(rent));
-
-    transfer_lamports_from_pda(tswap_owned_acc, to, to_move)
-}
-
-pub fn transfer_lamports_from_pda<'info>(
-    from_pda: &AccountInfo<'info>,
-    to: &AccountInfo<'info>,
-    lamports: u64,
-) -> Result<()> {
-    let remaining_pda_lamports = unwrap_int!(from_pda.lamports().checked_sub(lamports));
-    // Check we are not withdrawing into our rent.
-    let rent = Rent::get()?.minimum_balance(from_pda.data_len());
-    if remaining_pda_lamports < rent {
-        throw_err!(InsufficientTswapAccBalance);
-    }
-
-    **from_pda.try_borrow_mut_lamports()? = remaining_pda_lamports;
-
-    let new_to = unwrap_int!(to.lamports.borrow().checked_add(lamports));
-    **to.lamports.borrow_mut() = new_to;
-
-    Ok(())
-}
-
-#[inline(never)]
-pub fn assert_decode_metadata<'info>(
-    nft_mint: &Account<'info, Mint>,
-    metadata_account: &UncheckedAccount<'info>,
-) -> Result<Metadata> {
-    let (key, _) = Pubkey::find_program_address(
-        &[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
-            nft_mint.key().as_ref(),
-        ],
-        &mpl_token_metadata::id(),
-    );
-    if key != *metadata_account.to_account_info().key {
-        throw_err!(BadMetadata);
-    }
-    // Check account owner (redundant because of find_program_address above, but why not).
-    if *metadata_account.owner != mpl_token_metadata::id() {
-        throw_err!(BadMetadata);
-    }
-
-    Ok(Metadata::from_account_info(metadata_account)?)
-}
 
 pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
     let program_id = &crate::id();
@@ -156,78 +94,6 @@ pub fn verify_whitelist<'info>(
         let metadata = &assert_decode_metadata(nft_mint, nft_metadata)?;
         whitelist.verify_whitelist(Some(metadata), None)
     }
-}
-
-pub struct FromExternal<'b, 'info> {
-    pub from: &'b AccountInfo<'info>,
-    pub sys_prog: &'b AccountInfo<'info>,
-}
-
-pub fn transfer_creators_fee<'b, 'info>(
-    // not possible have a private enum in Anchor, it's always stuffed into IDL, which leads to:
-    // IdlError: Type not found: {"type":{"defined":"&'bAccountInfo<'info>"},"name":"0"}
-    // hence the next 2 lines are 2x Options instead of 1 Enum. First Option dictates branch
-    from_pda: Option<&'b AccountInfo<'info>>,
-    from_ext: Option<FromExternal<'b, 'info>>,
-    metadata: &Metadata,
-    remaining_accounts_iter: &mut Iter<AccountInfo<'info>>,
-    creators_fee: u64,
-) -> Result<u64> {
-    // send royalties: taken from AH's calculation:
-    // https://github.com/metaplex-foundation/metaplex-program-library/blob/2320b30ec91b729b153f0c0fe719f96d325b2358/auction-house/program/src/utils.rs#L366-L471
-    let mut remaining_fee = creators_fee;
-    match &metadata.data.creators {
-        Some(creators) => {
-            for creator in creators {
-                let current_creator_info = next_account_info(remaining_accounts_iter)?;
-                require!(
-                    creator.address.eq(current_creator_info.key),
-                    crate::ErrorCode::CreatorMismatch
-                );
-
-                let rent = Rent::get()?.minimum_balance(current_creator_info.data_len());
-
-                let pct = creator.share as u64;
-                let creator_fee =
-                    unwrap_checked!({ pct.checked_mul(creators_fee)?.checked_div(100) });
-
-                //prevents InsufficientFundsForRent, where creator acc doesn't have enough fee
-                //https://explorer.solana.com/tx/vY5nYA95ELVrs9SU5u7sfU2ucHj4CRd3dMCi1gWrY7MSCBYQLiPqzABj9m8VuvTLGHb9vmhGaGY7mkqPa1NLAFE
-                if unwrap_int!(current_creator_info.lamports().checked_add(creator_fee)) < rent {
-                    //skip current creator, we can't pay them
-                    continue;
-                }
-
-                remaining_fee = unwrap_int!(remaining_fee.checked_sub(creator_fee));
-                if creator_fee > 0 {
-                    match from_pda {
-                        Some(from) => {
-                            transfer_lamports_from_pda(from, current_creator_info, creator_fee)?;
-                        }
-                        None => {
-                            let FromExternal { from, sys_prog } = from_ext.as_ref().unwrap();
-                            invoke(
-                                &system_instruction::transfer(
-                                    from.key,
-                                    current_creator_info.key,
-                                    creator_fee,
-                                ),
-                                &[
-                                    (*from).clone(),
-                                    current_creator_info.clone(),
-                                    (*sys_prog).clone(),
-                                ],
-                            )?;
-                        }
-                    }
-                }
-            }
-        }
-        None => (),
-    }
-
-    // Return the amount that was sent (minus any dust).
-    Ok(unwrap_int!(creators_fee.checked_sub(remaining_fee)))
 }
 
 /// Shared accounts between the two sell ixs.
@@ -383,4 +249,20 @@ pub fn calc_fees_rebates(amount: u64) -> Result<Fees> {
 pub fn get_tswap_addr() -> Pubkey {
     let (pda, _) = Pubkey::find_program_address(&[], &crate::id());
     pda
+}
+
+pub fn calc_creators_fee(
+    seller_fee_basis_points: u16,
+    amount: u64,
+    token_standard: Option<TokenStandard>,
+    optional_royalty_pct: Option<u16>,
+) -> Result<u64> {
+    // Enforce royalties on pnfts.
+    let adj_optional_royalty_pct =
+        if let Some(TokenStandard::ProgrammableNonFungible) = token_standard {
+            Some(100)
+        } else {
+            optional_royalty_pct
+        };
+    tensor_nft::calc_creators_fee(seller_fee_basis_points, amount, adj_optional_royalty_pct)
 }

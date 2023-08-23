@@ -19,7 +19,7 @@ import {
 import { APPROX_BID_STATE_RENT } from "../../src/tensor_bid";
 import {
   bidSdk,
-  buildAndSendTx,
+  buildAndSendTx, COMMON_INSUFFICIENT_FUNDS_ERR,
   createTokenAuthorizationRules,
   getLamports,
   swapSdk,
@@ -181,7 +181,7 @@ describe("tswap init_update_tswap", () => {
     await expect(
       buildAndSendTx({ ixs: ixsOneLamport, extraSigners: [TEST_COSIGNER] })
     ).to.be.rejectedWith(
-      swapSdk.getErrorCodeHex("InsufficientTswapAccBalance")
+      COMMON_INSUFFICIENT_FUNDS_ERR
     );
   });
 

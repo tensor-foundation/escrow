@@ -12,7 +12,7 @@ import { castPoolTypeAnchor, findNftEscrowPDA, PoolType } from "../../src";
 import {
   buildAndSendTx,
   cartesian,
-  castPoolConfigAnchor,
+  castPoolConfigAnchor, COMMON_INSUFFICIENT_FUNDS_ERR,
   createTokenAuthorizationRules,
   CurveTypeAnchor,
   hexCode,
@@ -961,7 +961,7 @@ describe("tswap sell", () => {
             extraSigners: [seller],
             debug: true,
           })
-        ).rejectedWith(swapSdk.getErrorCodeHex("InsufficientTswapAccBalance"));
+        ).rejectedWith(COMMON_INSUFFICIENT_FUNDS_ERR);
       })
     );
   });

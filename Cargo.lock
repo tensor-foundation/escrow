@@ -1087,7 +1087,7 @@ dependencies = [
 [[package]]
 name = "merkle_proof"
 version = "0.1.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#6b38cabdc249a06a956dadac3c7ef7553bdd8707"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#ae55018dd8b5933c208266d7cc8db2652732d7d7"
 dependencies = [
  "anchor-lang",
 ]
@@ -1102,6 +1102,21 @@ dependencies = [
  "keccak",
  "rand_core 0.6.4",
  "zeroize",
+]
+
+[[package]]
+name = "mpl-bubblegum"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b751e0658d7414a801b2fee9802d884f508724fdc1d8645405f69e604d348bc1"
+dependencies = [
+ "anchor-lang",
+ "bytemuck",
+ "mpl-token-metadata",
+ "solana-program",
+ "spl-account-compression",
+ "spl-associated-token-account",
+ "spl-token",
 ]
 
 [[package]]
@@ -1289,18 +1304,6 @@ name = "percent-encoding"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "478c572c3d73181ff3c2539045f6eb99e5491218eae919370993b890cdbdd98e"
-
-[[package]]
-name = "pnft"
-version = "0.1.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#6b38cabdc249a06a956dadac3c7ef7553bdd8707"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "mpl-token-auth-rules",
- "mpl-token-metadata",
- "vipers",
-]
 
 [[package]]
 name = "polyval"
@@ -1898,6 +1901,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "spl-account-compression"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7a5417eae3c924553b872de5f1bca5945334a235f8d94841bd44c6dd7c6358c"
+dependencies = [
+ "anchor-lang",
+ "bytemuck",
+ "spl-concurrent-merkle-tree",
+ "spl-noop",
+]
+
+[[package]]
 name = "spl-associated-token-account"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1910,6 +1925,17 @@ dependencies = [
  "solana-program",
  "spl-token",
  "spl-token-2022",
+ "thiserror",
+]
+
+[[package]]
+name = "spl-concurrent-merkle-tree"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26dd605d33bdc8d2522a9f55207c3eac06737b2e8310f602e252b510e3db1210"
+dependencies = [
+ "bytemuck",
+ "solana-program",
  "thiserror",
 ]
 
@@ -1933,6 +1959,15 @@ name = "spl-memo"
 version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0dc6f70db6bacea7ff25870b016a65ba1d1b6013536f08e4fd79a8f9005325"
+dependencies = [
+ "solana-program",
+]
+
+[[package]]
+name = "spl-noop"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "558536c75b5aed018113bfca39cddb414cd7ca77da7658d668e751d977830cda"
 dependencies = [
  "solana-program",
 ]
@@ -2014,10 +2049,25 @@ dependencies = [
  "merkle_proof",
  "mpl-token-auth-rules",
  "mpl-token-metadata",
- "pnft",
  "spl-math",
  "static_assertions",
+ "tensor_nft",
  "tensorswap",
+ "vipers",
+]
+
+[[package]]
+name = "tensor_nft"
+version = "0.1.9"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#ae55018dd8b5933c208266d7cc8db2652732d7d7"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "mpl-bubblegum",
+ "mpl-token-auth-rules",
+ "mpl-token-metadata",
+ "spl-account-compression",
+ "spl-noop",
  "vipers",
 ]
 
@@ -2041,9 +2091,9 @@ dependencies = [
  "merkle_proof",
  "mpl-token-auth-rules",
  "mpl-token-metadata",
- "pnft",
  "spl-math",
  "static_assertions",
+ "tensor_nft",
  "tensor_whitelist",
  "vipers",
 ]
@@ -2194,7 +2244,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vipers"
 version = "2.0.6"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#6b38cabdc249a06a956dadac3c7ef7553bdd8707"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git#ae55018dd8b5933c208266d7cc8db2652732d7d7"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

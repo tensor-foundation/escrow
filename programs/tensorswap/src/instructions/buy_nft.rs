@@ -5,7 +5,6 @@ use anchor_spl::{
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
-use pnft::*;
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -332,12 +331,18 @@ pub fn handler<'info, 'b>(
     // transfer royalties (on top of current price)
     let remaining_accounts = &mut ctx.remaining_accounts.iter();
     transfer_creators_fee(
-        None,
-        Some(FromExternal {
+        &FromAcc::External(&FromExternal {
             from: &ctx.accounts.buyer.to_account_info(),
             sys_prog: &ctx.accounts.system_program,
         }),
-        metadata,
+        &metadata
+            .data
+            .creators
+            .clone()
+            .unwrap_or(Vec::new())
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         remaining_accounts,
         creators_fee,
     )?;

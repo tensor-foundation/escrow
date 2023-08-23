@@ -5,7 +5,6 @@ use anchor_spl::{
     token::{Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
-use pnft::*;
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 

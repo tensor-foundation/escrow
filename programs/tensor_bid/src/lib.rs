@@ -11,11 +11,13 @@ use anchor_spl::{
 };
 use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
 use mpl_token_metadata::processor::AuthorizationData;
-use pnft::*;
+use tensor_nft::{
+    assert_decode_metadata, send_pnft, transfer_creators_fee, transfer_lamports_from_pda, FromAcc,
+    PnftTransferArgs,
+};
 use tensorswap::{
-    self, assert_decode_margin_account, assert_decode_metadata, calc_creators_fee,
-    calc_fees_rebates, program::Tensorswap, transfer_creators_fee, transfer_lamports_from_pda,
-    TSwap,
+    self, assert_decode_margin_account, calc_creators_fee, calc_fees_rebates, program::Tensorswap,
+    Fees, TSwap,
 };
 use vipers::{prelude::*, throw_err};
 
@@ -40,8 +42,6 @@ pub struct ProgNftShared<'info> {
 
 #[program]
 pub mod tensor_bid {
-    use tensorswap::Fees;
-
     use super::*;
 
     //can be called multiple times to re-bid
@@ -264,7 +264,12 @@ pub mod tensor_bid {
             broker_fee,
             taker_fee,
         } = calc_fees_rebates(lamports)?;
-        let creators_fee = calc_creators_fee(metadata, lamports, optional_royalty_pct)?;
+        let creators_fee = calc_creators_fee(
+            metadata.data.seller_fee_basis_points,
+            lamports,
+            metadata.token_standard,
+            optional_royalty_pct,
+        )?;
 
         // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
         emit!(TakeBidEvent {
@@ -337,9 +342,15 @@ pub mod tensor_bid {
         // transfer royalties
         let remaining_accounts = &mut ctx.remaining_accounts.iter();
         let actual_creators_fee = transfer_creators_fee(
-            Some(&ctx.accounts.bid_state.to_account_info()),
-            None,
-            metadata,
+            &FromAcc::Pda(&ctx.accounts.bid_state.to_account_info()),
+            &metadata
+                .data
+                .creators
+                .clone()
+                .unwrap_or(Vec::new())
+                .into_iter()
+                .map(Into::into)
+                .collect(),
             remaining_accounts,
             creators_fee,
         )?;

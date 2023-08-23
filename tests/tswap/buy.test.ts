@@ -10,7 +10,7 @@ import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
-  castPoolConfigAnchor,
+  castPoolConfigAnchor, COMMON_BAD_ROYALTY_ERR,
   createTokenAuthorizationRules,
   CurveTypeAnchor,
   hexCode,
@@ -101,7 +101,7 @@ describe("tswap buy", () => {
             creators,
             royaltyBps: 1000,
           })
-        ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadRoyaltiesPct"));
+        ).to.be.rejectedWith(COMMON_BAD_ROYALTY_ERR);
         return;
       }
       await testMakePoolBuyNft({
