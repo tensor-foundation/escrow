@@ -66,9 +66,7 @@ pub mod tensor_bid {
         let expiry = match expire_in_sec {
             Some(expire_in_sec) => {
                 let expire_in_i64 = i64::try_from(expire_in_sec).unwrap();
-                if expire_in_i64 > MAX_EXPIRY_SEC {
-                    throw_err!(ExpiryTooLarge);
-                }
+                require!(expire_in_i64 <= MAX_EXPIRY_SEC, ErrorCode::ExpiryTooLarge);
                 Clock::get()?.unix_timestamp + expire_in_i64
             }
             None if current_expiry == 0 => Clock::get()?.unix_timestamp + MAX_EXPIRY_SEC,
@@ -626,7 +624,7 @@ pub const CURRENT_TBID_VERSION: u8 = 1;
 #[constant]
 pub const TBID_TAKER_FEE_BPS: u16 = 140;
 #[constant]
-pub const MAX_EXPIRY_SEC: i64 = 5184000; //60 days
+pub const MAX_EXPIRY_SEC: i64 = 31_536_000; // Max 365 days (can't be too short o/w liquidity disappears too early)
 
 #[account]
 pub struct BidState {
