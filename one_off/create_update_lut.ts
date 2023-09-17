@@ -1,7 +1,7 @@
 import { AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { createCoreTswapLUT, updateLUT } from "../tests/shared";
 import { TSWAP_CORE_LUT } from "../src";
+import { updateLUT } from "../tests/shared";
 
 (async () => {
   console.log("creating/updating lut...");
