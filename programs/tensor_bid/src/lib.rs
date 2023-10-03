@@ -59,6 +59,7 @@ pub mod tensor_bid {
         bid_state.bidder = ctx.accounts.bidder.key();
         bid_state.bump = [unwrap_bump!(ctx, "bid_state")];
         bid_state.margin = None; //overwritten below if margin present
+        bid_state.updated_at = Clock::get()?.unix_timestamp;
 
         //grab current expiry in case they're editing a bid
         let current_expiry = bid_state.expiry;
@@ -618,13 +619,14 @@ pub struct CloseExpiredBid<'info> {
 
 // --------------------------------------- state
 
+// (!) DONT USE UNDERSCORES (3_000) OR WONT BE ABLE TO READ JS-SIDE
 #[constant]
 pub const CURRENT_TBID_VERSION: u8 = 1;
 //(!) Keep in sync with TSWAP_FEE_BPS
 #[constant]
 pub const TBID_TAKER_FEE_BPS: u16 = 140;
 #[constant]
-pub const MAX_EXPIRY_SEC: i64 = 31_536_000; // Max 365 days (can't be too short o/w liquidity disappears too early)
+pub const MAX_EXPIRY_SEC: i64 = 31536000; // Max 365 days (can't be too short o/w liquidity disappears too early)
 
 #[account]
 pub struct BidState {
@@ -635,14 +637,18 @@ pub struct BidState {
     pub bump: [u8; 1],
     pub expiry: i64,
     pub margin: Option<Pubkey>,
+    pub updated_at: i64,
 
-    pub _reserved: [u8; 64],
+    //borsh not implemented for u8;56
+    pub _reserved: [u8; 8],
+    pub _reserved1: [u8; 16],
+    pub _reserved2: [u8; 32],
 }
 
 // (!) INCLUSIVE of discriminator (8 bytes)
 #[constant]
 #[allow(clippy::identity_op)]
-pub const BID_STATE_SIZE: usize = 8 + 1 + 8 + (32 * 2) + 1 + 8 + 33 + 64;
+pub const BID_STATE_SIZE: usize = 8 + 1 + 8 + (32 * 2) + 1 + 8 + 33 + 8 + 56;
 
 impl BidState {
     pub fn seeds(&self) -> [&[u8]; 4] {

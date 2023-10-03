@@ -7,6 +7,7 @@ use vipers::throw_err;
 
 use crate::*;
 
+// (!) DONT USE UNDERSCORES (3_000) OR WONT BE ABLE TO READ JS-SIDE
 #[constant]
 pub const CURRENT_TSWAP_VERSION: u8 = 1;
 
@@ -42,7 +43,7 @@ pub const MAKER_REBATE_BPS: u16 = 40;
 pub const SNIPE_FEE_BPS: u16 = 150;
 //needed so that we don't get drained for creating PDAs (0.01 sol)
 #[constant]
-pub const SNIPE_MIN_FEE: u64 = 10_000_000;
+pub const SNIPE_MIN_FEE: u64 = 10000000;
 
 //profit share, so eg if we snipe for 90 instead of 100 and profit share is 20%, we take home 20% * (100-90) = 2
 #[constant]

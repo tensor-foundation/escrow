@@ -93,8 +93,13 @@ const testBid = async ({
       if (!isNullLike(margin)) {
         expect(bidAcc.margin).to.deep.eq(margin);
       }
+
       expect(bidAcc.expiry.toNumber()).approximately(
         +new Date() / 1000 + (expireIn ?? 0),
+        MINUTES
+      );
+      expect(bidAcc.updatedAt.toNumber()).approximately(
+        +new Date() / 1000,
         MINUTES
       );
 
