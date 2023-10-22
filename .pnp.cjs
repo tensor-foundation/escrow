@@ -38,7 +38,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@saberhq/solana-contrib", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:1.14.11"],\
             ["@solana/spl-token", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:0.3.7"],\
             ["@solana/web3.js", "npm:1.73.0"],\
-            ["@tensor-hq/tensor-common", "npm:0.18.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.18.0%2F6762a619736862c6f4ee077c4faca9fc9638876c"],\
+            ["@tensor-hq/tensor-common", "npm:0.19.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.19.1%2F13262acbd08fc8e95c76fe79e504e0b3dd9ca856"],\
             ["@types/big.js", "npm:6.1.6"],\
             ["@types/bn.js", "npm:5.1.1"],\
             ["@types/chai", "npm:4.3.4"],\
@@ -1582,10 +1582,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["@tensor-hq/tensor-common", [\
-        ["npm:0.18.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.18.0%2F6762a619736862c6f4ee077c4faca9fc9638876c", {\
-          "packageLocation": "./.yarn/cache/@tensor-hq-tensor-common-npm-0.18.0-f1117bee96-84baf5ca07.zip/node_modules/@tensor-hq/tensor-common/",\
+        ["npm:0.19.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.19.1%2F13262acbd08fc8e95c76fe79e504e0b3dd9ca856", {\
+          "packageLocation": "./.yarn/cache/@tensor-hq-tensor-common-npm-0.19.1-579a3e6cba-0176688b15.zip/node_modules/@tensor-hq/tensor-common/",\
           "packageDependencies": [\
-            ["@tensor-hq/tensor-common", "npm:0.18.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.18.0%2F6762a619736862c6f4ee077c4faca9fc9638876c"],\
+            ["@tensor-hq/tensor-common", "npm:0.19.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.19.1%2F13262acbd08fc8e95c76fe79e504e0b3dd9ca856"],\
             ["@coral-xyz/anchor", "npm:0.26.0"],\
             ["@metaplex-foundation/mpl-auction-house", "npm:2.5.1"],\
             ["@metaplex-foundation/mpl-bubblegum", "npm:0.7.0"],\
@@ -1621,7 +1621,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@saberhq/solana-contrib", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:1.14.11"],\
             ["@solana/spl-token", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:0.3.7"],\
             ["@solana/web3.js", "npm:1.73.0"],\
-            ["@tensor-hq/tensor-common", "npm:0.18.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.18.0%2F6762a619736862c6f4ee077c4faca9fc9638876c"],\
+            ["@tensor-hq/tensor-common", "npm:0.19.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F0.19.1%2F13262acbd08fc8e95c76fe79e504e0b3dd9ca856"],\
             ["@types/big.js", "npm:6.1.6"],\
             ["@types/bn.js", "npm:5.1.1"],\
             ["@types/chai", "npm:4.3.4"],\
