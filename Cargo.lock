@@ -471,6 +471,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "brick"
+version = "1.0.1"
+dependencies = [
+ "solana-program",
+]
+
+[[package]]
 name = "bs58"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
