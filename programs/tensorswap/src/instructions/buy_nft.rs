@@ -199,6 +199,11 @@ impl<'info> BuyNft<'info> {
     }
 
     fn transfer_lamports(&self, to: &AccountInfo<'info>, lamports: u64) -> Result<()> {
+        // Handle buyers that have non-zero data and cannot use system transfer.
+        if !self.buyer.data_is_empty() {
+            return transfer_lamports_from_pda(&self.buyer.to_account_info(), to, lamports);
+        }
+
         invoke(
             &system_instruction::transfer(self.buyer.key, to.key, lamports),
             &[
