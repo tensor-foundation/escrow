@@ -2080,7 +2080,7 @@ dependencies = [
 
 [[package]]
 name = "tensor_whitelist"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -2091,7 +2091,7 @@ dependencies = [
 
 [[package]]
 name = "tensorswap"
-version = "1.8.2"
+version = "1.8.3"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

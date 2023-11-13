@@ -86,7 +86,6 @@ pub mod tensor_bid {
         let margin_account_info = &ctx.accounts.margin_account.to_account_info();
         let margin_account_result = assert_decode_margin_account(
             margin_account_info,
-            &ctx.accounts.tswap.to_account_info(),
             &ctx.accounts.bidder.to_account_info(),
         );
 
@@ -293,7 +292,6 @@ pub mod tensor_bid {
             let margin_account_info = &ctx.accounts.margin_account.to_account_info();
             let margin_account = assert_decode_margin_account(
                 margin_account_info,
-                &ctx.accounts.tswap.to_account_info(),
                 &ctx.accounts.bidder.to_account_info(),
             )?;
             //doesn't hurt to check again

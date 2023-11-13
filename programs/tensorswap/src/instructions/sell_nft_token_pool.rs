@@ -305,7 +305,6 @@ pub fn handler<'info>(
             let margin_account_info = &ctx.accounts.margin_account.to_account_info();
             assert_decode_margin_account(
                 margin_account_info,
-                &ctx.accounts.shared.tswap.to_account_info(),
                 &ctx.accounts.shared.owner.to_account_info(),
             )?;
             if *margin_account_info.key != *stored_margin_account {

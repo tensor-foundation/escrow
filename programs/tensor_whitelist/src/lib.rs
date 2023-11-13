@@ -605,3 +605,21 @@ pub enum ErrorCode {
     #[msg("failed merkle proof verification")]
     FailedMerkleProofVerification = 8,
 }
+
+#[inline(never)]
+pub fn assert_decode_whitelist<'info>(
+    whitelist_info: &AccountInfo<'info>,
+) -> Result<Account<'info, Whitelist>> {
+    let whitelist: Account<'info, Whitelist> = Account::try_from(whitelist_info)?;
+
+    let (key, _) = Pubkey::find_program_address(&[&whitelist.uuid], &crate::id());
+    if key != *whitelist.to_account_info().key {
+        throw_err!(BadWhitelist);
+    }
+    // Check account owner (redundant because of find_program_address above, but why not).
+    if *whitelist_info.owner != crate::id() {
+        throw_err!(BadWhitelist);
+    }
+
+    Ok(whitelist)
+}

@@ -22,13 +22,12 @@ pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
 #[inline(never)]
 pub fn assert_decode_margin_account<'info>(
     margin_account_info: &AccountInfo<'info>,
-    tswap: &AccountInfo<'info>,
     owner: &AccountInfo<'info>,
 ) -> Result<Account<'info, MarginAccount>> {
     let margin_account: Account<'info, MarginAccount> = Account::try_from(margin_account_info)?;
 
     let program_id = &crate::id();
-    let (key, _) = margin_pda(&tswap.key(), &owner.key(), margin_account.nr);
+    let (key, _) = margin_pda(&get_tswap_addr(), &owner.key(), margin_account.nr);
     if key != *margin_account_info.key {
         throw_err!(BadMargin);
     }
