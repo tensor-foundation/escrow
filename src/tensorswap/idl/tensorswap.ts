@@ -1,5 +1,5 @@
 export type Tensorswap = {
-  "version": "1.8.3",
+  "version": "1.8.4",
   "name": "tensorswap",
   "constants": [
     {
@@ -2272,6 +2272,50 @@ export type Tensorswap = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "withdrawMarginAccountCpiTlock",
+      "accounts": [
+        {
+          "name": "marginAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "destination",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bump",
+          "type": "u8"
+        },
+        {
+          "name": "orderId",
+          "type": "publicKey"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -3115,7 +3159,7 @@ export type Tensorswap = {
 };
 
 export const IDL: Tensorswap = {
-  "version": "1.8.3",
+  "version": "1.8.4",
   "name": "tensorswap",
   "constants": [
     {
@@ -5381,6 +5425,50 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "bidId",
+          "type": "publicKey"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawMarginAccountCpiTlock",
+      "accounts": [
+        {
+          "name": "marginAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "orderState",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "destination",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bump",
+          "type": "u8"
+        },
+        {
+          "name": "orderId",
           "type": "publicKey"
         },
         {

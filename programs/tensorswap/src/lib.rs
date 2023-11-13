@@ -296,6 +296,15 @@ pub mod tensorswap {
         instructions::withdraw_margin_account::handler_cpi_tcomp(ctx, lamports)
     }
 
+    pub fn withdraw_margin_account_cpi_tlock(
+        ctx: Context<WithdrawMarginAccountCpiTLock>,
+        _bump: u8,
+        _order_id: Pubkey,
+        lamports: u64,
+    ) -> Result<()> {
+        instructions::withdraw_margin_account::handler_cpi_tlock(ctx, lamports)
+    }
+
     // OFFLINE BY DEFAULT
     // pub fn withdraw_tswap_owned_spl(
     //     ctx: Context<WithdrawTswapOwnedSpl>,
