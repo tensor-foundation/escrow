@@ -1,12 +1,14 @@
 import { LangErrorCode } from "@coral-xyz/anchor";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
+import {
+  getTransactionConvertedToLegacy,
+  hexCode,
+} from "@tensor-hq/tensor-common";
 import { expect } from "chai";
 import {
   buildAndSendTx,
   castPoolConfigAnchor,
   createTokenAuthorizationRules,
-  hexCode,
   swapSdk,
   TEST_PROVIDER,
   wlSdk,

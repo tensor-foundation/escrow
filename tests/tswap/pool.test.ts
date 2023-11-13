@@ -8,17 +8,18 @@ import BN from "bn.js";
 import { expect } from "chai";
 import { castPoolTypeAnchor, PoolType } from "../../src";
 import {
-    buildAndSendTx,
-    cartesian,
-    castPoolConfigAnchor, COMMON_INSUFFICIENT_FUNDS_ERR,
-    CurveTypeAnchor,
-    getLamports,
-    HUNDRED_PCT_BPS,
-    PoolTypeAnchor,
-    swapSdk,
-    TEST_PROVIDER,
-    withLamports,
-    wlSdk,
+  buildAndSendTx,
+  cartesian,
+  castPoolConfigAnchor,
+  COMMON_INSUFFICIENT_FUNDS_ERR,
+  CurveTypeAnchor,
+  getLamports,
+  HUNDRED_PCT_BPS,
+  PoolTypeAnchor,
+  swapSdk,
+  TEST_PROVIDER,
+  withLamports,
+  wlSdk,
 } from "../shared";
 import {
   adjustSellMinLamports,
@@ -2656,9 +2657,7 @@ describe("tswap pool", () => {
       });
       await expect(
         buildAndSendTx({ ixs, extraSigners: [owner] })
-      ).to.be.rejectedWith(
-        COMMON_INSUFFICIENT_FUNDS_ERR
-      );
+      ).to.be.rejectedWith(COMMON_INSUFFICIENT_FUNDS_ERR);
     }
   });
 

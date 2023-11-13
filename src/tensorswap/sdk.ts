@@ -19,6 +19,7 @@ import {
 } from "@solana/spl-token";
 import {
   AccountInfo,
+  AccountMeta,
   Commitment,
   ComputeBudgetProgram,
   LAMPORTS_PER_SOL,
@@ -30,8 +31,15 @@ import {
   TransactionResponse,
 } from "@solana/web3.js";
 import {
+  AnchorDiscMap,
   AuthorizationData,
   AUTH_PROG_ID,
+  decodeAnchorAcct,
+  genDiscToDecoderMap,
+  getRent,
+  getRentSync,
+  hexCode,
+  isNullLike,
   parseAnchorIxs,
   ParsedAnchorIx,
   prepPnftAccounts,
@@ -41,17 +49,10 @@ import Big from "big.js";
 import { v4 } from "uuid";
 import {
   AccountSuffix,
-  decodeAcct,
   DEFAULT_MICRO_LAMPORTS,
   DEFAULT_RULESET_ADDN_COMPUTE_UNITS,
   DEFAULT_XFER_COMPUTE_UNITS,
-  DiscMap,
   evalMathExpr,
-  genDiscToDecoderMap,
-  getAccountRent,
-  getRentSync,
-  hexCode,
-  isNullLike,
 } from "../common";
 import { findMintProofPDA } from "../tensor_whitelist";
 import {
@@ -506,7 +507,7 @@ type PnftArgs = {
 //decided to NOT build the tx inside the sdk (too much coupling - should not care about blockhash)
 export class TensorSwapSDK {
   program: Program<TensorswapIDL>;
-  discMap: DiscMap<TensorswapIDL>;
+  discMap: AnchorDiscMap<TensorswapIDL>;
   coder: BorshCoder;
   eventParser: EventParser;
 
@@ -589,7 +590,7 @@ export class TensorSwapSDK {
 
   decode(acct: AccountInfo<Buffer>): TaggedTensorSwapPdaAnchor | null {
     if (!acct.owner.equals(this.program.programId)) return null;
-    return decodeAcct(acct, this.discMap);
+    return decodeAnchorAcct(acct, this.discMap);
   }
 
   // --------------------------------------- tswap methods
@@ -1540,7 +1541,7 @@ export class TensorSwapSDK {
     }
 
     //1.optional cosigner
-    const remAcc = [];
+    const remAcc: AccountMeta[] = [];
     if (isCosigned && type === "token") {
       remAcc.push({
         pubkey: cosigner,
@@ -2097,7 +2098,7 @@ export class TensorSwapSDK {
       authData,
       sourceAta: nftSellerAcc,
     });
-    const remAcc = [];
+    const remAcc: AccountMeta[] = [];
     //1.optional ruleset
     if (!!ruleSet) {
       remAcc.push({ pubkey: ruleSet, isSigner: false, isWritable: false });
@@ -2558,42 +2559,42 @@ export class TensorSwapSDK {
   }
 
   async getTswapRent() {
-    return await getAccountRent(
+    return await getRent(
       this.program.provider.connection,
       this.program.account.tSwap
     );
   }
 
   async getPoolRent() {
-    return await getAccountRent(
+    return await getRent(
       this.program.provider.connection,
       this.program.account.pool
     );
   }
 
   async getMarginAccountRent() {
-    return await getAccountRent(
+    return await getRent(
       this.program.provider.connection,
       this.program.account.marginAccount
     );
   }
 
   async getSingleListingRent() {
-    return await getAccountRent(
+    return await getRent(
       this.program.provider.connection,
       this.program.account.singleListing
     );
   }
 
   async getNftDepositReceiptRent() {
-    return await getAccountRent(
+    return await getRent(
       this.program.provider.connection,
       this.program.account.nftDepositReceipt
     );
   }
 
   async getNftAuthorityRent() {
-    return await getAccountRent(
+    return await getRent(
       this.program.provider.connection,
       this.program.account.nftAuthority
     );
@@ -2606,7 +2607,7 @@ export class TensorSwapSDK {
   }
 
   async getSolEscrowRent() {
-    return await getAccountRent(
+    return await getRent(
       this.program.provider.connection,
       this.program.account.solEscrow
     );
@@ -2678,7 +2679,6 @@ export class TensorSwapSDK {
   }
 
   getSolAmount(ix: ParsedTSwapIx): BN | null {
-    // No "default": this ensures we explicitly think about how to handle new ixs.
     switch (ix.ix.name) {
       case "buyNft":
       case "sellNftTradePool":
@@ -2792,7 +2792,7 @@ export const getTotalComputeIxs = (
   compute: number | null,
   priorityMicroLamports: number | null
 ) => {
-  const finalIxs = [];
+  const finalIxs: TransactionInstruction[] = [];
   //optionally include extra compute]
   if (!isNullLike(compute)) {
     finalIxs.push(

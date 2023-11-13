@@ -1,5 +1,6 @@
 import { ACCOUNT_SIZE } from "@solana/spl-token";
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { getRentSync } from "@tensor-hq/tensor-common";
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
@@ -14,12 +15,12 @@ import {
   APPROX_SOL_MARGIN_RENT,
   APPROX_TSWAP_RENT,
   APPROX_WHITELIST_RENT,
-  getRentSync,
 } from "../../src";
 import { APPROX_BID_STATE_RENT } from "../../src/tensor_bid";
 import {
   bidSdk,
-  buildAndSendTx, COMMON_INSUFFICIENT_FUNDS_ERR,
+  buildAndSendTx,
+  COMMON_INSUFFICIENT_FUNDS_ERR,
   createTokenAuthorizationRules,
   getLamports,
   swapSdk,
@@ -180,9 +181,7 @@ describe("tswap init_update_tswap", () => {
     });
     await expect(
       buildAndSendTx({ ixs: ixsOneLamport, extraSigners: [TEST_COSIGNER] })
-    ).to.be.rejectedWith(
-      COMMON_INSUFFICIENT_FUNDS_ERR
-    );
+    ).to.be.rejectedWith(COMMON_INSUFFICIENT_FUNDS_ERR);
   });
 
   // it("withdraws spl token ok", async () => {

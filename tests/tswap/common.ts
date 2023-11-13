@@ -1,8 +1,4 @@
 import {
-  Payload,
-  PROGRAM_ID as AUTH_PROGRAM_ID,
-} from "@metaplex-foundation/mpl-token-auth-rules";
-import {
   createCreateInstruction,
   CreateInstructionAccounts,
   CreateInstructionArgs,
@@ -29,9 +25,12 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import {
+  AUTH_PROG_ID,
   findMasterEditionPda,
   findMetadataPda,
   findTokenRecordPda,
+  isNullLike,
+  MINUTES,
   test_utils,
   TokenStandard,
 } from "@tensor-hq/tensor-common";
@@ -44,9 +43,7 @@ import {
   computeMakerAmountCount,
   computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
-  isNullLike,
   MAKER_REBATE_BPS,
-  MINUTES,
   OrderType,
   PoolAnchor,
   PoolConfigAnchor,
@@ -345,10 +342,10 @@ export const createNft = async ({
     splAtaProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
     splTokenProgram: TOKEN_PROGRAM_ID,
     authorizationRules: ruleSet ?? undefined,
-    authorizationRulesProgram: AUTH_PROGRAM_ID,
+    authorizationRulesProgram: AUTH_PROG_ID,
   };
 
-  const payload: Payload = {
+  const payload = {
     map: new Map(),
   };
 
@@ -357,7 +354,7 @@ export const createNft = async ({
       __kind: "V1",
       amount: 1,
       authorizationData: {
-        payload: payload as any,
+        payload,
       },
     },
   };

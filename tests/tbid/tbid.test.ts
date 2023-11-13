@@ -5,16 +5,11 @@ import {
   PublicKey,
   TransactionInstruction,
 } from "@solana/web3.js";
+import { HOURS, isNullLike, MINUTES, SECONDS } from "@tensor-hq/tensor-common";
 import BN from "bn.js";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import {
-  HOURS,
-  isNullLike,
-  MINUTES,
-  SECONDS,
-  TAKER_BROKER_PCT,
-} from "../../src";
+import { TAKER_BROKER_PCT } from "../../src";
 import {
   CURRENT_TBID_VERSION,
   MAX_EXPIRY_SEC,

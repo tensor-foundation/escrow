@@ -6,22 +6,24 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
-import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
+import {
+  getTransactionConvertedToLegacy,
+  hexCode,
+} from "@tensor-hq/tensor-common";
 import { expect } from "chai";
 import { castPoolTypeAnchor, findNftEscrowPDA, PoolType } from "../../src";
 import {
   buildAndSendTx,
   cartesian,
-  castPoolConfigAnchor, COMMON_INSUFFICIENT_FUNDS_ERR,
+  castPoolConfigAnchor,
+  COMMON_INSUFFICIENT_FUNDS_ERR,
   createTokenAuthorizationRules,
   CurveTypeAnchor,
-  hexCode,
   INTEGER_OVERFLOW_ERR,
   PoolConfigAnchor,
   PoolTypeAnchor,
   swapSdk,
   TakerSide,
-  TEST_CONN_PAYER,
   TEST_PROVIDER,
 } from "../shared";
 import { testInitUpdateMintProof } from "../twhitelist/common";

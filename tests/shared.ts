@@ -28,6 +28,7 @@ import {
 } from "@solana/web3.js";
 import {
   AUTH_PROG_ID,
+  getLamports as _getLamports,
   Overwrite,
   test_utils,
   TMETA_PROG_ID,
@@ -46,20 +47,17 @@ import {
   TensorWhitelistSDK,
   TLIST_ADDR,
 } from "../src";
-import { getLamports as _getLamports } from "../src/common";
 
 // Exporting these here vs in each .test.ts file prevents weird undefined issues.
 export { waitMS } from "@tensor-hq/tensor-common";
 export {
   castPoolConfigAnchor,
   CurveTypeAnchor,
-  hexCode,
   HUNDRED_PCT_BPS,
   MAX_PROOF_LEN,
   PoolAnchor,
   PoolConfigAnchor,
   PoolTypeAnchor,
-  stringifyPKsAndBNs,
   TakerSide,
 } from "../src";
 

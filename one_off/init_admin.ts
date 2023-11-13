@@ -17,8 +17,7 @@ import { createInterface } from "readline";
 import { readFileSync } from "fs";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { buildTx } from "@tensor-hq/tensor-common";
-import { stringifyPKsAndBNs } from "../src";
+import { buildTx, stringifyPKsAndBNs } from "@tensor-hq/tensor-common";
 
 // 0.1% TSWAP, 0.9% creator (in code).
 const TSWAP_FEE_BPS = 10;

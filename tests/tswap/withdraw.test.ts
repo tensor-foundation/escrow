@@ -5,7 +5,8 @@ import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
-  castPoolConfigAnchor, COMMON_INSUFFICIENT_FUNDS_ERR,
+  castPoolConfigAnchor,
+  COMMON_INSUFFICIENT_FUNDS_ERR,
   createTokenAuthorizationRules,
   getLamports,
   swapSdk,

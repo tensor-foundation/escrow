@@ -5,15 +5,18 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
-import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
+import {
+  getTransactionConvertedToLegacy,
+  hexCode,
+} from "@tensor-hq/tensor-common";
 import { expect } from "chai";
 import {
   buildAndSendTx,
   cartesian,
-  castPoolConfigAnchor, COMMON_BAD_ROYALTY_ERR,
+  castPoolConfigAnchor,
+  COMMON_BAD_ROYALTY_ERR,
   createTokenAuthorizationRules,
   CurveTypeAnchor,
-  hexCode,
   PoolConfigAnchor,
   PoolTypeAnchor,
   swapSdk,
