@@ -299,7 +299,7 @@ pub mod tensorswap {
     pub fn withdraw_margin_account_cpi_tlock(
         ctx: Context<WithdrawMarginAccountCpiTLock>,
         _bump: u8,
-        _order_id: Pubkey,
+        _order_id: [u8; 32],
         lamports: u64,
     ) -> Result<()> {
         instructions::withdraw_margin_account::handler_cpi_tlock(ctx, lamports)

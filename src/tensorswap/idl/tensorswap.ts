@@ -1,5 +1,5 @@
 export type Tensorswap = {
-  "version": "1.8.4",
+  "version": "1.8.5",
   "name": "tensorswap",
   "constants": [
     {
@@ -2309,7 +2309,12 @@ export type Tensorswap = {
         },
         {
           "name": "orderId",
-          "type": "publicKey"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "lamports",
@@ -3159,7 +3164,7 @@ export type Tensorswap = {
 };
 
 export const IDL: Tensorswap = {
-  "version": "1.8.4",
+  "version": "1.8.5",
   "name": "tensorswap",
   "constants": [
     {
@@ -5469,7 +5474,12 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "orderId",
-          "type": "publicKey"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "lamports",
