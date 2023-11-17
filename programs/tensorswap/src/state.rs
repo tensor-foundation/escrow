@@ -29,7 +29,7 @@ pub const SPREAD_TICKS: u8 = 1;
 
 // --------------------------------------- fees
 
-//(!) Keep in sync with TBID_FEE_BPS
+//(!) Keep in sync with TBID_FEE_BPS and SDK constants
 #[constant]
 pub const TSWAP_TAKER_FEE_BPS: u16 = 140;
 //taken out of taker fee

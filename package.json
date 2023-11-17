@@ -1,6 +1,6 @@
 {
   "name": "@tensor-hq/tensorswap-ts",
-  "version": "2.0.0-rc.2",
+  "version": "2.0.2",
   "description": "Anchor/JS SDK for interacting with TensorSwap, TensorWhitelist and TensorBid.",
   "sideEffects": false,
   "module": "./dist/esm/index.js",
@@ -32,12 +32,13 @@
     "@saberhq/solana-contrib": "^1.14.11",
     "@solana/spl-token": "^0.3.7",
     "@solana/web3.js": "^1.73.0",
-    "@tensor-hq/tensor-common": "^1.0.0-rc.4",
+    "@tensor-hq/tensor-common": "^1.0.3",
     "@types/bn.js": "^5.1.0",
     "big.js": "^6.2.1",
     "bn.js": "^5.2.0",
+    "js-sha256": "^0.9.0",
     "keccak256": "^1.0.6",
-    "math-expression-evaluator": "^2.0.2",
+    "math-expression-evaluator": "^2.0.4",
     "merkletreejs": "^0.2.32",
     "uuid": "^8.3.2"
   },

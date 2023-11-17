@@ -1,6 +1,3 @@
-import { AccountClient, BN, Idl, Program, utils } from "@coral-xyz/anchor";
-import { AccountInfo, Connection, PublicKey } from "@solana/web3.js";
-import { AnchorDiscMap } from "@tensor-hq/tensor-common";
 import Mexp from "math-expression-evaluator";
 
 // pNFTs can be very expensive: just over allocate.

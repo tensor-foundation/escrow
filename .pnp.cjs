@@ -35,9 +35,9 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@metaplex-foundation/mpl-token-metadata", "npm:2.13.0"],\
             ["@msgpack/msgpack", "npm:2.8.0"],\
             ["@saberhq/solana-contrib", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:1.14.11"],\
-            ["@solana/spl-token", "virtual:9125eb1ffcf83495c39f180cdeec11dc9bc5041615b4d383052d578b9fa0df8517bde0624a7b8bdbc9e9433912ac64f71aec59a1524ec8309c7e15ed4eaea36c#npm:0.3.7"],\
+            ["@solana/spl-token", "virtual:3f1594d0fd8d2c8b51d46e36e069cafe61a391bf61c6d884cb5ba0acdb9930480f34418e36f56665776de8cf77d9f53a6ef1fae1ba77e31d3faa9d2e1f839b9d#npm:0.3.7"],\
             ["@solana/web3.js", "npm:1.73.0"],\
-            ["@tensor-hq/tensor-common", "npm:1.0.0-rc.4::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.0-rc.4%2F05c4e8cbe137494f62780a266c78d4104e13c14b"],\
+            ["@tensor-hq/tensor-common", "npm:1.0.3::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.3%2Ff20c6d7696d9a78b961951b7dd284183d97dc554"],\
             ["@types/big.js", "npm:6.1.6"],\
             ["@types/bn.js", "npm:5.1.1"],\
             ["@types/chai", "npm:4.3.10"],\
@@ -51,9 +51,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["chai-as-promised", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:7.1.1"],\
             ["chai-bn", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:0.3.1"],\
             ["exponential-backoff", "npm:3.1.0"],\
+            ["js-sha256", "npm:0.9.0"],\
             ["jsbi", "npm:4.3.0"],\
             ["keccak256", "npm:1.0.6"],\
-            ["math-expression-evaluator", "npm:2.0.2"],\
+            ["math-expression-evaluator", "npm:2.0.4"],\
             ["merkletreejs", "npm:0.2.32"],\
             ["mocha", "npm:10.2.0"],\
             ["prettier", "npm:2.8.1"],\
@@ -584,10 +585,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           ],\
           "linkType": "SOFT"\
         }],\
-        ["virtual:9125eb1ffcf83495c39f180cdeec11dc9bc5041615b4d383052d578b9fa0df8517bde0624a7b8bdbc9e9433912ac64f71aec59a1524ec8309c7e15ed4eaea36c#npm:0.3.7", {\
-          "packageLocation": "./.yarn/__virtual__/@solana-spl-token-virtual-0f061b6197/0/cache/@solana-spl-token-npm-0.3.7-1846944c8d-4452c5cb64.zip/node_modules/@solana/spl-token/",\
+        ["virtual:3f1594d0fd8d2c8b51d46e36e069cafe61a391bf61c6d884cb5ba0acdb9930480f34418e36f56665776de8cf77d9f53a6ef1fae1ba77e31d3faa9d2e1f839b9d#npm:0.3.7", {\
+          "packageLocation": "./.yarn/__virtual__/@solana-spl-token-virtual-8cd2c5f854/0/cache/@solana-spl-token-npm-0.3.7-1846944c8d-4452c5cb64.zip/node_modules/@solana/spl-token/",\
           "packageDependencies": [\
-            ["@solana/spl-token", "virtual:9125eb1ffcf83495c39f180cdeec11dc9bc5041615b4d383052d578b9fa0df8517bde0624a7b8bdbc9e9433912ac64f71aec59a1524ec8309c7e15ed4eaea36c#npm:0.3.7"],\
+            ["@solana/spl-token", "virtual:3f1594d0fd8d2c8b51d46e36e069cafe61a391bf61c6d884cb5ba0acdb9930480f34418e36f56665776de8cf77d9f53a6ef1fae1ba77e31d3faa9d2e1f839b9d#npm:0.3.7"],\
             ["@solana/buffer-layout", "npm:4.0.1"],\
             ["@solana/buffer-layout-utils", "npm:0.2.0"],\
             ["@solana/web3.js", "npm:1.73.0"],\
@@ -665,14 +666,14 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["@tensor-hq/tensor-common", [\
-        ["npm:1.0.0-rc.4::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.0-rc.4%2F05c4e8cbe137494f62780a266c78d4104e13c14b", {\
-          "packageLocation": "./.yarn/cache/@tensor-hq-tensor-common-npm-1.0.0-rc.4-9125eb1ffc-b660dfc322.zip/node_modules/@tensor-hq/tensor-common/",\
+        ["npm:1.0.3::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.3%2Ff20c6d7696d9a78b961951b7dd284183d97dc554", {\
+          "packageLocation": "./.yarn/cache/@tensor-hq-tensor-common-npm-1.0.3-3f1594d0fd-1389647019.zip/node_modules/@tensor-hq/tensor-common/",\
           "packageDependencies": [\
-            ["@tensor-hq/tensor-common", "npm:1.0.0-rc.4::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.0-rc.4%2F05c4e8cbe137494f62780a266c78d4104e13c14b"],\
+            ["@tensor-hq/tensor-common", "npm:1.0.3::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.3%2Ff20c6d7696d9a78b961951b7dd284183d97dc554"],\
             ["@coral-xyz/anchor", "npm:0.26.0"],\
             ["@metaplex-foundation/mpl-auction-house", "npm:2.5.1"],\
             ["@metaplex-foundation/mpl-bubblegum", "npm:0.7.0"],\
-            ["@solana/spl-token", "virtual:9125eb1ffcf83495c39f180cdeec11dc9bc5041615b4d383052d578b9fa0df8517bde0624a7b8bdbc9e9433912ac64f71aec59a1524ec8309c7e15ed4eaea36c#npm:0.3.7"],\
+            ["@solana/spl-token", "virtual:3f1594d0fd8d2c8b51d46e36e069cafe61a391bf61c6d884cb5ba0acdb9930480f34418e36f56665776de8cf77d9f53a6ef1fae1ba77e31d3faa9d2e1f839b9d#npm:0.3.7"],\
             ["@solana/web3.js", "npm:1.73.0"],\
             ["axios", "npm:0.27.2"],\
             ["big.js", "npm:6.2.1"],\
@@ -698,9 +699,9 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@metaplex-foundation/mpl-token-metadata", "npm:2.13.0"],\
             ["@msgpack/msgpack", "npm:2.8.0"],\
             ["@saberhq/solana-contrib", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:1.14.11"],\
-            ["@solana/spl-token", "virtual:9125eb1ffcf83495c39f180cdeec11dc9bc5041615b4d383052d578b9fa0df8517bde0624a7b8bdbc9e9433912ac64f71aec59a1524ec8309c7e15ed4eaea36c#npm:0.3.7"],\
+            ["@solana/spl-token", "virtual:3f1594d0fd8d2c8b51d46e36e069cafe61a391bf61c6d884cb5ba0acdb9930480f34418e36f56665776de8cf77d9f53a6ef1fae1ba77e31d3faa9d2e1f839b9d#npm:0.3.7"],\
             ["@solana/web3.js", "npm:1.73.0"],\
-            ["@tensor-hq/tensor-common", "npm:1.0.0-rc.4::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.0-rc.4%2F05c4e8cbe137494f62780a266c78d4104e13c14b"],\
+            ["@tensor-hq/tensor-common", "npm:1.0.3::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40tensor-hq%2Ftensor-common%2F1.0.3%2Ff20c6d7696d9a78b961951b7dd284183d97dc554"],\
             ["@types/big.js", "npm:6.1.6"],\
             ["@types/bn.js", "npm:5.1.1"],\
             ["@types/chai", "npm:4.3.10"],\
@@ -714,9 +715,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["chai-as-promised", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:7.1.1"],\
             ["chai-bn", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:0.3.1"],\
             ["exponential-backoff", "npm:3.1.0"],\
+            ["js-sha256", "npm:0.9.0"],\
             ["jsbi", "npm:4.3.0"],\
             ["keccak256", "npm:1.0.6"],\
-            ["math-expression-evaluator", "npm:2.0.2"],\
+            ["math-expression-evaluator", "npm:2.0.4"],\
             ["merkletreejs", "npm:0.2.32"],\
             ["mocha", "npm:10.2.0"],\
             ["prettier", "npm:2.8.1"],\
@@ -3018,10 +3020,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["math-expression-evaluator", [\
-        ["npm:2.0.2", {\
-          "packageLocation": "./.yarn/cache/math-expression-evaluator-npm-2.0.2-19cf25fe37-d8a94a49aa.zip/node_modules/math-expression-evaluator/",\
+        ["npm:2.0.4", {\
+          "packageLocation": "./.yarn/cache/math-expression-evaluator-npm-2.0.4-1ae959233b-c7764c1edb.zip/node_modules/math-expression-evaluator/",\
           "packageDependencies": [\
-            ["math-expression-evaluator", "npm:2.0.2"]\
+            ["math-expression-evaluator", "npm:2.0.4"]\
           ],\
           "linkType": "HARD"\
         }]\

@@ -5,7 +5,6 @@ import {
   EventParser,
   Instruction,
   Program,
-  Provider,
 } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -15,7 +14,6 @@ import {
 import {
   AccountInfo,
   Commitment,
-  Keypair,
   PublicKey,
   SystemProgram,
   SYSVAR_INSTRUCTIONS_PUBKEY,

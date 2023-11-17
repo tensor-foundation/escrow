@@ -7,8 +7,11 @@ import {
   computeTakerDisplayPrice,
   computeTakerPrice,
   CurveType,
+  evalMathExpr,
   PoolType,
   TakerSide,
+  TensorswapIDL_latest,
+  TSWAP_TAKER_FEE_BPS,
 } from "../src";
 import { cartesian } from "./shared";
 
@@ -22,6 +25,21 @@ const common = {
 };
 
 type MakerAmountArgs = Parameters<typeof computeMakerAmountCount>[0];
+
+describe("Tensorswap constants", () => {
+  it("Asserts TSWAP_TAKER_FEE_BPS equals in IDL and SDK", () => {
+    const idlTswapTakerFeeBps = evalMathExpr(
+      TensorswapIDL_latest.constants.find(
+        (c) => c.name === "TSWAP_TAKER_FEE_BPS"
+      )!.value
+    );
+
+    expect(TSWAP_TAKER_FEE_BPS).to.eq(
+      idlTswapTakerFeeBps,
+      "TSWAP_TAKER_FEE_BPS in lib.rs does not equal constants.ts. Did you update one but not the other?"
+    );
+  });
+});
 
 describe("prices helper functions", () => {
   it("computeTakerDisplayPrice works as intended for trade pools", async () => {
