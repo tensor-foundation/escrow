@@ -3,6 +3,7 @@ use std::{cmp, fmt::Debug};
 use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
 use mpl_token_metadata::{processor::AuthorizationData, state::Metadata};
 use spl_math::precise_number::PreciseNumber;
+use tensor_nft::calc_creators_fee;
 use vipers::throw_err;
 
 use crate::*;

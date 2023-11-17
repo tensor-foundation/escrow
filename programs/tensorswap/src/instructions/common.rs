@@ -1,6 +1,6 @@
 use anchor_lang::prelude::Accounts;
 use anchor_spl::token::{Mint, TokenAccount};
-use mpl_token_metadata::{self, state::TokenStandard};
+use mpl_token_metadata::{self};
 use tensor_whitelist::{self, FullMerkleProof, MintProof, Whitelist, ZERO_ARRAY};
 use vipers::throw_err;
 
@@ -248,20 +248,4 @@ pub fn calc_fees_rebates(amount: u64) -> Result<Fees> {
 pub fn get_tswap_addr() -> Pubkey {
     let (pda, _) = Pubkey::find_program_address(&[], &crate::id());
     pda
-}
-
-pub fn calc_creators_fee(
-    seller_fee_basis_points: u16,
-    amount: u64,
-    token_standard: Option<TokenStandard>,
-    optional_royalty_pct: Option<u16>,
-) -> Result<u64> {
-    // Enforce royalties on pnfts.
-    let adj_optional_royalty_pct =
-        if let Some(TokenStandard::ProgrammableNonFungible) = token_standard {
-            Some(100)
-        } else {
-            optional_royalty_pct
-        };
-    tensor_nft::calc_creators_fee(seller_fee_basis_points, amount, adj_optional_royalty_pct)
 }
