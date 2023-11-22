@@ -31,6 +31,7 @@ import {
   hexCode,
   parseAnchorIxs,
   ParsedAnchorIx,
+  prependComputeIxs,
   prepPnftAccounts,
   TMETA_PROG_ID,
 } from "@tensor-hq/tensor-common";
@@ -41,12 +42,7 @@ import {
   DEFAULT_XFER_COMPUTE_UNITS,
   evalMathExpr,
 } from "../common";
-import {
-  findTSwapPDA,
-  getTotalComputeIxs,
-  TensorSwapSDK,
-  TENSORSWAP_ADDR,
-} from "../tensorswap";
+import { findTSwapPDA, TensorSwapSDK, TENSORSWAP_ADDR } from "../tensorswap";
 import { ParsedAccount } from "../types";
 import { TBID_ADDR } from "./constants";
 import { findBidStatePda, findNftTempPDA } from "./pda";
@@ -329,12 +325,14 @@ export class TensorBidSDK {
         }))
       );
 
-    const computeIxs = getTotalComputeIxs(compute, priorityMicroLamports);
-
     return {
       builder,
       tx: {
-        ixs: [...computeIxs, await builder.instruction()],
+        ixs: prependComputeIxs(
+          [await builder.instruction()],
+          compute,
+          priorityMicroLamports
+        ),
         extraSigners: [],
       },
       bidState,

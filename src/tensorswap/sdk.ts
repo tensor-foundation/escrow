@@ -43,6 +43,7 @@ import {
   parseAnchorIxs,
   ParsedAnchorIx,
   PnftArgs,
+  prependComputeIxs,
   prepPnftAccounts,
   TMETA_PROG_ID,
 } from "@tensor-hq/tensor-common";
@@ -749,7 +750,8 @@ export class TensorSwapSDK {
       });
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [await builder.instruction()],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -759,7 +761,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [...computeIxs, await builder.instruction()],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -910,7 +912,11 @@ export class TensorSwapSDK {
       });
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [
+        ...(await this.clearDelegate(nftDest, owner)),
+        await builder.instruction(),
+      ],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -920,11 +926,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [
-          ...computeIxs,
-          ...(await this.clearDelegate(nftDest, owner)),
-          await builder.instruction(),
-        ],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -1170,7 +1172,12 @@ export class TensorSwapSDK {
       );
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [
+        // TODO: not including as it would incur an extra RPC call on every buy tx (slower). Let's see if needed.
+        // ...(await this.clearDelegate(nftBuyerAcc, buyer)),
+        await builder.instruction(),
+      ],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -1180,12 +1187,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [
-          ...computeIxs,
-          // TODO: not including as it would incur an extra RPC call on every buy tx (slower). Let's see if needed.
-          // ...(await this.clearDelegate(nftBuyerAcc, buyer)),
-          await builder.instruction(),
-        ],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -1393,7 +1395,8 @@ export class TensorSwapSDK {
       .remainingAccounts(remAcc);
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [await builder.instruction()],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -1403,7 +1406,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [...computeIxs, await builder.instruction()],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -1909,7 +1912,8 @@ export class TensorSwapSDK {
       .remainingAccounts(remAcc);
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [await builder.instruction()],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -1919,7 +1923,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [...computeIxs, await builder.instruction()],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -2019,7 +2023,8 @@ export class TensorSwapSDK {
       });
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [await builder.instruction()],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -2029,7 +2034,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [...computeIxs, await builder.instruction()],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -2118,7 +2123,11 @@ export class TensorSwapSDK {
       });
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [
+        ...(await this.clearDelegate(nftDest, owner)),
+        await builder.instruction(),
+      ],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -2128,11 +2137,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [
-          ...computeIxs,
-          ...(await this.clearDelegate(nftDest, owner)),
-          await builder.instruction(),
-        ],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -2245,7 +2250,12 @@ export class TensorSwapSDK {
       );
 
     const ruleSetCompute = ruleSet ? ruleSetAddnCompute : null;
-    const computeIxs = getTotalComputeIxs(
+    const ixs = prependComputeIxs(
+      [
+        // TODO: not including as it would incur an extra RPC call on every buy tx (slower). Let's see if needed.
+        // ...(await this.clearDelegate(nftBuyerAcc, buyer)),
+        await builder.instruction(),
+      ],
       isNullLike(compute) && isNullLike(ruleSetCompute)
         ? null
         : (compute ?? 0) + (ruleSetCompute ?? 0),
@@ -2255,12 +2265,7 @@ export class TensorSwapSDK {
     return {
       builder,
       tx: {
-        ixs: [
-          ...computeIxs,
-          // TODO: not including as it would incur an extra RPC call on every buy tx (slower). Let's see if needed.
-          // ...(await this.clearDelegate(nftBuyerAcc, buyer)),
-          await builder.instruction(),
-        ],
+        ixs,
         extraSigners: [],
       },
       tswapPda,
@@ -2560,27 +2565,3 @@ export class TensorSwapSDK {
     return Buffer.from(uuid.replaceAll("-", "")).toJSON().data;
   };
 }
-
-export const getTotalComputeIxs = (
-  compute: number | null,
-  priorityMicroLamports: number | null
-) => {
-  const finalIxs: TransactionInstruction[] = [];
-  //optionally include extra compute]
-  if (!isNullLike(compute)) {
-    finalIxs.push(
-      ComputeBudgetProgram.setComputeUnitLimit({
-        units: compute,
-      })
-    );
-  }
-  //optionally include priority fee
-  if (!isNullLike(priorityMicroLamports)) {
-    finalIxs.push(
-      ComputeBudgetProgram.setComputeUnitPrice({
-        microLamports: priorityMicroLamports,
-      })
-    );
-  }
-  return finalIxs;
-};
