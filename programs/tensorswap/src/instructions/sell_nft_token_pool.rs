@@ -330,7 +330,6 @@ pub fn handler<'info>(
 
     // transfer royalties
     let actual_creators_fee = transfer_creators_fee(
-        &FromAcc::Pda(&from),
         &metadata
             .data
             .creators
@@ -341,6 +340,9 @@ pub fn handler<'info>(
             .collect(),
         remaining_accounts,
         creators_fee,
+        &CreatorFeeMode::Sol {
+            from: &FromAcc::Pda(&from),
+        },
     )?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
 

@@ -335,10 +335,6 @@ pub fn handler<'info, 'b>(
     // transfer royalties (on top of current price)
     let remaining_accounts = &mut ctx.remaining_accounts.iter();
     transfer_creators_fee(
-        &FromAcc::External(&FromExternal {
-            from: &ctx.accounts.buyer.to_account_info(),
-            sys_prog: &ctx.accounts.system_program,
-        }),
         &metadata
             .data
             .creators
@@ -349,6 +345,12 @@ pub fn handler<'info, 'b>(
             .collect(),
         remaining_accounts,
         creators_fee,
+        &CreatorFeeMode::Sol {
+            from: &FromAcc::External(&FromExternal {
+                from: &ctx.accounts.buyer.to_account_info(),
+                sys_prog: &ctx.accounts.system_program,
+            }),
+        },
     )?;
 
     // transfer current price + MM fee if !compounded (within current price)

@@ -13,7 +13,7 @@ use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
 use mpl_token_metadata::processor::AuthorizationData;
 use tensor_nft::{
     assert_decode_metadata, calc_creators_fee, send_pnft, transfer_creators_fee,
-    transfer_lamports_from_pda, FromAcc, PnftTransferArgs,
+    transfer_lamports_from_pda, CreatorFeeMode, FromAcc, PnftTransferArgs,
 };
 use tensorswap::{
     self, assert_decode_margin_account, calc_fees_rebates, program::Tensorswap, Fees, TSwap,
@@ -338,7 +338,6 @@ pub mod tensor_bid {
         // transfer royalties
         let remaining_accounts = &mut ctx.remaining_accounts.iter();
         let actual_creators_fee = transfer_creators_fee(
-            &FromAcc::Pda(&ctx.accounts.bid_state.to_account_info()),
             &metadata
                 .data
                 .creators
@@ -349,6 +348,9 @@ pub mod tensor_bid {
                 .collect(),
             remaining_accounts,
             creators_fee,
+            &CreatorFeeMode::Sol {
+                from: &FromAcc::Pda(&ctx.accounts.bid_state.to_account_info()),
+            },
         )?;
         left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
 

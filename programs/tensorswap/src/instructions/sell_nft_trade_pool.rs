@@ -236,7 +236,6 @@ pub fn handler<'a, 'b, 'c, 'info>(
     // transfer royalties
     let remaining_accounts = &mut ctx.remaining_accounts.iter();
     let actual_creators_fee = transfer_creators_fee(
-        &FromAcc::Pda(&from),
         &metadata
             .data
             .creators
@@ -247,6 +246,9 @@ pub fn handler<'a, 'b, 'c, 'info>(
             .collect(),
         remaining_accounts,
         creators_fee,
+        &CreatorFeeMode::Sol {
+            from: &FromAcc::Pda(&from),
+        },
     )?;
     left_for_seller = unwrap_int!(left_for_seller.checked_sub(actual_creators_fee));
 

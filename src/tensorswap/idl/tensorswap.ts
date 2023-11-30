@@ -1,5 +1,5 @@
 export type Tensorswap = {
-  "version": "1.8.6",
+  "version": "2.0.0",
   "name": "tensorswap",
   "constants": [
     {
@@ -3164,7 +3164,7 @@ export type Tensorswap = {
 };
 
 export const IDL: Tensorswap = {
-  "version": "1.8.6",
+  "version": "2.0.0",
   "name": "tensorswap",
   "constants": [
     {

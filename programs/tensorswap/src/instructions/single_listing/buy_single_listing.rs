@@ -4,7 +4,6 @@ use anchor_spl::{
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
 use mpl_token_metadata::processor::AuthorizationData;
-use tensor_nft::calc_creators_fee;
 use vipers::throw_err;
 
 use crate::*;
@@ -259,10 +258,6 @@ pub fn handler<'info, 'b>(
     //send royalties
     let remaining_accounts = &mut ctx.remaining_accounts.iter();
     transfer_creators_fee(
-        &FromAcc::External(&FromExternal {
-            from: &ctx.accounts.buyer.to_account_info(),
-            sys_prog: &ctx.accounts.system_program,
-        }),
         &metadata
             .data
             .creators
@@ -273,6 +268,12 @@ pub fn handler<'info, 'b>(
             .collect(),
         remaining_accounts,
         creators_fee,
+        &CreatorFeeMode::Sol {
+            from: &FromAcc::External(&FromExternal {
+                from: &ctx.accounts.buyer.to_account_info(),
+                sys_prog: &ctx.accounts.system_program,
+            }),
+        },
     )?;
 
     //transfer current_price to owner

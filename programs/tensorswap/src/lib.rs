@@ -10,8 +10,9 @@ pub mod state;
 pub use instructions::*;
 pub use state::*;
 pub use tensor_nft::{
-    assert_decode_metadata, send_pnft, transfer_all_lamports_from_pda, transfer_creators_fee,
-    transfer_lamports_from_pda, FromAcc, FromExternal, PnftTransferArgs,
+    assert_decode_metadata, calc_creators_fee, send_pnft, transfer_all_lamports_from_pda,
+    transfer_creators_fee, transfer_lamports_from_pda, CreatorFeeMode, FromAcc, FromExternal,
+    PnftTransferArgs,
 };
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
