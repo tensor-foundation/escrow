@@ -10,7 +10,10 @@ rm ${dest}/tsconfig.json
 cp -r ./src ${dest}/src
 cp package.json ${dest}/package.json
 cp yarn.lock ${dest}/yarn.lock
+cp tsconfig.base.json ${dest}/tsconfig.base.json
+cp tsconfig.cjs.json ${dest}/tsconfig.cjs.json
 cp tsconfig.json ${dest}/tsconfig.json
+cp tsconfig.tests.json ${dest}/tsconfig.tests.json
 
 # fix the new package json
 sed -i '' -e 's/tensorswap-ts/tensorswap-sdk/g' ${dest}/yarn.lock
