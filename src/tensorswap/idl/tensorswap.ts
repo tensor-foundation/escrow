@@ -2194,7 +2194,7 @@ export type Tensorswap = {
         },
         {
           "name": "bidState",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -2209,7 +2209,7 @@ export type Tensorswap = {
         },
         {
           "name": "destination",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2239,7 +2239,7 @@ export type Tensorswap = {
         },
         {
           "name": "bidState",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -2249,7 +2249,7 @@ export type Tensorswap = {
         },
         {
           "name": "destination",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -2283,7 +2283,7 @@ export type Tensorswap = {
         },
         {
           "name": "orderState",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -2293,7 +2293,7 @@ export type Tensorswap = {
         },
         {
           "name": "destination",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -5359,7 +5359,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "bidState",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -5374,7 +5374,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "destination",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -5404,7 +5404,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "bidState",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -5414,7 +5414,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "destination",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -5448,7 +5448,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "orderState",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -5458,7 +5458,7 @@ export const IDL: Tensorswap = {
         },
         {
           "name": "destination",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
