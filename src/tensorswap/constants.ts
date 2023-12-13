@@ -21,7 +21,3 @@ export const TSWAP_COSIGNER = new PublicKey(
 export const TSWAP_OWNER = new PublicKey(
   process.env.TSWAP_OWNER || "99cmWwQMqMFzMPx85rvZYKwusGSjZUDsu6mqYV4iisiz"
 );
-
-export const TSWAP_CORE_LUT = new PublicKey(
-  "9Ses4wW9Mj3nemRJmcZgF81RgLENC6yGUFiMQBPDp5Uk"
-);
