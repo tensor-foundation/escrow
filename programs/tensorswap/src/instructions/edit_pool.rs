@@ -112,6 +112,34 @@ impl<'info> EditPool<'info> {
         if self.old_pool.config.pool_type != new_config.pool_type {
             throw_err!(WrongPoolType);
         }
+
+        match new_config.pool_type {
+            PoolType::NFT | PoolType::Token => {
+                if new_config.mm_fee_bps.is_some() {
+                    throw_err!(FeesNotAllowed);
+                }
+            }
+            PoolType::Trade => {
+                if new_config.mm_fee_bps.is_none() {
+                    throw_err!(MissingFees);
+                }
+                if new_config.mm_fee_bps.unwrap() > MAX_MM_FEES_BPS {
+                    throw_err!(FeesTooHigh);
+                }
+            }
+        }
+
+        //for exponential pool delta can't be above 99.99% and has to fit into a u16
+        if new_config.curve_type == CurveType::Exponential {
+            let u16delta = try_or_err!(
+                u16::try_from(new_config.delta),
+                crate::ErrorCode::ArithmeticError
+            );
+            if u16delta > MAX_DELTA_BPS {
+                throw_err!(DeltaTooLarge);
+            }
+        }
+
         Ok(())
     }
 
