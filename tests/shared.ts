@@ -27,11 +27,11 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import {
-  AUTH_PROG_ID,
+  AUTH_PROGRAM_ID,
   getLamports as _getLamports,
   Overwrite,
   test_utils,
-  TMETA_PROG_ID,
+  TMETA_PROGRAM_ID,
   waitMS,
 } from "@tensor-hq/tensor-common";
 import { expect } from "chai";
@@ -367,7 +367,7 @@ export const createTokenAuthorizationRules = async ({
     {
       createOrUpdateArgs: { __kind: "V1", serializedRuleSet: finalData },
     },
-    AUTH_PROG_ID
+    AUTH_PROGRAM_ID
   );
 
   await buildAndSendTx({ ixs: [createIX], extraSigners: [payer] });
@@ -454,8 +454,8 @@ export const createCoreTswapLUT = async (
       SystemProgram.programId,
       SYSVAR_RENT_PUBKEY,
       ASSOCIATED_TOKEN_PROGRAM_ID,
-      AUTH_PROG_ID,
-      TMETA_PROG_ID,
+      AUTH_PROGRAM_ID,
+      TMETA_PROGRAM_ID,
       SYSVAR_INSTRUCTIONS_PUBKEY,
     ],
   });

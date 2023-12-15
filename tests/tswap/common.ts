@@ -25,7 +25,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import {
-  AUTH_PROG_ID,
+  AUTH_PROGRAM_ID,
   findMasterEditionPda,
   findMetadataPda,
   findTokenRecordPda,
@@ -342,7 +342,7 @@ export const createNft = async ({
     splAtaProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
     splTokenProgram: TOKEN_PROGRAM_ID,
     authorizationRules: ruleSet ?? undefined,
-    authorizationRulesProgram: AUTH_PROG_ID,
+    authorizationRulesProgram: AUTH_PROGRAM_ID,
   };
 
   const payload = {
