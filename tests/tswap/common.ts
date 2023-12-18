@@ -43,7 +43,6 @@ import {
   computeMakerAmountCount,
   computeTakerPrice as computeTakerPrice_,
   CurveTypeAnchor,
-  MAKER_REBATE_BPS,
   OrderType,
   PoolAnchor,
   PoolConfigAnchor,
@@ -56,7 +55,7 @@ import {
   TAKER_BROKER_PCT,
   TensorWhitelistSDK,
   TSwapConfigAnchor,
-  TSWAP_TAKER_FEE_BPS,
+  TSWAP_TAKER_FEE_BPS, MAKER_REBATE_BPS,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,

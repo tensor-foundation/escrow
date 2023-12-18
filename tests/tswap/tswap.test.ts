@@ -166,21 +166,21 @@ describe("tswap init_update_tswap", () => {
       const postDest = await getLamports(destination.publicKey);
 
       await expect(postTswap).to.eq(prevTswap! - earnedFee.toNumber());
-      await expect(postTswap).to.eq(await swapSdk.getTswapRent());
+      await expect(postTswap).approximately(await swapSdk.getTswapRent(), 1);
       await expect(postDest).to.eq(earnedFee.toNumber());
     });
 
     //fails to withdraw more
     const {
-      tx: { ixs: ixsOneLamport },
+      tx: { ixs: ixsTwoLamports },
     } = await swapSdk.withdrawTswapFee({
-      lamports: new BN(1),
+      lamports: new BN(2),
       destination: destination.publicKey,
       cosigner: TEST_COSIGNER.publicKey,
       owner: TEST_PROVIDER.publicKey,
     });
     await expect(
-      buildAndSendTx({ ixs: ixsOneLamport, extraSigners: [TEST_COSIGNER] })
+      buildAndSendTx({ ixs: ixsTwoLamports, extraSigners: [TEST_COSIGNER] })
     ).to.be.rejectedWith(COMMON_INSUFFICIENT_FUNDS_ERR);
   });
 

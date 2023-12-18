@@ -623,7 +623,7 @@ pub struct CloseExpiredBid<'info> {
 pub const CURRENT_TBID_VERSION: u8 = 1;
 //(!) Keep in sync with TSWAP_FEE_BPS
 #[constant]
-pub const TBID_TAKER_FEE_BPS: u16 = 140;
+pub const TBID_TAKER_FEE_BPS: u16 = 150;
 #[constant]
 pub const MAX_EXPIRY_SEC: i64 = 31536000; // Max 365 days (can't be too short o/w liquidity disappears too early)
 

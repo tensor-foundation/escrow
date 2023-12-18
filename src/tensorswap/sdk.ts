@@ -236,9 +236,6 @@ export const triageIDL = (
 
 // --------------------------------------- constants
 
-export const MAKER_REBATE_BPS: number = +IDL_latest.constants.find(
-  (c) => c.name === "MAKER_REBATE_BPS"
-)!.value;
 export const SNIPE_FEE_BPS: number = +IDL_latest.constants.find(
   (c) => c.name === "SNIPE_FEE_BPS"
 )!.value;

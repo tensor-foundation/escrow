@@ -32,10 +32,10 @@ pub const SPREAD_TICKS: u8 = 1;
 
 //(!) Keep in sync with TBID_FEE_BPS and SDK constants
 #[constant]
-pub const TSWAP_TAKER_FEE_BPS: u16 = 140;
+pub const TSWAP_TAKER_FEE_BPS: u16 = 150;
 //taken out of taker fee
 #[constant]
-pub const MAKER_REBATE_BPS: u16 = 40;
+pub const MAKER_REBATE_BPS: u16 = 25;
 
 //fixed fee applied on top of initial snipe value
 //eg if user wants to snipe for 100, we charge 1.5% on top
