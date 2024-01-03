@@ -6,6 +6,13 @@ use vipers::throw_err;
 
 use crate::*;
 
+// Private module to define Metaplex Token Auth Rules Program ID
+mod mpl_token_auth_rules {
+    anchor_lang::declare_id!("auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg");
+}
+
+pub static MPL_TOKEN_AUTH_RULES_ID: Pubkey = mpl_token_auth_rules::ID;
+
 pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
     let program_id = &crate::id();
     Pubkey::find_program_address(
@@ -157,11 +164,11 @@ pub struct SellNftShared<'info> {
     /// CHECK: assert_decode_metadata + seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::Metadata::PREFIX,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_metadata: UncheckedAccount<'info>,
@@ -200,7 +207,7 @@ impl<'info> SellNftShared<'info> {
 pub struct ProgNftShared<'info> {
     //can't deserialize directly coz Anchor traits not implemented
     /// CHECK: address below
-    #[account(address = mpl_token_metadata::id())]
+    #[account(address = mpl_token_metadata::ID)]
     pub token_metadata_program: UncheckedAccount<'info>,
 
     //sysvar ixs don't deserialize in anchor
@@ -209,7 +216,7 @@ pub struct ProgNftShared<'info> {
     pub instructions: UncheckedAccount<'info>,
 
     /// CHECK: address below
-    #[account(address = mpl_token_auth_rules::id())]
+    #[account(address = MPL_TOKEN_AUTH_RULES_ID)]
     pub authorization_rules_program: UncheckedAccount<'info>,
 }
 

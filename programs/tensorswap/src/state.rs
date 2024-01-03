@@ -1,8 +1,9 @@
-use std::{cmp, fmt::Debug};
-
-use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
-use mpl_token_metadata::{processor::AuthorizationData, state::Metadata};
+use mpl_token_metadata::{
+    accounts::Metadata,
+    types::{AuthorizationData, Payload, PayloadType, ProofInfo, SeedsVec},
+};
 use spl_math::precise_number::PreciseNumber;
+use std::{cmp, collections::HashMap, fmt::Debug};
 use tensor_nft::calc_creators_fee;
 use vipers::throw_err;
 
@@ -313,7 +314,7 @@ impl Pool {
         optional_royalty_pct: Option<u16>,
     ) -> Result<u64> {
         calc_creators_fee(
-            metadata.data.seller_fee_basis_points,
+            metadata.seller_fee_basis_points,
             current_price,
             metadata.token_standard,
             optional_royalty_pct,
@@ -522,11 +523,13 @@ pub struct AuthorizationDataLocal {
 }
 impl From<AuthorizationDataLocal> for AuthorizationData {
     fn from(val: AuthorizationDataLocal) -> Self {
-        let mut p = Payload::new();
+        let mut map = HashMap::<String, PayloadType>::new();
         val.payload.into_iter().for_each(|tp| {
-            p.insert(tp.name, PayloadType::try_from(tp.payload).unwrap());
+            map.insert(tp.name, PayloadType::try_from(tp.payload).unwrap());
         });
-        AuthorizationData { payload: p }
+        AuthorizationData {
+            payload: Payload { map },
+        }
     }
 }
 

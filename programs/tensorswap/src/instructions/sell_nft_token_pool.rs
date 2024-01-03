@@ -5,7 +5,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Token, TokenAccount},
 };
-use mpl_token_metadata::processor::AuthorizationData;
+use mpl_token_metadata::types::AuthorizationData;
 use vipers::throw_err;
 
 use crate::*;
@@ -33,12 +33,12 @@ pub struct SellNftTokenPool<'info> {
     /// CHECK: seeds below
     #[account(
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             shared.nft_mint.key().as_ref(),
-            mpl_token_metadata::state::EDITION.as_bytes(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.1,
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_edition: UncheckedAccount<'info>,
@@ -46,13 +46,13 @@ pub struct SellNftTokenPool<'info> {
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             shared.nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             shared.nft_seller_acc.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub owner_token_record: UncheckedAccount<'info>,
@@ -60,13 +60,13 @@ pub struct SellNftTokenPool<'info> {
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             shared.nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             owner_ata_acc.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub dest_token_record: UncheckedAccount<'info>,
@@ -90,13 +90,13 @@ pub struct SellNftTokenPool<'info> {
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             shared.nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_escrow.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub temp_escrow_token_record: UncheckedAccount<'info>,
@@ -331,7 +331,6 @@ pub fn handler<'info>(
     // transfer royalties
     let actual_creators_fee = transfer_creators_fee(
         &metadata
-            .data
             .creators
             .clone()
             .unwrap_or(Vec::new())

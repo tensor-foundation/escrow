@@ -3,7 +3,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
-use mpl_token_metadata::processor::AuthorizationData;
+use mpl_token_metadata::types::AuthorizationData;
 use vipers::throw_err;
 
 use crate::*;
@@ -50,11 +50,11 @@ pub struct BuySingleListing<'info> {
     /// CHECK: assert_decode_metadata + seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::Metadata::PREFIX,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_metadata: UncheckedAccount<'info>,
@@ -90,12 +90,12 @@ pub struct BuySingleListing<'info> {
     /// CHECK: seeds below
     #[account(
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::EDITION.as_bytes(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.1,
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_edition: UncheckedAccount<'info>,
@@ -103,13 +103,13 @@ pub struct BuySingleListing<'info> {
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_escrow.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub owner_token_record: UncheckedAccount<'info>,
@@ -117,13 +117,13 @@ pub struct BuySingleListing<'info> {
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_buyer_acc.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub dest_token_record: UncheckedAccount<'info>,
@@ -195,7 +195,7 @@ pub fn handler<'info, 'b>(
         taker_fee,
     } = calc_fees_rebates(current_price)?;
     let creators_fee = calc_creators_fee(
-        metadata.data.seller_fee_basis_points,
+        metadata.seller_fee_basis_points,
         current_price,
         metadata.token_standard,
         optional_royalty_pct,
@@ -259,7 +259,6 @@ pub fn handler<'info, 'b>(
     let remaining_accounts = &mut ctx.remaining_accounts.iter();
     transfer_creators_fee(
         &metadata
-            .data
             .creators
             .clone()
             .unwrap_or(Vec::new())

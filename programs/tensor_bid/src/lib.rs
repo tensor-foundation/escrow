@@ -1,6 +1,8 @@
 #![allow(unknown_lints)] //needed otherwise complains during github actions
 #![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
 
+use std::collections::HashMap;
+
 use anchor_lang::{
     prelude::*,
     solana_program::{program::invoke, system_instruction},
@@ -9,14 +11,14 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
-use mpl_token_auth_rules::payload::{Payload, PayloadType, ProofInfo, SeedsVec};
-use mpl_token_metadata::processor::AuthorizationData;
+use mpl_token_metadata::types::{AuthorizationData, Payload, PayloadType, ProofInfo, SeedsVec};
 use tensor_nft::{
     assert_decode_metadata, calc_creators_fee, send_pnft, transfer_creators_fee,
     transfer_lamports_from_pda, CreatorFeeMode, FromAcc, PnftTransferArgs,
 };
 use tensorswap::{
-    self, assert_decode_margin_account, calc_fees_rebates, program::Tensorswap, Fees, TSwap,
+    self, assert_decode_margin_account, calc_fees_rebates,
+    instructions::common::MPL_TOKEN_AUTH_RULES_ID, program::Tensorswap, Fees, TSwap,
 };
 use vipers::{prelude::*, throw_err};
 
@@ -26,14 +28,14 @@ declare_id!("TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv");
 pub struct ProgNftShared<'info> {
     //can't deserialize directly coz Anchor traits not implemented
     /// CHECK: address below
-    #[account(address = mpl_token_metadata::id())]
+    #[account(address = mpl_token_metadata::ID)]
     pub token_metadata_program: UncheckedAccount<'info>,
     //sysvar ixs don't deserialize in anchor
     /// CHECK: address below
     #[account(address = anchor_lang::solana_program::sysvar::instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
     /// CHECK: address below
-    #[account(address = mpl_token_auth_rules::id())]
+    #[account(address = MPL_TOKEN_AUTH_RULES_ID)]
     pub authorization_rules_program: UncheckedAccount<'info>,
 }
 
@@ -41,6 +43,8 @@ pub struct ProgNftShared<'info> {
 
 #[program]
 pub mod tensor_bid {
+    use mpl_token_metadata::types::AuthorizationData;
+
     use super::*;
 
     //can be called multiple times to re-bid
@@ -262,7 +266,7 @@ pub mod tensor_bid {
             taker_fee,
         } = calc_fees_rebates(lamports)?;
         let creators_fee = calc_creators_fee(
-            metadata.data.seller_fee_basis_points,
+            metadata.seller_fee_basis_points,
             lamports,
             metadata.token_standard,
             optional_royalty_pct,
@@ -339,7 +343,6 @@ pub mod tensor_bid {
         let remaining_accounts = &mut ctx.remaining_accounts.iter();
         let actual_creators_fee = transfer_creators_fee(
             &metadata
-                .data
                 .creators
                 .clone()
                 .unwrap_or(Vec::new())
@@ -466,11 +469,11 @@ pub struct TakeBid<'info> {
     /// CHECK: assert_decode_metadata + seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::Metadata::PREFIX,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_metadata: UncheckedAccount<'info>,
@@ -499,51 +502,51 @@ pub struct TakeBid<'info> {
     /// CHECK: seeds below
     #[account(
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::EDITION.as_bytes(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.1,
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_edition: UncheckedAccount<'info>,
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_seller_acc.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub seller_token_record: UncheckedAccount<'info>,
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_bidder_acc.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub bidder_token_record: UncheckedAccount<'info>,
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_temp_acc.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub temp_token_record: UncheckedAccount<'info>,
@@ -705,11 +708,13 @@ pub struct AuthorizationDataLocal {
 }
 impl From<AuthorizationDataLocal> for AuthorizationData {
     fn from(val: AuthorizationDataLocal) -> Self {
-        let mut p = Payload::new();
+        let mut map = HashMap::<String, PayloadType>::new();
         val.payload.into_iter().for_each(|tp| {
-            p.insert(tp.name, PayloadType::try_from(tp.payload).unwrap());
+            map.insert(tp.name, PayloadType::try_from(tp.payload).unwrap());
         });
-        AuthorizationData { payload: p }
+        AuthorizationData {
+            payload: Payload { map },
+        }
     }
 }
 

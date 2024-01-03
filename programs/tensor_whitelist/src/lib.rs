@@ -3,7 +3,10 @@
 
 use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 use anchor_spl::token::Mint;
-use mpl_token_metadata::state::{Collection, Creator, Metadata};
+use mpl_token_metadata::{
+    accounts::Metadata,
+    types::{Collection, Creator},
+};
 use vipers::{throw_err, unwrap_int, Validate};
 
 declare_id!("TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW");
@@ -461,7 +464,7 @@ impl Whitelist {
         if self.fvc.is_some() {
             match metadata {
                 Some(metadata) => {
-                    match &metadata.data.creators {
+                    match &metadata.creators {
                         Some(creators) => {
                             let mut fvc: Option<Pubkey> = None;
                             for creator in creators {

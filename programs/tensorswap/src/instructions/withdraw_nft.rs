@@ -4,7 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{self, CloseAccount, Mint, Token, TokenAccount},
 };
-use mpl_token_metadata::processor::AuthorizationData;
+use mpl_token_metadata::types::AuthorizationData;
 use tensor_whitelist::Whitelist;
 use vipers::throw_err;
 
@@ -103,11 +103,11 @@ pub struct WithdrawNft<'info> {
     #[account(
         mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::Metadata::PREFIX,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_metadata: UncheckedAccount<'info>,
@@ -116,12 +116,12 @@ pub struct WithdrawNft<'info> {
     /// CHECK: seeds below
     #[account(
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::EDITION.as_bytes(),
+            mpl_token_metadata::accounts::MasterEdition::PREFIX.1,
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub nft_edition: UncheckedAccount<'info>,
@@ -129,13 +129,13 @@ pub struct WithdrawNft<'info> {
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_escrow.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub owner_token_record: UncheckedAccount<'info>,
@@ -143,13 +143,13 @@ pub struct WithdrawNft<'info> {
     /// CHECK: seeds below
     #[account(mut,
         seeds=[
-            mpl_token_metadata::state::PREFIX.as_bytes(),
-            mpl_token_metadata::id().as_ref(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
+            mpl_token_metadata::ID.as_ref(),
             nft_mint.key().as_ref(),
-            mpl_token_metadata::state::TOKEN_RECORD_SEED.as_bytes(),
+            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
             nft_dest.key().as_ref()
         ],
-        seeds::program = mpl_token_metadata::id(),
+        seeds::program = mpl_token_metadata::ID,
         bump
     )]
     pub dest_token_record: UncheckedAccount<'info>,
