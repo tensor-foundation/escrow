@@ -1,6 +1,6 @@
 {
   "name": "@tensor-hq/tensorswap-ts",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "Anchor/JS SDK for interacting with TensorSwap, TensorWhitelist and TensorBid.",
   "sideEffects": false,
   "module": "./dist/esm/index.js",
