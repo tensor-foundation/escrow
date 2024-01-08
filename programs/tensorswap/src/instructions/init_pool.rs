@@ -117,8 +117,8 @@ pub fn handler<'info>(
     }
 
     pool.version = CURRENT_POOL_VERSION;
-    pool.bump = [unwrap_bump!(ctx, "pool")];
-    pool.sol_escrow_bump = [unwrap_bump!(ctx, "sol_escrow")];
+    pool.bump = [ctx.bumps.pool];
+    pool.sol_escrow_bump = [ctx.bumps.sol_escrow];
     pool.created_unix_seconds = Clock::get()?.unix_timestamp;
     pool.config = config;
 
@@ -156,7 +156,7 @@ pub fn handler<'info>(
     let auth = &mut ctx.accounts.nft_authority;
 
     auth.random_seed = auth_seeds;
-    auth.bump = [unwrap_bump!(ctx, "nft_authority")];
+    auth.bump = [ctx.bumps.nft_authority];
 
     //2-way link between the authority and the pool
     auth.pool = ctx.accounts.pool.key();

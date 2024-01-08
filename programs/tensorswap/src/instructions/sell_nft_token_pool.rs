@@ -302,15 +302,14 @@ pub fn handler<'info>(
     //decide where we're sending the money from - margin (marginated pool) or escrow (normal pool)
     let from = match &pool.margin {
         Some(stored_margin_account) => {
-            let margin_account_info = &ctx.accounts.margin_account.to_account_info();
             assert_decode_margin_account(
-                margin_account_info,
+                &ctx.accounts.margin_account,
                 &ctx.accounts.shared.owner.to_account_info(),
             )?;
-            if *margin_account_info.key != *stored_margin_account {
+            if *ctx.accounts.margin_account.key != *stored_margin_account {
                 throw_err!(BadMargin);
             }
-            margin_account_info.clone()
+            ctx.accounts.margin_account.to_account_info()
         }
         None => ctx.accounts.shared.sol_escrow.to_account_info(),
     };

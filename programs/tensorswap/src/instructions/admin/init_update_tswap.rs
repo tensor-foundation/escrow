@@ -40,7 +40,7 @@ pub fn handler(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()>
     let tswap = &mut ctx.accounts.tswap;
 
     tswap.version = CURRENT_TSWAP_VERSION;
-    tswap.bump = [unwrap_bump!(ctx, "tswap")];
+    tswap.bump = [ctx.bumps.tswap];
     tswap.owner = ctx.accounts.new_owner.key();
     tswap.config = config;
     tswap.fee_vault = ctx.accounts.fee_vault.key();

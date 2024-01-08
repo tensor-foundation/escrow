@@ -30,8 +30,10 @@ pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
 pub fn assert_decode_margin_account<'info>(
     margin_account_info: &AccountInfo<'info>,
     owner: &AccountInfo<'info>,
-) -> Result<Account<'info, MarginAccount>> {
-    let margin_account: Account<'info, MarginAccount> = Account::try_from(margin_account_info)?;
+) -> Result<Box<MarginAccount>> {
+    let mut data: &[u8] = &margin_account_info.try_borrow_data()?;
+    let margin_account: Box<MarginAccount> =
+        Box::new(AccountDeserialize::try_deserialize(&mut data)?);
 
     let program_id = &crate::id();
     let (key, _) = margin_pda(&get_tswap_addr(), &owner.key(), margin_account.nr);
@@ -51,37 +53,38 @@ pub fn assert_decode_margin_account<'info>(
 }
 
 #[inline(never)]
-pub fn assert_decode_mint_proof<'info>(
-    whitelist: &Account<'info, Whitelist>,
-    nft_mint: &Account<'info, Mint>,
-    mint_proof: &UncheckedAccount<'info>,
-) -> Result<Account<'info, MintProof>> {
-    let program_id = &tensor_whitelist::id();
+pub fn assert_decode_mint_proof(
+    whitelist: &Account<Whitelist>,
+    nft_mint: &Account<Mint>,
+    mint_proof: &UncheckedAccount,
+) -> Result<Box<MintProof>> {
     let (key, _) = Pubkey::find_program_address(
         &[
             b"mint_proof".as_ref(),
             nft_mint.key().as_ref(),
             whitelist.key().as_ref(),
         ],
-        program_id,
+        &tensor_whitelist::ID,
     );
-    if key != *mint_proof.to_account_info().key {
+    if key != *mint_proof.key {
         throw_err!(BadMintProof);
     }
     // Check program owner (redundant because of find_program_address above, but why not).
-    if *mint_proof.owner != *program_id {
+    if *mint_proof.owner != tensor_whitelist::ID {
         throw_err!(BadMintProof);
     }
 
-    Account::try_from(&mint_proof.to_account_info())
+    let mut data: &[u8] = &mint_proof.try_borrow_data()?;
+    let mint_proof: Box<MintProof> = Box::new(AccountDeserialize::try_deserialize(&mut data)?);
+    Ok(mint_proof)
 }
 
 #[inline(never)]
-pub fn verify_whitelist<'info>(
-    whitelist: &Account<'info, Whitelist>,
-    mint_proof: &UncheckedAccount<'info>,
-    nft_mint: &Account<'info, Mint>,
-    nft_metadata: &UncheckedAccount<'info>,
+pub fn verify_whitelist(
+    whitelist: &Account<Whitelist>,
+    mint_proof: &UncheckedAccount,
+    nft_mint: &Account<Mint>,
+    nft_metadata: &UncheckedAccount,
 ) -> Result<()> {
     //prioritize merkle tree if proof present
     if whitelist.root_hash != ZERO_ARRAY {

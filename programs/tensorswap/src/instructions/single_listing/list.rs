@@ -165,7 +165,7 @@ pub fn handler<'info>(
     listing.owner = ctx.accounts.owner.key();
     listing.nft_mint = ctx.accounts.nft_mint.key();
     listing.price = price;
-    listing.bump = [unwrap_bump!(ctx, "single_listing")];
+    listing.bump = [ctx.bumps.single_listing];
 
     Ok(())
 }

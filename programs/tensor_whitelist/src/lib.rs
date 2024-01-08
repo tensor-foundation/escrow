@@ -46,7 +46,7 @@ pub mod tensor_whitelist {
             throw_err!(BadOwner);
         }
 
-        authority.bump = *ctx.bumps.get("whitelist_authority").unwrap();
+        authority.bump = ctx.bumps.whitelist_authority;
 
         if let Some(new_cosigner) = new_cosigner {
             authority.cosigner = new_cosigner;
@@ -82,7 +82,7 @@ pub mod tensor_whitelist {
         }
 
         whitelist.version = CURRENT_WHITELIST_VERSION;
-        whitelist.bump = *ctx.bumps.get("whitelist").unwrap();
+        whitelist.bump = ctx.bumps.whitelist;
         // TODO: temp feature since for now we're keeping WL permissioned
         whitelist.verified = true;
         // set uuid (won't change after initialization)
@@ -610,13 +610,12 @@ pub enum ErrorCode {
 }
 
 #[inline(never)]
-pub fn assert_decode_whitelist<'info>(
-    whitelist_info: &AccountInfo<'info>,
-) -> Result<Account<'info, Whitelist>> {
-    let whitelist: Account<'info, Whitelist> = Account::try_from(whitelist_info)?;
+pub fn assert_decode_whitelist(whitelist_info: &UncheckedAccount) -> Result<Whitelist> {
+    let mut data: &[u8] = &(*whitelist_info.data).borrow();
+    let whitelist = Whitelist::deserialize(&mut data)?;
 
     let (key, _) = Pubkey::find_program_address(&[&whitelist.uuid], &crate::id());
-    if key != *whitelist.to_account_info().key {
+    if key != *whitelist_info.key {
         throw_err!(BadWhitelist);
     }
     // Check account owner (redundant because of find_program_address above, but why not).

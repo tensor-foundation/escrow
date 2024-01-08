@@ -60,7 +60,7 @@ pub mod tensor_bid {
         //safe to assume mint and bidder won't change on successive calls since bid_state is derived using both
         bid_state.nft_mint = ctx.accounts.nft_mint.key();
         bid_state.bidder = ctx.accounts.bidder.key();
-        bid_state.bump = [unwrap_bump!(ctx, "bid_state")];
+        bid_state.bump = [ctx.bumps.bid_state];
         bid_state.margin = None; //overwritten below if margin present
         bid_state.updated_at = Clock::get()?.unix_timestamp;
 
@@ -86,9 +86,8 @@ pub mod tensor_bid {
         });
 
         //transfer lamports
-        let margin_account_info = &ctx.accounts.margin_account.to_account_info();
         let margin_account_result = assert_decode_margin_account(
-            margin_account_info,
+            &ctx.accounts.margin_account,
             &ctx.accounts.bidder.to_account_info(),
         );
 
@@ -98,7 +97,7 @@ pub mod tensor_bid {
                 if margin_account.owner != *ctx.accounts.bidder.key {
                     throw_err!(BadMargin);
                 }
-                bid_state.margin = Some(margin_account_info.key());
+                bid_state.margin = Some(ctx.accounts.margin_account.key());
                 //transfer any existing balance back to user (this is in case they're editing an existing non-marginated bid)
                 let bid_rent = Rent::get()?
                     .minimum_balance(ctx.accounts.bid_state.to_account_info().data_len());
@@ -180,7 +179,7 @@ pub mod tensor_bid {
                 source_ata: &ctx.accounts.nft_seller_acc,
                 dest_ata: &ctx.accounts.nft_temp_acc, //<- send to escrow first
                 dest_owner: &ctx.accounts.bid_state.to_account_info(),
-                nft_mint: &ctx.accounts.nft_mint,
+                nft_mint: &ctx.accounts.nft_mint.to_account_info(),
                 nft_metadata: &ctx.accounts.nft_metadata,
                 nft_edition: &ctx.accounts.nft_edition,
                 system_program: &ctx.accounts.system_program,
@@ -207,7 +206,7 @@ pub mod tensor_bid {
                 source_ata: &ctx.accounts.nft_temp_acc,
                 dest_ata: &ctx.accounts.nft_bidder_acc,
                 dest_owner: &ctx.accounts.bidder.to_account_info(),
-                nft_mint: &ctx.accounts.nft_mint,
+                nft_mint: &ctx.accounts.nft_mint.to_account_info(),
                 nft_metadata: &ctx.accounts.nft_metadata,
                 nft_edition: &ctx.accounts.nft_edition,
                 system_program: &ctx.accounts.system_program,
@@ -257,7 +256,10 @@ pub mod tensor_bid {
 
         // --------------------------------------- end pnft transfer
 
-        let metadata = &assert_decode_metadata(&ctx.accounts.nft_mint, &ctx.accounts.nft_metadata)?;
+        let metadata = &assert_decode_metadata(
+            &ctx.accounts.nft_mint.to_account_info(),
+            &ctx.accounts.nft_metadata,
+        )?;
 
         let Fees {
             tswap_fee,
@@ -292,16 +294,15 @@ pub mod tensor_bid {
 
         //if margin is used, move money into bid first
         if let Some(margin) = bid_state.margin {
-            let margin_account_info = &ctx.accounts.margin_account.to_account_info();
             let margin_account = assert_decode_margin_account(
-                margin_account_info,
+                &ctx.accounts.margin_account,
                 &ctx.accounts.bidder.to_account_info(),
             )?;
             //doesn't hurt to check again
             if margin_account.owner != *ctx.accounts.bidder.key {
                 throw_err!(BadMargin);
             }
-            if *margin_account_info.key != margin {
+            if *ctx.accounts.margin_account.key != margin {
                 throw_err!(BadMargin);
             }
 
@@ -310,7 +311,7 @@ pub mod tensor_bid {
                     ctx.accounts.tensorswap_program.to_account_info(),
                     tensorswap::cpi::accounts::WithdrawMarginAccountCpi {
                         tswap: ctx.accounts.tswap.to_account_info(),
-                        margin_account: margin_account_info.clone(),
+                        margin_account: ctx.accounts.margin_account.to_account_info(),
                         bid_state: ctx.accounts.bid_state.to_account_info(),
                         owner: ctx.accounts.bidder.to_account_info(),
                         nft_mint: ctx.accounts.nft_mint.to_account_info(),
@@ -466,16 +467,8 @@ pub struct TakeBid<'info> {
         token::mint = nft_mint, token::authority = bid_state,
     )]
     pub nft_temp_acc: Box<Account<'info, TokenAccount>>,
-    /// CHECK: assert_decode_metadata + seeds below
-    #[account(mut,
-        seeds=[
-            mpl_token_metadata::accounts::Metadata::PREFIX,
-            mpl_token_metadata::ID.as_ref(),
-            nft_mint.key().as_ref(),
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+    /// CHECK: assert_decode_metadata check seeds
+    #[account(mut)]
     pub nft_metadata: UncheckedAccount<'info>,
 
     #[account(
@@ -498,8 +491,8 @@ pub struct TakeBid<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
-    //note that MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
-    /// CHECK: seeds below
+    // Note: MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
+    /// CHECK: seeds checked below
     #[account(
         seeds=[
             mpl_token_metadata::accounts::MasterEdition::PREFIX.0,
@@ -511,7 +504,7 @@ pub struct TakeBid<'info> {
         bump
     )]
     pub nft_edition: UncheckedAccount<'info>,
-    /// CHECK: seeds below
+    /// CHECK: seeds checked below
     #[account(mut,
         seeds=[
             mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
@@ -524,7 +517,7 @@ pub struct TakeBid<'info> {
         bump
     )]
     pub seller_token_record: UncheckedAccount<'info>,
-    /// CHECK: seeds below
+    /// CHECK: seeds checked below
     #[account(mut,
         seeds=[
             mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
@@ -537,7 +530,7 @@ pub struct TakeBid<'info> {
         bump
     )]
     pub bidder_token_record: UncheckedAccount<'info>,
-    /// CHECK: seeds below
+    /// CHECK: seeds checked below
     #[account(mut,
         seeds=[
             mpl_token_metadata::accounts::TokenRecord::PREFIX.0,

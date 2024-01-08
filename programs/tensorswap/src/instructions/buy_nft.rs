@@ -64,16 +64,8 @@ pub struct BuyNft<'info> {
     )]
     pub nft_mint: Box<Account<'info, Mint>>,
 
-    /// CHECK: assert_decode_metadata + seeds below
-    #[account(mut,
-        seeds=[
-            mpl_token_metadata::accounts::Metadata::PREFIX,
-            mpl_token_metadata::ID.as_ref(),
-            nft_mint.key().as_ref(),
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+    /// CHECK: assert_decode_metadata check seeds
+    #[account(mut)]
     pub nft_metadata: UncheckedAccount<'info>,
 
     /// Implicitly checked via transfer. Will fail if wrong account.
@@ -314,15 +306,14 @@ pub fn handler<'info, 'b>(
         // NB: no explicit MM fees here: that's because it goes directly to the escrow anyways.
         PoolType::Trade => match &pool.margin {
             Some(stored_margin_account) => {
-                let margin_account_info = &ctx.accounts.margin_account.to_account_info();
                 assert_decode_margin_account(
-                    margin_account_info,
+                    &ctx.accounts.margin_account,
                     &ctx.accounts.owner.to_account_info(),
                 )?;
-                if *margin_account_info.key != *stored_margin_account {
+                if *ctx.accounts.margin_account.key != *stored_margin_account {
                     throw_err!(BadMargin);
                 }
-                margin_account_info.clone()
+                ctx.accounts.margin_account.to_account_info()
             }
             None => ctx.accounts.sol_escrow.to_account_info(),
         },

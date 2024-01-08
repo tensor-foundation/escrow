@@ -183,8 +183,8 @@ pub fn handler(
     let old_pool = &ctx.accounts.old_pool;
 
     new_pool.version = CURRENT_POOL_VERSION;
-    new_pool.bump = [unwrap_bump!(ctx, "new_pool")];
-    new_pool.sol_escrow_bump = [unwrap_bump!(ctx, "new_sol_escrow")];
+    new_pool.bump = [ctx.bumps.new_pool];
+    new_pool.sol_escrow_bump = [ctx.bumps.new_sol_escrow];
     new_pool.created_unix_seconds = old_pool.created_unix_seconds;
     new_pool.config = new_config;
 

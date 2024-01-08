@@ -185,8 +185,8 @@ impl<'info> Validate<'info> for DepositNft<'info> {
 }
 
 #[access_control(ctx.accounts.verify_whitelist(); ctx.accounts.validate())]
-pub fn handler<'info>(
-    ctx: Context<'_, '_, '_, 'info, DepositNft<'info>>,
+pub fn handler(
+    ctx: Context<DepositNft>,
     authorization_data: Option<AuthorizationDataLocal>,
     rules_acc_present: bool,
 ) -> Result<()> {
@@ -228,7 +228,7 @@ pub fn handler<'info>(
 
     //create nft receipt
     let receipt = &mut ctx.accounts.nft_receipt;
-    receipt.bump = *ctx.bumps.get("nft_receipt").unwrap();
+    receipt.bump = ctx.bumps.nft_receipt;
     receipt.nft_authority = pool.nft_authority;
     receipt.nft_mint = ctx.accounts.nft_mint.key();
     receipt.nft_escrow = ctx.accounts.nft_escrow.key();

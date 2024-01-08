@@ -42,7 +42,7 @@ pub fn handler(ctx: Context<InitMarginAccount>, margin_nr: u16, name: [u8; 32]) 
     margin.owner = ctx.accounts.owner.key();
     margin.name = name;
     margin.nr = margin_nr;
-    margin.bump = [unwrap_bump!(ctx, "margin_account")];
+    margin.bump = [ctx.bumps.margin_account];
 
     Ok(())
 }
