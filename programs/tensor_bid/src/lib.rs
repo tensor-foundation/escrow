@@ -179,7 +179,7 @@ pub mod tensor_bid {
                 source_ata: &ctx.accounts.nft_seller_acc,
                 dest_ata: &ctx.accounts.nft_temp_acc, //<- send to escrow first
                 dest_owner: &ctx.accounts.bid_state.to_account_info(),
-                nft_mint: &ctx.accounts.nft_mint.to_account_info(),
+                nft_mint: &ctx.accounts.nft_mint,
                 nft_metadata: &ctx.accounts.nft_metadata,
                 nft_edition: &ctx.accounts.nft_edition,
                 system_program: &ctx.accounts.system_program,
@@ -206,7 +206,7 @@ pub mod tensor_bid {
                 source_ata: &ctx.accounts.nft_temp_acc,
                 dest_ata: &ctx.accounts.nft_bidder_acc,
                 dest_owner: &ctx.accounts.bidder.to_account_info(),
-                nft_mint: &ctx.accounts.nft_mint.to_account_info(),
+                nft_mint: &ctx.accounts.nft_mint,
                 nft_metadata: &ctx.accounts.nft_metadata,
                 nft_edition: &ctx.accounts.nft_edition,
                 system_program: &ctx.accounts.system_program,
@@ -257,7 +257,7 @@ pub mod tensor_bid {
         // --------------------------------------- end pnft transfer
 
         let metadata = &assert_decode_metadata(
-            &ctx.accounts.nft_mint.to_account_info(),
+            ctx.accounts.nft_mint.as_key_ref(),
             &ctx.accounts.nft_metadata,
         )?;
 

@@ -185,7 +185,10 @@ pub fn handler<'info, 'b>(
 ) -> Result<()> {
     let single_listing = &ctx.accounts.single_listing;
 
-    let metadata = &assert_decode_metadata(&ctx.accounts.nft_mint, &ctx.accounts.nft_metadata)?;
+    let metadata = &assert_decode_metadata(
+        ctx.accounts.nft_mint.as_key_ref(),
+        &ctx.accounts.nft_metadata,
+    )?;
 
     let current_price = single_listing.price;
     let Fees {

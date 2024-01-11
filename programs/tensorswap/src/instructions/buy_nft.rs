@@ -231,8 +231,10 @@ pub fn handler<'info, 'b>(
     optional_royalty_pct: Option<u16>,
 ) -> Result<()> {
     let pool = &ctx.accounts.pool;
-
-    let metadata = &assert_decode_metadata(&ctx.accounts.nft_mint, &ctx.accounts.nft_metadata)?;
+    let metadata = &assert_decode_metadata(
+        ctx.accounts.nft_mint.as_key_ref(),
+        &ctx.accounts.nft_metadata,
+    )?;
 
     let current_price = pool.current_price(TakerSide::Buy)?;
     let Fees {

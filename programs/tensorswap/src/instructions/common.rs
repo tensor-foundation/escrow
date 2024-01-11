@@ -100,7 +100,7 @@ pub fn verify_whitelist(
             }),
         )
     } else {
-        let metadata = &assert_decode_metadata(nft_mint, nft_metadata)?;
+        let metadata = &assert_decode_metadata(nft_mint.as_key_ref(), nft_metadata)?;
         whitelist.verify_whitelist(Some(metadata), None)
     }
 }

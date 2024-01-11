@@ -1458,15 +1458,7 @@ dependencies = [
 [[package]]
 name = "merkle_proof"
 version = "0.1.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=4c763592a6d70557b7dece7557acb5f721fcbd1f#4c763592a6d70557b7dece7557acb5f721fcbd1f"
-dependencies = [
- "anchor-lang 0.29.0",
-]
-
-[[package]]
-name = "merkle_proof"
-version = "0.1.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400#f1d3ddd3847c05005550514c891e8edaaa9ab400"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=154a36a8bbc485b882da6b6a8f11838b60c67c82#154a36a8bbc485b882da6b6a8f11838b60c67c82"
 dependencies = [
  "anchor-lang 0.29.0",
 ]
@@ -2549,19 +2541,19 @@ version = "1.0.0"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",
- "merkle_proof 0.1.0 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=4c763592a6d70557b7dece7557acb5f721fcbd1f)",
+ "merkle_proof",
  "mpl-token-metadata",
  "spl-math",
  "static_assertions",
- "tensor_nft 0.3.0 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=4c763592a6d70557b7dece7557acb5f721fcbd1f)",
+ "tensor_nft",
  "tensorswap",
- "vipers 2.0.6 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=4c763592a6d70557b7dece7557acb5f721fcbd1f)",
+ "vipers",
 ]
 
 [[package]]
 name = "tensor_nft"
 version = "0.3.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=4c763592a6d70557b7dece7557acb5f721fcbd1f#4c763592a6d70557b7dece7557acb5f721fcbd1f"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=154a36a8bbc485b882da6b6a8f11838b60c67c82#154a36a8bbc485b882da6b6a8f11838b60c67c82"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",
@@ -2569,21 +2561,7 @@ dependencies = [
  "mpl-token-metadata",
  "spl-account-compression",
  "spl-noop",
- "vipers 2.0.6 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=4c763592a6d70557b7dece7557acb5f721fcbd1f)",
-]
-
-[[package]]
-name = "tensor_nft"
-version = "0.3.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400#f1d3ddd3847c05005550514c891e8edaaa9ab400"
-dependencies = [
- "anchor-lang 0.29.0",
- "anchor-spl",
- "mpl-bubblegum",
- "mpl-token-metadata",
- "spl-account-compression",
- "spl-noop",
- "vipers 2.0.6 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400)",
+ "vipers",
 ]
 
 [[package]]
@@ -2592,9 +2570,9 @@ version = "0.2.1"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",
- "merkle_proof 0.1.0 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400)",
+ "merkle_proof",
  "mpl-token-metadata",
- "vipers 2.0.6 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400)",
+ "vipers",
 ]
 
 [[package]]
@@ -2603,13 +2581,13 @@ version = "3.0.1"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",
- "merkle_proof 0.1.0 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400)",
+ "merkle_proof",
  "mpl-token-metadata",
  "spl-math",
  "static_assertions",
- "tensor_nft 0.3.0 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400)",
+ "tensor_nft",
  "tensor_whitelist",
- "vipers 2.0.6 (git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400)",
+ "vipers",
 ]
 
 [[package]]
@@ -2758,17 +2736,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vipers"
 version = "2.0.6"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=4c763592a6d70557b7dece7557acb5f721fcbd1f#4c763592a6d70557b7dece7557acb5f721fcbd1f"
-dependencies = [
- "anchor-lang 0.29.0",
- "anchor-spl",
- "num-traits",
-]
-
-[[package]]
-name = "vipers"
-version = "2.0.6"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=f1d3ddd3847c05005550514c891e8edaaa9ab400#f1d3ddd3847c05005550514c891e8edaaa9ab400"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=154a36a8bbc485b882da6b6a8f11838b60c67c82#154a36a8bbc485b882da6b6a8f11838b60c67c82"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",

@@ -142,7 +142,6 @@ pub fn handler<'a, 'b, 'c, 'info>(
     } else {
         None
     };
-
     send_pnft(
         None,
         PnftTransferArgs {
@@ -169,7 +168,7 @@ pub fn handler<'a, 'b, 'c, 'info>(
     )?;
 
     let metadata = &assert_decode_metadata(
-        &ctx.accounts.shared.nft_mint,
+        ctx.accounts.shared.nft_mint.as_key_ref(),
         &ctx.accounts.shared.nft_metadata,
     )?;
 
