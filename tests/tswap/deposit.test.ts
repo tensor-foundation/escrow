@@ -258,7 +258,6 @@ describe("tswap deposits", () => {
       ata,
       whitelist,
       nftMint: mint,
-      nftMetadata: metadata,
     });
   });
 
@@ -297,7 +296,6 @@ describe("tswap deposits", () => {
       ata,
       whitelist,
       nftMint: mint,
-      nftMetadata: metadata,
     });
   });
 
@@ -337,7 +335,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint,
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith("0x1777");
   });
@@ -373,7 +370,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint,
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith("0x1777");
   });
@@ -403,7 +399,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint,
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith("0x1777");
   });
@@ -439,7 +434,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint,
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith("0x1777");
   });
@@ -471,7 +465,6 @@ describe("tswap deposits", () => {
       ata,
       whitelist,
       nftMint: mint,
-      nftMetadata: metadata,
     });
   });
 
@@ -501,7 +494,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint,
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith("0x1776");
   });
@@ -530,7 +522,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint,
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith("0x1776");
   });
@@ -562,7 +553,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint,
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith("0x1776");
   });
@@ -600,7 +590,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint, //<-- don't pass in merkle proof
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadMintProof"));
 
@@ -612,7 +601,6 @@ describe("tswap deposits", () => {
       ata,
       whitelist,
       wlNft, //<-- correctly pass in merkle proof
-      nftMetadata: metadata,
     });
   });
 
@@ -653,7 +641,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint, //<-- don't pass in merkle proof
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadMintProof"));
 
@@ -665,7 +652,6 @@ describe("tswap deposits", () => {
       ata,
       whitelist,
       wlNft, //<-- correctly pass in merkle proof
-      nftMetadata: metadata,
     });
   });
 
@@ -709,7 +695,6 @@ describe("tswap deposits", () => {
         ata,
         whitelist,
         nftMint: mint, //<-- don't pass in merkle proof
-        nftMetadata: metadata,
       })
     ).to.be.rejectedWith(swapSdk.getErrorCodeHex("BadMintProof"));
 
@@ -721,7 +706,6 @@ describe("tswap deposits", () => {
       ata,
       whitelist,
       wlNft, //<-- correctly pass in merkle proof
-      nftMetadata: metadata,
     });
   });
 

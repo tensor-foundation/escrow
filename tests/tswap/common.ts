@@ -55,7 +55,8 @@ import {
   TAKER_BROKER_PCT,
   TensorWhitelistSDK,
   TSwapConfigAnchor,
-  TSWAP_TAKER_FEE_BPS, MAKER_REBATE_BPS,
+  TSWAP_TAKER_FEE_BPS,
+  MAKER_REBATE_BPS,
 } from "../../src";
 import {
   ACCT_NOT_EXISTS_ERR,
@@ -1154,7 +1155,6 @@ export const testDepositNft = async ({
   wlNft,
   nftMint,
   whitelist,
-  nftMetadata,
   skipPoolAccounting = false,
 }: {
   pool: PublicKey;
@@ -1165,7 +1165,6 @@ export const testDepositNft = async ({
   wlNft?: WhitelistedNft;
   nftMint?: PublicKey;
   whitelist: PublicKey;
-  nftMetadata?: PublicKey;
   skipPoolAccounting?: boolean;
 }) => {
   if (!wlNft?.mint && !nftMint) {
@@ -1194,12 +1193,6 @@ export const testDepositNft = async ({
     nftSource: ata,
     owner: owner.publicKey,
     config,
-    metaCreators: nftMetadata
-      ? {
-          metadata: nftMetadata,
-          creators: [],
-        }
-      : undefined,
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
 
