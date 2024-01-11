@@ -1,7 +1,7 @@
 #![allow(unknown_lints)] //needed otherwise complains during github actions
 #![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
 
-use anchor_lang::prelude::{borsh::BorshDeserialize, *};
+use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 use mpl_token_metadata::{
     accounts::Metadata,
@@ -21,6 +21,7 @@ pub const ZERO_ARRAY: [u8; 32] = [0; 32];
 
 #[program]
 pub mod tensor_whitelist {
+
     use super::*;
 
     // TODO: naive - move to current/pending authority later
@@ -74,7 +75,7 @@ pub mod tensor_whitelist {
         //handle frozen whitelists - only updatable if owner signs off
         if whitelist.frozen {
             //will fail if extra acc not passed
-            let owner = next_account_info(iter).map_err(|_| ErrorCode::BadOwner)?;
+            let owner = next_account_info(iter).map_err(|_| crate::ErrorCode::BadOwner)?;
             //since passed in as optional acc, verify both 1)is signer and 2)is correct auth
             if !owner.is_signer || auth.owner != *owner.key {
                 throw_err!(BadOwner);
@@ -133,7 +134,7 @@ pub mod tensor_whitelist {
 
         require!(
             merkle_proof::verify_proof(proof.to_vec(), ctx.accounts.whitelist.root_hash, leaf.0),
-            ErrorCode::FailedMerkleProofVerification,
+            crate::ErrorCode::FailedMerkleProofVerification,
         );
 
         // Upsert proof into the MintProof account.
@@ -611,8 +612,8 @@ pub enum ErrorCode {
 
 #[inline(never)]
 pub fn assert_decode_whitelist(whitelist_info: &UncheckedAccount) -> Result<Whitelist> {
-    let mut data: &[u8] = &(*whitelist_info.data).borrow();
-    let whitelist = Whitelist::deserialize(&mut data)?;
+    let mut data: &[u8] = &whitelist_info.try_borrow_data()?;
+    let whitelist: Whitelist = AccountDeserialize::try_deserialize(&mut data)?;
 
     let (key, _) = Pubkey::find_program_address(&[&whitelist.uuid], &crate::id());
     if key != *whitelist_info.key {
