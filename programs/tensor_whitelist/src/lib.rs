@@ -611,16 +611,16 @@ pub enum ErrorCode {
 }
 
 #[inline(never)]
-pub fn assert_decode_whitelist(whitelist_info: &UncheckedAccount) -> Result<Whitelist> {
+pub fn assert_decode_whitelist(whitelist_info: &AccountInfo) -> Result<Whitelist> {
     let mut data: &[u8] = &whitelist_info.try_borrow_data()?;
     let whitelist: Whitelist = AccountDeserialize::try_deserialize(&mut data)?;
 
-    let (key, _) = Pubkey::find_program_address(&[&whitelist.uuid], &crate::id());
+    let (key, _) = Pubkey::find_program_address(&[&whitelist.uuid], &crate::ID);
     if key != *whitelist_info.key {
         throw_err!(BadWhitelist);
     }
     // Check account owner (redundant because of find_program_address above, but why not).
-    if *whitelist_info.owner != crate::id() {
+    if *whitelist_info.owner != crate::ID {
         throw_err!(BadWhitelist);
     }
 
