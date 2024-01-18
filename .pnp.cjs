@@ -55,7 +55,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["jsbi", "npm:4.3.0"],\
             ["keccak256", "npm:1.0.6"],\
             ["math-expression-evaluator", "npm:2.0.4"],\
-            ["merkletreejs", "npm:0.2.32"],\
+            ["merkletreejs", "npm:0.3.11"],\
             ["mocha", "npm:10.2.0"],\
             ["prettier", "npm:2.8.1"],\
             ["ts-mocha", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:10.0.0"],\
@@ -739,7 +739,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["jsbi", "npm:4.3.0"],\
             ["keccak256", "npm:1.0.6"],\
             ["math-expression-evaluator", "npm:2.0.4"],\
-            ["merkletreejs", "npm:0.2.32"],\
+            ["merkletreejs", "npm:0.3.11"],\
             ["mocha", "npm:10.2.0"],\
             ["prettier", "npm:2.8.1"],\
             ["ts-mocha", "virtual:d6a588660284b0af257650b1b59e61cde2d0238c756516842955d12544d9a0e90c39460b7cbe6345fbe425a63caad2e5d381f322c2099f7d954bca3ad94d025b#npm:10.0.0"],\
@@ -1841,10 +1841,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["crypto-js", [\
-        ["npm:3.3.0", {\
-          "packageLocation": "./.yarn/cache/crypto-js-npm-3.3.0-5b307000b5-193923143a.zip/node_modules/crypto-js/",\
+        ["npm:4.2.0", {\
+          "packageLocation": "./.yarn/cache/crypto-js-npm-4.2.0-d6f7744e63-f051666dbc.zip/node_modules/crypto-js/",\
           "packageDependencies": [\
-            ["crypto-js", "npm:3.3.0"]\
+            ["crypto-js", "npm:4.2.0"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -3061,13 +3061,13 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["merkletreejs", [\
-        ["npm:0.2.32", {\
-          "packageLocation": "./.yarn/cache/merkletreejs-npm-0.2.32-79a2b236fc-041b235add.zip/node_modules/merkletreejs/",\
+        ["npm:0.3.11", {\
+          "packageLocation": "./.yarn/cache/merkletreejs-npm-0.3.11-c6b9783f39-93edb8ec66.zip/node_modules/merkletreejs/",\
           "packageDependencies": [\
-            ["merkletreejs", "npm:0.2.32"],\
+            ["merkletreejs", "npm:0.3.11"],\
             ["bignumber.js", "npm:9.1.1"],\
             ["buffer-reverse", "npm:1.0.1"],\
-            ["crypto-js", "npm:3.3.0"],\
+            ["crypto-js", "npm:4.2.0"],\
             ["treeify", "npm:1.1.0"],\
             ["web3-utils", "npm:1.8.1"]\
           ],\

@@ -558,7 +558,7 @@ __metadata:
     jsbi: ^4.1.0
     keccak256: ^1.0.6
     math-expression-evaluator: ^2.0.4
-    merkletreejs: ^0.2.32
+    merkletreejs: ^0.3.11
     mocha: ^10.0.0
     prettier: ^2.5.1
     ts-mocha: ^10.0.0
@@ -1503,10 +1503,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"crypto-js@npm:^3.1.9-1":
-  version: 3.3.0
-  resolution: "crypto-js@npm:3.3.0"
-  checksum: 193923143a4784b2f974366068d96fe8280168fd3fef2bfea9551a5c3e32096f5a8fa49ff4eeb5bd0b9716d325618d38cfbe6125e359a4ef488fbca93e600824
+"crypto-js@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "crypto-js@npm:4.2.0"
+  checksum: f051666dbc077c8324777f44fbd3aaea2986f198fe85092535130d17026c7c2ccf2d23ee5b29b36f7a4a07312db2fae23c9094b644cc35f7858b1b4fcaf27774
   languageName: node
   linkType: hard
 
@@ -2545,16 +2545,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"merkletreejs@npm:^0.2.32":
-  version: 0.2.32
-  resolution: "merkletreejs@npm:0.2.32"
+"merkletreejs@npm:^0.3.11":
+  version: 0.3.11
+  resolution: "merkletreejs@npm:0.3.11"
   dependencies:
     bignumber.js: ^9.0.1
     buffer-reverse: ^1.0.1
-    crypto-js: ^3.1.9-1
+    crypto-js: ^4.2.0
     treeify: ^1.1.0
     web3-utils: ^1.3.4
-  checksum: 041b235adde94de584fdf5ef60138baca8d6f16bb48b3b7f714b607eaa76e4207ed5fef501ee5967371c56c5876804c4ff6da4705707f8cc0362d5c1e0358425
+  checksum: 93edb8ec66aa6c9f59aa0902e675590e3791692893bb3e8c1018f758367ded1bf7d6b1057ccde3729b283ca946a316838a631a922960b76889b3be528c43ef4e
   languageName: node
   linkType: hard
 
