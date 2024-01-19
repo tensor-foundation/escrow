@@ -498,7 +498,7 @@ export class TensorWhitelistSDK {
     const allProofs = tree.getProofs();
 
     // This assumes proofs indices align with mints indices (which appears to be the case).
-    const proofs = sortedLeafMintPairs.map((val, index) => {
+    const proofs: { mint: PublicKey; proof: Buffer[] }[] = sortedLeafMintPairs.map((val, index) => {
       const proof = allProofs[index];
       const mint = val.mint;
 
@@ -506,7 +506,9 @@ export class TensorWhitelistSDK {
         throw new Error(`Invalid proof for mint at index ${index}`);
       }
 
-      return { mint, proof };
+      const validProof: Buffer[] = proof.map((p) => p.data);
+
+      return { mint, proof: validProof };
     });
 
     return { tree, root: tree.getRoot().toJSON().data, proofs };
