@@ -2,7 +2,7 @@
 #![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
 
 use anchor_lang::prelude::*;
-use anchor_spl::token::Mint;
+use anchor_spl::token_interface::Mint;
 use mpl_token_metadata::{
     accounts::Metadata,
     types::{Collection, Creator},
@@ -234,7 +234,7 @@ pub struct InitUpdateMintProof<'info> {
     )]
     pub whitelist: Box<Account<'info, Whitelist>>,
 
-    pub mint: Box<Account<'info, Mint>>,
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     // Seed derived from mint + whitelist addresses.
     #[account(

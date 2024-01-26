@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anchor_spl::token::Mint;
+use anchor_spl::token_interface::Mint;
 
 use crate::*;
 
@@ -91,7 +91,7 @@ pub struct WithdrawMarginAccountCpi<'info> {
     pub owner: UncheckedAccount<'info>,
 
     /// CHECK: seeds in bid_state
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: can only be passed in by TBID, since it has to sign off with bid pda
     #[account(mut)]

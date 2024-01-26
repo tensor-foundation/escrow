@@ -1,7 +1,7 @@
 use anchor_lang::solana_program::{program::invoke, system_instruction};
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, CloseAccount, Mint, Token, TokenAccount},
+    token_interface::{self, CloseAccount, Mint, TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
 use vipers::throw_err;
@@ -39,13 +39,13 @@ pub struct BuySingleListing<'info> {
         associated_token::mint = nft_mint,
         associated_token::authority = buyer,
     )]
-    pub nft_buyer_acc: Box<Account<'info, TokenAccount>>,
+    pub nft_buyer_acc: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
         constraint = nft_mint.key() == single_listing.nft_mint @ crate::ErrorCode::WrongMint,
     )]
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: assert_decode_metadata + seeds below
     #[account(mut,
@@ -70,7 +70,7 @@ pub struct BuySingleListing<'info> {
         bump,
         token::mint = nft_mint, token::authority = tswap
     )]
-    pub nft_escrow: Box<Account<'info, TokenAccount>>,
+    pub nft_escrow: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// CHECK: has_one = owner in single_listing (owner is the seller)
     #[account(mut)]
@@ -79,7 +79,7 @@ pub struct BuySingleListing<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -185,10 +185,8 @@ pub fn handler<'info, 'b>(
 ) -> Result<()> {
     let single_listing = &ctx.accounts.single_listing;
 
-    let metadata = &assert_decode_metadata(
-        ctx.accounts.nft_mint.as_key_ref(),
-        &ctx.accounts.nft_metadata,
-    )?;
+    let metadata =
+        &assert_decode_metadata(&ctx.accounts.nft_mint.key(), &ctx.accounts.nft_metadata)?;
 
     let current_price = single_listing.price;
     let Fees {
@@ -252,8 +250,7 @@ pub fn handler<'info, 'b>(
             dest_token_record: &ctx.accounts.dest_token_record,
             authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
             rules_acc: auth_rules,
-            authorization_data: authorization_data
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            authorization_data: authorization_data.map(AuthorizationData::from),
             delegate: None,
         },
     )?;
@@ -284,7 +281,7 @@ pub fn handler<'info, 'b>(
         .transfer_lamports(&ctx.accounts.owner.to_account_info(), current_price)?;
 
     // close nft escrow account
-    token::close_account(
+    token_interface::close_account(
         ctx.accounts
             .close_nft_escrow_ctx()
             .with_signer(&[&ctx.accounts.tswap.seeds()]),

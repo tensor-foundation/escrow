@@ -1,6 +1,6 @@
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, CloseAccount, Mint, Token, TokenAccount},
+    token_interface::{self, CloseAccount, Mint, TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
 
@@ -19,13 +19,13 @@ pub struct Delist<'info> {
         associated_token::mint = nft_mint,
         associated_token::authority = owner,
     )]
-    pub nft_dest: Box<Account<'info, TokenAccount>>,
+    pub nft_dest: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         constraint = nft_mint.key() == nft_escrow.mint @ crate::ErrorCode::WrongMint,
         constraint = nft_mint.key() == single_listing.nft_mint @ crate::ErrorCode::WrongMint,
     )]
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
     /// This is closed below (dest = owner)
@@ -38,7 +38,7 @@ pub struct Delist<'info> {
         bump,
         token::mint = nft_mint, token::authority = tswap,
     )]
-    pub nft_escrow: Box<Account<'info, TokenAccount>>,
+    pub nft_escrow: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(mut,
         seeds=[
@@ -56,7 +56,7 @@ pub struct Delist<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
@@ -174,14 +174,13 @@ pub fn handler<'info>(
             dest_token_record: &ctx.accounts.dest_token_record,
             authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
             rules_acc: auth_rules,
-            authorization_data: authorization_data
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            authorization_data: authorization_data.map(AuthorizationData::from),
             delegate: None,
         },
     )?;
 
     // close nft escrow account
-    token::close_account(
+    token_interface::close_account(
         ctx.accounts
             .close_nft_escrow_ctx()
             .with_signer(&[&ctx.accounts.tswap.seeds()]),

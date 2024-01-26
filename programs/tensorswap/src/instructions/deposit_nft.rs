@@ -2,7 +2,7 @@
 
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount},
+    token_interface::{Mint, TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
 use tensor_whitelist::{self, Whitelist};
@@ -45,10 +45,10 @@ pub struct DepositNft<'info> {
     pub whitelist: Box<Account<'info, Whitelist>>,
 
     #[account(mut, token::mint = nft_mint, token::authority = owner)]
-    pub nft_source: Box<Account<'info, TokenAccount>>,
+    pub nft_source: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// CHECK: seed in nft_escrow & nft_receipt
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// Implicitly checked via transfer. Will fail if wrong account
     #[account(
@@ -61,7 +61,7 @@ pub struct DepositNft<'info> {
         bump,
         token::mint = nft_mint, token::authority = tswap,
     )]
-    pub nft_escrow: Box<Account<'info, TokenAccount>>,
+    pub nft_escrow: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         init, //<-- this HAS to be init, not init_if_needed for safety (else single listings and pool listings can get mixed)
@@ -78,7 +78,7 @@ pub struct DepositNft<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
@@ -216,8 +216,7 @@ pub fn handler(
             dest_token_record: &ctx.accounts.dest_token_record,
             authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
             rules_acc: auth_rules,
-            authorization_data: authorization_data
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            authorization_data: authorization_data.map(AuthorizationData::from),
             delegate: None,
         },
     )?;

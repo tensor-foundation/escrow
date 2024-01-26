@@ -1,8 +1,5 @@
 //! Similar to sell_nft_token_pool, but 1)cosigned by us, 2)doesn't pay royalties, 3)diff fee mechanics
-use anchor_spl::{
-    associated_token::AssociatedToken,
-    token::{Token, TokenAccount},
-};
+use anchor_spl::associated_token::AssociatedToken;
 use vipers::throw_err;
 
 use crate::*;

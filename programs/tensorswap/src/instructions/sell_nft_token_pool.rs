@@ -3,7 +3,7 @@
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, CloseAccount, Token, TokenAccount},
+    token_interface::{self, CloseAccount, TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
 use vipers::throw_err;
@@ -20,9 +20,9 @@ pub struct SellNftTokenPool<'info> {
         associated_token::mint = shared.nft_mint,
         associated_token::authority = shared.owner,
     )]
-    pub owner_ata_acc: Box<Account<'info, TokenAccount>>,
+    pub owner_ata_acc: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -85,7 +85,7 @@ pub struct SellNftTokenPool<'info> {
         bump,
         token::mint = shared.nft_mint, token::authority = shared.tswap,
     )]
-    pub nft_escrow: Box<Account<'info, TokenAccount>>,
+    pub nft_escrow: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// CHECK: seeds below
     #[account(mut,
@@ -191,9 +191,7 @@ pub fn handler<'info>(
             dest_token_record: &ctx.accounts.temp_escrow_token_record,
             authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
             rules_acc: auth_rules,
-            authorization_data: authorization_data
-                .clone()
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            authorization_data: authorization_data.clone().map(AuthorizationData::from),
             delegate: None,
         },
     )?;
@@ -218,14 +216,13 @@ pub fn handler<'info>(
             dest_token_record: &ctx.accounts.dest_token_record,
             authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
             rules_acc: auth_rules,
-            authorization_data: authorization_data
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            authorization_data: authorization_data.map(AuthorizationData::from),
             delegate: None,
         },
     )?;
 
     // close temp nft escrow account, so it's not dangling
-    token::close_account(
+    token_interface::close_account(
         ctx.accounts
             .close_nft_escrow_ctx()
             .with_signer(&[&ctx.accounts.shared.tswap.seeds()]),
@@ -269,7 +266,7 @@ pub fn handler<'info>(
     }
 
     let metadata = &assert_decode_metadata(
-        ctx.accounts.shared.nft_mint.as_key_ref(),
+        &ctx.accounts.shared.nft_mint.key(),
         &ctx.accounts.shared.nft_metadata,
     )?;
 

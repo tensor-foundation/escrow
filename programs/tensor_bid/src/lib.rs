@@ -9,7 +9,7 @@ use anchor_lang::{
 };
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, CloseAccount, Mint, Token, TokenAccount},
+    token_interface::{CloseAccount, Mint, TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::{AuthorizationData, Payload, PayloadType, ProofInfo, SeedsVec};
 use tensor_nft::{
@@ -43,6 +43,7 @@ pub struct ProgNftShared<'info> {
 
 #[program]
 pub mod tensor_bid {
+    use anchor_spl::token_2022;
     use mpl_token_metadata::types::AuthorizationData;
 
     use super::*;
@@ -190,9 +191,7 @@ pub mod tensor_bid {
                 dest_token_record: &ctx.accounts.temp_token_record,
                 authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
                 rules_acc: auth_rules,
-                authorization_data: authorization_data.clone().map(|authorization_data| {
-                    AuthorizationData::try_from(authorization_data).unwrap()
-                }),
+                authorization_data: authorization_data.clone().map(AuthorizationData::from),
                 delegate: None,
             },
         )?;
@@ -217,15 +216,13 @@ pub mod tensor_bid {
                 dest_token_record: &ctx.accounts.bidder_token_record,
                 authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
                 rules_acc: auth_rules,
-                authorization_data: authorization_data.map(|authorization_data| {
-                    AuthorizationData::try_from(authorization_data).unwrap()
-                }),
+                authorization_data: authorization_data.map(AuthorizationData::from),
                 delegate: None,
             },
         )?;
 
         // close temp nft escrow account, so it's not dangling
-        token::close_account(
+        token_2022::close_account(
             ctx.accounts
                 .close_nft_temp_acc_ctx()
                 .with_signer(&[&ctx.accounts.bid_state.seeds()]),
@@ -256,10 +253,8 @@ pub mod tensor_bid {
 
         // --------------------------------------- end pnft transfer
 
-        let metadata = &assert_decode_metadata(
-            ctx.accounts.nft_mint.as_key_ref(),
-            &ctx.accounts.nft_metadata,
-        )?;
+        let metadata =
+            &assert_decode_metadata(&ctx.accounts.nft_mint.key(), &ctx.accounts.nft_metadata)?;
 
         let Fees {
             tswap_fee,
@@ -390,7 +385,7 @@ pub mod tensor_bid {
 
 #[derive(Accounts)]
 pub struct Bid<'info> {
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(init_if_needed,
         payer=bidder,
         seeds=[b"bid_state".as_ref(), bidder.key().as_ref(), nft_mint.key().as_ref()],
@@ -442,20 +437,20 @@ pub struct TakeBid<'info> {
     pub fee_vault: UncheckedAccount<'info>,
 
     /// CHECK: has_one on bid_state
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         init_if_needed,
         payer = seller,
         associated_token::mint = nft_mint,
         associated_token::authority = bidder,
     )]
-    pub nft_bidder_acc: Box<Account<'info, TokenAccount>>,
+    pub nft_bidder_acc: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         token::mint = nft_mint,
         token::authority = seller,
     )]
-    pub nft_seller_acc: Box<Account<'info, TokenAccount>>,
+    pub nft_seller_acc: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         init_if_needed,
         payer = seller,
@@ -466,7 +461,7 @@ pub struct TakeBid<'info> {
         bump,
         token::mint = nft_mint, token::authority = bid_state,
     )]
-    pub nft_temp_acc: Box<Account<'info, TokenAccount>>,
+    pub nft_temp_acc: Box<InterfaceAccount<'info, TokenAccount>>,
     /// CHECK: assert_decode_metadata check seeds
     #[account(mut)]
     pub nft_metadata: UncheckedAccount<'info>,
@@ -486,7 +481,7 @@ pub struct TakeBid<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -574,7 +569,7 @@ impl<'info> TakeBid<'info> {
 #[derive(Accounts)]
 pub struct CancelBid<'info> {
     /// CHECK: has_one on bid_state
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         mut,
         seeds=[b"bid_state".as_ref(), bidder.key().as_ref(), nft_mint.key().as_ref()],
@@ -593,7 +588,7 @@ pub struct CancelBid<'info> {
 #[derive(Accounts)]
 pub struct CloseExpiredBid<'info> {
     /// CHECK: has_one on bid_state
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         mut,
         seeds=[b"bid_state".as_ref(), bidder.key().as_ref(), nft_mint.key().as_ref()],
@@ -703,7 +698,7 @@ impl From<AuthorizationDataLocal> for AuthorizationData {
     fn from(val: AuthorizationDataLocal) -> Self {
         let mut map = HashMap::<String, PayloadType>::new();
         val.payload.into_iter().for_each(|tp| {
-            map.insert(tp.name, PayloadType::try_from(tp.payload).unwrap());
+            map.insert(tp.name, PayloadType::from(tp.payload));
         });
         AuthorizationData {
             payload: Payload { map },
@@ -736,11 +731,9 @@ impl From<PayloadTypeLocal> for PayloadType {
     fn from(val: PayloadTypeLocal) -> Self {
         match val {
             PayloadTypeLocal::Pubkey(pubkey) => PayloadType::Pubkey(pubkey),
-            PayloadTypeLocal::Seeds(seeds) => {
-                PayloadType::Seeds(SeedsVec::try_from(seeds).unwrap())
-            }
+            PayloadTypeLocal::Seeds(seeds) => PayloadType::Seeds(SeedsVec::from(seeds)),
             PayloadTypeLocal::MerkleProof(proof) => {
-                PayloadType::MerkleProof(ProofInfo::try_from(proof).unwrap())
+                PayloadType::MerkleProof(ProofInfo::from(proof))
             }
             PayloadTypeLocal::Number(number) => PayloadType::Number(number),
         }

@@ -3,7 +3,7 @@
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Token, TokenAccount},
+    token_interface::{TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
 use vipers::throw_err;
@@ -25,7 +25,7 @@ pub struct SellNftTradePool<'info> {
         bump,
         token::mint = shared.nft_mint, token::authority = shared.tswap,
     )]
-    pub nft_escrow: Box<Account<'info, TokenAccount>>,
+    pub nft_escrow: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         init,
@@ -39,7 +39,7 @@ pub struct SellNftTradePool<'info> {
     )]
     pub nft_receipt: Box<Account<'info, NftDepositReceipt>>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
@@ -161,14 +161,13 @@ pub fn handler<'a, 'b, 'c, 'info>(
             dest_token_record: &ctx.accounts.dest_token_record,
             authorization_rules_program: &ctx.accounts.pnft_shared.authorization_rules_program,
             rules_acc: auth_rules,
-            authorization_data: authorization_data
-                .map(|authorization_data| AuthorizationData::try_from(authorization_data).unwrap()),
+            authorization_data: authorization_data.map(AuthorizationData::from),
             delegate: None,
         },
     )?;
 
     let metadata = &assert_decode_metadata(
-        ctx.accounts.shared.nft_mint.as_key_ref(),
+        &ctx.accounts.shared.nft_mint.key(),
         &ctx.accounts.shared.nft_metadata,
     )?;
 

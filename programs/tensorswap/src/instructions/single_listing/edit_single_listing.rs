@@ -1,4 +1,4 @@
-use anchor_spl::token::Mint;
+use anchor_spl::token_interface::Mint;
 
 use crate::*;
 
@@ -18,7 +18,7 @@ pub struct EditSingleListing<'info> {
     #[account(
         constraint = nft_mint.key() == single_listing.nft_mint @ crate::ErrorCode::WrongMint,
     )]
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: has_one = owner in single_listing
     #[account()]

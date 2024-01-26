@@ -1,5 +1,5 @@
 use anchor_lang::prelude::Accounts;
-use anchor_spl::token::{Mint, TokenAccount};
+use anchor_spl::token_interface::{Mint, TokenAccount};
 use mpl_token_metadata::{self};
 use tensor_whitelist::{self, FullMerkleProof, MintProof, Whitelist, ZERO_ARRAY};
 use vipers::throw_err;
@@ -55,7 +55,7 @@ pub fn assert_decode_margin_account<'info>(
 #[inline(never)]
 pub fn assert_decode_mint_proof(
     whitelist: &Account<Whitelist>,
-    nft_mint: &Account<Mint>,
+    nft_mint: &InterfaceAccount<Mint>,
     mint_proof: &UncheckedAccount,
 ) -> Result<Box<MintProof>> {
     let (key, _) = Pubkey::find_program_address(
@@ -83,7 +83,7 @@ pub fn assert_decode_mint_proof(
 pub fn verify_whitelist(
     whitelist: &Account<Whitelist>,
     mint_proof: &UncheckedAccount,
-    nft_mint: &Account<Mint>,
+    nft_mint: &InterfaceAccount<Mint>,
     nft_metadata: &UncheckedAccount,
 ) -> Result<()> {
     //prioritize merkle tree if proof present
@@ -100,7 +100,7 @@ pub fn verify_whitelist(
             }),
         )
     } else {
-        let metadata = &assert_decode_metadata(nft_mint.as_key_ref(), nft_metadata)?;
+        let metadata = &assert_decode_metadata(&nft_mint.key(), nft_metadata)?;
         whitelist.verify_whitelist(Some(metadata), None)
     }
 }
@@ -158,10 +158,10 @@ pub struct SellNftShared<'info> {
     pub mint_proof: UncheckedAccount<'info>,
 
     #[account(mut, token::mint = nft_mint, token::authority = seller)]
-    pub nft_seller_acc: Box<Account<'info, TokenAccount>>,
+    pub nft_seller_acc: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// CHECK: whitelist, token::mint in nft_seller_acc, associated_token::mint in owner_ata_acc
-    pub nft_mint: Box<Account<'info, Mint>>,
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
     //can't deserialize directly coz Anchor traits not implemented
     /// CHECK: assert_decode_metadata + seeds below
