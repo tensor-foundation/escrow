@@ -143,7 +143,7 @@ impl<'info> Delist<'info> {
     }
 }
 
-pub fn handler<'info>(
+pub fn process_delist<'info>(
     ctx: Context<'_, '_, '_, 'info, Delist<'info>>,
     authorization_data: Option<AuthorizationDataLocal>,
     rules_acc_present: bool,

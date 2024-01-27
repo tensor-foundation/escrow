@@ -84,7 +84,7 @@ pub fn verify_whitelist(
     whitelist: &Account<Whitelist>,
     mint_proof: &UncheckedAccount,
     nft_mint: &InterfaceAccount<Mint>,
-    nft_metadata: &UncheckedAccount,
+    nft_metadata: Option<&UncheckedAccount>,
 ) -> Result<()> {
     //prioritize merkle tree if proof present
     if whitelist.root_hash != ZERO_ARRAY {
@@ -99,9 +99,11 @@ pub fn verify_whitelist(
                 leaf: leaf.0,
             }),
         )
-    } else {
+    } else if let Some(nft_metadata) = nft_metadata {
         let metadata = &assert_decode_metadata(&nft_mint.key(), nft_metadata)?;
         whitelist.verify_whitelist(Some(metadata), None)
+    } else {
+        throw_err!(BadMintProof);
     }
 }
 
@@ -201,8 +203,91 @@ impl<'info> SellNftShared<'info> {
             &self.whitelist,
             &self.mint_proof,
             &self.nft_mint,
-            &self.nft_metadata,
+            Some(&self.nft_metadata),
         )
+    }
+}
+
+/// Shared accounts between the two sell T22 ixs.
+#[derive(Accounts)]
+#[instruction(config: PoolConfig)]
+pub struct SellNftSharedT22<'info> {
+    #[account(
+        seeds = [], bump = tswap.bump[0],
+        has_one = fee_vault,
+    )]
+    pub tswap: Box<Account<'info, TSwap>>,
+
+    //degenerate: fee_acc now === TSwap, keeping around to preserve backwards compatibility
+    /// CHECK: has_one = fee_vault in tswap
+    #[account(mut)]
+    pub fee_vault: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        seeds = [
+            tswap.key().as_ref(),
+            owner.key().as_ref(),
+            whitelist.key().as_ref(),
+            &[config.pool_type as u8],
+            &[config.curve_type as u8],
+            &config.starting_price.to_le_bytes(),
+            &config.delta.to_le_bytes()
+        ],
+        bump = pool.bump[0],
+        has_one = tswap, has_one = whitelist, has_one = sol_escrow, has_one = owner,
+    )]
+    pub pool: Box<Account<'info, Pool>>,
+
+    /// Needed for pool seeds derivation, also checked via has_one on pool
+    #[account(
+        seeds = [&whitelist.uuid],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
+    pub whitelist: Box<Account<'info, Whitelist>>,
+
+    /// intentionally not deserializing, it would be dummy in the case of VOC/FVC based verification
+    /// CHECK: seeds below + assert_decode_mint_proof
+    #[account(
+        seeds = [
+            b"mint_proof".as_ref(),
+            nft_mint.key().as_ref(),
+            whitelist.key().as_ref(),
+        ],
+        bump,
+        seeds::program = tensor_whitelist::ID
+    )]
+    pub mint_proof: UncheckedAccount<'info>,
+
+    #[account(mut, token::mint = nft_mint, token::authority = seller)]
+    pub nft_seller_acc: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// CHECK: whitelist, token::mint in nft_seller_acc, associated_token::mint in owner_ata_acc
+    pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    /// CHECK: has_one = escrow in pool
+    #[account(
+        mut,
+        seeds=[
+            b"sol_escrow".as_ref(),
+            pool.key().as_ref(),
+        ],
+        bump = pool.sol_escrow_bump[0],
+    )]
+    pub sol_escrow: Box<Account<'info, SolEscrow>>,
+
+    /// CHECK: has_one = owner in pool (owner is the buyer)
+    #[account(mut)]
+    pub owner: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    pub seller: Signer<'info>,
+}
+
+impl<'info> SellNftSharedT22<'info> {
+    pub fn verify_whitelist(&self) -> Result<()> {
+        verify_whitelist(&self.whitelist, &self.mint_proof, &self.nft_mint, None)
     }
 }
 

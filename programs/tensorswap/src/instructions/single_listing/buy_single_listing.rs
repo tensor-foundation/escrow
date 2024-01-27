@@ -176,7 +176,7 @@ impl<'info> Validate<'info> for BuySingleListing<'info> {
 }
 
 #[access_control(ctx.accounts.validate())]
-pub fn handler<'info, 'b>(
+pub fn process_buy_single_listing<'info, 'b>(
     ctx: Context<'_, 'b, '_, 'info, BuySingleListing<'info>>,
     max_price: u64,
     rules_acc_present: bool,

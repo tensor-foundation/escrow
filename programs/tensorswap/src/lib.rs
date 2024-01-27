@@ -238,7 +238,7 @@ pub mod tensorswap {
         authorization_data: Option<AuthorizationDataLocal>,
         rules_acc_present: bool,
     ) -> Result<()> {
-        instructions::list::handler(ctx, price, authorization_data, rules_acc_present)
+        instructions::list::process_list(ctx, price, authorization_data, rules_acc_present)
     }
 
     pub fn delist<'info>(
@@ -246,7 +246,7 @@ pub mod tensorswap {
         authorization_data: Option<AuthorizationDataLocal>,
         rules_acc_present: bool,
     ) -> Result<()> {
-        instructions::delist::handler(ctx, authorization_data, rules_acc_present)
+        instructions::delist::process_delist(ctx, authorization_data, rules_acc_present)
     }
 
     pub fn buy_single_listing<'info>(
@@ -256,7 +256,7 @@ pub mod tensorswap {
         authorization_data: Option<AuthorizationDataLocal>,
         optional_royalty_pct: Option<u16>,
     ) -> Result<()> {
-        instructions::buy_single_listing::handler(
+        instructions::buy_single_listing::process_buy_single_listing(
             ctx,
             max_price,
             rules_acc_present,
@@ -269,7 +269,7 @@ pub mod tensorswap {
         ctx: Context<'_, '_, '_, 'info, EditSingleListing<'info>>,
         price: u64,
     ) -> Result<()> {
-        instructions::edit_single_listing::handler(ctx, price)
+        instructions::edit_single_listing::process_edit_single_listing(ctx, price)
     }
 
     pub fn withdraw_mm_fee<'info>(
@@ -313,6 +313,64 @@ pub mod tensorswap {
     // ) -> Result<()> {
     //     instructions::admin::withdraw_tswap_owned_spl::handler(ctx, amount)
     // }
+
+    // SPL Token 2022 metadata support
+
+    pub fn buy_nft_t22<'info>(
+        ctx: Context<'_, '_, '_, 'info, BuyNftT22<'info>>,
+        _config: PoolConfig,
+        max_price: u64,
+    ) -> Result<()> {
+        instructions::buy_nft_t22::handler(ctx, max_price)
+    }
+
+    pub fn deposit_nft_t22<'info>(
+        ctx: Context<'_, '_, '_, 'info, DepositNftT22<'info>>,
+        _config: PoolConfig,
+    ) -> Result<()> {
+        instructions::deposit_nft_t22::handler(ctx)
+    }
+
+    pub fn sell_nft_token_pool_t22<'info>(
+        ctx: Context<'_, '_, '_, 'info, SellNftTokenPoolT22<'info>>,
+        _config: PoolConfig,
+        min_price: u64,
+    ) -> Result<()> {
+        instructions::sell_nft_token_pool_t22::handler(ctx, min_price)
+    }
+
+    pub fn sell_nft_trade_pool_t22<'info>(
+        ctx: Context<'_, '_, '_, 'info, SellNftTradePoolT22<'info>>,
+        _config: PoolConfig,
+        min_price: u64,
+    ) -> Result<()> {
+        instructions::sell_nft_trade_pool_t22::handler(ctx, min_price)
+    }
+
+    pub fn withdraw_nft_t22<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithdrawNftT22<'info>>,
+        _config: PoolConfig,
+    ) -> Result<()> {
+        instructions::withdraw_nft_t22::handler(ctx)
+    }
+
+    pub fn buy_single_listing_t22<'info>(
+        ctx: Context<'_, '_, '_, 'info, BuySingleListingT22<'info>>,
+        max_price: u64,
+    ) -> Result<()> {
+        instructions::buy_single_listing_t22::process_buy_single_listing_t22(ctx, max_price)
+    }
+
+    pub fn list_t22<'info>(
+        ctx: Context<'_, '_, '_, 'info, ListT22<'info>>,
+        price: u64,
+    ) -> Result<()> {
+        instructions::list_t22::process_list_t22(ctx, price)
+    }
+
+    pub fn delist_t22<'info>(ctx: Context<'_, '_, '_, 'info, DelistT22<'info>>) -> Result<()> {
+        instructions::delist_t22::process_delist_t22(ctx)
+    }
 }
 
 #[error_code]

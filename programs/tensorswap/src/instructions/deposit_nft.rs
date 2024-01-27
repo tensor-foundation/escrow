@@ -167,7 +167,7 @@ impl<'info> DepositNft<'info> {
             &self.whitelist,
             &self.mint_proof,
             &self.nft_mint,
-            &self.nft_metadata,
+            Some(&self.nft_metadata),
         )
     }
 }

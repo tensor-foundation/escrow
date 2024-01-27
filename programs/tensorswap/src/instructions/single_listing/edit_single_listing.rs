@@ -27,7 +27,7 @@ pub struct EditSingleListing<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler<'info>(
+pub fn process_edit_single_listing<'info>(
     ctx: Context<'_, '_, '_, 'info, EditSingleListing<'info>>,
     price: u64,
 ) -> Result<()> {

@@ -2440,8 +2440,11 @@ export class TensorSwapSDK {
       case "detachPoolFromMargin":
       case "takeSnipe":
       case "list":
+      case "listT22":
       case "delist":
+      case "delistT22":
       case "buySingleListing":
+      case "buySingleListingT22":
       case "editSingleListing":
         return null;
       case "editPool": {
@@ -2451,13 +2454,18 @@ export class TensorSwapSDK {
       case "initPool":
       case "closePool":
       case "depositNft":
+      case "depositNftT22":
       case "withdrawNft":
+      case "withdrawNftT22":
       case "depositSol":
       case "withdrawSol":
       case "withdrawMmFee":
       case "buyNft":
+      case "buyNftT22":
       case "sellNftTokenPool":
+      case "sellNftTokenPoolT22":
       case "sellNftTradePool":
+      case "sellNftTradePoolT22":
       case "setPoolFreeze":
       case "editPoolInPlace":
       case "reallocPool": {
@@ -2470,10 +2478,14 @@ export class TensorSwapSDK {
   getSolAmount(ix: ParsedTSwapIx): BN | null {
     switch (ix.ix.name) {
       case "buyNft":
+      case "buyNftT22":
       case "sellNftTradePool":
+      case "sellNftTradePoolT22":
       case "sellNftTokenPool":
+      case "sellNftTokenPoolT22":
       case "takeSnipe":
-      case "buySingleListing": {
+      case "buySingleListing":
+      case "buySingleListingT22": {
         // NB: the actual sell price includes the "MM fee" (really a spread).
         const event = ix.events.find((e) => e.name === "BuySellEvent") as
           | BuySellEventAnchor
@@ -2481,7 +2493,8 @@ export class TensorSwapSDK {
         if (!event) return null;
         return event.data.currentPrice.sub(event.data.mmFee);
       }
-      case "delist": {
+      case "delist":
+      case "delistT22": {
         const event = ix.events.find((e) => e.name === "DelistEvent") as
           | DelistEventAnchor
           | undefined;
@@ -2500,13 +2513,16 @@ export class TensorSwapSDK {
       case "detachPoolFromMargin":
         return (ix.ix.data as WithdrawDepositSolData).lamports;
       case "list":
+      case "listT22":
       case "editSingleListing":
         return (ix.ix.data as ListEditListingData).price;
       case "initUpdateTswap":
       case "initPool":
       case "closePool":
       case "depositNft":
+      case "depositNftT22":
       case "withdrawNft":
+      case "withdrawNftT22":
       case "editPool":
       case "editPoolInPlace":
       case "reallocPool":
@@ -2522,10 +2538,14 @@ export class TensorSwapSDK {
     switch (ix.ix.name) {
       // No "default": this ensures we explicitly think about how to handle new ixs.
       case "buyNft":
+      case "buyNftT22":
       case "sellNftTradePool":
+      case "sellNftTradePoolT22":
       case "sellNftTokenPool":
+      case "sellNftTokenPoolT22":
       case "takeSnipe":
       case "buySingleListing":
+      case "buySingleListingT22":
         // TODO: Think of a better way to handle multiple events.
         const event = ix.events.find((e) => e.name === "BuySellEvent") as
           | BuySellEventAnchor
@@ -2533,13 +2553,17 @@ export class TensorSwapSDK {
         if (!event) return null;
         return event.data.tswapFee.add(event.data.creatorsFee);
       case "list":
+      case "listT22":
       case "delist":
+      case "delistT22":
       case "initUpdateTswap":
       case "withdrawTswapFees":
       case "initPool":
       case "closePool":
       case "depositNft":
+      case "depositNftT22":
       case "withdrawNft":
+      case "withdrawNftT22":
       case "depositSol":
       case "withdrawSol":
       case "withdrawMmFee":

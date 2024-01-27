@@ -122,7 +122,7 @@ pub struct List<'info> {
     pub payer: Signer<'info>,
 }
 
-pub fn handler<'info>(
+pub fn process_list<'info>(
     ctx: Context<'_, '_, '_, 'info, List<'info>>,
     price: u64,
     authorization_data: Option<AuthorizationDataLocal>,
