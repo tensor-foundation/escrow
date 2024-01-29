@@ -835,6 +835,7 @@ export const testMakeList = async ({
     nftMint: mint,
     nftSource: ata,
     owner: owner.publicKey,
+    tokenProgram: TOKEN_PROGRAM_ID,
     payer: payer?.publicKey,
   });
   await buildAndSendTx({

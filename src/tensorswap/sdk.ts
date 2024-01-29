@@ -1967,6 +1967,7 @@ export class TensorSwapSDK {
     nftSource,
     owner,
     price,
+    tokenProgram,
     payer = null,
     /** pnft args */
     meta,
@@ -1979,6 +1980,7 @@ export class TensorSwapSDK {
     nftSource: PublicKey;
     owner: PublicKey;
     price: BN;
+    tokenProgram: PublicKey;
     //optional separate payer account (useful when you want the listing to be done by another program)
     payer?: PublicKey | null;
   } & PnftArgs) {
@@ -2018,7 +2020,7 @@ export class TensorSwapSDK {
         nftMetadata: meta.address,
         owner,
         singleListing,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -2069,6 +2071,7 @@ export class TensorSwapSDK {
     nftMint,
     nftDest,
     owner,
+    tokenProgram,
     payer = null,
     /** pnft args */
     meta,
@@ -2080,6 +2083,7 @@ export class TensorSwapSDK {
     nftMint: PublicKey;
     nftDest: PublicKey;
     owner: PublicKey;
+    tokenProgram: PublicKey;
     //optional separate payer account (useful when you want the listing to be done by another program)
     payer?: PublicKey | null;
   } & PnftArgs) {
@@ -2118,7 +2122,7 @@ export class TensorSwapSDK {
         nftDest,
         nftEscrow: escrowPda,
         owner,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,

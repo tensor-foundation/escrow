@@ -2,6 +2,7 @@ import { BN } from "@coral-xyz/anchor";
 import {
   createApproveInstruction,
   TokenAccountNotFoundError,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
@@ -76,6 +77,7 @@ describe("tswap single listing", () => {
       nftMint: mint,
       nftDest: ata,
       owner: owner.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
     await buildAndSendTx({
       ixs: delistIxs,
@@ -147,6 +149,7 @@ describe("tswap single listing", () => {
       nftMint: mint,
       nftDest: ata,
       owner: owner.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
     await buildAndSendTx({
       ixs: delistIxs,
@@ -205,6 +208,7 @@ describe("tswap single listing", () => {
       nftMint: mint,
       nftDest: ata,
       owner: owner.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
       payer: payer.publicKey,
     });
     await buildAndSendTx({
@@ -395,6 +399,7 @@ describe("tswap single listing", () => {
       nftMint: mint,
       nftDest: ata,
       owner: owner.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
     await buildAndSendTx({
       ixs: delistIxs,
