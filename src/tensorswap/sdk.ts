@@ -15,6 +15,7 @@ import {
   getAccount,
   getAssociatedTokenAddressSync,
   getMinimumBalanceForRentExemptAccount,
+  TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
@@ -2323,6 +2324,127 @@ export class TensorSwapSDK {
         ixs: [await builder.instruction()],
         extraSigners: [],
       },
+      singleListing,
+      singleListingBump,
+    };
+  }
+
+  // --------------------------------------- single listings
+
+  //main signature owner + payer
+  async listT22({
+    nftMint,
+    nftSource,
+    owner,
+    price,
+    payer = null,
+    compute = DEFAULT_XFER_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
+  }: {
+    nftMint: PublicKey;
+    nftSource: PublicKey;
+    owner: PublicKey;
+    price: BN;
+    //optional separate payer account (useful when you want the listing to be done by another program)
+    payer?: PublicKey | null;
+    compute?: number | null | undefined;
+    priorityMicroLamports?: number | null | undefined;
+  }) {
+    const [tswapPda, tswapBump] = findTSwapPDA({});
+    const [singleListing, singleListingBump] = findSingleListingPDA({
+      nftMint,
+    });
+    const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
+
+    const builder = this.program.methods.listT22(price).accounts({
+      tswap: tswapPda,
+      nftMint,
+      nftSource,
+      nftEscrow: escrowPda,
+      owner,
+      singleListing,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      payer: payer ?? owner,
+    });
+
+    const ixs = prependComputeIxs(
+      [await builder.instruction()],
+      isNullLike(compute) ? null : compute ?? 0,
+      priorityMicroLamports
+    );
+
+    return {
+      builder,
+      tx: {
+        ixs,
+        extraSigners: [],
+      },
+      tswapPda,
+      tswapBump,
+      escrowPda,
+      escrowBump,
+      singleListing,
+      singleListingBump,
+    };
+  }
+
+  // main signature: owner
+  async delistT22({
+    nftMint,
+    nftDest,
+    owner,
+    payer = null,
+    compute = DEFAULT_XFER_COMPUTE_UNITS,
+    priorityMicroLamports = DEFAULT_MICRO_LAMPORTS,
+  }: {
+    nftMint: PublicKey;
+    nftDest: PublicKey;
+    owner: PublicKey;
+    //optional separate payer account (useful when you want the listing to be done by another program)
+    payer?: PublicKey | null;
+    compute?: number | null | undefined;
+    priorityMicroLamports?: number | null | undefined;
+  }) {
+    const [tswapPda, tswapBump] = findTSwapPDA({});
+    const [singleListing, singleListingBump] = findSingleListingPDA({
+      nftMint,
+    });
+    const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
+
+    const builder = this.program.methods.delistT22().accounts({
+      tswap: tswapPda,
+      singleListing,
+      nftMint,
+      nftDest,
+      nftEscrow: escrowPda,
+      owner,
+      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      rent: SYSVAR_RENT_PUBKEY,
+      payer: payer ?? owner,
+    });
+
+    const ixs = prependComputeIxs(
+      [
+        ...(await this.clearDelegate(nftDest, owner)),
+        await builder.instruction(),
+      ],
+      isNullLike(compute) ? null : compute ?? 0,
+      priorityMicroLamports
+    );
+
+    return {
+      builder,
+      tx: {
+        ixs,
+        extraSigners: [],
+      },
+      tswapPda,
+      tswapBump,
+      escrowPda,
+      escrowBump,
       singleListing,
       singleListingBump,
     };
