@@ -615,57 +615,21 @@ pub struct TakeBid<'info> {
     pub rent: Sysvar<'info, Rent>,
 
     // Note: MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
-    /// CHECK: seeds checked below
-    #[account(
-        seeds=[
-            mpl_token_metadata::accounts::MasterEdition::PREFIX.0,
-            mpl_token_metadata::ID.as_ref(),
-            nft_mint.key().as_ref(),
-            mpl_token_metadata::accounts::MasterEdition::PREFIX.1,
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+    /// CHECK: seeds checked on Token Metadata CPI
     pub nft_edition: UncheckedAccount<'info>,
-    /// CHECK: seeds checked below
-    #[account(mut,
-        seeds=[
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
-            mpl_token_metadata::ID.as_ref(),
-            nft_mint.key().as_ref(),
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
-            nft_seller_acc.key().as_ref()
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+
+    /// CHECK: seeds checked on Token Metadata CPI
+    #[account(mut)]
     pub seller_token_record: UncheckedAccount<'info>,
-    /// CHECK: seeds checked below
-    #[account(mut,
-        seeds=[
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
-            mpl_token_metadata::ID.as_ref(),
-            nft_mint.key().as_ref(),
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
-            nft_bidder_acc.key().as_ref()
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+
+    /// CHECK: seeds checked on Token Metadata CPI
+    #[account(mut)]
     pub bidder_token_record: UncheckedAccount<'info>,
-    /// CHECK: seeds checked below
-    #[account(mut,
-        seeds=[
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
-            mpl_token_metadata::ID.as_ref(),
-            nft_mint.key().as_ref(),
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
-            nft_temp_acc.key().as_ref()
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+
+    /// CHECK: seeds checked on Token Metadata CPI
+    #[account(mut)]
     pub temp_token_record: UncheckedAccount<'info>,
+
     pub pnft_shared: ProgNftShared<'info>,
     pub tensorswap_program: Program<'info, Tensorswap>,
 

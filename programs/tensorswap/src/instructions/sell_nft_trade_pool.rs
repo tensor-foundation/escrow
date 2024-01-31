@@ -47,45 +47,15 @@ pub struct SellNftTradePool<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 
     //note that MASTER EDITION and EDITION share the same seeds, and so it's valid to check them here
-    /// CHECK: seeds below
-    #[account(
-        seeds=[
-            mpl_token_metadata::accounts::MasterEdition::PREFIX.0,
-            mpl_token_metadata::ID.as_ref(),
-            shared.nft_mint.key().as_ref(),
-            mpl_token_metadata::accounts::MasterEdition::PREFIX.1,
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+    /// CHECK: seeds checked on Token Metadata CPI
     pub nft_edition: UncheckedAccount<'info>,
 
-    /// CHECK: seeds below
-    #[account(mut,
-        seeds=[
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
-            mpl_token_metadata::ID.as_ref(),
-            shared.nft_mint.key().as_ref(),
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
-            shared.nft_seller_acc.key().as_ref()
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+    /// CHECK: seeds checked on Token Metadata CPI
+    #[account(mut)]
     pub owner_token_record: UncheckedAccount<'info>,
 
-    /// CHECK: seeds below
-    #[account(mut,
-        seeds=[
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.0,
-            mpl_token_metadata::ID.as_ref(),
-            shared.nft_mint.key().as_ref(),
-            mpl_token_metadata::accounts::TokenRecord::PREFIX.1,
-            nft_escrow.key().as_ref()
-        ],
-        seeds::program = mpl_token_metadata::ID,
-        bump
-    )]
+    /// CHECK: seeds checked on Token Metadata CPI
+    #[account(mut)]
     pub dest_token_record: UncheckedAccount<'info>,
 
     pub pnft_shared: ProgNftShared<'info>,
