@@ -18,18 +18,15 @@ pub struct ListT22<'info> {
     /// CHECK: seed in nft_escrow & nft_receipt
     pub nft_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(
-        init, //<-- this HAS to be init, not init_if_needed for safety (else single listings and pool listings can get mixed)
-        payer = payer,
-        seeds=[
+    /// CHECK: initialized on instruction; implicitly checked via transfer (will fail if wrong account)
+    #[account(mut,
+        seeds = [
             b"nft_escrow".as_ref(),
             nft_mint.key().as_ref(),
         ],
         bump,
-        token::mint = nft_mint, token::authority = tswap,
     )]
-    pub nft_escrow: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub nft_escrow: UncheckedAccount<'info>,
 
     #[account(
         init, //<-- this HAS to be init, not init_if_needed for safety (else single listings and pool listings can get mixed)
@@ -64,6 +61,25 @@ pub fn process_list_t22<'info>(
 
     validate_mint_t22(&ctx.accounts.nft_mint.to_account_info())?;
 
+    // initialize token account
+
+    safe_initialize_token_account(
+        InitializeTokenAccount {
+            token_info: &ctx.accounts.nft_escrow,
+            mint: &ctx.accounts.nft_mint.to_account_info(),
+            authority: &ctx.accounts.tswap.to_account_info(),
+            payer: &ctx.accounts.payer,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            signer_seeds: &[
+                b"nft_escrow".as_ref(),
+                ctx.accounts.nft_mint.key().as_ref(),
+                &[ctx.bumps.nft_escrow],
+            ],
+        },
+        false,
+    )?;
+
     // transfer the NFT
 
     let transfer_cpi = CpiContext::new(
@@ -71,7 +87,7 @@ pub fn process_list_t22<'info>(
         TransferChecked {
             from: ctx.accounts.nft_source.to_account_info(),
             to: ctx.accounts.nft_escrow.to_account_info(),
-            authority: ctx.accounts.tswap.to_account_info(),
+            authority: ctx.accounts.owner.to_account_info(),
             mint: ctx.accounts.nft_mint.to_account_info(),
         },
     );

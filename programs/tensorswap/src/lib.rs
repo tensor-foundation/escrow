@@ -6,6 +6,7 @@ pub use vipers::prelude::*;
 
 pub mod instructions;
 pub mod state;
+pub mod token2022;
 
 pub use instructions::*;
 pub use state::*;
@@ -14,6 +15,7 @@ pub use tensor_nft::{
     transfer_creators_fee, transfer_lamports_from_pda, CreatorFeeMode, FromAcc, FromExternal,
     PnftTransferArgs,
 };
+pub use token2022::*;
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
 

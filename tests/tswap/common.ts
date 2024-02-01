@@ -233,7 +233,12 @@ export const createAndFundAta = ({
   });
 
 export const getAccount = (acct: PublicKey) =>
-  _getAccount(TEST_PROVIDER.connection, acct);
+  getAccountWithProgramId(acct, TOKEN_PROGRAM_ID);
+
+export const getAccountWithProgramId = (
+  acct: PublicKey,
+  programId: PublicKey
+) => _getAccount(TEST_PROVIDER.connection, acct, undefined, programId);
 
 //#endregion
 

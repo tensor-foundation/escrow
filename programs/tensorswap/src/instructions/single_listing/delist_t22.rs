@@ -101,7 +101,11 @@ pub fn process_delist_t22<'info>(ctx: Context<'_, '_, '_, 'info, DelistT22<'info
         },
     );
 
-    transfer_checked(transfer_cpi, 1, 0)?; // supply = 1, decimals = 0
+    transfer_checked(
+        transfer_cpi.with_signer(&[&ctx.accounts.tswap.seeds()]),
+        1, // supply = 1
+        0, // decimals = 0
+    )?;
 
     // close nft escrow account
 

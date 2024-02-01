@@ -2577,7 +2577,7 @@ dependencies = [
 
 [[package]]
 name = "tensorswap"
-version = "3.0.1"
+version = "3.1.0"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",

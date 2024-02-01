@@ -178,7 +178,11 @@ pub fn process_buy_single_listing_t22<'info, 'b>(
         },
     );
 
-    transfer_checked(transfer_cpi, 1, 0)?; // supply = 1, decimals = 0
+    transfer_checked(
+        transfer_cpi.with_signer(&[&ctx.accounts.tswap.seeds()]),
+        1, // supply = 1
+        0, // decimals = 0
+    )?;
 
     // transfer current_price to owner
     // (!) fees/royalties are paid by TAKER, which in this case is the BUYER (hence they get full price)

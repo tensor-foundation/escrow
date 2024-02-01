@@ -1,5 +1,5 @@
 export type Tensorswap = {
-  "version": "3.0.1",
+  "version": "3.1.0",
   "name": "tensorswap",
   "constants": [
     {
@@ -2890,10 +2890,7 @@ export type Tensorswap = {
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "singleListing",
@@ -3835,7 +3832,7 @@ export type Tensorswap = {
 };
 
 export const IDL: Tensorswap = {
-  "version": "3.0.1",
+  "version": "3.1.0",
   "name": "tensorswap",
   "constants": [
     {
@@ -6726,10 +6723,7 @@ export const IDL: Tensorswap = {
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "singleListing",
