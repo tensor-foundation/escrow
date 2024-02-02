@@ -219,7 +219,11 @@ pub fn handler<'info, 'b>(
         },
     );
 
-    transfer_checked(transfer_cpi, 1, 0)?; // supply = 1, decimals = 0
+    transfer_checked(
+        transfer_cpi.with_signer(&[&ctx.accounts.tswap.seeds()]),
+        1, // supply = 1
+        0, // decimals = 0
+    )?;
 
     // --------------------------------------- SOL transfers
 

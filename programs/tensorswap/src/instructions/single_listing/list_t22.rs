@@ -61,7 +61,7 @@ pub fn process_list_t22<'info>(
 
     validate_mint_t22(&ctx.accounts.nft_mint.to_account_info())?;
 
-    // initialize token account
+    // initialize escrow token account
 
     safe_initialize_token_account(
         InitializeTokenAccount {
@@ -77,7 +77,7 @@ pub fn process_list_t22<'info>(
                 &[ctx.bumps.nft_escrow],
             ],
         },
-        false,
+        false, //<-- this HAS to be false for safety (else single listings and pool listings can get mixed)
     )?;
 
     // transfer the NFT

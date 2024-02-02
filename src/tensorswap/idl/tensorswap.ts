@@ -2460,10 +2460,7 @@ export type Tensorswap = {
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -2675,10 +2672,7 @@ export type Tensorswap = {
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -6293,10 +6287,7 @@ export const IDL: Tensorswap = {
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftReceipt",
@@ -6508,10 +6499,7 @@ export const IDL: Tensorswap = {
         {
           "name": "nftEscrow",
           "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Implicitly checked via transfer. Will fail if wrong account"
-          ]
+          "isSigner": false
         },
         {
           "name": "nftReceipt",

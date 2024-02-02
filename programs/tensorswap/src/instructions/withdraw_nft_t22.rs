@@ -143,7 +143,11 @@ pub fn handler<'info>(ctx: Context<'_, '_, '_, 'info, WithdrawNftT22<'info>>) ->
         },
     );
 
-    transfer_checked(transfer_cpi, 1, 0)?; // supply = 1, decimals = 0
+    transfer_checked(
+        transfer_cpi.with_signer(&[&ctx.accounts.tswap.seeds()]),
+        1, // supply = 1
+        0, // decimals = 0
+    )?;
 
     // close nft escrow account
     token_interface::close_account(

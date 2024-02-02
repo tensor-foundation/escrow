@@ -1,7 +1,7 @@
 //! User selling an NFT into a Trade pool
 //! We separate this from Token pool since the NFT will go into an NFT escrow w/ a receipt.
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
-use anchor_spl::token_interface::{transfer_checked, Token2022, TokenAccount, TransferChecked};
+use anchor_spl::token_interface::{transfer_checked, Token2022, TransferChecked};
 use tensor_nft::validate_mint_t22;
 use vipers::throw_err;
 
@@ -11,18 +11,15 @@ use crate::*;
 pub struct SellNftTradePoolT22<'info> {
     shared: SellNftSharedT22<'info>,
 
-    /// Implicitly checked via transfer. Will fail if wrong account
-    #[account(
-        init_if_needed,
-        payer = shared.seller,
-        seeds=[
+    /// CHECK: initialized on instruction; implicitly checked via transfer (will fail if wrong account)
+    #[account(mut,
+        seeds = [
             b"nft_escrow".as_ref(),
             shared.nft_mint.key().as_ref(),
         ],
         bump,
-        token::mint = shared.nft_mint, token::authority = shared.tswap,
     )]
-    pub nft_escrow: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub nft_escrow: UncheckedAccount<'info>,
 
     #[account(
         init,
@@ -81,6 +78,25 @@ pub fn handler<'a, 'b, 'c, 'info>(
     // validate mint account
 
     validate_mint_t22(&ctx.accounts.shared.nft_mint.to_account_info())?;
+
+    // initialize escrow token account
+
+    safe_initialize_token_account(
+        InitializeTokenAccount {
+            token_info: &ctx.accounts.nft_escrow,
+            mint: &ctx.accounts.shared.nft_mint.to_account_info(),
+            authority: &ctx.accounts.shared.tswap.to_account_info(),
+            payer: &ctx.accounts.shared.seller,
+            system_program: &ctx.accounts.system_program,
+            token_program: &ctx.accounts.token_program,
+            signer_seeds: &[
+                b"nft_escrow".as_ref(),
+                ctx.accounts.shared.nft_mint.key().as_ref(),
+                &[ctx.bumps.nft_escrow],
+            ],
+        },
+        true, // allow existing (might have dangling nft escrow account)
+    )?;
 
     // transfer the NFT
 

@@ -1,52 +1,32 @@
 import { BN } from "@coral-xyz/anchor";
 import {
-  AuthorityType,
-  createInitializeAccount3Instruction,
-  createInitializeImmutableOwnerInstruction,
-  createInitializeMetadataPointerInstruction,
-  createInitializeMint2Instruction,
-  createInitializeNonTransferableMintInstruction,
-  ExtensionType,
-  getAccountLen,
-  getAssociatedTokenAddress,
   getAssociatedTokenAddressSync,
-  getExtensionTypes,
-  getMintLen,
-  mintToChecked,
-  setAuthority,
   TokenAccountNotFoundError,
   TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-  unpackAccount,
 } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
   Keypair,
   LAMPORTS_PER_SOL,
   PublicKey,
-  sendAndConfirmTransaction,
-  SystemProgram,
-  Transaction,
 } from "@solana/web3.js";
+import { isNullLike } from "@tensor-hq/tensor-common";
 import { expect } from "chai";
-import {
-  buildAndSendTx,
-  createTokenAuthorizationRules,
-  getLamports,
-  swapSdk,
-  TEST_CONN_PAYER,
-} from "../shared";
+import { TAKER_BROKER_PCT } from "../../src";
+import { buildAndSendTx, getLamports, swapSdk, withLamports } from "../shared";
 import {
   beforeHook,
-  createAndFundAta,
-  createFundedWallet,
-  getAccount,
+  calcFeesRebates,
+  createAssociatedTokenAccountT22,
+  createFundedHolderAndMintAndTokenT22,
+  createMintAndTokenT22,
   getAccountWithProgramId,
   makeNTraders,
   testMakeList,
+  testMakeListT22,
 } from "./common";
 
-describe("tswap single listing Token-2022", () => {
+describe("[Token 2022] tswap single listing", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
   let lookupTableAccount: AddressLookupTableAccount | null;
@@ -56,8 +36,10 @@ describe("tswap single listing Token-2022", () => {
     ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
   });
 
-  it("list + delist single listing T22", async () => {
-    const { mint, token, holder } = await generateTokenMintT22(10);
+  it("[T22] list + delist single listing", async () => {
+    const { mint, token, holder } = await createFundedHolderAndMintAndTokenT22(
+      10
+    );
     const price = new BN(LAMPORTS_PER_SOL);
 
     // --------------------------------------- list
@@ -138,137 +120,158 @@ describe("tswap single listing Token-2022", () => {
     const holderLamports3 = await getLamports(holder.publicKey);
     expect(holderLamports3).gt(holderLamports2!);
   });
+
+  it("[T22] list + edit + buy single listing (taker broker)", async () => {
+    const [owner, buyer] = await makeNTraders({ n: 2 });
+    for (const price of [100, LAMPORTS_PER_SOL, 0.5 * LAMPORTS_PER_SOL]) {
+      const takerBroker = Keypair.generate().publicKey;
+
+      const { mint, token: ata } = await createMintAndTokenT22(owner.publicKey);
+      const { token: otherAta } = await createAssociatedTokenAccountT22(
+        buyer.publicKey,
+        mint
+      );
+
+      await testMakeListT22({
+        mint,
+        price: new BN(price),
+        ata,
+        owner,
+      });
+
+      // --------------------------------------- edit
+
+      const editedPrice = price * 2;
+      const {
+        tx: { ixs },
+      } = await swapSdk.editSingleListing({
+        nftMint: mint,
+        owner: owner.publicKey,
+        price: new BN(editedPrice),
+      });
+      await buildAndSendTx({
+        ixs,
+        extraSigners: [owner],
+      });
+
+      // --------------------------------------- buy
+
+      const {
+        tx: { ixs: badBuyIxs },
+      } = await swapSdk.buySingleListingT22({
+        buyer: buyer.publicKey,
+        maxPrice: new BN(price), //<-- original price
+        nftBuyerAcc: otherAta,
+        nftMint: mint,
+        owner: owner.publicKey,
+      });
+      await expect(
+        buildAndSendTx({
+          ixs: badBuyIxs,
+          extraSigners: [buyer],
+        })
+      ).to.be.rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
+
+      await buySingleListingT22({
+        buyer,
+        expectedLamports: editedPrice,
+        mint,
+        otherAta,
+        owner,
+        takerBroker,
+      });
+    }
+  });
 });
 
-export const generateTokenMintT22 = async (
-  sol: number
-): Promise<{
+const buySingleListingT22 = async ({
+  mint,
+  otherAta,
+  owner,
+  buyer,
+  expectedLamports,
+  lookupTableAccount,
+  takerBroker = null,
+}: {
   mint: PublicKey;
-  token: PublicKey;
-  holder: Keypair;
-}> => {
-  // creates a Token 2022 mint + metadata pointer
+  otherAta: PublicKey;
+  owner: Keypair;
+  buyer: Keypair;
+  expectedLamports: number;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+  takerBroker?: PublicKey | null;
+}) => {
+  const {
+    tx: { ixs: buyIxs },
+    tswapPda,
+    escrowPda,
+  } = await swapSdk.buySingleListingT22({
+    buyer: buyer.publicKey,
+    maxPrice: new BN(expectedLamports),
+    nftBuyerAcc: otherAta,
+    nftMint: mint,
+    owner: owner.publicKey,
+    takerBroker,
+  });
+  return await withLamports(
+    {
+      prevFeeAccLamports: tswapPda,
+      prevSellerLamports: owner.publicKey,
+      prevBuyerLamports: buyer.publicKey,
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
+    },
+    async ({
+      prevFeeAccLamports,
+      prevSellerLamports,
+      prevBuyerLamports,
+      prevTakerBroker,
+    }) => {
+      await buildAndSendTx({
+        ixs: buyIxs,
+        extraSigners: [buyer],
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
+      });
 
-  const extensions = [ExtensionType.MetadataPointer];
-  const mintLen = getMintLen(extensions);
-
-  let lamports = await TEST_CONN_PAYER.conn.getMinimumBalanceForRentExemption(
-    mintLen
-  );
-  const mint = Keypair.generate();
-
-  const createMint = new Transaction()
-    .add(
-      SystemProgram.createAccount({
-        fromPubkey: TEST_CONN_PAYER.payer.publicKey,
-        newAccountPubkey: mint.publicKey,
-        space: mintLen,
-        lamports,
-        programId: TOKEN_2022_PROGRAM_ID,
-      })
-    )
-    .add(
-      createInitializeMetadataPointerInstruction(
-        mint.publicKey,
-        TEST_CONN_PAYER.payer.publicKey,
-        mint.publicKey,
+      //NFT moved from escrow to trader
+      const traderAcc = await getAccountWithProgramId(
+        otherAta,
         TOKEN_2022_PROGRAM_ID
-      )
-    )
-    .add(
-      createInitializeMint2Instruction(
-        mint.publicKey,
-        0,
-        TEST_CONN_PAYER.payer.publicKey,
-        null,
-        TOKEN_2022_PROGRAM_ID
-      )
-    );
+      );
+      expect(traderAcc.amount.toString()).eq("1");
+      // Escrow closed.
+      await expect(
+        getAccountWithProgramId(escrowPda, TOKEN_2022_PROGRAM_ID)
+      ).rejectedWith(TokenAccountNotFoundError);
 
-  await sendAndConfirmTransaction(
-    TEST_CONN_PAYER.conn,
-    createMint,
-    [TEST_CONN_PAYER.payer, mint],
-    undefined
+      //fees
+      const feeAccLamports = await getLamports(tswapPda);
+      const { tswapFee, brokerFee, makerRebate, takerFee } =
+        calcFeesRebates(expectedLamports);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).approximately(
+        tswapFee,
+        1
+      );
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0 && brokerFee > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
+
+      // Buyer pays full amount.
+      const currBuyerLamports = await getLamports(buyer.publicKey);
+      expect(currBuyerLamports! - prevBuyerLamports!).eq(
+        -1 * (expectedLamports + takerFee)
+      );
+
+      // amount sent to owner's wallet
+      const currSellerLamports = await getLamports(owner.publicKey);
+      expect(currSellerLamports! - prevSellerLamports!).eq(
+        expectedLamports +
+          makerRebate +
+          (await swapSdk.getSingleListingRent()) +
+          (await swapSdk.getImmutableTokenAcctRent())
+      );
+    }
   );
-
-  // create token
-
-  const accountLen = getAccountLen([ExtensionType.ImmutableOwner]);
-  lamports = await TEST_CONN_PAYER.conn.getMinimumBalanceForRentExemption(
-    accountLen
-  );
-
-  const holder = Keypair.generate();
-  const token = Keypair.generate();
-
-  const createToken = new Transaction()
-    .add(
-      SystemProgram.transfer({
-        fromPubkey: TEST_CONN_PAYER.payer.publicKey,
-        toPubkey: holder.publicKey,
-        lamports: sol * LAMPORTS_PER_SOL,
-      })
-    )
-    .add(
-      SystemProgram.createAccount({
-        fromPubkey: TEST_CONN_PAYER.payer.publicKey,
-        newAccountPubkey: token.publicKey,
-        space: accountLen,
-        lamports,
-        programId: TOKEN_2022_PROGRAM_ID,
-      })
-    )
-    .add(
-      createInitializeImmutableOwnerInstruction(
-        token.publicKey,
-        TOKEN_2022_PROGRAM_ID
-      )
-    )
-    .add(
-      createInitializeAccount3Instruction(
-        token.publicKey,
-        mint.publicKey,
-        holder.publicKey,
-        TOKEN_2022_PROGRAM_ID
-      )
-    );
-
-  await sendAndConfirmTransaction(
-    TEST_CONN_PAYER.conn,
-    createToken,
-    [TEST_CONN_PAYER.payer, token],
-    undefined
-  );
-
-  // mint token
-
-  await mintToChecked(
-    TEST_CONN_PAYER.conn,
-    TEST_CONN_PAYER.payer,
-    mint.publicKey,
-    token.publicKey,
-    TEST_CONN_PAYER.payer,
-    1,
-    0,
-    undefined,
-    undefined,
-    TOKEN_2022_PROGRAM_ID
-  );
-
-  // removes the authority from the mint
-
-  await setAuthority(
-    TEST_CONN_PAYER.conn,
-    TEST_CONN_PAYER.payer,
-    mint.publicKey,
-    TEST_CONN_PAYER.payer,
-    AuthorityType.MintTokens,
-    null,
-    undefined,
-    undefined,
-    TOKEN_2022_PROGRAM_ID
-  );
-
-  return { mint: mint.publicKey, token: token.publicKey, holder };
 };
