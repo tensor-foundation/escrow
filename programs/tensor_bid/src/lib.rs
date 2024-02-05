@@ -391,7 +391,7 @@ pub mod tensor_bid {
             TransferChecked {
                 from: ctx.accounts.nft_seller_acc.to_account_info(),
                 to: ctx.accounts.nft_bidder_acc.to_account_info(),
-                authority: ctx.accounts.nft_seller_acc.to_account_info(),
+                authority: ctx.accounts.seller.to_account_info(),
                 mint: ctx.accounts.nft_mint.to_account_info(),
             },
         );

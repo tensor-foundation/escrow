@@ -1,4 +1,4 @@
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
   Keypair,
@@ -30,8 +30,11 @@ import {
 import {
   beforeHook,
   calcFeesRebates,
+  createAssociatedTokenAccountT22,
+  createMintAndTokenT22,
   CreatorInput,
   getAccount,
+  getAccountWithProgramId,
   makeMintTwoAta,
   makeNTraders,
   testDepositIntoMargin,
@@ -257,6 +260,124 @@ const testTakeBid = async ({
           bidAmount - takerFee - creatorsFee - 3_000_000
         );
       }
+
+      // bidder gets back rent + rebate
+      const currBidderLamports = await getLamports(bidder.publicKey);
+      expect(currBidderLamports! - prevBidderLamports!).equal(
+        //note that rebate goes back to owner since we close the bid state
+        (await bidSdk.getBidStateRent()) + makerRebate
+      );
+
+      // Sol escrow should have the NFT cost deducted (minus mm fees owner gets back).
+      if (!isNullLike(margin)) {
+        const currMarginLamports = await getLamports(margin);
+        expect(currMarginLamports! - prevMarginLamports!).eq(-1 * bidAmount);
+      } else {
+        const currBidStateLamports = await getLamports(bidState);
+        expect((currBidStateLamports ?? 0) - prevBidStateLamports!).eq(
+          -1 * (bidAmount + (await bidSdk.getBidStateRent()))
+        );
+      }
+
+      await expect(bidSdk.fetchBidState(bidState)).to.be.rejectedWith(
+        "does not exist"
+      );
+    }
+  );
+};
+
+const testTakeBidT22 = async ({
+  bidder,
+  seller,
+  mint,
+  ata,
+  margin,
+  bidAmount,
+  takerBroker = null,
+  lookupTableAccount = null,
+}: {
+  bidder: Keypair;
+  seller: Keypair;
+  mint: PublicKey;
+  ata: PublicKey;
+  margin: PublicKey | null;
+  bidAmount: number;
+  takerBroker?: PublicKey | null;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+}) => {
+  const {
+    tx: { ixs: takeIxs },
+    bidState,
+    tswapPda,
+    nftbidderAcc,
+  } = await bidSdk.takeBidT22({
+    bidder: bidder.publicKey,
+    margin,
+    nftMint: mint,
+    lamports: new BN(bidAmount),
+    seller: seller.publicKey,
+    nftSellerAcc: ata,
+    takerBroker,
+  });
+  return await withLamports(
+    {
+      prevBidderLamports: bidder.publicKey,
+      prevBidStateLamports: bidState,
+      ...(margin ? { prevMarginLamports: margin } : {}),
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
+      prevFeeAccLamports: tswapPda,
+      prevSellerLamports: seller.publicKey,
+    },
+    async ({
+      prevBidderLamports,
+      prevBidStateLamports,
+      prevMarginLamports,
+      prevTakerBroker,
+      prevFeeAccLamports,
+      prevSellerLamports,
+    }) => {
+      // Seller initially has the nft
+      let sellerAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+      let bidderAcc = await getAccountWithProgramId(
+        nftbidderAcc,
+        TOKEN_2022_PROGRAM_ID
+      );
+      expect(sellerAcc.amount.toString()).eq("1");
+      expect(bidderAcc.amount.toString()).eq("0");
+
+      await buildAndSendTx({
+        ixs: takeIxs,
+        extraSigners: [seller],
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
+      });
+
+      // Bidder eventually has the nft
+      sellerAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+      bidderAcc = await getAccountWithProgramId(
+        nftbidderAcc,
+        TOKEN_2022_PROGRAM_ID
+      );
+      expect(sellerAcc.amount.toString()).eq("0");
+      expect(bidderAcc.amount.toString()).eq("1");
+
+      //fees
+      const feeAccLamports = await getLamports(tswapPda);
+      const { tswapFee, brokerFee, makerRebate, takerFee } =
+        calcFeesRebates(bidAmount);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
+
+      //paid full amount to seller
+      const currSellerLamports = await getLamports(seller.publicKey);
+      //check roughly correct (their acc is a few mm)
+      expect(currSellerLamports! - prevSellerLamports!).gt(
+        bidAmount - takerFee - 3_000_000
+      );
 
       // bidder gets back rent + rebate
       const currBidderLamports = await getLamports(bidder.publicKey);
@@ -1243,5 +1364,46 @@ describe("tensor bid", () => {
         expireIn: MAX_EXPIRY_SEC + 1, //1sec more than allowed
       })
     ).to.be.rejectedWith(bidSdk.getErrorCodeHex("ExpiryTooLarge"));
+  });
+
+  it("[Token 2022] happy path (bid -> take bid)", async () => {
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const amount = LAMPORTS_PER_SOL;
+    const expireIn = HOURS / 1000;
+
+    for (const [programmable, marginated] of cartesian(
+      [true, false],
+      [true, false]
+    )) {
+      const { mint, token: ata } = await createMintAndTokenT22(
+        seller.publicKey
+      );
+      await createAssociatedTokenAccountT22(bidder.publicKey, mint);
+
+      let margin = null;
+      if (marginated) {
+        const { marginPda, marginNr, marginRent } = await testMakeMargin({
+          owner: bidder,
+        });
+        await testDepositIntoMargin({
+          owner: bidder,
+          marginNr,
+          marginPda,
+          amount,
+        });
+        margin = marginPda;
+      }
+
+      await testBid({ bidder, mint, margin, bidAmount: amount, expireIn });
+      await testTakeBidT22({
+        bidder,
+        seller,
+        mint,
+        ata,
+        margin,
+        bidAmount: amount,
+        lookupTableAccount,
+      });
+    }
   });
 });
