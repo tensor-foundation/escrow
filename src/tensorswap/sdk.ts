@@ -683,6 +683,7 @@ export class TensorSwapSDK {
     nftSource,
     owner,
     config,
+    tokenProgram,
     /** pnft args */
     meta,
     authData = null,
@@ -695,6 +696,7 @@ export class TensorSwapSDK {
     nftSource: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
+    tokenProgram: PublicKey;
   } & PnftArgs) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -745,7 +747,7 @@ export class TensorSwapSDK {
         nftReceipt: receiptPda,
         nftMetadata: meta.address,
         owner,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -848,6 +850,7 @@ export class TensorSwapSDK {
     nftDest,
     owner,
     config,
+    tokenProgram,
     /** pnft args */
     meta,
     authData = null,
@@ -860,6 +863,7 @@ export class TensorSwapSDK {
     nftDest: PublicKey;
     owner: PublicKey;
     config: PoolConfigAnchor;
+    tokenProgram: PublicKey;
   } & PnftArgs) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
     const [poolPda, poolBump] = findPoolPDA({
@@ -908,7 +912,7 @@ export class TensorSwapSDK {
         nftEscrow: escrowPda,
         nftReceipt: receiptPda,
         owner,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -1064,6 +1068,7 @@ export class TensorSwapSDK {
     buyer,
     config,
     maxPrice,
+    tokenProgram,
     marginNr = null,
     optionalRoyaltyPct = null,
     takerBroker = null,
@@ -1081,6 +1086,7 @@ export class TensorSwapSDK {
     buyer: PublicKey;
     config: PoolConfigAnchor;
     maxPrice: BN;
+    tokenProgram: PublicKey;
     marginNr?: number | null;
     //optional % OF full royalty amount, so eg 50% of 10% royalty would be 5%
     optionalRoyaltyPct?: number | null;
@@ -1159,7 +1165,7 @@ export class TensorSwapSDK {
         solEscrow: solEscrowPda,
         owner,
         buyer,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -1235,6 +1241,7 @@ export class TensorSwapSDK {
     seller,
     config,
     minPrice,
+    tokenProgram,
     marginNr = null,
     isCosigned = false,
     cosigner = TSWAP_COSIGNER,
@@ -1255,6 +1262,7 @@ export class TensorSwapSDK {
     seller: PublicKey;
     config: PoolConfigAnchor;
     minPrice: BN;
+    tokenProgram: PublicKey;
     marginNr?: number | null;
     isCosigned?: boolean;
     cosigner?: PublicKey;
@@ -1274,7 +1282,12 @@ export class TensorSwapSDK {
       curveType: curveTypeU8(config.curveType),
     });
     const [solEscrowPda, solEscrowBump] = findSolEscrowPDA({ pool: poolPda });
-    const ownerAtaAcc = getAssociatedTokenAddressSync(nftMint, owner, true);
+    const ownerAtaAcc = getAssociatedTokenAddressSync(
+      nftMint,
+      owner,
+      true,
+      tokenProgram
+    );
     const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
     const [receiptPda, receiptBump] = findNftDepositReceiptPDA({ nftMint });
     const [mintProofPda] = findMintProofPDA({ mint: nftMint, whitelist });
@@ -1387,7 +1400,7 @@ export class TensorSwapSDK {
     )
       .accounts({
         shared,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -1824,6 +1837,7 @@ export class TensorSwapSDK {
     config,
     actualPrice,
     marginNr,
+    tokenProgram,
     cosigner = TSWAP_COSIGNER,
     /** pnft args */
     meta,
@@ -1840,6 +1854,7 @@ export class TensorSwapSDK {
     config: PoolConfigAnchor;
     actualPrice: BN;
     marginNr: number;
+    tokenProgram: PublicKey;
     cosigner?: PublicKey;
   } & PnftArgs) {
     const [tswapPda, tswapBump] = findTSwapPDA({});
@@ -1853,7 +1868,12 @@ export class TensorSwapSDK {
       curveType: curveTypeU8(config.curveType),
     });
     const [solEscrowPda, solEscrowBump] = findSolEscrowPDA({ pool: poolPda });
-    const ownerAtaAcc = getAssociatedTokenAddressSync(nftMint, owner, true);
+    const ownerAtaAcc = getAssociatedTokenAddressSync(
+      nftMint,
+      owner,
+      true,
+      tokenProgram
+    );
     const [escrowPda, escrowBump] = findNftEscrowPDA({ nftMint });
     const [receiptPda, receiptBump] = findNftDepositReceiptPDA({ nftMint });
     const [mintProofPda] = findMintProofPDA({ mint: nftMint, whitelist });
@@ -1909,7 +1929,7 @@ export class TensorSwapSDK {
         ownerAtaAcc,
         marginAccount: marginPda,
         cosigner,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,
@@ -2180,6 +2200,7 @@ export class TensorSwapSDK {
     owner,
     buyer,
     maxPrice,
+    tokenProgram,
     optionalRoyaltyPct = null,
     takerBroker = null,
     /** pnft args */
@@ -2194,6 +2215,7 @@ export class TensorSwapSDK {
     owner: PublicKey;
     buyer: PublicKey;
     maxPrice: BN;
+    tokenProgram: PublicKey;
     //optional % OF full royalty amount, so eg 50% of 10% royalty would be 5%
     optionalRoyaltyPct?: number | null;
     //optional taker broker account
@@ -2244,7 +2266,7 @@ export class TensorSwapSDK {
         nftEscrow: escrowPda,
         owner,
         buyer,
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: SYSVAR_RENT_PUBKEY,

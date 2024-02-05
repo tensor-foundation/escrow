@@ -1,3 +1,4 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { simulateTxTable, swapSdk, wlSdk } from "../shared";
@@ -92,6 +93,7 @@ describe.skip("tx sizer", () => {
       nftSource: ata,
       owner: owner.publicKey,
       config,
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
 
     let {
@@ -102,6 +104,7 @@ describe.skip("tx sizer", () => {
       owner: owner.publicKey,
       config,
       nftDest: ata,
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
 
     // --------------------------------------- buy sell
@@ -128,6 +131,7 @@ describe.skip("tx sizer", () => {
       config,
       minPrice: new BN(123),
       cosigner: TEST_COSIGNER.publicKey,
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
 
     const {
@@ -140,6 +144,7 @@ describe.skip("tx sizer", () => {
       buyer: buyer.publicKey,
       config,
       maxPrice: new BN(123),
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
 
     // --------------------------------------- margin

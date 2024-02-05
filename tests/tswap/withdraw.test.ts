@@ -1,3 +1,4 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { getTransactionConvertedToLegacy } from "@tensor-hq/tensor-common";
 import BN from "bn.js";
@@ -119,6 +120,7 @@ describe("tswap withdraws", () => {
       config,
       // Fine to go lower.
       minPrice: new BN(LAMPORTS_PER_SOL / 2),
+      tokenProgram: TOKEN_PROGRAM_ID
     });
     await buildAndSendTx({
       ixs,

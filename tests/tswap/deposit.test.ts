@@ -1,4 +1,5 @@
 import { LangErrorCode } from "@coral-xyz/anchor";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import {
   getTransactionConvertedToLegacy,
@@ -145,6 +146,7 @@ describe("tswap deposits", () => {
         nftSource: currAta,
         owner: owner.publicKey,
         config,
+        tokenProgram: TOKEN_PROGRAM_ID,
         // proof: proofs[0].proof,
       });
       await expect(

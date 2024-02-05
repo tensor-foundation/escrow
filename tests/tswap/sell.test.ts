@@ -1,5 +1,5 @@
 import { BN, LangErrorCode } from "@coral-xyz/anchor";
-import { closeAccount, TokenAccountNotFoundError } from "@solana/spl-token";
+import { closeAccount, TokenAccountNotFoundError, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
   Keypair,
@@ -313,6 +313,7 @@ describe("tswap sell", () => {
       seller: seller.publicKey,
       config,
       minPrice: new BN(LAMPORTS_PER_SOL),
+      tokenProgram: TOKEN_PROGRAM_ID,
     });
 
     // Ensure ATA is closed to begin with.
@@ -564,6 +565,7 @@ describe("tswap sell", () => {
                 defaultSellExpectedLamports(config === tokenPoolConfig)
               )
             ),
+            tokenProgram: TOKEN_PROGRAM_ID
           });
 
           await expect(
@@ -884,6 +886,7 @@ describe("tswap sell", () => {
             seller: traderB.publicKey,
             config: currConfig,
             minPrice: new BN(0),
+            tokenProgram: TOKEN_PROGRAM_ID
           });
 
           const promise = buildAndSendTx({
@@ -954,6 +957,7 @@ describe("tswap sell", () => {
           seller: seller.publicKey,
           config,
           minPrice: new BN(expectedLamports),
+          tokenProgram: TOKEN_PROGRAM_ID
         });
 
         // Selling into pool should trigger error.
@@ -1079,6 +1083,7 @@ describe("tswap sell", () => {
               seller: traderB.publicKey,
               config: config,
               minPrice: currPrice,
+              tokenProgram: TOKEN_PROGRAM_ID
             });
             await buildAndSendTx({
               ixs,
@@ -1188,6 +1193,7 @@ describe("tswap sell", () => {
         seller: traderB.publicKey,
         config: config,
         minPrice: currPrice,
+        tokenProgram: TOKEN_PROGRAM_ID
       });
       await buildAndSendTx({
         ixs,

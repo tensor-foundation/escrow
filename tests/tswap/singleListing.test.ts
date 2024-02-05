@@ -280,6 +280,7 @@ describe("tswap single listing", () => {
         nftBuyerAcc: otherAta,
         nftMint: mint,
         owner: owner.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID
       });
       await expect(
         buildAndSendTx({
@@ -351,6 +352,7 @@ describe("tswap single listing", () => {
         nftMint: mint,
         owner: owner.publicKey,
         optionalRoyaltyPct,
+        tokenProgram: TOKEN_PROGRAM_ID
       });
       await expect(
         buildAndSendTx({
@@ -603,6 +605,7 @@ const buySingleListing = async ({
     owner: owner.publicKey,
     optionalRoyaltyPct,
     takerBroker,
+    tokenProgram: TOKEN_PROGRAM_ID
   });
   return await withLamports(
     {

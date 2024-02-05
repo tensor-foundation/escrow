@@ -1214,6 +1214,7 @@ export const testDepositNft = async ({
     nftSource: ata,
     owner: owner.publicKey,
     config,
+    tokenProgram: TOKEN_PROGRAM_ID,
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
 
@@ -1316,6 +1317,7 @@ export const testWithdrawNft = async ({
     nftDest: ata,
     owner: owner.publicKey,
     config,
+    tokenProgram: TOKEN_PROGRAM_ID,
   });
   const prevPoolAcc = await swapSdk.fetchPool(pool);
 
@@ -1445,6 +1447,7 @@ export const testBuyNft = async ({
     marginNr,
     optionalRoyaltyPct,
     takerBroker,
+    tokenProgram: TOKEN_PROGRAM_ID,
   });
 
   const prevPoolAcc = await swapSdk.fetchPool(pool);
@@ -1818,6 +1821,7 @@ export const testSellNft = async ({
     marginNr,
     optionalRoyaltyPct,
     takerBroker,
+    tokenProgram: TOKEN_PROGRAM_ID,
   });
 
   const _checkDestAcc = async (amount: string) => {
@@ -2167,6 +2171,7 @@ export const testTakeSnipe = async ({
     nftSellerAcc: ata,
     actualPrice: new BN(actualSnipeAmount),
     cosigner: cosigner.publicKey,
+    tokenProgram: TOKEN_PROGRAM_ID,
   });
 
   const _checkDestAcc = async (amount: string) => {

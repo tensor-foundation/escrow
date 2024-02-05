@@ -1,3 +1,4 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
   Keypair,
@@ -167,6 +168,7 @@ const testTakeBid = async ({
     nftSellerAcc: ata,
     optionalRoyaltyPct,
     takerBroker,
+    tokenProgram: TOKEN_PROGRAM_ID,
   });
   return await withLamports(
     {

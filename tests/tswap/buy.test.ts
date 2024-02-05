@@ -1,4 +1,5 @@
 import { BN, LangErrorCode } from "@coral-xyz/anchor";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
   Keypair,
@@ -331,6 +332,7 @@ describe("tswap buy", () => {
             buyer: buyer.publicKey,
             config,
             maxPrice: new BN(LAMPORTS_PER_SOL),
+            tokenProgram: TOKEN_PROGRAM_ID
           });
 
           await expect(
@@ -483,6 +485,7 @@ describe("tswap buy", () => {
         whitelist,
         nftMint: wlNftB.mint,
         maxPrice: new BN(LAMPORTS_PER_SOL),
+        tokenProgram: TOKEN_PROGRAM_ID
       });
       await expect(
         buildAndSendTx({ ixs: ixsA, extraSigners: [traderB] })
@@ -499,6 +502,7 @@ describe("tswap buy", () => {
         whitelist,
         nftMint: wlNftA.mint,
         maxPrice: new BN(LAMPORTS_PER_SOL),
+        tokenProgram: TOKEN_PROGRAM_ID
       });
       await expect(
         buildAndSendTx({ ixs: ixsB, extraSigners: [traderA] })
@@ -599,6 +603,7 @@ describe("tswap buy", () => {
               buyer: traderB.publicKey,
               config: config,
               maxPrice: currPrice,
+              tokenProgram: TOKEN_PROGRAM_ID
             });
             await buildAndSendTx({
               ixs,
@@ -698,6 +703,7 @@ describe("tswap buy", () => {
         buyer: traderB.publicKey,
         config: config,
         maxPrice: currPrice,
+        tokenProgram: TOKEN_PROGRAM_ID
       });
       await buildAndSendTx({
         ixs,
