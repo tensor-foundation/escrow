@@ -1,4 +1,3 @@
-import { BN, LangErrorCode } from "@coral-xyz/anchor";
 import {
   AddressLookupTableAccount,
   Keypair,
@@ -6,41 +5,14 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 import {
-  getTransactionConvertedToLegacy,
-  hexCode,
-} from "@tensor-hq/tensor-common";
-import { expect } from "chai";
-import {
-  buildAndSendTx,
-  cartesian,
-  castPoolConfigAnchor,
-  COMMON_BAD_ROYALTY_ERR,
-  createTokenAuthorizationRules,
-  CurveTypeAnchor,
-  PoolConfigAnchor,
-  PoolTypeAnchor,
-  swapSdk,
-  TakerSide,
-  TEST_PROVIDER,
-} from "../shared";
-import {
   beforeHook,
-  computeTakerPrice,
-  getAccount,
-  makeMintTwoAta,
   makeNTraders,
-  makeProofWhitelist,
   nftPoolConfig,
-  TAKER_FEE_PCT,
-  testDepositNft,
-  testMakePool,
-  testMakePoolBuyNft,
   testMakePoolBuyNftT22,
-  tokenPoolConfig,
-  tradePoolConfig,
+  wnsTestMakePoolBuyNft,
 } from "./common";
 
-describe("[Token 2022] tswap buy", () => {
+describe("[WNS Token 2022] tswap buy", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
   let lookupTableAccount: AddressLookupTableAccount | null;
@@ -50,14 +22,14 @@ describe("[Token 2022] tswap buy", () => {
     ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
   });
 
-  it("[T22] buy from nft pool", async () => {
+  it("[WNS] buy from nft pool", async () => {
     const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
       { owner: traderA, buyer: traderB },
       { owner: traderB, buyer: traderA },
     ]) {
-      await testMakePoolBuyNftT22({
+      await wnsTestMakePoolBuyNft({
         tswap,
         owner,
         buyer,
@@ -67,7 +39,7 @@ describe("[Token 2022] tswap buy", () => {
     }
   });
 
-  it("[T22] buy from nft pool (pay taker broker)", async () => {
+  it("[WNS] buy from nft pool (pay taker broker)", async () => {
     const [traderA, traderB] = await makeNTraders({ n: 2 });
     // Intentionally do this serially (o/w balances will race).
     for (const { owner, buyer } of [
@@ -75,7 +47,7 @@ describe("[Token 2022] tswap buy", () => {
       { owner: traderB, buyer: traderA },
     ]) {
       const takerBroker = Keypair.generate().publicKey;
-      await testMakePoolBuyNftT22({
+      await wnsTestMakePoolBuyNft({
         tswap,
         owner,
         buyer,

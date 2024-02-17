@@ -6,7 +6,7 @@ use anchor_spl::{
     },
 };
 use mpl_token_metadata::types::TokenStandard;
-use tensor_nft::validate_mint_t22;
+use tensor_nft::token_2022::t22_validate_mint;
 use vipers::throw_err;
 
 use crate::*;
@@ -164,7 +164,7 @@ pub fn process_buy_single_listing_t22<'info, 'b>(
 
     // validate mint account
 
-    validate_mint_t22(&ctx.accounts.nft_mint.to_account_info())?;
+    t22_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     // transfer the NFT
 

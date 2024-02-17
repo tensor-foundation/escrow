@@ -1,8 +1,6 @@
 #![allow(unknown_lints)] //needed otherwise complains during github actions
 #![allow(clippy::result_large_err)] //needed otherwise unhappy w/ anchor errors
 
-use std::collections::HashMap;
-
 use anchor_lang::{
     prelude::*,
     solana_program::{program::invoke, system_instruction},
@@ -16,7 +14,11 @@ use anchor_spl::{token_2022, token_interface::TransferChecked};
 use mpl_token_metadata::types::{
     AuthorizationData, Payload, PayloadType, ProofInfo, SeedsVec, TokenStandard,
 };
-use tensor_nft::validate_mint_t22;
+use std::collections::HashMap;
+use tensor_nft::token_2022::{
+    t22_validate_mint,
+    wns::{wns_approve, wns_validate_mint, ApproveAccounts},
+};
 use tensor_nft::{
     assert_decode_metadata, calc_creators_fee, send_pnft, transfer_creators_fee,
     transfer_lamports_from_pda, CreatorFeeMode, FromAcc, PnftTransferArgs,
@@ -382,7 +384,7 @@ pub mod tensor_bid {
 
         // validate mint account
 
-        validate_mint_t22(&ctx.accounts.nft_mint)?;
+        t22_validate_mint(&ctx.accounts.nft_mint)?;
 
         // transfer the NFT
 
@@ -493,6 +495,159 @@ pub mod tensor_bid {
         Ok(())
     }
 
+    pub fn wns_take_bid<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsTakeBid<'info>>,
+        lamports: u64,
+    ) -> Result<()> {
+        //verify expiry
+
+        let bid_state = &ctx.accounts.bid_state;
+
+        if bid_state.expiry < Clock::get()?.unix_timestamp {
+            throw_err!(BidExpired);
+        }
+
+        // validate mint account
+        let seller_fee_basis_points = wns_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+        let creators_fee = calc_creators_fee(
+            seller_fee_basis_points,
+            lamports,
+            Some(TokenStandard::ProgrammableNonFungible), // <- enforced royalties
+            None,
+        )?;
+
+        // TODO: we are currently using the seller to pay royalties directly, but this should be
+        // the bid_state PDA, otherwise the seller is required to have enough lamports to pay upfront.
+        // WNS approve instruction does not allow to pay royalties from a PDA. When we change this,
+        // we need to subtract the royalties values from the left_for_seller variable.
+
+        let approve_accounts = ApproveAccounts {
+            payer: ctx.accounts.seller.to_account_info(),
+            authority: ctx.accounts.seller.to_account_info(),
+            mint: ctx.accounts.nft_mint.to_account_info(),
+            approve_account: ctx.accounts.approve_account.to_account_info(),
+            payment_mint: None,
+            payer_address: ctx.accounts.seller.to_account_info(),
+            distribution: ctx.accounts.distribution.to_account_info(),
+            distribution_address: ctx.accounts.distribution.to_account_info(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+            distribution_program: ctx.accounts.distribution_program.to_account_info(),
+            wns_program: ctx.accounts.wns_program.to_account_info(),
+            token_program: ctx.accounts.token_program.to_account_info(),
+            associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
+        };
+        // royalty payment
+        wns_approve(approve_accounts, lamports, creators_fee)?;
+
+        // transfer the NFT
+
+        let transfer_cpi = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            TransferChecked {
+                from: ctx.accounts.nft_seller_acc.to_account_info(),
+                to: ctx.accounts.nft_bidder_acc.to_account_info(),
+                authority: ctx.accounts.seller.to_account_info(),
+                mint: ctx.accounts.nft_mint.to_account_info(),
+            },
+        );
+
+        tensor_nft::token_2022::transfer::transfer_checked(
+            transfer_cpi.with_remaining_accounts(vec![
+                ctx.accounts.wns_program.to_account_info(),
+                ctx.accounts.extra_metas.to_account_info(),
+                ctx.accounts.approve_account.to_account_info(),
+            ]),
+            1, // supply = 1
+            0, // decimals = 0
+        )?;
+
+        // transfers funds
+
+        let Fees {
+            tswap_fee,
+            maker_rebate: _,
+            broker_fee,
+            taker_fee,
+        } = calc_fees_rebates(lamports)?;
+
+        // we do this before PriceMismatch for easy debugging eg if there's a lot of slippage
+        emit!(TakeBidEvent {
+            mint: bid_state.nft_mint,
+            bidder: bid_state.bidder,
+            expiry: bid_state.expiry,
+            lamports: bid_state.bid_amount,
+            tswap_fee: taker_fee,
+            creators_fee
+        });
+
+        if lamports != bid_state.bid_amount {
+            throw_err!(PriceMismatch);
+        }
+
+        let mut left_for_seller = lamports;
+
+        // if margin is used, move money into bid first
+        if let Some(margin) = bid_state.margin {
+            let margin_account = assert_decode_margin_account(
+                &ctx.accounts.margin_account,
+                &ctx.accounts.bidder.to_account_info(),
+            )?;
+            //doesn't hurt to check again
+            if margin_account.owner != *ctx.accounts.bidder.key {
+                throw_err!(BadMargin);
+            }
+            if *ctx.accounts.margin_account.key != margin {
+                throw_err!(BadMargin);
+            }
+
+            tensorswap::cpi::withdraw_margin_account_cpi(
+                CpiContext::new(
+                    ctx.accounts.tensorswap_program.to_account_info(),
+                    tensorswap::cpi::accounts::WithdrawMarginAccountCpi {
+                        tswap: ctx.accounts.tswap.to_account_info(),
+                        margin_account: ctx.accounts.margin_account.to_account_info(),
+                        bid_state: ctx.accounts.bid_state.to_account_info(),
+                        owner: ctx.accounts.bidder.to_account_info(),
+                        nft_mint: ctx.accounts.nft_mint.to_account_info(),
+                        //transfer to bid state
+                        destination: ctx.accounts.bid_state.to_account_info(),
+                        system_program: ctx.accounts.system_program.to_account_info(),
+                    },
+                )
+                .with_signer(&[&ctx.accounts.bid_state.seeds()]),
+                bid_state.bump[0],
+                //full amount, which later will be split into fees / royalties (seller pays)
+                lamports,
+            )?;
+        }
+
+        // transfer fees
+        left_for_seller = unwrap_int!(left_for_seller.checked_sub(taker_fee));
+        transfer_lamports_from_pda(
+            &ctx.accounts.bid_state.to_account_info(),
+            &ctx.accounts.fee_vault.to_account_info(),
+            tswap_fee,
+        )?;
+        transfer_lamports_from_pda(
+            &ctx.accounts.bid_state.to_account_info(),
+            &ctx.accounts.taker_broker.to_account_info(),
+            broker_fee,
+        )?;
+
+        // transfer remainder to seller
+        // (!) fees/royalties are paid by TAKER, which in this case is the SELLER
+        // (!) maker rebate already taken out of this amount
+        transfer_lamports_from_pda(
+            &ctx.accounts.bid_state.to_account_info(),
+            &ctx.accounts.seller.to_account_info(),
+            left_for_seller,
+        )?;
+
+        Ok(())
+    }
+
+    // --------------------------------------- helpers
+
     pub fn cancel_bid(_ctx: Context<CancelBid>) -> Result<()> {
         //all lamports withdrawn back to bidder when account closed
         Ok(())
@@ -509,7 +664,7 @@ pub mod tensor_bid {
     }
 }
 
-// --------------------------------------- accounts + validators}
+// --------------------------------------- accounts + validators
 
 #[derive(Accounts)]
 pub struct Bid<'info> {
@@ -713,6 +868,93 @@ pub struct TakeBidT22<'info> {
     /// CHECK:
     #[account(mut)]
     pub taker_broker: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct WnsTakeBid<'info> {
+    #[account(
+        seeds = [],
+        bump = tswap.bump[0],
+        seeds::program = tensorswap::id(),
+        has_one = fee_vault,
+    )]
+    pub tswap: Box<Account<'info, TSwap>>,
+
+    //degenerate: fee_acc now === TSwap, keeping around to preserve backwards compatibility
+    /// CHECK: has_one = fee_vault in tswap
+    #[account(mut)]
+    pub fee_vault: UncheckedAccount<'info>,
+
+    /// CHECK: check account on instruction
+    pub nft_mint: UncheckedAccount<'info>,
+
+    #[account(
+        init_if_needed,
+        payer = seller,
+        associated_token::mint = nft_mint,
+        associated_token::authority = bidder,
+    )]
+    pub nft_bidder_acc: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        token::mint = nft_mint,
+        token::authority = seller,
+    )]
+    pub nft_seller_acc: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds=[b"bid_state".as_ref(), bidder.key().as_ref(), nft_mint.key().as_ref()],
+        bump = bid_state.bump[0],
+        close = bidder,
+        has_one = bidder,
+        has_one = nft_mint,
+    )]
+    pub bid_state: Box<Account<'info, BidState>>,
+
+    /// CHECK: has_one on bid_state
+    #[account(mut)]
+    pub bidder: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    pub token_program: Program<'info, Token2022>,
+
+    pub associated_token_program: Program<'info, AssociatedToken>,
+
+    pub system_program: Program<'info, System>,
+
+    pub rent: Sysvar<'info, Rent>,
+
+    pub tensorswap_program: Program<'info, Tensorswap>,
+
+    /// CHECK: optional, manually handled in handler: 1)seeds, 2)program owner, 3)normal owner, 4)margin acc stored on pool
+    #[account(mut)]
+    pub margin_account: UncheckedAccount<'info>,
+
+    /// CHECK:
+    #[account(mut)]
+    pub taker_broker: UncheckedAccount<'info>,
+
+    // ---- WNS royalty enforcement
+    /// CHECK: checked on approve CPI
+    #[account(mut)]
+    pub approve_account: UncheckedAccount<'info>,
+
+    /// CHECK: checked on approve CPI
+    #[account(mut)]
+    pub distribution: UncheckedAccount<'info>,
+
+    /// CHECK: checked on approve CPI
+    pub wns_program: UncheckedAccount<'info>,
+
+    /// CHECK: checked on approve CPI
+    pub distribution_program: UncheckedAccount<'info>,
+
+    /// CHECK: checked on transfer CPI
+    pub extra_metas: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

@@ -6,7 +6,6 @@ pub use vipers::prelude::*;
 
 pub mod instructions;
 pub mod state;
-pub mod token2022;
 
 pub use instructions::*;
 pub use state::*;
@@ -15,7 +14,6 @@ pub use tensor_nft::{
     transfer_creators_fee, transfer_lamports_from_pda, CreatorFeeMode, FromAcc, FromExternal,
     PnftTransferArgs,
 };
-pub use token2022::*;
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
 
@@ -323,14 +321,14 @@ pub mod tensorswap {
         _config: PoolConfig,
         max_price: u64,
     ) -> Result<()> {
-        instructions::buy_nft_t22::handler(ctx, max_price)
+        instructions::t22_buy_nft::handler(ctx, max_price)
     }
 
     pub fn deposit_nft_t22<'info>(
         ctx: Context<'_, '_, '_, 'info, DepositNftT22<'info>>,
         _config: PoolConfig,
     ) -> Result<()> {
-        instructions::deposit_nft_t22::handler(ctx)
+        instructions::t22_deposit_nft::handler(ctx)
     }
 
     pub fn sell_nft_token_pool_t22<'info>(
@@ -338,7 +336,7 @@ pub mod tensorswap {
         _config: PoolConfig,
         min_price: u64,
     ) -> Result<()> {
-        instructions::sell_nft_token_pool_t22::handler(ctx, min_price)
+        instructions::t22_sell_nft_token_pool::handler(ctx, min_price)
     }
 
     pub fn sell_nft_trade_pool_t22<'info>(
@@ -346,32 +344,90 @@ pub mod tensorswap {
         _config: PoolConfig,
         min_price: u64,
     ) -> Result<()> {
-        instructions::sell_nft_trade_pool_t22::handler(ctx, min_price)
+        instructions::t22_sell_nft_trade_pool::handler(ctx, min_price)
     }
 
     pub fn withdraw_nft_t22<'info>(
         ctx: Context<'_, '_, '_, 'info, WithdrawNftT22<'info>>,
         _config: PoolConfig,
     ) -> Result<()> {
-        instructions::withdraw_nft_t22::handler(ctx)
+        instructions::t22_withdraw_nft::handler(ctx)
     }
 
     pub fn buy_single_listing_t22<'info>(
         ctx: Context<'_, '_, '_, 'info, BuySingleListingT22<'info>>,
         max_price: u64,
     ) -> Result<()> {
-        instructions::buy_single_listing_t22::process_buy_single_listing_t22(ctx, max_price)
+        instructions::t22_buy_single_listing::process_buy_single_listing_t22(ctx, max_price)
     }
 
     pub fn list_t22<'info>(
         ctx: Context<'_, '_, '_, 'info, ListT22<'info>>,
         price: u64,
     ) -> Result<()> {
-        instructions::list_t22::process_list_t22(ctx, price)
+        instructions::t22_list::process_list_t22(ctx, price)
     }
 
     pub fn delist_t22<'info>(ctx: Context<'_, '_, '_, 'info, DelistT22<'info>>) -> Result<()> {
-        instructions::delist_t22::process_delist_t22(ctx)
+        instructions::t22_delist::process_delist_t22(ctx)
+    }
+
+    // WNS Token 2022 metadata support
+
+    pub fn wns_buy_nft<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsBuyNft<'info>>,
+        _config: PoolConfig,
+        max_price: u64,
+    ) -> Result<()> {
+        instructions::wns_buy_nft::handler(ctx, max_price)
+    }
+
+    pub fn wns_deposit_nft<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsDepositNft<'info>>,
+        _config: PoolConfig,
+    ) -> Result<()> {
+        instructions::wns_deposit_nft::handler(ctx)
+    }
+
+    pub fn wns_sell_nft_token_pool<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsSellNftTokenPool<'info>>,
+        _config: PoolConfig,
+        min_price: u64,
+    ) -> Result<()> {
+        instructions::wns_sell_nft_token_pool::handler(ctx, min_price)
+    }
+
+    pub fn wns_sell_nft_trade_pool<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsSellNftTradePool<'info>>,
+        _config: PoolConfig,
+        min_price: u64,
+    ) -> Result<()> {
+        instructions::wns_sell_nft_trade_pool::handler(ctx, min_price)
+    }
+
+    pub fn wns_withdraw_nft<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsWithdrawNft<'info>>,
+        _config: PoolConfig,
+    ) -> Result<()> {
+        instructions::wns_withdraw_nft::handler(ctx)
+    }
+
+    pub fn wns_buy_single_listing<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsBuySingleListing<'info>>,
+        max_price: u64,
+    ) -> Result<()> {
+        instructions::wns_buy_single_listing::wns_process_buy_single_listing(ctx, max_price)
+    }
+
+    pub fn wns_list<'info>(
+        ctx: Context<'_, '_, '_, 'info, WnsList<'info>>,
+        price: u64,
+    ) -> Result<()> {
+        instructions::wns_list::wns_process_list(ctx, price)
+    }
+
+    pub fn wns_delist<'info>(ctx: Context<'_, '_, '_, 'info, WnsDelist<'info>>) -> Result<()> {
+        instructions::wns_delist::wns_process_delist(ctx)
     }
 }
 

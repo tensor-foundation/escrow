@@ -1458,7 +1458,7 @@ dependencies = [
 [[package]]
 name = "merkle_proof"
 version = "0.1.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=e0637e7f0dd1172af8824f8662fee2224f52e7c1#e0637e7f0dd1172af8824f8662fee2224f52e7c1"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=85e9ba019516659ff891428ff517424474dc2cba#85e9ba019516659ff891428ff517424474dc2cba"
 dependencies = [
  "anchor-lang 0.29.0",
 ]
@@ -2552,15 +2552,17 @@ dependencies = [
 
 [[package]]
 name = "tensor_nft"
-version = "0.3.0"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=e0637e7f0dd1172af8824f8662fee2224f52e7c1#e0637e7f0dd1172af8824f8662fee2224f52e7c1"
+version = "0.4.0"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=85e9ba019516659ff891428ff517424474dc2cba#85e9ba019516659ff891428ff517424474dc2cba"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",
+ "bytemuck",
  "mpl-bubblegum",
  "mpl-token-metadata",
  "spl-account-compression",
  "spl-noop",
+ "spl-token-metadata-interface",
  "vipers",
 ]
 
@@ -2584,6 +2586,7 @@ dependencies = [
  "merkle_proof",
  "mpl-token-metadata",
  "spl-math",
+ "spl-token-metadata-interface",
  "static_assertions",
  "tensor_nft",
  "tensor_whitelist",
@@ -2736,7 +2739,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vipers"
 version = "2.0.6"
-source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=e0637e7f0dd1172af8824f8662fee2224f52e7c1#e0637e7f0dd1172af8824f8662fee2224f52e7c1"
+source = "git+ssh://git@github.com/tensor-hq/tensor-common-rs.git?rev=85e9ba019516659ff891428ff517424474dc2cba#85e9ba019516659ff891428ff517424474dc2cba"
 dependencies = [
  "anchor-lang 0.29.0",
  "anchor-spl",

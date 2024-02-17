@@ -3,7 +3,10 @@
 use anchor_spl::token_interface::{
     transfer_checked, Mint, Token2022, TokenAccount, TransferChecked,
 };
-use tensor_nft::validate_mint_t22;
+use tensor_nft::token_2022::{
+    t22_validate_mint,
+    token::{safe_initialize_token_account, InitializeTokenAccount},
+};
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -115,7 +118,7 @@ impl<'info> Validate<'info> for DepositNftT22<'info> {
 pub fn handler(ctx: Context<DepositNftT22>) -> Result<()> {
     // validate mint account
 
-    validate_mint_t22(&ctx.accounts.nft_mint.to_account_info())?;
+    t22_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     // initialize token account
 

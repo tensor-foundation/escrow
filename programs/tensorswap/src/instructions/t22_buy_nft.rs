@@ -6,7 +6,7 @@ use anchor_spl::{
         self, transfer_checked, CloseAccount, Mint, Token2022, TokenAccount, TransferChecked,
     },
 };
-use tensor_nft::validate_mint_t22;
+use tensor_nft::token_2022::t22_validate_mint;
 use tensor_whitelist::{self, Whitelist};
 use vipers::throw_err;
 
@@ -179,7 +179,7 @@ pub fn handler<'info, 'b>(
 ) -> Result<()> {
     // validate mint account
 
-    validate_mint_t22(&ctx.accounts.nft_mint.to_account_info())?;
+    t22_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     let pool = &ctx.accounts.pool;
 

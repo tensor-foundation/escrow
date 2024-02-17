@@ -41,6 +41,7 @@ import {
   testMakeMargin,
   testWithdrawFromMargin,
 } from "../tswap/common";
+import { wnsMint, wnsTokenAccount } from "../wns";
 
 chai.use(chaiAsPromised);
 
@@ -377,6 +378,127 @@ const testTakeBidT22 = async ({
       //check roughly correct (their acc is a few mm)
       expect(currSellerLamports! - prevSellerLamports!).gt(
         bidAmount - takerFee - 3_000_000
+      );
+
+      // bidder gets back rent + rebate
+      const currBidderLamports = await getLamports(bidder.publicKey);
+      expect(currBidderLamports! - prevBidderLamports!).equal(
+        //note that rebate goes back to owner since we close the bid state
+        (await bidSdk.getBidStateRent()) + makerRebate
+      );
+
+      // Sol escrow should have the NFT cost deducted (minus mm fees owner gets back).
+      if (!isNullLike(margin)) {
+        const currMarginLamports = await getLamports(margin);
+        expect(currMarginLamports! - prevMarginLamports!).eq(-1 * bidAmount);
+      } else {
+        const currBidStateLamports = await getLamports(bidState);
+        expect((currBidStateLamports ?? 0) - prevBidStateLamports!).eq(
+          -1 * (bidAmount + (await bidSdk.getBidStateRent()))
+        );
+      }
+
+      await expect(bidSdk.fetchBidState(bidState)).to.be.rejectedWith(
+        "does not exist"
+      );
+    }
+  );
+};
+
+const wnsTestTakeBid = async ({
+  bidder,
+  seller,
+  mint,
+  ata,
+  margin,
+  bidAmount,
+  collectionMint,
+  takerBroker = null,
+  lookupTableAccount = null,
+}: {
+  bidder: Keypair;
+  seller: Keypair;
+  mint: PublicKey;
+  ata: PublicKey;
+  margin: PublicKey | null;
+  bidAmount: number;
+  collectionMint: PublicKey;
+  takerBroker?: PublicKey | null;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+}) => {
+  const {
+    tx: { ixs: takeIxs },
+    bidState,
+    tswapPda,
+    nftbidderAcc,
+  } = await bidSdk.wnsTakeBid({
+    bidder: bidder.publicKey,
+    margin,
+    nftMint: mint,
+    lamports: new BN(bidAmount),
+    seller: seller.publicKey,
+    nftSellerAcc: ata,
+    takerBroker,
+    collectionMint,
+  });
+  return await withLamports(
+    {
+      prevBidderLamports: bidder.publicKey,
+      prevBidStateLamports: bidState,
+      ...(margin ? { prevMarginLamports: margin } : {}),
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
+      prevFeeAccLamports: tswapPda,
+      prevSellerLamports: seller.publicKey,
+    },
+    async ({
+      prevBidderLamports,
+      prevBidStateLamports,
+      prevMarginLamports,
+      prevTakerBroker,
+      prevFeeAccLamports,
+      prevSellerLamports,
+    }) => {
+      // Seller initially has the nft
+      let sellerAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+      let bidderAcc = await getAccountWithProgramId(
+        nftbidderAcc,
+        TOKEN_2022_PROGRAM_ID
+      );
+      expect(sellerAcc.amount.toString()).eq("1");
+      expect(bidderAcc.amount.toString()).eq("0");
+
+      await buildAndSendTx({
+        ixs: takeIxs,
+        extraSigners: [seller],
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
+      });
+
+      // Bidder eventually has the nft
+      sellerAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+      bidderAcc = await getAccountWithProgramId(
+        nftbidderAcc,
+        TOKEN_2022_PROGRAM_ID
+      );
+      expect(sellerAcc.amount.toString()).eq("0");
+      expect(bidderAcc.amount.toString()).eq("1");
+
+      //fees
+      const creatorsFee = (bidAmount * 1000) / 10000;
+      const feeAccLamports = await getLamports(tswapPda);
+      const { tswapFee, brokerFee, makerRebate, takerFee } =
+        calcFeesRebates(bidAmount);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
+
+      //paid full amount to seller
+      const currSellerLamports = await getLamports(seller.publicKey);
+      expect(currSellerLamports! - prevSellerLamports!).eq(
+        bidAmount - takerFee - creatorsFee - (await swapSdk.getApproveRent())
       );
 
       // bidder gets back rent + rebate
@@ -1403,6 +1525,50 @@ describe("tensor bid", () => {
         margin,
         bidAmount: amount,
         lookupTableAccount,
+      });
+    }
+  });
+
+  it("[WNS] happy path (bid -> take bid)", async () => {
+    const [bidder, seller] = await makeNTraders({ n: 2 });
+    const amount = LAMPORTS_PER_SOL;
+    const expireIn = HOURS / 1000;
+
+    for (const [programmable, marginated] of cartesian(
+      [true, false],
+      [true, false]
+    )) {
+      const {
+        mint,
+        token: ata,
+        collection: collectionMint,
+      } = await wnsMint(seller.publicKey, 1000);
+      await wnsTokenAccount(bidder.publicKey, mint);
+
+      let margin = null;
+      if (marginated) {
+        const { marginPda, marginNr, marginRent } = await testMakeMargin({
+          owner: bidder,
+        });
+        await testDepositIntoMargin({
+          owner: bidder,
+          marginNr,
+          marginPda,
+          amount,
+        });
+        margin = marginPda;
+      }
+
+      await testBid({ bidder, mint, margin, bidAmount: amount, expireIn });
+      await wnsTestTakeBid({
+        bidder,
+        seller,
+        mint,
+        ata,
+        margin,
+        bidAmount: amount,
+        lookupTableAccount,
+        collectionMint,
       });
     }
   });

@@ -13,20 +13,29 @@ import {
 import { isNullLike } from "@tensor-hq/tensor-common";
 import { expect } from "chai";
 import { TAKER_BROKER_PCT } from "../../src";
-import { buildAndSendTx, getLamports, swapSdk, withLamports } from "../shared";
+import {
+  buildAndSendTx,
+  getLamports,
+  swapSdk,
+  TEST_CONN_PAYER,
+  TEST_PROVIDER,
+  withLamports,
+} from "../shared";
+import {
+  createCollectionWithRoyalties,
+  mintNft,
+  wnsMint,
+  wnsTokenAccount,
+} from "../wns";
 import {
   beforeHook,
   calcFeesRebates,
-  createAssociatedTokenAccountT22,
-  createFundedHolderAndMintAndTokenT22,
-  createMintAndTokenT22,
   getAccountWithProgramId,
   makeNTraders,
-  testMakeList,
-  testMakeListT22,
+  wnsTestMakeList,
 } from "./common";
 
-describe("[Token 2022] tswap single listing", () => {
+describe("[WNS Token 2022] tswap single listing", () => {
   // Keep these coupled global vars b/w tests at a minimal.
   let tswap: PublicKey;
   let lookupTableAccount: AddressLookupTableAccount | null;
@@ -36,29 +45,61 @@ describe("[Token 2022] tswap single listing", () => {
     ({ tswapPda: tswap, lookupTableAccount } = await beforeHook());
   });
 
-  it("[T22] list + delist single listing", async () => {
-    const { mint, token, holder } = await createFundedHolderAndMintAndTokenT22(
-      10
+  it("[WNS] list + delist single listing", async () => {
+    const { collection } = await createCollectionWithRoyalties(
+      TEST_PROVIDER,
+      TEST_CONN_PAYER.payer,
+      TEST_CONN_PAYER.payer,
+      {
+        name: "test",
+        symbol: "TST",
+        maxSize: 10,
+        uri: "https://test.com",
+      }
     );
+
+    const creator = Keypair.generate().publicKey;
+    const { mint, token } = await mintNft(
+      TEST_PROVIDER,
+      TEST_CONN_PAYER.payer.publicKey, // minter
+      TEST_CONN_PAYER.payer,
+      TEST_CONN_PAYER.payer,
+      {
+        collection: collection.toString(),
+        creators: [
+          {
+            address: creator.toString(),
+            share: 100,
+          },
+        ],
+        name: "WSN mint",
+        symbol: "WSN",
+        royaltyBasisPoints: 500,
+        uri: "https://test.com",
+      }
+    );
+    const minter = TEST_CONN_PAYER.payer;
+
     const price = new BN(LAMPORTS_PER_SOL);
 
     // --------------------------------------- list
 
-    const holderLamports1 = await getLamports(holder.publicKey);
+    const holderLamports1 = await getLamports(minter.publicKey);
 
     const {
       tx: { ixs },
       escrowPda,
       singleListing,
-    } = await swapSdk.listT22({
+    } = await swapSdk.wnsList({
       price: price,
       nftMint: mint,
       nftSource: token,
-      owner: holder.publicKey,
+      owner: minter.publicKey,
+      collectionMint: collection,
     });
     await buildAndSendTx({
       ixs,
-      extraSigners: [holder],
+      extraSigners: [minter],
     });
 
     const traderAcc = await getAccountWithProgramId(
@@ -74,37 +115,38 @@ describe("[Token 2022] tswap single listing", () => {
 
     const singleListingAcc = await swapSdk.fetchSingleListing(singleListing);
     expect(singleListingAcc.owner.toBase58()).to.eq(
-      holder.publicKey.toBase58()
+      minter.publicKey.toBase58()
     );
     expect(singleListingAcc.nftMint.toBase58()).to.eq(mint.toBase58());
     expect(singleListingAcc.price.toNumber()).to.eq(price.toNumber());
 
-    const holderLamports2 = await getLamports(holder.publicKey);
+    const holderLamports2 = await getLamports(minter.publicKey);
     expect(holderLamports2).lt(holderLamports1!);
 
     // --------------------------------------- delist
 
     const {
       tx: { ixs: delistIxs },
-    } = await swapSdk.delistT22({
+    } = await swapSdk.wnsDelist({
       nftMint: mint,
       nftDest: getAssociatedTokenAddressSync(
         mint,
-        holder.publicKey,
+        minter.publicKey,
         undefined,
         TOKEN_2022_PROGRAM_ID
       ),
-      owner: holder.publicKey,
+      owner: minter.publicKey,
+      collectionMint: collection,
     });
     await buildAndSendTx({
       ixs: delistIxs,
-      extraSigners: [holder],
+      extraSigners: [minter],
     });
 
     let holderAcc = await getAccountWithProgramId(
       getAssociatedTokenAddressSync(
         mint,
-        holder.publicKey,
+        minter.publicKey,
         undefined,
         TOKEN_2022_PROGRAM_ID
       ),
@@ -117,26 +159,24 @@ describe("[Token 2022] tswap single listing", () => {
     ).rejectedWith(TokenAccountNotFoundError);
 
     //owner's lamports up since account got closed
-    const holderLamports3 = await getLamports(holder.publicKey);
+    const holderLamports3 = await getLamports(minter.publicKey);
     expect(holderLamports3).gt(holderLamports2!);
   });
 
-  it("[T22] list + edit + buy single listing (taker broker)", async () => {
+  it("[WNS] list + edit + buy single listing (taker broker)", async () => {
     const [owner, buyer] = await makeNTraders({ n: 2 });
     for (const price of [100, LAMPORTS_PER_SOL, 0.5 * LAMPORTS_PER_SOL]) {
       const takerBroker = Keypair.generate().publicKey;
 
-      const { mint, token: ata } = await createMintAndTokenT22(owner.publicKey);
-      const { token: otherAta } = await createAssociatedTokenAccountT22(
-        buyer.publicKey,
-        mint
-      );
+      const { mint, token: ata, collection } = await wnsMint(owner.publicKey);
+      const { token: otherAta } = await wnsTokenAccount(buyer.publicKey, mint);
 
-      await testMakeListT22({
+      await wnsTestMakeList({
         mint,
         price: new BN(price),
         ata,
         owner,
+        collection,
       });
 
       // --------------------------------------- edit
@@ -158,12 +198,13 @@ describe("[Token 2022] tswap single listing", () => {
 
       const {
         tx: { ixs: badBuyIxs },
-      } = await swapSdk.buySingleListingT22({
+      } = await swapSdk.wnsBuySingleListing({
         buyer: buyer.publicKey,
         maxPrice: new BN(price), //<-- original price
         nftBuyerAcc: otherAta,
         nftMint: mint,
         owner: owner.publicKey,
+        collectionMint: collection,
       });
       await expect(
         buildAndSendTx({
@@ -172,23 +213,25 @@ describe("[Token 2022] tswap single listing", () => {
         })
       ).to.be.rejectedWith(swapSdk.getErrorCodeHex("PriceMismatch"));
 
-      await buySingleListingT22({
+      await wnsBuySingleListing({
         buyer,
         expectedLamports: editedPrice,
         mint,
         otherAta,
         owner,
         takerBroker,
+        collectionMint: collection,
       });
     }
   });
 });
 
-const buySingleListingT22 = async ({
+const wnsBuySingleListing = async ({
   mint,
   otherAta,
   owner,
   buyer,
+  collectionMint,
   expectedLamports,
   lookupTableAccount,
   takerBroker = null,
@@ -197,6 +240,7 @@ const buySingleListingT22 = async ({
   otherAta: PublicKey;
   owner: Keypair;
   buyer: Keypair;
+  collectionMint: PublicKey;
   expectedLamports: number;
   lookupTableAccount?: AddressLookupTableAccount | null;
   takerBroker?: PublicKey | null;
@@ -205,13 +249,14 @@ const buySingleListingT22 = async ({
     tx: { ixs: buyIxs },
     tswapPda,
     escrowPda,
-  } = await swapSdk.buySingleListingT22({
+  } = await swapSdk.wnsBuySingleListing({
     buyer: buyer.publicKey,
     maxPrice: new BN(expectedLamports),
     nftBuyerAcc: otherAta,
     nftMint: mint,
     owner: owner.publicKey,
     takerBroker,
+    collectionMint,
   });
   return await withLamports(
     {
@@ -246,6 +291,7 @@ const buySingleListingT22 = async ({
       ).rejectedWith(TokenAccountNotFoundError);
 
       //fees
+      const creatorsFee = (expectedLamports * 10000) / 10000;
       const feeAccLamports = await getLamports(tswapPda);
       const { tswapFee, brokerFee, makerRebate, takerFee } =
         calcFeesRebates(expectedLamports);
@@ -261,7 +307,7 @@ const buySingleListingT22 = async ({
       // Buyer pays full amount.
       const currBuyerLamports = await getLamports(buyer.publicKey);
       expect(currBuyerLamports! - prevBuyerLamports!).eq(
-        -1 * (expectedLamports + takerFee)
+        -1 * (expectedLamports + takerFee + creatorsFee)
       );
 
       // amount sent to owner's wallet
@@ -270,7 +316,7 @@ const buySingleListingT22 = async ({
         expectedLamports +
           makerRebate +
           (await swapSdk.getSingleListingRent()) +
-          (await swapSdk.getImmutableTokenAcctRent())
+          (await swapSdk.getTokenAcctRentForMint(mint, TOKEN_2022_PROGRAM_ID))
       );
     }
   );

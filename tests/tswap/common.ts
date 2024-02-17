@@ -88,6 +88,7 @@ import {
   wlSdk,
 } from "../shared";
 import { testInitUpdateMintProof } from "../twhitelist/common";
+import { wnsMint, wnsTokenAccount } from "../wns";
 
 // Enables rejectedWith.
 chai.use(chaiAsPromised);
@@ -2269,6 +2270,8 @@ export const testTakeSnipe = async ({
   );
 };
 
+//-------------------------------- Token 2022
+
 export const createFundedHolderAndMintAndTokenT22 = async (
   sol: number
 ): Promise<{
@@ -2903,7 +2906,7 @@ export const testSellNftT22 = async ({
           ? // Seller pays rent for:
             // (1) NFT escrow account
             // (2) NFT deposit receipt
-            (await swapSdk.getImmutableTokenAcctRent()) +
+            (await swapSdk.getTokenAcctRent()) +
             (await swapSdk.getNftDepositReceiptRent())
           : // owner ATA always exists (b/c we initialize it above)
             0;
@@ -3242,7 +3245,799 @@ export const testBuyNftT22 = async ({
         (isTrade ? 0 : expectedLamports + makerRebate) +
         // The owner gets back the rent costs.
         (await swapSdk.getNftDepositReceiptRent()) +
-        (await swapSdk.getImmutableTokenAcctRent());
+        (await swapSdk.getTokenAcctRent());
+
+      const expEscrowAmount = isTrade
+        ? marginPda
+          ? 0
+          : expectedLamports + makerRebate - separateMmFee
+        : 0;
+      const expMarginAmount = isTrade
+        ? marginPda
+          ? expectedLamports + makerRebate - separateMmFee
+          : 0
+        : 0;
+
+      if (!config.mmCompoundFees) {
+        const currPoolLamports = await getLamports(poolPda);
+        expect(prevPoolLamports! - currPoolLamports!).eq(-1 * separateMmFee);
+      }
+
+      // amount sent to owner's wallet
+      const currSellerLamports = await getLamports(owner.publicKey);
+      expect(currSellerLamports! - prevSellerLamports!).eq(expOwnerAmount);
+
+      // amount sent to escrow
+      const currSolEscrowLamports = await getLamports(solEscrowPda);
+      expect(currSolEscrowLamports! - prevEscrowLamports!).eq(expEscrowAmount);
+
+      // amount sent to margin
+      if (marginPda) {
+        const currMarginLamports = await getLamports(marginPda);
+        expect(currMarginLamports! - prevMarginLamports!).eq(expMarginAmount);
+      }
+
+      const poolAcc = await swapSdk.fetchPool(pool);
+      expectPoolAccounting(poolAcc, prevPoolAcc, {
+        nfts: -1,
+        sell: 0,
+        buy: 1,
+      });
+
+      //receipt should have gotten closed
+      await expect(swapSdk.fetchReceipt(receiptPda)).rejectedWith(
+        ACCT_NOT_EXISTS_ERR
+      );
+      //transacted within last 60s & greater than before
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gte(
+        +new Date() / 1000 - 60
+      );
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gte(
+        prevPoolAcc.lastTransactedSeconds.toNumber()
+      );
+
+      return {
+        receiptPda,
+        solEscrowPda,
+        escrowPda,
+        buySig,
+        poolAcc,
+      };
+    }
+  );
+};
+
+//------------------------------- WNS Helpers
+
+export const wnsTestMakeList = async ({
+  mint,
+  price,
+  ata,
+  owner,
+  collection,
+  payer,
+}: {
+  mint: PublicKey;
+  price: BN;
+  ata: PublicKey;
+  owner: Keypair;
+  collection: PublicKey;
+  payer?: Keypair;
+}) => {
+  const {
+    tx: { ixs },
+    escrowPda,
+    tswapPda,
+    singleListing,
+  } = await swapSdk.wnsList({
+    price: price,
+    nftMint: mint,
+    nftSource: ata,
+    owner: owner.publicKey,
+    payer: payer?.publicKey,
+    collectionMint: collection,
+  });
+  await buildAndSendTx({
+    ixs,
+    extraSigners: [owner, ...(payer ? [payer] : [])],
+  });
+  const traderAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+  expect(traderAcc.amount.toString()).eq("0");
+  const escrowAcc = await getAccountWithProgramId(
+    escrowPda,
+    TOKEN_2022_PROGRAM_ID
+  );
+  expect(escrowAcc.amount.toString()).eq("1");
+
+  const singleListingAcc = await swapSdk.fetchSingleListing(singleListing);
+  expect(singleListingAcc.owner.toBase58()).to.eq(owner.publicKey.toBase58());
+  expect(singleListingAcc.nftMint.toBase58()).to.eq(mint.toBase58());
+  expect(singleListingAcc.price.toNumber()).to.eq(price.toNumber());
+
+  return { escrowPda, tswapPda };
+};
+
+// CANNOT be run async w/ same pool (nftsHeld check).
+export const wnsTestDepositNft = async ({
+  pool,
+  nftAuthPda,
+  config,
+  owner,
+  ata,
+  collectionMint,
+  wlNft,
+  nftMint,
+  whitelist,
+  skipPoolAccounting = false,
+}: {
+  pool: PublicKey;
+  nftAuthPda: PublicKey;
+  config: PoolConfigAnchor;
+  owner: Keypair;
+  ata: PublicKey;
+  collectionMint: PublicKey;
+  wlNft?: WhitelistedNft;
+  nftMint?: PublicKey;
+  whitelist: PublicKey;
+  skipPoolAccounting?: boolean;
+}) => {
+  if (!wlNft?.mint && !nftMint) {
+    throw new Error("nft mint missing");
+  }
+  const mint = wlNft?.mint ?? nftMint!;
+
+  if (wlNft?.proof) {
+    // Need to create mint proof first before being able to sell.
+    await testInitUpdateMintProof({
+      user: owner,
+      mint,
+      whitelist,
+      proof: wlNft.proof,
+      expectedProofLen: wlNft.proof.length,
+    });
+  }
+
+  let {
+    tx: { ixs },
+    receiptPda,
+    escrowPda,
+  } = await swapSdk.wnsDepositNft({
+    whitelist,
+    nftMint: mint,
+    nftSource: ata,
+    owner: owner.publicKey,
+    config,
+    collectionMint,
+  });
+  const prevPoolAcc = await swapSdk.fetchPool(pool);
+
+  const depSig = await buildAndSendTx({
+    ixs,
+    extraSigners: [owner],
+  });
+
+  //NFT moved from trader to escrow
+  let traderAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+  expect(traderAcc.amount.toString()).eq("0");
+  let escrowAcc = await getAccountWithProgramId(
+    escrowPda,
+    TOKEN_2022_PROGRAM_ID
+  );
+  expect(escrowAcc.amount.toString()).eq("1");
+  const poolAcc = await swapSdk.fetchPool(pool);
+  if (!skipPoolAccounting) {
+    expectPoolAccounting(poolAcc, prevPoolAcc, { nfts: 1, sell: 0, buy: 0 });
+  }
+
+  const receipt = await swapSdk.fetchReceipt(receiptPda);
+  expect(receipt.nftAuthority.toBase58()).eq(nftAuthPda.toBase58());
+  expect(receipt.nftMint.toBase58()).eq(mint.toBase58());
+  expect(receipt.nftEscrow.toBase58()).eq(escrowPda.toBase58());
+
+  return { depSig, receiptPda, escrowPda };
+};
+
+// CANNOT be run async w/ same pool (nftsHeld check).
+export const wnsTestWithdrawNft = async ({
+  pool,
+  config,
+  owner,
+  ata,
+  wlNft,
+  whitelist,
+  collectionMint,
+}: {
+  pool: PublicKey;
+  config: PoolConfigAnchor;
+  owner: Keypair;
+  ata: PublicKey;
+  wlNft: WhitelistedNft;
+  whitelist: PublicKey;
+  collectionMint: PublicKey;
+}) => {
+  let {
+    tx: { ixs },
+    receiptPda,
+    escrowPda,
+  } = await swapSdk.wnsWithdrawNft({
+    whitelist,
+    nftMint: wlNft.mint,
+    nftDest: ata,
+    owner: owner.publicKey,
+    config,
+    collectionMint,
+  });
+  const prevPoolAcc = await swapSdk.fetchPool(pool);
+
+  const withdrawSig = await buildAndSendTx({
+    ixs,
+    extraSigners: [owner],
+  });
+
+  //NFT moved from escrow to trader
+  let traderAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+  expect(traderAcc.amount.toString()).eq("1");
+  // Escrow closed.
+  await expect(
+    getAccountWithProgramId(escrowPda, TOKEN_2022_PROGRAM_ID)
+  ).rejectedWith(TokenAccountNotFoundError);
+
+  const poolAcc = await swapSdk.fetchPool(pool);
+  expectPoolAccounting(poolAcc, prevPoolAcc, { nfts: -1, sell: 0, buy: 0 });
+
+  // Receipt closed.
+  await expect(swapSdk.fetchReceipt(receiptPda)).rejectedWith(
+    ACCT_NOT_EXISTS_ERR
+  );
+
+  return { withdrawSig, receiptPda };
+};
+
+// CANNOT be run async (swap fee check + trader fee check).
+export const wnsTestMakePoolSellNft = async ({
+  sellType,
+  tswap,
+  owner,
+  mint,
+  seller,
+  sellerToken,
+  config,
+  expectedLamports,
+  collectionMint,
+  minLamports = expectedLamports,
+  treeSize,
+  isCosigned = false,
+  lookupTableAccount,
+  takerBroker = null,
+}: {
+  sellType: "trade" | "token";
+  tswap: PublicKey;
+  owner: Keypair;
+  mint: PublicKey;
+  seller: Keypair;
+  sellerToken: PublicKey;
+  config: PoolConfigAnchor;
+  expectedLamports: number;
+  collectionMint: PublicKey;
+  // If specified, uses this as the minPrice for the sell instr.
+  // All expects will still use expectedLamports.
+  minLamports?: number;
+  treeSize?: number;
+  isCosigned?: boolean;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+  takerBroker?: PublicKey | null;
+}) => {
+  const {
+    proofs: [wlNft],
+    whitelist,
+  } = await makeProofWhitelist([mint], treeSize);
+
+  const { poolPda, nftAuthPda } = await testMakePool({
+    tswap,
+    owner,
+    whitelist,
+    config,
+    isCosigned,
+  });
+
+  await testDepositSol({
+    pool: poolPda,
+    config,
+    owner,
+    lamports: expectedLamports,
+    whitelist,
+  });
+
+  return {
+    ...(await wnsTestSellNft({
+      whitelist,
+      wlNft,
+      nftMint: mint,
+      ata: sellerToken,
+      nftAuthPda,
+      poolPda,
+      sellType,
+      owner,
+      seller,
+      config,
+      expectedLamports,
+      minLamports,
+      treeSize,
+      isCosigned,
+      lookupTableAccount,
+      takerBroker,
+      collectionMint,
+    })),
+    poolPda,
+    wlNft,
+    whitelist,
+    mint,
+  };
+};
+
+export const wnsTestSellNft = async ({
+  nftMint,
+  whitelist,
+  wlNft,
+  ata,
+  poolPda,
+  nftAuthPda,
+  sellType,
+  owner,
+  seller,
+  config,
+  expectedLamports,
+  collectionMint,
+  minLamports = expectedLamports,
+  treeSize,
+  isCosigned = false,
+  cosigner = TEST_COSIGNER,
+  marginNr = null,
+  isSniping = false,
+  lookupTableAccount,
+  takerBroker = null,
+}: {
+  sellType: "trade" | "token";
+  nftMint?: PublicKey;
+  whitelist: PublicKey;
+  poolPda: PublicKey;
+  nftAuthPda?: PublicKey;
+  wlNft?: WhitelistedNft;
+  ata: PublicKey;
+  owner: Keypair;
+  seller: Keypair;
+  config: PoolConfigAnchor;
+  // Expected value for the current/base price.
+  expectedLamports: number;
+  collectionMint: PublicKey;
+  // If specified, uses this as the minPrice for the sell instr.
+  // All expects will still use expectedLamports.
+  minLamports?: number;
+  treeSize?: number;
+  isCosigned?: boolean;
+  cosigner?: Keypair;
+  marginNr?: null | number;
+  isSniping?: boolean;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+  takerBroker?: PublicKey | null;
+}) => {
+  if (!wlNft?.mint && !nftMint) {
+    throw new Error("missing mint");
+  }
+  const mint = wlNft?.mint ?? nftMint!;
+
+  const prevPoolAcc = await swapSdk.fetchPool(poolPda);
+
+  if (wlNft?.proof) {
+    // Need to create mint proof first before being able to sell.
+    await testInitUpdateMintProof({
+      user: seller,
+      mint,
+      whitelist,
+      proof: wlNft.proof,
+      expectedProofLen: Math.trunc(Math.log2(treeSize ?? 100)) + 1,
+    });
+  }
+
+  const {
+    tx: { ixs },
+    solEscrowPda,
+    escrowPda: nftEscrow,
+    ownerAtaAcc,
+    receiptPda: nftReceipt,
+    marginPda,
+    tswapPda,
+  } = await swapSdk.wnsSellNft({
+    type: sellType,
+    whitelist,
+    nftMint: mint,
+    nftSellerAcc: ata,
+    owner: owner.publicKey,
+    seller: seller.publicKey,
+    config,
+    minPrice: new BN(minLamports),
+    isCosigned,
+    cosigner: cosigner.publicKey,
+    marginNr,
+    takerBroker,
+    collectionMint,
+  });
+
+  const _checkDestAcc = async (amount: string) => {
+    const acc = sellType === "trade" ? nftEscrow : ownerAtaAcc;
+    // For trade pools, we expect the NFT escrow to not be initialized.
+    if (sellType === "trade" && amount === "0")
+      return await expect(
+        getAccountWithProgramId(acc, TOKEN_2022_PROGRAM_ID)
+      ).rejectedWith(TokenAccountNotFoundError);
+    // Owner should have ATA b/c we call makeMintTwoAta.
+    expect(
+      (
+        await getAccountWithProgramId(acc, TOKEN_2022_PROGRAM_ID)
+      ).amount.toString()
+    ).eq(amount);
+  };
+
+  return await withLamports(
+    {
+      prevFeeAccLamports: tswapPda,
+      prevSellerLamports: seller.publicKey,
+      prevBuyerLamports: owner.publicKey,
+      prevEscrowLamports: solEscrowPda,
+      //have to pass something for the case when margin doesn't exist
+      prevMarginLamports: marginPda ?? solEscrowPda,
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
+    },
+    async ({
+      prevFeeAccLamports,
+      prevSellerLamports,
+      prevBuyerLamports,
+      prevEscrowLamports,
+      prevMarginLamports,
+      prevTakerBroker,
+    }) => {
+      // Trader initially has mint.
+      let traderAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+      expect(traderAcc.amount.toString()).eq("1");
+      await _checkDestAcc("0");
+
+      const sellSig = await buildAndSendTx({
+        ixs,
+        extraSigners: isCosigned ? [seller, cosigner] : [seller],
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
+      });
+
+      //NFT moved from trader to escrow
+      traderAcc = await getAccountWithProgramId(ata, TOKEN_2022_PROGRAM_ID);
+      expect(traderAcc.amount.toString()).eq("0");
+      await _checkDestAcc("1");
+
+      //fees
+      const feeAccLamports = await getLamports(tswapPda);
+      const { tswapFee, brokerFee, makerRebate, takerFee } = calcFeesRebates(
+        expectedLamports,
+        isSniping
+      );
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
+
+      const mmFees = Math.trunc(
+        (expectedLamports * (config.mmFeeBps ?? 0)) / 1e4
+      );
+
+      //paid full amount to seller
+      const expectedRentBySeller =
+        sellType === "trade"
+          ? // Seller pays rent for:
+            // (1) NFT escrow account
+            // (2) NFT deposit receipt
+            (await swapSdk.getTokenAcctRentForMint(
+              mint,
+              TOKEN_2022_PROGRAM_ID
+            )) + (await swapSdk.getNftDepositReceiptRent())
+          : // owner ATA always exists (b/c we initialize it above)
+            0;
+      const currSellerLamports = await getLamports(seller.publicKey);
+
+      expect(currSellerLamports! - prevSellerLamports!).eq(
+        // Seller gets back original price minus:
+        // (1) TSwap fees
+        // (2) MM fees (if trade pool)
+        // (3) any rent paid by seller
+        expectedLamports -
+          takerFee -
+          mmFees -
+          expectedRentBySeller -
+          (await swapSdk.getApproveRent())
+      );
+
+      // buyer should not have balance change
+      const currBuyerLamports = await getLamports(owner.publicKey);
+      expect(currBuyerLamports! - prevBuyerLamports!).equal(0);
+
+      // Sol escrow should have the NFT cost deducted (minus mm fees owner gets back).
+      if (!isNullLike(marginNr)) {
+        const currMarginLamports = await getLamports(marginPda!);
+        expect(currMarginLamports! - prevMarginLamports!).eq(
+          -1 * (expectedLamports - makerRebate - mmFees)
+        );
+      } else {
+        const currEscrowLamports = await getLamports(solEscrowPda);
+        expect(currEscrowLamports! - prevEscrowLamports!).approximately(
+          -1 * (expectedLamports - makerRebate - mmFees),
+          1
+        );
+      }
+
+      const poolAcc = await swapSdk.fetchPool(poolPda);
+      expectPoolAccounting(poolAcc, prevPoolAcc, {
+        // NFTs held does not change for Token pool (goes directly to owner).
+        nfts: sellType === "trade" ? 1 : 0,
+        sell: 1,
+        buy: 0,
+      });
+      //transacted within last 60s & greated than before
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gt(
+        +new Date() / 1000 - 60
+      );
+      expect(poolAcc.lastTransactedSeconds.toNumber()).to.be.gte(
+        prevPoolAcc.lastTransactedSeconds.toNumber()
+      );
+
+      if (sellType === "trade") {
+        const receipt = await swapSdk.fetchReceipt(nftReceipt);
+        expect(receipt.nftAuthority.toBase58()).eq(nftAuthPda!.toBase58());
+        expect(receipt.nftMint.toBase58()).eq(mint.toBase58());
+        expect(receipt.nftEscrow.toBase58()).eq(nftEscrow.toBase58());
+      } else {
+        // No receipt: goes directly to owner.
+        await expect(swapSdk.fetchReceipt(nftReceipt)).rejectedWith(
+          ACCT_NOT_EXISTS_ERR
+        );
+      }
+
+      return {
+        sellSig,
+        poolPda,
+        poolAcc,
+        wlNft,
+        whitelist,
+        ownerAtaAcc,
+        solEscrowPda,
+        nftReceipt,
+      };
+    }
+  );
+};
+
+// CANNOT be run async (swap fee check + trader fee check).
+export const wnsTestMakePoolBuyNft = async ({
+  tswap,
+  owner,
+  buyer,
+  config,
+  expectedLamports,
+  maxLamports = expectedLamports,
+  treeSize,
+  lookupTableAccount,
+  marginated = false,
+  poolsAttached = 1,
+  takerBroker = null,
+}: {
+  tswap: PublicKey;
+  owner: Keypair;
+  buyer: Keypair;
+  config: PoolConfigAnchor;
+  expectedLamports: number;
+  // If specified, uses this as the maxPrice for the buy instr.
+  // All expects will still use expectedLamports.
+  maxLamports?: number;
+  treeSize?: number;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+  marginated?: boolean;
+  poolsAttached?: number;
+  takerBroker?: PublicKey | null;
+}) => {
+  const {
+    mint,
+    token: ata,
+    collection: collectionMint,
+  } = await wnsMint(owner.publicKey, 0);
+  const { token: otherAta } = await wnsTokenAccount(buyer.publicKey, mint);
+
+  const {
+    proofs: [wlNft],
+    whitelist,
+  } = await makeProofWhitelist([mint], treeSize);
+
+  const { poolPda: pool, nftAuthPda } = await testMakePool({
+    tswap,
+    owner,
+    whitelist,
+    config,
+  });
+
+  let marginNr;
+  let marginPda;
+  if (marginated && castPoolTypeAnchor(config.poolType) === PoolType.Trade) {
+    ({ marginNr, marginPda } = await testMakeMargin({
+      owner,
+    }));
+    await testAttachPoolToMargin({
+      config,
+      marginNr,
+      owner,
+      whitelist,
+      poolsAttached,
+    });
+  }
+
+  await wnsTestDepositNft({
+    nftAuthPda,
+    pool,
+    config,
+    owner,
+    ata,
+    wlNft,
+    whitelist,
+    collectionMint,
+  });
+
+  return {
+    ...(await wnsTestBuyNft({
+      pool,
+      wlNft,
+      whitelist,
+      otherAta,
+      owner,
+      buyer,
+      config,
+      expectedLamports,
+      maxLamports,
+      lookupTableAccount,
+      marginNr,
+      takerBroker,
+      collectionMint,
+    })),
+    pool,
+    whitelist,
+    ata,
+    wlNft,
+    marginNr,
+  };
+};
+
+//taker buys, pool sells
+export const wnsTestBuyNft = async ({
+  whitelist,
+  pool,
+  wlNft,
+  otherAta,
+  owner,
+  buyer,
+  config,
+  expectedLamports,
+  collectionMint,
+  maxLamports = expectedLamports,
+  lookupTableAccount,
+  marginNr,
+  takerBroker = null,
+}: {
+  whitelist: PublicKey;
+  pool: PublicKey;
+  wlNft: WhitelistedNft;
+  otherAta: PublicKey;
+  owner: Keypair;
+  buyer: Keypair;
+  config: PoolConfigAnchor;
+  expectedLamports: number;
+  collectionMint: PublicKey;
+  // If specified, uses this as the maxPrice for the buy instr.
+  // All expects will still use expectedLamports.
+  maxLamports?: number;
+  lookupTableAccount?: AddressLookupTableAccount | null;
+  marginNr?: number;
+  takerBroker?: PublicKey | null;
+}) => {
+  const {
+    tx: { ixs },
+    receiptPda,
+    escrowPda,
+    solEscrowPda,
+    tswapPda,
+    marginPda,
+    poolPda,
+  } = await swapSdk.wnsBuyNft({
+    whitelist,
+    nftMint: wlNft.mint,
+    nftBuyerAcc: otherAta,
+    owner: owner.publicKey,
+    buyer: buyer.publicKey,
+    config,
+    maxPrice: new BN(maxLamports),
+    marginNr,
+    takerBroker,
+    collectionMint,
+  });
+
+  const prevPoolAcc = await swapSdk.fetchPool(pool);
+
+  return await withLamports(
+    {
+      prevFeeAccLamports: tswapPda,
+      prevSellerLamports: owner.publicKey,
+      prevBuyerLamports: buyer.publicKey,
+      prevEscrowLamports: solEscrowPda,
+      prevPoolLamports: poolPda,
+      ...(marginPda ? { prevMarginLamports: marginPda } : {}),
+      ...(takerBroker ? { prevTakerBroker: takerBroker } : {}),
+    },
+    async ({
+      prevFeeAccLamports,
+      prevSellerLamports,
+      prevBuyerLamports,
+      prevEscrowLamports,
+      prevPoolLamports,
+      prevMarginLamports,
+      prevTakerBroker,
+    }) => {
+      const buySig = await buildAndSendTx({
+        ixs,
+        extraSigners: [buyer],
+        lookupTableAccounts: lookupTableAccount
+          ? [lookupTableAccount]
+          : undefined,
+      });
+
+      //NFT moved from escrow to trader
+      const traderAcc = await getAccountWithProgramId(
+        otherAta,
+        TOKEN_2022_PROGRAM_ID
+      );
+      expect(traderAcc.amount.toString()).eq("1");
+      // Escrow closed.
+      await expect(
+        getAccountWithProgramId(escrowPda, TOKEN_2022_PROGRAM_ID)
+      ).rejectedWith(TokenAccountNotFoundError);
+
+      //fees
+      const feeAccLamports = await getLamports(tswapPda);
+      const { tswapFee, brokerFee, makerRebate, takerFee } =
+        calcFeesRebates(expectedLamports);
+      expect(feeAccLamports! - (prevFeeAccLamports ?? 0)).eq(tswapFee);
+      if (!isNullLike(takerBroker) && TAKER_BROKER_PCT > 0) {
+        const brokerLamports = await getLamports(takerBroker);
+        expect(brokerLamports! - (prevTakerBroker ?? 0)).eq(brokerFee);
+      }
+
+      const isTrade = config.poolType === PoolTypeAnchor.Trade;
+      const separateMmFee =
+        isTrade && !config.mmCompoundFees
+          ? ((config.mmFeeBps ?? 0) / HUNDRED_PCT_BPS) * expectedLamports
+          : 0;
+
+      // Buyer pays full amount.
+      const currBuyerLamports = await getLamports(buyer.publicKey);
+      expect(currBuyerLamports! - prevBuyerLamports!).eq(
+        -1 * (expectedLamports + takerFee)
+      );
+
+      // Depending on the pool type:
+      // (1) Trade = amount sent to escrow, NOT owner
+      // (1) NFT = amount sent to owner, NOT escrow
+      const expOwnerAmount =
+        (isTrade ? 0 : expectedLamports + makerRebate) +
+        // The owner gets back the rent costs.
+        (await swapSdk.getNftDepositReceiptRent()) +
+        (await swapSdk.getTokenAcctRentForMint(
+          wlNft.mint,
+          TOKEN_2022_PROGRAM_ID
+        ));
 
       const expEscrowAmount = isTrade
         ? marginPda

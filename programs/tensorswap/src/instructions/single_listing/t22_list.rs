@@ -1,7 +1,10 @@
 use anchor_spl::token_interface::{
     transfer_checked, Mint, Token2022, TokenAccount, TransferChecked,
 };
-use tensor_nft::validate_mint_t22;
+use tensor_nft::token_2022::{
+    t22_validate_mint,
+    token::{safe_initialize_token_account, InitializeTokenAccount},
+};
 
 use crate::*;
 
@@ -59,7 +62,7 @@ pub fn process_list_t22<'info>(
 ) -> Result<()> {
     // validate mint account
 
-    validate_mint_t22(&ctx.accounts.nft_mint.to_account_info())?;
+    t22_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     // initialize escrow token account
 
