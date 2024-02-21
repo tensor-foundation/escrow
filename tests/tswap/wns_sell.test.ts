@@ -28,6 +28,7 @@ describe("[WNS Token 2022] tswap sell", () => {
 
   it("[WNS] sell into token/trade pool", async () => {
     const [traderA, traderB] = await makeNTraders({ n: 2 });
+    const royaltyBps = 1000;
 
     // Intentionally do this serially (o/w balances will race).
     for (const [{ owner, seller }, config] of cartesian(
@@ -45,7 +46,7 @@ describe("[WNS Token 2022] tswap sell", () => {
         mint,
         token,
         collection: collectionMint,
-      } = await wnsMint(seller.publicKey, 0);
+      } = await wnsMint(seller.publicKey, royaltyBps);
       await wnsTokenAccount(owner.publicKey, mint);
 
       await wnsTestMakePoolSellNft({
@@ -62,12 +63,14 @@ describe("[WNS Token 2022] tswap sell", () => {
           expectedLamports
         ),
         collectionMint,
+        royaltyBps
       });
     }
   });
 
   it("[WNS] sell into token/trade pool (pay taker broker)", async () => {
     const [traderA, traderB] = await makeNTraders({ n: 2 });
+    const royaltyBps = 1000;
 
     // Intentionally do this serially (o/w balances will race).
     for (const [{ owner, seller }, config] of cartesian(
@@ -85,7 +88,7 @@ describe("[WNS Token 2022] tswap sell", () => {
         mint,
         token,
         collection: collectionMint,
-      } = await wnsMint(seller.publicKey, 0);
+      } = await wnsMint(seller.publicKey, royaltyBps);
       await wnsTokenAccount(owner.publicKey, mint);
 
       const takerBroker = Keypair.generate().publicKey;
@@ -104,7 +107,8 @@ describe("[WNS Token 2022] tswap sell", () => {
         ),
         takerBroker,
         collectionMint,
-      });
+        royaltyBps,
+      })
     }
   });
 });

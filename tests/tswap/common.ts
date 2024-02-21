@@ -3504,6 +3504,7 @@ export const wnsTestMakePoolSellNft = async ({
   config,
   expectedLamports,
   collectionMint,
+  royaltyBps = 0,
   minLamports = expectedLamports,
   treeSize,
   isCosigned = false,
@@ -3519,6 +3520,7 @@ export const wnsTestMakePoolSellNft = async ({
   config: PoolConfigAnchor;
   expectedLamports: number;
   collectionMint: PublicKey;
+  royaltyBps: number;
   // If specified, uses this as the minPrice for the sell instr.
   // All expects will still use expectedLamports.
   minLamports?: number;
@@ -3567,6 +3569,7 @@ export const wnsTestMakePoolSellNft = async ({
       lookupTableAccount,
       takerBroker,
       collectionMint,
+      royaltyBps
     })),
     poolPda,
     wlNft,
@@ -3588,6 +3591,7 @@ export const wnsTestSellNft = async ({
   config,
   expectedLamports,
   collectionMint,
+  royaltyBps = 0,
   minLamports = expectedLamports,
   treeSize,
   isCosigned = false,
@@ -3610,6 +3614,7 @@ export const wnsTestSellNft = async ({
   // Expected value for the current/base price.
   expectedLamports: number;
   collectionMint: PublicKey;
+  royaltyBps: number;
   // If specified, uses this as the minPrice for the sell instr.
   // All expects will still use expectedLamports.
   minLamports?: number;
@@ -3715,6 +3720,7 @@ export const wnsTestSellNft = async ({
       await _checkDestAcc("1");
 
       //fees
+      const creatorsFee = (expectedLamports * royaltyBps) / 10000;
       const feeAccLamports = await getLamports(tswapPda);
       const { tswapFee, brokerFee, makerRebate, takerFee } = calcFeesRebates(
         expectedLamports,
@@ -3749,11 +3755,12 @@ export const wnsTestSellNft = async ({
         // (1) TSwap fees
         // (2) MM fees (if trade pool)
         // (3) any rent paid by seller
-        expectedLamports -
+        Math.ceil(expectedLamports -
           takerFee -
           mmFees -
           expectedRentBySeller -
-          (await swapSdk.getApproveRent())
+          creatorsFee -
+          (await swapSdk.getApproveRent()))
       );
 
       // buyer should not have balance change
@@ -3843,11 +3850,12 @@ export const wnsTestMakePoolBuyNft = async ({
   poolsAttached?: number;
   takerBroker?: PublicKey | null;
 }) => {
+  const royaltyBps = 1000;
   const {
     mint,
     token: ata,
     collection: collectionMint,
-  } = await wnsMint(owner.publicKey, 0);
+  } = await wnsMint(owner.publicKey, royaltyBps);
   const { token: otherAta } = await wnsTokenAccount(buyer.publicKey, mint);
 
   const {
@@ -3903,6 +3911,7 @@ export const wnsTestMakePoolBuyNft = async ({
       marginNr,
       takerBroker,
       collectionMint,
+      royaltyBps
     })),
     pool,
     whitelist,
@@ -3923,6 +3932,7 @@ export const wnsTestBuyNft = async ({
   config,
   expectedLamports,
   collectionMint,
+  royaltyBps = 0,
   maxLamports = expectedLamports,
   lookupTableAccount,
   marginNr,
@@ -3937,6 +3947,7 @@ export const wnsTestBuyNft = async ({
   config: PoolConfigAnchor;
   expectedLamports: number;
   collectionMint: PublicKey;
+  royaltyBps?: number;
   // If specified, uses this as the maxPrice for the buy instr.
   // All expects will still use expectedLamports.
   maxLamports?: number;
@@ -4006,6 +4017,7 @@ export const wnsTestBuyNft = async ({
       ).rejectedWith(TokenAccountNotFoundError);
 
       //fees
+      const creatorsFee = (expectedLamports * royaltyBps) / 10000;
       const feeAccLamports = await getLamports(tswapPda);
       const { tswapFee, brokerFee, makerRebate, takerFee } =
         calcFeesRebates(expectedLamports);
@@ -4024,7 +4036,7 @@ export const wnsTestBuyNft = async ({
       // Buyer pays full amount.
       const currBuyerLamports = await getLamports(buyer.publicKey);
       expect(currBuyerLamports! - prevBuyerLamports!).eq(
-        -1 * (expectedLamports + takerFee)
+        -1 * (expectedLamports + takerFee + creatorsFee)
       );
 
       // Depending on the pool type:

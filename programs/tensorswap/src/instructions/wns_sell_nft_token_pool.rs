@@ -206,8 +206,10 @@ pub fn handler<'info>(
         broker_fee,
     )?;
 
-    // subtract royalty payment
-    left_for_seller = unwrap_int!(left_for_seller.checked_sub(creators_fee));
+    // no need to subtract royalty payment since seller payed for them
+    // already
+    // TODO: this might change once PDAs are used for royalties
+    //left_for_seller = unwrap_int!(left_for_seller.checked_sub(creators_fee));
 
     // transfer remainder to seller
     // (!) fees/royalties are paid by TAKER, which in this case is the SELLER

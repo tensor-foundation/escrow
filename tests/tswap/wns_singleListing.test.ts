@@ -168,7 +168,8 @@ describe("[WNS Token 2022] tswap single listing", () => {
     for (const price of [100, LAMPORTS_PER_SOL, 0.5 * LAMPORTS_PER_SOL]) {
       const takerBroker = Keypair.generate().publicKey;
 
-      const { mint, token: ata, collection } = await wnsMint(owner.publicKey);
+      const royaltyBps = 500;
+      const { mint, token: ata, collection } = await wnsMint(owner.publicKey, royaltyBps);
       const { token: otherAta } = await wnsTokenAccount(buyer.publicKey, mint);
 
       await wnsTestMakeList({
@@ -221,6 +222,7 @@ describe("[WNS Token 2022] tswap single listing", () => {
         owner,
         takerBroker,
         collectionMint: collection,
+        royaltyBps,
       });
     }
   });
@@ -233,6 +235,7 @@ const wnsBuySingleListing = async ({
   buyer,
   collectionMint,
   expectedLamports,
+  royaltyBps = 0,
   lookupTableAccount,
   takerBroker = null,
 }: {
@@ -242,6 +245,7 @@ const wnsBuySingleListing = async ({
   buyer: Keypair;
   collectionMint: PublicKey;
   expectedLamports: number;
+  royaltyBps?: number;
   lookupTableAccount?: AddressLookupTableAccount | null;
   takerBroker?: PublicKey | null;
 }) => {
@@ -291,7 +295,7 @@ const wnsBuySingleListing = async ({
       ).rejectedWith(TokenAccountNotFoundError);
 
       //fees
-      const creatorsFee = (expectedLamports * 10000) / 10000;
+      const creatorsFee = (expectedLamports * royaltyBps) / 10000;
       const feeAccLamports = await getLamports(tswapPda);
       const { tswapFee, brokerFee, makerRebate, takerFee } =
         calcFeesRebates(expectedLamports);
