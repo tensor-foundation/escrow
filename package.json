@@ -1,69 +1,25 @@
 {
-  "name": "@tensor-hq/tensorswap-ts",
-  "version": "4.1.0-alpha.1",
-  "description": "Anchor/JS SDK for interacting with TensorSwap, TensorWhitelist and TensorBid.",
-  "sideEffects": false,
-  "module": "./dist/esm/index.js",
-  "main": "./dist/cjs/index.js",
-  "types": "dist/cjs/index.d.ts",
-  "files": [
-    "/dist/esm/**/*",
-    "/dist/cjs/**/*"
-  ],
-  "repository": "https://github.com/tensor-hq/tensorswap.git",
-  "license": "MIT",
-  "publishConfig": {
-    "@tensor-hq:registry": "https://npm.pkg.github.com"
-  },
+  "private": true,
   "scripts": {
-    "build": "anchor build && bash scripts/cp_idl.sh",
-    "build:test": "bash scripts/test_build.sh",
-    "build:ts": "rm -rf ./dist && yarn tsc && yarn tsc -p tsconfig.cjs.json && yarn tsc --p tsconfig.tests.json",
-    "fast-test": "anchor test --skip-build -- --features testing",
-    "test": "yarn build:test && yarn fast-test",
-    "push": "git push --atomic",
-    "publish:private": "yarn build:ts && yarn npm publish",
-    "pubpush": "yarn build:ts && yarn npm publish && yarn push",
-    "upgrade": "yarn add @tensor-hq/tensor-common"
-  },
-  "dependencies": {
-    "@coral-xyz/anchor": "^0.26.0",
-    "@msgpack/msgpack": "^2.8.0",
-    "@saberhq/solana-contrib": "^1.14.11",
-    "@solana/spl-token": "^0.4.0",
-    "@solana/web3.js": "^1.73.0",
-    "@tensor-hq/tensor-common": "^4.1.0",
-    "@types/bn.js": "^5.1.0",
-    "big.js": "^6.2.1",
-    "bn.js": "^5.2.0",
-    "js-sha256": "^0.9.0",
-    "keccak256": "^1.0.6",
-    "math-expression-evaluator": "^2.0.4",
-    "merkletreejs": "^0.3.11",
-    "uuid": "^8.3.2"
+    "programs:build": "./configs/scripts/program/build.sh",
+    "programs:test": "RUST_LOG=error ./configs/scripts/program/test.sh",
+    "programs:debug": "./configs/scripts/program/test.sh",
+    "programs:clean": "./configs/scripts/program/clean.sh",
+    "clients:rust:test": "./configs/scripts/client/test-rust.sh",
+    "clients:js:test": "./configs/scripts/client/test-js.sh",
+    "generate": "pnpm generate:idls && pnpm generate:clients",
+    "generate:idls": "node ./configs/shank.cjs",
+    "generate:clients": "node ./configs/kinobi.cjs",
+    "validator": "CI=1 amman start --config ./configs/validator.cjs",
+    "validator:debug": "amman start --config ./configs/validator.cjs",
+    "validator:logs": "CI=1 amman logs",
+    "validator:stop": "amman stop"
   },
   "devDependencies": {
-    "@ledgerhq/hw-app-solana": "^6.27.2",
-    "@ledgerhq/hw-transport-node-hid": "^6.27.2",
-    "@metaplex-foundation/mpl-token-auth-rules": "^2.0.0",
-    "@metaplex-foundation/mpl-token-metadata": "^2.13.0",
-    "@types/big.js": "^6.1.5",
-    "@types/chai": "^4.3.10",
-    "@types/chai-as-promised": "^7.1.4",
-    "@types/mocha": "^10.0.4",
-    "@types/uuid": "^8.3.4",
-    "@types/yargs": "^17.0.12",
-    "chai": "^4.3.6",
-    "chai-as-promised": "^7.1.1",
-    "chai-bn": "^0.3.1",
-    "exponential-backoff": "^3.1.0",
-    "jsbi": "^4.1.0",
-    "mocha": "^10.0.0",
-    "prettier": "^2.5.1",
-    "ts-mocha": "^10.0.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.3.5",
-    "yargs": "^17.5.1"
+    "@metaplex-foundation/kinobi": "^0.17.0",
+    "@metaplex-foundation/shank-js": "^0.1.0",
+    "@metaplex-foundation/amman": "^0.12.1",
+    "typescript": "^4.9.4"
   },
-  "packageManager": "yarn@3.3.1"
+  "packageManager": "pnpm@8.9.0"
 }
