@@ -3,7 +3,7 @@ use anchor_spl::{
     token_interface::{self, CloseAccount, Mint, TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
-use tensor_nft::{send_pnft, PnftTransferArgs};
+use tensor_toolbox::{send_pnft, PnftTransferArgs};
 
 use crate::{error::ErrorCode, *};
 

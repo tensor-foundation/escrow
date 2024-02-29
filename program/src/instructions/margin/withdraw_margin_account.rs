@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use tensor_nft::transfer_lamports_from_pda;
+use tensor_toolbox::transfer_lamports_from_pda;
 use vipers::Validate;
 
 use crate::{MarginAccount, TSwap};

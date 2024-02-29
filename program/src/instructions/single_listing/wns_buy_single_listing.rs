@@ -4,7 +4,7 @@ use anchor_spl::{
     token_interface::{self, CloseAccount, Mint, Token2022, TokenAccount, TransferChecked},
 };
 use mpl_token_metadata::types::TokenStandard;
-use tensor_nft::{
+use tensor_toolbox::{
     calc_creators_fee,
     token_2022::{
         transfer::transfer_checked,

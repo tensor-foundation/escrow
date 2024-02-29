@@ -5,7 +5,7 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
-use tensor_nft::{send_pnft, PnftTransferArgs};
+use tensor_toolbox::{send_pnft, PnftTransferArgs};
 use tensor_whitelist::{self, Whitelist};
 use vipers::{throw_err, unwrap_int, Validate};
 

@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::Mint;
 use std::str::FromStr;
-use tensor_nft::transfer_lamports_from_pda;
+use tensor_toolbox::transfer_lamports_from_pda;
 
 use crate::{MarginAccount, TSwap};
 

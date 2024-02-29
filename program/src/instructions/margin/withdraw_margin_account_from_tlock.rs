@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
-use tensor_nft::transfer_lamports_from_pda;
+use tensor_toolbox::transfer_lamports_from_pda;
 
 use crate::{get_tswap_addr, MarginAccount};
 

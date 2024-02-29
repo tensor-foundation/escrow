@@ -6,7 +6,7 @@ use anchor_spl::{
     token_interface::{Token2022, TransferChecked},
 };
 use mpl_token_metadata::types::TokenStandard;
-use tensor_nft::{
+use tensor_toolbox::{
     calc_creators_fee,
     token_2022::{
         token::{safe_initialize_token_account, InitializeTokenAccount},

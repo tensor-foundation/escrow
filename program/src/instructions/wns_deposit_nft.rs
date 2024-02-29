@@ -4,7 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{Mint, Token2022, TokenAccount, TransferChecked},
 };
-use tensor_nft::token_2022::{
+use tensor_toolbox::token_2022::{
     token::{safe_initialize_token_account, InitializeTokenAccount},
     transfer::transfer_checked,
     wns::{wns_approve, wns_validate_mint, ApproveAccounts},

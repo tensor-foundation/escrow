@@ -5,7 +5,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{transfer_checked, Token2022, TokenAccount, TransferChecked},
 };
-use tensor_nft::{token_2022::t22_validate_mint, transfer_lamports_from_pda};
+use tensor_toolbox::{token_2022::t22_validate_mint, transfer_lamports_from_pda};
 use vipers::{throw_err, unwrap_int, Validate};
 
 use self::constants::CURRENT_POOL_VERSION;

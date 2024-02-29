@@ -6,7 +6,7 @@ use anchor_spl::{
     token_interface::{TokenAccount, TokenInterface},
 };
 use mpl_token_metadata::types::AuthorizationData;
-use tensor_nft::{
+use tensor_toolbox::{
     assert_decode_metadata, send_pnft, transfer_creators_fee, transfer_lamports_from_pda,
     CreatorFeeMode, FromAcc, PnftTransferArgs,
 };

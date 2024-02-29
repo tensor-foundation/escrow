@@ -2,7 +2,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{Mint, Token2022, TokenAccount, TransferChecked},
 };
-use tensor_nft::token_2022::{
+use tensor_toolbox::token_2022::{
     token::{safe_initialize_token_account, InitializeTokenAccount},
     wns::{wns_approve, wns_validate_mint, ApproveAccounts},
 };
@@ -137,7 +137,7 @@ pub fn wns_process_list<'info>(
         },
     );
 
-    tensor_nft::token_2022::transfer::transfer_checked(
+    tensor_toolbox::token_2022::transfer::transfer_checked(
         transfer_cpi.with_remaining_accounts(vec![
             ctx.accounts.wns_program.to_account_info(),
             ctx.accounts.extra_metas.to_account_info(),

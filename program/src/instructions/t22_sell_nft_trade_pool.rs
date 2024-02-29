@@ -2,7 +2,7 @@
 //! We separate this from Token pool since the NFT will go into an NFT escrow w/ a receipt.
 //! (!) Keep common logic in sync with sell_nft_token_pool.rs.
 use anchor_spl::token_interface::{transfer_checked, Token2022, TransferChecked};
-use tensor_nft::{
+use tensor_toolbox::{
     token_2022::{
         t22_validate_mint,
         token::{safe_initialize_token_account, InitializeTokenAccount},

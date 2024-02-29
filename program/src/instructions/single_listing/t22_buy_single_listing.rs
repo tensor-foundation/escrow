@@ -6,7 +6,9 @@ use anchor_spl::{
     },
 };
 use mpl_token_metadata::types::TokenStandard;
-use tensor_nft::{calc_creators_fee, token_2022::t22_validate_mint, transfer_lamports_from_pda};
+use tensor_toolbox::{
+    calc_creators_fee, token_2022::t22_validate_mint, transfer_lamports_from_pda,
+};
 use vipers::{throw_err, Validate};
 
 use crate::{error::ErrorCode, *};

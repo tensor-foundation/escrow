@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use tensor_nft::{transfer_all_lamports_from_pda, transfer_lamports_from_pda};
+use tensor_toolbox::{transfer_all_lamports_from_pda, transfer_lamports_from_pda};
 use tensor_whitelist::Whitelist;
 use vipers::{throw_err, unwrap_int, Validate};
 

@@ -1,5 +1,5 @@
 //! User editing a pool, which actually 1)closes old one, 2)inits new one, 3)shifts nft authority
-use tensor_nft::transfer_lamports_from_pda;
+use tensor_toolbox::transfer_lamports_from_pda;
 use tensor_whitelist::{self, Whitelist};
 use vipers::{throw_err, try_or_err, Validate};
 

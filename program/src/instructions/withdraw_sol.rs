@@ -1,5 +1,5 @@
 //! User withdrawing SOL from their pool (all 3 types)
-use tensor_nft::transfer_lamports_from_pda;
+use tensor_toolbox::transfer_lamports_from_pda;
 use tensor_whitelist::Whitelist;
 use vipers::throw_err;
 

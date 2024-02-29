@@ -55,7 +55,7 @@ pub use wns_withdraw_nft::*;
 use anchor_lang::prelude::Accounts;
 use anchor_spl::token_interface::{Mint, TokenAccount};
 use mpl_token_metadata::{self};
-use tensor_nft::assert_decode_metadata;
+use tensor_toolbox::assert_decode_metadata;
 use tensor_whitelist::{self, FullMerkleProof, MintProof, Whitelist, ZERO_ARRAY};
 use vipers::{throw_err, unwrap_checked};
 

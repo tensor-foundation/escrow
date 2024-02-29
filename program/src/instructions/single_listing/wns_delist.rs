@@ -2,7 +2,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{self, CloseAccount, Mint, Token2022, TokenAccount, TransferChecked},
 };
-use tensor_nft::token_2022::wns::{wns_approve, wns_validate_mint, ApproveAccounts};
+use tensor_toolbox::token_2022::wns::{wns_approve, wns_validate_mint, ApproveAccounts};
 
 use crate::{error::ErrorCode, *};
 
@@ -137,7 +137,7 @@ pub fn wns_process_delist<'info>(ctx: Context<'_, '_, '_, 'info, WnsDelist<'info
         },
     );
 
-    tensor_nft::token_2022::transfer::transfer_checked(
+    tensor_toolbox::token_2022::transfer::transfer_checked(
         transfer_cpi
             .with_remaining_accounts(vec![
                 ctx.accounts.wns_program.to_account_info(),

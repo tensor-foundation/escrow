@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use mpl_token_metadata::accounts::Metadata;
 use spl_math::precise_number::PreciseNumber;
-use tensor_nft::calc_creators_fee;
+use tensor_toolbox::calc_creators_fee;
 use vipers::{throw_err, unwrap_checked, unwrap_int};
 
 use crate::{

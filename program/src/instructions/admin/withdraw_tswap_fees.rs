@@ -1,7 +1,7 @@
 //! Program owner (Tensor) withdrawing accumulated tswap fees
 
 use anchor_lang::prelude::*;
-use tensor_nft::transfer_lamports_from_pda;
+use tensor_toolbox::transfer_lamports_from_pda;
 
 use crate::TSwap;
 

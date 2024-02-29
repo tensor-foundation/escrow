@@ -1,7 +1,7 @@
 use anchor_spl::token_interface::{
     transfer_checked, Mint, Token2022, TokenAccount, TransferChecked,
 };
-use tensor_nft::token_2022::{
+use tensor_toolbox::token_2022::{
     t22_validate_mint,
     token::{safe_initialize_token_account, InitializeTokenAccount},
 };
