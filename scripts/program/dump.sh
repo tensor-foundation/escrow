@@ -26,7 +26,7 @@ fi
 
 # creates the output directory if it doesn't exist
 if [ ! -d ${OUTPUT} ]; then
-    mkdir ${OUTPUT}
+    mkdir -p ${OUTPUT}
 fi
 
 # only prints this if we have external programs
