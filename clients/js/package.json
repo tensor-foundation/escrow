@@ -68,7 +68,11 @@
         "src/": "dist/src/",
         "test/": "dist/test/"
       }
-    }
+    },
+    "files": [
+			"test/**/*",
+			"!test/external"
+		]
   },
   "packageManager": "pnpm@8.2.0"
 }

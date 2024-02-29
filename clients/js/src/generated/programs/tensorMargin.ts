@@ -105,22 +105,22 @@ export enum TensorMarginInstruction {
   WithdrawMarginAccountFromTBid,
   WithdrawMarginAccountFromTComp,
   WithdrawMarginAccountFromTLock,
-  T22BuyNft,
-  T22DepositNft,
-  T22SellNftTokenPool,
-  T22SellNftTradePool,
-  T22WithdrawNft,
-  T22BuySingleListing,
-  T22List,
-  T22Delist,
-  WnsBuyNft,
-  WnsDepositNft,
-  WnsSellNftTokenPool,
-  WnsSellNftTradePool,
-  WnsWithdrawNft,
-  WnsBuySingleListing,
-  WnsList,
-  WnsDelist,
+  BuyNftT22,
+  DepositNftT22,
+  SellNftTokenPoolT22,
+  SellNftTradePoolT22,
+  WithdrawNftT22,
+  BuySingleListingT22,
+  ListT22,
+  DelistT22,
+  BuyNftWns,
+  DepositNftWns,
+  SellNftTokenPoolWns,
+  SellNftTradePoolWns,
+  WithdrawNftWns,
+  BuySingleListingWns,
+  ListWns,
+  DelistWns,
 }
 
 export function identifyTensorMarginInstruction(
@@ -231,56 +231,56 @@ export function identifyTensorMarginInstruction(
     return TensorMarginInstruction.WithdrawMarginAccountFromTLock;
   }
   if (memcmp(data, new Uint8Array([155, 219, 126, 245, 170, 199, 51, 79]), 0)) {
-    return TensorMarginInstruction.T22BuyNft;
+    return TensorMarginInstruction.BuyNftT22;
   }
   if (memcmp(data, new Uint8Array([208, 34, 6, 147, 95, 218, 49, 160]), 0)) {
-    return TensorMarginInstruction.T22DepositNft;
+    return TensorMarginInstruction.DepositNftT22;
   }
   if (memcmp(data, new Uint8Array([149, 234, 31, 103, 26, 36, 166, 49]), 0)) {
-    return TensorMarginInstruction.T22SellNftTokenPool;
+    return TensorMarginInstruction.SellNftTokenPoolT22;
   }
   if (memcmp(data, new Uint8Array([124, 145, 23, 52, 72, 113, 85, 9]), 0)) {
-    return TensorMarginInstruction.T22SellNftTradePool;
+    return TensorMarginInstruction.SellNftTradePoolT22;
   }
   if (memcmp(data, new Uint8Array([112, 55, 80, 231, 181, 190, 92, 12]), 0)) {
-    return TensorMarginInstruction.T22WithdrawNft;
+    return TensorMarginInstruction.WithdrawNftT22;
   }
   if (memcmp(data, new Uint8Array([102, 89, 66, 0, 5, 68, 84, 216]), 0)) {
-    return TensorMarginInstruction.T22BuySingleListing;
+    return TensorMarginInstruction.BuySingleListingT22;
   }
   if (memcmp(data, new Uint8Array([9, 117, 93, 230, 221, 4, 199, 212]), 0)) {
-    return TensorMarginInstruction.T22List;
+    return TensorMarginInstruction.ListT22;
   }
   if (memcmp(data, new Uint8Array([216, 72, 73, 18, 204, 82, 123, 26]), 0)) {
-    return TensorMarginInstruction.T22Delist;
+    return TensorMarginInstruction.DelistT22;
   }
   if (memcmp(data, new Uint8Array([216, 253, 106, 29, 182, 243, 0, 78]), 0)) {
-    return TensorMarginInstruction.WnsBuyNft;
+    return TensorMarginInstruction.BuyNftWns;
   }
   if (memcmp(data, new Uint8Array([245, 148, 241, 58, 13, 253, 40, 195]), 0)) {
-    return TensorMarginInstruction.WnsDepositNft;
+    return TensorMarginInstruction.DepositNftWns;
   }
   if (memcmp(data, new Uint8Array([40, 78, 241, 78, 204, 238, 46, 143]), 0)) {
-    return TensorMarginInstruction.WnsSellNftTokenPool;
+    return TensorMarginInstruction.SellNftTokenPoolWns;
   }
   if (memcmp(data, new Uint8Array([169, 175, 125, 88, 1, 16, 130, 7]), 0)) {
-    return TensorMarginInstruction.WnsSellNftTradePool;
+    return TensorMarginInstruction.SellNftTradePoolWns;
   }
   if (memcmp(data, new Uint8Array([51, 152, 143, 163, 1, 238, 156, 119]), 0)) {
-    return TensorMarginInstruction.WnsWithdrawNft;
+    return TensorMarginInstruction.WithdrawNftWns;
   }
   if (memcmp(data, new Uint8Array([28, 14, 132, 207, 212, 248, 121, 199]), 0)) {
-    return TensorMarginInstruction.WnsBuySingleListing;
+    return TensorMarginInstruction.BuySingleListingWns;
   }
   if (
     memcmp(data, new Uint8Array([212, 193, 161, 215, 128, 43, 190, 204]), 0)
   ) {
-    return TensorMarginInstruction.WnsList;
+    return TensorMarginInstruction.ListWns;
   }
   if (
     memcmp(data, new Uint8Array([131, 226, 161, 134, 233, 132, 243, 159]), 0)
   ) {
-    return TensorMarginInstruction.WnsDelist;
+    return TensorMarginInstruction.DelistWns;
   }
   throw new Error(
     'The provided instruction could not be identified as a tensorMargin instruction.'
