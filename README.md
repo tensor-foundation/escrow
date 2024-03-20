@@ -1,8 +1,8 @@
 <h1 align="center">
-  Tensor Margin
+  Tensor Escrow
 </h1>
 <p align="center">
-  <img width="400" alt="Tensor Margin" src="https://github.com/tensor-foundation/margin/assets/729235/ff00ae1f-15f9-4248-8fa1-fdab50b1d6b4" />
+  <img width="400" alt="Tensor Escrow" src="https://github.com/tensor-foundation/margin/assets/729235/ff00ae1f-15f9-4248-8fa1-fdab50b1d6b4" />
 </p>
 <p align="center">
   Trade with a margin account.
@@ -12,7 +12,7 @@
 
 This project contains the following programs:
 
-- [Margin](./programs/margin/README.md) `TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN`
+- [Escrow](./programs/margin/README.md) `TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN`
 
 You will need a Rust version compatible with BPF to compile the program, currently we recommend using Rust 1.75.0.
 
