@@ -1,4 +1,4 @@
-# JavaScript client for Margin
+# JavaScript client for Tensor Escrow
 
 A web3.js 2.0 compatible JavaScript library for the project.
 
@@ -6,10 +6,10 @@ A web3.js 2.0 compatible JavaScript library for the project.
 
 Install this library using the package manager of your choice.
 ```sh
-npm install @tensor-foundation/margin
+npm install @tensor-foundation/escrow
 ```
 
-You can learn more about this library's API by reading its generated [TypeDoc documentation](https://margin-js-docs.vercel.app).
+You can learn more about this library's API by reading its generated [TypeDoc documentation](https://escrow-js-docs.vercel.app).
 
 ## Contributing
 

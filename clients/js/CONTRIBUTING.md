@@ -1,6 +1,6 @@
 # Contributing to the JavaScript client
 
-This is a quick guide to help you contribute to the JavaScript client of Margin.
+This is a quick guide to help you contribute to the JavaScript client of Tensor Escrow.
 
 ## Getting started
 
@@ -49,7 +49,7 @@ To publish JavaScript clients using GitHub actions, we first need the following 
 Then, we'll need to create a new GitHub environment called `js-client-documentation` for the generated documentation of the JavaScript client. We can then select the `main` branch only and add the following secret variable to this specific environment.
 
 - `VERCEL_PROJECT_ID` — The ID of the Vercel project you want to deploy to.
-  The convention is to create a new Vercel project named `margin-js-docs` with the following deployment settings:
+  The convention is to create a new Vercel project named `escrow-js-docs` with the following deployment settings:
 
   - Build Command: `pnpm run build:docs`
   - Output Directory: `docs`

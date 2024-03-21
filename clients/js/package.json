@@ -1,7 +1,7 @@
 {
-  "name": "@tensor-foundation/margin",
+  "name": "@tensor-foundation/escrow",
   "version": "0.0.0",
-  "description": "Trade with a margin account",
+  "description": "Shared escrow for all Tensor protocols",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "scripts": {
@@ -21,7 +21,7 @@
     "registry": "https://registry.npmjs.org"
   },
   "homepage": "https://github.com/tensor-foundation",
-  "repository": "https://github.com/tensor-foundation/margin.git",
+  "repository": "https://github.com/tensor-foundation/escrow.git",
   "author": "Tensor Protocol Foundation <maintainers@tensor.foundation>",
   "license": "Apache-2.0",
   "dependencies": {

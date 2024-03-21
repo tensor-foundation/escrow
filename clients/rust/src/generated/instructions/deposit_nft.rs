@@ -143,7 +143,7 @@ impl DepositNft {
         data.append(&mut args);
 
         solana_program::instruction::Instruction {
-            program_id: crate::TENSOR_MARGIN_ID,
+            program_id: crate::TENSOR_ESCROW_ID,
             accounts,
             data,
         }
@@ -655,7 +655,7 @@ impl<'a, 'b> DepositNftCpi<'a, 'b> {
         data.append(&mut args);
 
         let instruction = solana_program::instruction::Instruction {
-            program_id: crate::TENSOR_MARGIN_ID,
+            program_id: crate::TENSOR_ESCROW_ID,
             accounts,
             data,
         };

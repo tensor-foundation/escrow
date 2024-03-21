@@ -7,7 +7,7 @@ const programDir = path.join(__dirname, "..");
 
 generateIdl({
   generator: "anchor",
-  programName: "margin_program",
+  programName: "escrow_program",
   programId: "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN",
   idlDir,
   binaryInstallDir,

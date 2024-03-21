@@ -1,6 +1,6 @@
-# Contributing to Tensor Margin
+# Contributing to Tensor Escrow
 
-This is a quick guide to help you contribute to Tensor Margin.
+This is a quick guide to help you contribute to Tensor Escrow.
 
 ## Getting started
 

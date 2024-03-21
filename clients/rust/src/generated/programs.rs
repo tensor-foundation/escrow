@@ -7,5 +7,5 @@
 
 use solana_program::{pubkey, pubkey::Pubkey};
 
-/// `tensor_margin` program ID.
-pub const TENSOR_MARGIN_ID: Pubkey = pubkey!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
+/// `tensor_escrow` program ID.
+pub const TENSOR_ESCROW_ID: Pubkey = pubkey!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");

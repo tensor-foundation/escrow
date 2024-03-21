@@ -1531,6 +1531,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "escrow-program"
+version = "0.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "mpl-token-metadata",
+ "spl-math",
+ "spl-token-metadata-interface",
+ "static_assertions",
+ "tensor-toolbox",
+ "vipers",
+ "whitelist-program",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2256,21 +2271,6 @@ checksum = "57d27b317e207b10f69f5e75494119e391a96f48861ae870d1da6edac98ca900"
 dependencies = [
  "cc",
  "libc",
-]
-
-[[package]]
-name = "margin-program"
-version = "0.0.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "mpl-token-metadata",
- "spl-math",
- "spl-token-metadata-interface",
- "static_assertions",
- "tensor-toolbox",
- "vipers",
- "whitelist-program",
 ]
 
 [[package]]
@@ -5257,7 +5257,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tensor-margin"
+name = "tensor-escrow"
 version = "0.0.0"
 dependencies = [
  "assert_matches",

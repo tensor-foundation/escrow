@@ -11,9 +11,9 @@ module.exports = {
     commitment: "processed",
     programs: [
       {
-        label: "Margin",
+        label: "Escrow",
         programId: "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN",
-        deployPath: getProgram("margin_program.so"),
+        deployPath: getProgram("escrow_program.so"),
       },
       // Below are external programs that should be included in the local validator.
       // You may configure which ones to fetch from the cluster when building

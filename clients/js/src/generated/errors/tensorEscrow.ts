@@ -6,7 +6,7 @@
  * @see https://github.com/metaplex-foundation/kinobi
  */
 
-export const enum TensorMarginProgramErrorCode {
+export const enum TensorEscrowProgramErrorCode {
   /** InvalidProof: invalid merkle proof, token not whitelisted */
   INVALID_PROOF = 0x1770, // 6000
   /** WhitelistNotVerified: whitelist not verified -- currently only verified pools supported */
@@ -87,15 +87,15 @@ export const enum TensorMarginProgramErrorCode {
   STARTING_PRICE_TOO_SMALL = 0x1796, // 6038
 }
 
-export class TensorMarginProgramError extends Error {
-  override readonly name = 'TensorMarginProgramError';
+export class TensorEscrowProgramError extends Error {
+  override readonly name = 'TensorEscrowProgramError';
 
-  readonly code: TensorMarginProgramErrorCode;
+  readonly code: TensorEscrowProgramErrorCode;
 
   readonly cause: Error | undefined;
 
   constructor(
-    code: TensorMarginProgramErrorCode,
+    code: TensorEscrowProgramErrorCode,
     name: string,
     message: string,
     cause?: Error
@@ -106,177 +106,177 @@ export class TensorMarginProgramError extends Error {
   }
 }
 
-let tensorMarginProgramErrorCodeMap:
-  | Record<TensorMarginProgramErrorCode, [string, string]>
+let tensorEscrowProgramErrorCodeMap:
+  | Record<TensorEscrowProgramErrorCode, [string, string]>
   | undefined;
 if (__DEV__) {
-  tensorMarginProgramErrorCodeMap = {
-    [TensorMarginProgramErrorCode.INVALID_PROOF]: [
+  tensorEscrowProgramErrorCodeMap = {
+    [TensorEscrowProgramErrorCode.INVALID_PROOF]: [
       'InvalidProof',
       `invalid merkle proof, token not whitelisted`,
     ],
-    [TensorMarginProgramErrorCode.WHITELIST_NOT_VERIFIED]: [
+    [TensorEscrowProgramErrorCode.WHITELIST_NOT_VERIFIED]: [
       'WhitelistNotVerified',
       `whitelist not verified -- currently only verified pools supported`,
     ],
-    [TensorMarginProgramErrorCode.BAD_WHITELIST]: [
+    [TensorEscrowProgramErrorCode.BAD_WHITELIST]: [
       'BadWhitelist',
       `unexpected whitelist address`,
     ],
-    [TensorMarginProgramErrorCode.WRONG_POOL_TYPE]: [
+    [TensorEscrowProgramErrorCode.WRONG_POOL_TYPE]: [
       'WrongPoolType',
       `operation not permitted on this pool type`,
     ],
-    [TensorMarginProgramErrorCode.BAD_FEE_ACCOUNT]: [
+    [TensorEscrowProgramErrorCode.BAD_FEE_ACCOUNT]: [
       'BadFeeAccount',
       `fee account doesn't match that stored on pool`,
     ],
-    [TensorMarginProgramErrorCode.BAD_ESCROW_ACCOUNT]: [
+    [TensorEscrowProgramErrorCode.BAD_ESCROW_ACCOUNT]: [
       'BadEscrowAccount',
       `escrow account doesn't match that stored on pool`,
     ],
-    [TensorMarginProgramErrorCode.MISSING_FEES]: [
+    [TensorEscrowProgramErrorCode.MISSING_FEES]: [
       'MissingFees',
       `when setting up a Trade pool, must provide fee bps & fee vault`,
     ],
-    [TensorMarginProgramErrorCode.FEES_TOO_HIGH]: [
+    [TensorEscrowProgramErrorCode.FEES_TOO_HIGH]: [
       'FeesTooHigh',
       `fees entered above allowed threshold`,
     ],
-    [TensorMarginProgramErrorCode.DELTA_TOO_LARGE]: [
+    [TensorEscrowProgramErrorCode.DELTA_TOO_LARGE]: [
       'DeltaTooLarge',
       `delta too large`,
     ],
-    [TensorMarginProgramErrorCode.ARITHMETIC_ERROR]: [
+    [TensorEscrowProgramErrorCode.ARITHMETIC_ERROR]: [
       'ArithmeticError',
       `arithmetic error`,
     ],
-    [TensorMarginProgramErrorCode.WRONG_POOL]: [
+    [TensorEscrowProgramErrorCode.WRONG_POOL]: [
       'WrongPool',
       `this nft doesnt belong to this pool`,
     ],
-    [TensorMarginProgramErrorCode.ROYALTIES_ENABLED]: [
+    [TensorEscrowProgramErrorCode.ROYALTIES_ENABLED]: [
       'RoyaltiesEnabled',
       `royalties are enabled always`,
     ],
-    [TensorMarginProgramErrorCode.PRICE_MISMATCH]: [
+    [TensorEscrowProgramErrorCode.PRICE_MISMATCH]: [
       'PriceMismatch',
       `specified price not within current price`,
     ],
-    [TensorMarginProgramErrorCode.EXISTING_NFTS]: [
+    [TensorEscrowProgramErrorCode.EXISTING_NFTS]: [
       'ExistingNfts',
       `cannot close pool with nfts in escrow -- withdraw all before closing`,
     ],
-    [TensorMarginProgramErrorCode.WRONG_MINT]: [
+    [TensorEscrowProgramErrorCode.WRONG_MINT]: [
       'WrongMint',
       `wrong mint passed for provided accounts`,
     ],
-    [TensorMarginProgramErrorCode.INSUFFICIENT_TSWAP_ACC_BALANCE]: [
+    [TensorEscrowProgramErrorCode.INSUFFICIENT_TSWAP_ACC_BALANCE]: [
       'InsufficientTswapAccBalance',
       `insufficient Tswap account balance`,
     ],
-    [TensorMarginProgramErrorCode.BAD_OWNER]: ['BadOwner', `bad owner`],
-    [TensorMarginProgramErrorCode.FEES_NOT_ALLOWED]: [
+    [TensorEscrowProgramErrorCode.BAD_OWNER]: ['BadOwner', `bad owner`],
+    [TensorEscrowProgramErrorCode.FEES_NOT_ALLOWED]: [
       'FeesNotAllowed',
       `fees not allowed for non-trade pools`,
     ],
-    [TensorMarginProgramErrorCode.BAD_METADATA]: [
+    [TensorEscrowProgramErrorCode.BAD_METADATA]: [
       'BadMetadata',
       `metadata account does not match`,
     ],
-    [TensorMarginProgramErrorCode.CREATOR_MISMATCH]: [
+    [TensorEscrowProgramErrorCode.CREATOR_MISMATCH]: [
       'CreatorMismatch',
       `provided creator address does not match metadata creator`,
     ],
-    [TensorMarginProgramErrorCode.WRONG_POOL_VERSION]: [
+    [TensorEscrowProgramErrorCode.WRONG_POOL_VERSION]: [
       'WrongPoolVersion',
       `wrong pool version provided`,
     ],
-    [TensorMarginProgramErrorCode.POOLS_ARE_THE_SAME]: [
+    [TensorEscrowProgramErrorCode.POOLS_ARE_THE_SAME]: [
       'PoolsAreTheSame',
       `new pool should not match old pool`,
     ],
-    [TensorMarginProgramErrorCode.WRONG_AUTHORITY]: [
+    [TensorEscrowProgramErrorCode.WRONG_AUTHORITY]: [
       'WrongAuthority',
       `wrong nft authority account provided`,
     ],
-    [TensorMarginProgramErrorCode.FROZEN_AMOUNT_MISMATCH]: [
+    [TensorEscrowProgramErrorCode.FROZEN_AMOUNT_MISMATCH]: [
       'FrozenAmountMismatch',
       `amount frozen doesnt match current price`,
     ],
-    [TensorMarginProgramErrorCode.BAD_MINT_PROOF]: [
+    [TensorEscrowProgramErrorCode.BAD_MINT_PROOF]: [
       'BadMintProof',
       `mint proof account does not match`,
     ],
-    [TensorMarginProgramErrorCode.BAD_COSIGNER]: [
+    [TensorEscrowProgramErrorCode.BAD_COSIGNER]: [
       'BadCosigner',
       `bad cosigner passed - either wrong key or no signature`,
     ],
-    [TensorMarginProgramErrorCode.POOL_FROZEN]: [
+    [TensorEscrowProgramErrorCode.POOL_FROZEN]: [
       'PoolFrozen',
       `pool is frozen and cannot execute normal operations`,
     ],
-    [TensorMarginProgramErrorCode.BAD_MARGIN]: [
+    [TensorEscrowProgramErrorCode.BAD_MARGIN]: [
       'BadMargin',
       `bad margin account passed`,
     ],
-    [TensorMarginProgramErrorCode.POOL_NOT_MARGINATED]: [
+    [TensorEscrowProgramErrorCode.POOL_NOT_MARGINATED]: [
       'PoolNotMarginated',
       `expected a marginated pool to be passed in`,
     ],
-    [TensorMarginProgramErrorCode.POOL_MARGINATED]: [
+    [TensorEscrowProgramErrorCode.POOL_MARGINATED]: [
       'PoolMarginated',
       `expected a non-marginated pool to be passed in`,
     ],
-    [TensorMarginProgramErrorCode.WRONG_ORDER_TYPE]: [
+    [TensorEscrowProgramErrorCode.WRONG_ORDER_TYPE]: [
       'WrongOrderType',
       `wrong order type`,
     ],
-    [TensorMarginProgramErrorCode.WRONG_FROZEN_STATUS]: [
+    [TensorEscrowProgramErrorCode.WRONG_FROZEN_STATUS]: [
       'WrongFrozenStatus',
       `wrong frozen status`,
     ],
-    [TensorMarginProgramErrorCode.MARGIN_IN_USE]: [
+    [TensorEscrowProgramErrorCode.MARGIN_IN_USE]: [
       'MarginInUse',
       `margin account has pools open and is in use`,
     ],
-    [TensorMarginProgramErrorCode.MAX_TAKER_SELL_COUNT_EXCEEDED]: [
+    [TensorEscrowProgramErrorCode.MAX_TAKER_SELL_COUNT_EXCEEDED]: [
       'MaxTakerSellCountExceeded',
       `max taker sell count exceeded, pool cannot buy anymore NFTs`,
     ],
-    [TensorMarginProgramErrorCode.MAX_TAKER_SELL_COUNT_TOO_SMALL]: [
+    [TensorEscrowProgramErrorCode.MAX_TAKER_SELL_COUNT_TOO_SMALL]: [
       'MaxTakerSellCountTooSmall',
       `max taker sell count is too small`,
     ],
-    [TensorMarginProgramErrorCode.BAD_RULE_SET]: [
+    [TensorEscrowProgramErrorCode.BAD_RULE_SET]: [
       'BadRuleSet',
       `rule set for programmable nft does not match`,
     ],
-    [TensorMarginProgramErrorCode.POOL_FEES_COMPOUNDED]: [
+    [TensorEscrowProgramErrorCode.POOL_FEES_COMPOUNDED]: [
       'PoolFeesCompounded',
       `this pool compounds fees and they cannot be withdrawn separately`,
     ],
-    [TensorMarginProgramErrorCode.BAD_ROYALTIES_PCT]: [
+    [TensorEscrowProgramErrorCode.BAD_ROYALTIES_PCT]: [
       'BadRoyaltiesPct',
       `royalties percentage passed in must be between 0 and 100`,
     ],
-    [TensorMarginProgramErrorCode.STARTING_PRICE_TOO_SMALL]: [
+    [TensorEscrowProgramErrorCode.STARTING_PRICE_TOO_SMALL]: [
       'StartingPriceTooSmall',
       `starting price can't be smaller than 1 lamport`,
     ],
   };
 }
 
-export function getTensorMarginProgramErrorFromCode(
-  code: TensorMarginProgramErrorCode,
+export function getTensorEscrowProgramErrorFromCode(
+  code: TensorEscrowProgramErrorCode,
   cause?: Error
-): TensorMarginProgramError {
+): TensorEscrowProgramError {
   if (__DEV__) {
-    return new TensorMarginProgramError(
+    return new TensorEscrowProgramError(
       code,
       ...(
-        tensorMarginProgramErrorCodeMap as Record<
-          TensorMarginProgramErrorCode,
+        tensorEscrowProgramErrorCodeMap as Record<
+          TensorEscrowProgramErrorCode,
           [string, string]
         >
       )[code],
@@ -284,7 +284,7 @@ export function getTensorMarginProgramErrorFromCode(
     );
   }
 
-  return new TensorMarginProgramError(
+  return new TensorEscrowProgramError(
     code,
     'Unknown',
     'Error message not available in production bundles. Compile with __DEV__ set to true to see more information.',

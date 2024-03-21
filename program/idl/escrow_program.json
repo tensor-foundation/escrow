@@ -1,6 +1,6 @@
 {
   "version": "0.0.0",
-  "name": "margin_program",
+  "name": "escrow_program",
   "constants": [
     {
       "name": "CURRENT_TSWAP_VERSION",

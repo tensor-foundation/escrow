@@ -88,7 +88,7 @@ impl DelistT22 {
         let data = DelistT22InstructionData::new().try_to_vec().unwrap();
 
         solana_program::instruction::Instruction {
-            program_id: crate::TENSOR_MARGIN_ID,
+            program_id: crate::TENSOR_ESCROW_ID,
             accounts,
             data,
         }
@@ -415,7 +415,7 @@ impl<'a, 'b> DelistT22Cpi<'a, 'b> {
         let data = DelistT22InstructionData::new().try_to_vec().unwrap();
 
         let instruction = solana_program::instruction::Instruction {
-            program_id: crate::TENSOR_MARGIN_ID,
+            program_id: crate::TENSOR_ESCROW_ID,
             accounts,
             data,
         };

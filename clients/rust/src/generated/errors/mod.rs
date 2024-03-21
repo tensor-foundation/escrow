@@ -5,6 +5,6 @@
 //! [https://github.com/metaplex-foundation/kinobi]
 //!
 
-pub(crate) mod tensor_margin;
+pub(crate) mod tensor_escrow;
 
-pub use self::tensor_margin::TensorMarginError;
+pub use self::tensor_escrow::TensorEscrowError;

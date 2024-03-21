@@ -1,6 +1,6 @@
-# Margin
+# Tensor Escrow
 
-Trade with a margin account
+Shared escrow for all Tensor protocols.
 
 ## Building
 

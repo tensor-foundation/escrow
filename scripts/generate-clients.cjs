@@ -7,13 +7,13 @@ const clientDir = path.join(__dirname, "..", "clients");
 const idlDir = path.join(__dirname, "..", "program", "idl");
 
 // Instanciate Kinobi.
-const kinobi = k.createFromIdls([path.join(idlDir, "margin_program.json")]);
+const kinobi = k.createFromIdls([path.join(idlDir, "escrow_program.json")]);
 
 // Update programs.
 kinobi.update(
   k.updateProgramsVisitor({
-    marginProgram: {
-      name: "tensorMargin",
+    escrowProgram: {
+      name: "tensorEscrow",
     },
   })
 );

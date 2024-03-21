@@ -1,7 +1,7 @@
-import { getTensorMarginProgram } from './generated';
+import { getTensorEscrowProgram } from './generated';
 
-export const tensorMargin = () => ({
+export const tensorEscrow = () => ({
   install() {
-    getTensorMarginProgram();
+    getTensorEscrowProgram();
   },
 });

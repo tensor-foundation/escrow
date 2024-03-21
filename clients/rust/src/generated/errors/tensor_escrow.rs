@@ -9,7 +9,7 @@ use num_derive::FromPrimitive;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
-pub enum TensorMarginError {
+pub enum TensorEscrowError {
     /// 6000 (0x1770) - invalid merkle proof, token not whitelisted
     #[error("invalid merkle proof, token not whitelisted")]
     InvalidProof,
@@ -129,7 +129,7 @@ pub enum TensorMarginError {
     StartingPriceTooSmall,
 }
 
-impl solana_program::program_error::PrintProgramError for TensorMarginError {
+impl solana_program::program_error::PrintProgramError for TensorEscrowError {
     fn print<E>(&self) {
         solana_program::msg!(&self.to_string());
     }

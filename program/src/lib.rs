@@ -26,7 +26,7 @@ use state::*;
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");
 
 #[program]
-pub mod margin_program {
+pub mod escrow_program {
 
     use super::*;
 
