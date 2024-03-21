@@ -5,7 +5,7 @@
   <img width="400" alt="Tensor Escrow" src="https://github.com/tensor-foundation/margin/assets/729235/ff00ae1f-15f9-4248-8fa1-fdab50b1d6b4" />
 </p>
 <p align="center">
-  Trade with a margin account.
+  Shared escrow for all Tensor protocols.
 </p>
 
 ## Programs
