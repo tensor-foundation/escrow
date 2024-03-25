@@ -88,7 +88,7 @@ jobs:
         if: env.CACHE == 'true'
         uses: tensor-foundation/actions/cache-crate@v1
         with:
-          folder: '.'
+          folder: "."
           key: programs
 
       - name: Install Node.js
@@ -113,6 +113,13 @@ jobs:
     name: JS Client
     needs: [changes, generate_clients]
     uses: ./.github/workflows/test-js-client.yml
+    secrets: inherit
+
+  test_anchor:
+    if: needs.changes.outputs.js_client == 'true'
+    name: Anchor Client
+    needs: [changes, generate_clients]
+    uses: ./.github/workflows/test-js-anchor.yml
     secrets: inherit
 
   build_rust_client:
