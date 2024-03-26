@@ -149,27 +149,22 @@ export type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
 export const TEST_COSIGNER = Keypair.generate();
 
 export const beforeHook = async () => {
-  // fund the test wallets
-  await TEST_PROVIDER.connection.requestAirdrop(
-    TEST_CONN_PAYER.payer.publicKey,
-    999_000 * anchor.web3.LAMPORTS_PER_SOL
-  );
-  await TEST_PROVIDER.connection.requestAirdrop(
-    TEST_PROVIDER.publicKey,
-    999_000 * anchor.web3.LAMPORTS_PER_SOL
+  await TEST_PROVIDER.connection.confirmTransaction(
+    await TEST_PROVIDER.connection.requestAirdrop(
+      TEST_CONN_PAYER.payer.publicKey,
+      1000000 * LAMPORTS_PER_SOL
+    ),
+    "confirmed"
   );
 
-  let payerBalance = 0;
-  let providerBalance = 0;
+  await TEST_PROVIDER.connection.confirmTransaction(
+    await TEST_PROVIDER.connection.requestAirdrop(
+      TEST_PROVIDER.publicKey,
+      1000000 * LAMPORTS_PER_SOL
+    ),
+    "confirmed"
+  );
 
-  while (payerBalance === 0 || providerBalance === 0) {
-    payerBalance = await TEST_PROVIDER.connection.getBalance(
-      TEST_CONN_PAYER.payer.publicKey
-    );
-    providerBalance = await TEST_PROVIDER.connection.getBalance(
-      TEST_PROVIDER.publicKey
-    );
-  }
   // WL authority
   await testInitWLAuthority();
 
