@@ -45,6 +45,9 @@ chai.use(chaiAsPromised);
 
 describe("tswap init_update_tswap", () => {
   it("properly checks for owner on further updates", async () => {
+    // funds the test wallet
+    await beforeHook();
+
     const initialOwner = await createFundedWallet();
     const {
       tx: { ixs },

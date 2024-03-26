@@ -791,7 +791,7 @@ describe("tswap sell", () => {
   });
 
   it("sell below 0 is not possible", async () => {
-    const [traderA, traderB] = await makeNTraders({ n: 2, sol: 1000000 });
+    const [traderA, traderB] = await makeNTraders({ n: 2, sol: 450_000 });
 
     const numSells = 5;
     const baseConfig = {
@@ -1116,7 +1116,7 @@ describe("tswap sell", () => {
     // prime #
     const numSells = 109;
 
-    const [traderA, traderB] = await makeNTraders({ n: 2, sol: 1000000 });
+    const [traderA, traderB] = await makeNTraders({ n: 2, sol: 450_000 });
     const config: PoolConfigAnchor = {
       poolType: PoolTypeAnchor.Token,
       curveType: CurveTypeAnchor.Exponential,
