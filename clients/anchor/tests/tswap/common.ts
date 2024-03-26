@@ -153,7 +153,6 @@ export const beforeHook = async () => {
     await TEST_PROVIDER.connection.requestAirdrop(
       TEST_CONN_PAYER.payer.publicKey,
       999999 * LAMPORTS_PER_SOL,
-      "confirmed"
     ),
     "confirmed"
   );
@@ -162,11 +161,10 @@ export const beforeHook = async () => {
     await TEST_PROVIDER.connection.requestAirdrop(
       TEST_PROVIDER.publicKey,
       999999 * LAMPORTS_PER_SOL,
-      "confirmed"
     ),
     "confirmed"
   );
-  /*
+
   let payerBalance = 0;
   let providerBalance = 0;
 
@@ -178,7 +176,7 @@ export const beforeHook = async () => {
       TEST_PROVIDER.publicKey
     );
   }
-  */
+
   // WL authority
   await testInitWLAuthority();
 
