@@ -152,11 +152,11 @@ export const beforeHook = async () => {
   // fund the test wallets
   await TEST_PROVIDER.connection.requestAirdrop(
     TEST_CONN_PAYER.payer.publicKey,
-    1_000_000 * anchor.web3.LAMPORTS_PER_SOL
+    999_000 * anchor.web3.LAMPORTS_PER_SOL
   );
   await TEST_PROVIDER.connection.requestAirdrop(
     TEST_PROVIDER.publicKey,
-    1_000_000 * anchor.web3.LAMPORTS_PER_SOL
+    999_000 * anchor.web3.LAMPORTS_PER_SOL
   );
 
   let payerBalance = 0;
