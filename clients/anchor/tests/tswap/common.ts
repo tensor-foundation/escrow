@@ -165,6 +165,18 @@ export const beforeHook = async () => {
     "confirmed"
   );
 
+  let payerBalance = 0;
+  let providerBalance = 0;
+
+  while (payerBalance === 0 || providerBalance === 0) {
+    payerBalance = await TEST_PROVIDER.connection.getBalance(
+      TEST_CONN_PAYER.payer.publicKey
+    );
+    providerBalance = await TEST_PROVIDER.connection.getBalance(
+      TEST_PROVIDER.publicKey
+    );
+  }
+
   // WL authority
   await testInitWLAuthority();
 
