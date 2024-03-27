@@ -149,33 +149,7 @@ export type WhitelistedNft = { mint: PublicKey; proof: Buffer[] };
 export const TEST_COSIGNER = Keypair.generate();
 
 export const beforeHook = async () => {
-  await TEST_PROVIDER.connection.confirmTransaction(
-    await TEST_PROVIDER.connection.requestAirdrop(
-      TEST_CONN_PAYER.payer.publicKey,
-      999999 * LAMPORTS_PER_SOL,
-    ),
-    "confirmed"
-  );
-
-  await TEST_PROVIDER.connection.confirmTransaction(
-    await TEST_PROVIDER.connection.requestAirdrop(
-      TEST_PROVIDER.publicKey,
-      999999 * LAMPORTS_PER_SOL,
-    ),
-    "confirmed"
-  );
-
-  let payerBalance = 0;
-  let providerBalance = 0;
-
-  while (payerBalance === 0 || providerBalance === 0) {
-    payerBalance = await TEST_PROVIDER.connection.getBalance(
-      TEST_CONN_PAYER.payer.publicKey
-    );
-    providerBalance = await TEST_PROVIDER.connection.getBalance(
-      TEST_PROVIDER.publicKey
-    );
-  }
+  await fundTestWallets();
 
   // WL authority
   await testInitWLAuthority();
@@ -287,6 +261,36 @@ export const getAccountWithProgramId = (
 ) => _getAccount(TEST_PROVIDER.connection, acct, undefined, programId);
 
 //#endregion
+
+export const fundTestWallets = async () => {
+  await TEST_PROVIDER.connection.confirmTransaction(
+    await TEST_PROVIDER.connection.requestAirdrop(
+      TEST_CONN_PAYER.payer.publicKey,
+      999999 * LAMPORTS_PER_SOL,
+    ),
+    "confirmed"
+  );
+
+  await TEST_PROVIDER.connection.confirmTransaction(
+    await TEST_PROVIDER.connection.requestAirdrop(
+      TEST_PROVIDER.publicKey,
+      999999 * LAMPORTS_PER_SOL,
+    ),
+    "confirmed"
+  );
+
+  let payerBalance = 0;
+  let providerBalance = 0;
+
+  while (payerBalance === 0 || providerBalance === 0) {
+    payerBalance = await TEST_PROVIDER.connection.getBalance(
+      TEST_CONN_PAYER.payer.publicKey
+    );
+    providerBalance = await TEST_PROVIDER.connection.getBalance(
+      TEST_PROVIDER.publicKey
+    );
+  }
+};
 
 export const createNft = async ({
   conn,

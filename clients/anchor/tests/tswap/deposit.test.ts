@@ -40,7 +40,7 @@ describe("tswap deposits", () => {
 
   //#region Deposit NFT
 
-  it.only("can deposit with long proof", async () => {
+  it("can deposit with long proof", async () => {
     const [owner] = await makeNTraders({ n: 1 });
     const config = nftPoolConfig;
     const { mint, ata } = await createAndFundAta({ owner });

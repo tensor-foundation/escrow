@@ -34,6 +34,7 @@ import {
   computeTakerPrice,
   createAndFundAta,
   defaultSellExpectedLamports,
+  fundTestWallets,
   getAccount,
   makeFvcWhitelist,
   makeMintTwoAta,
@@ -1113,6 +1114,9 @@ describe("tswap sell", () => {
   });
 
   it("sell a ton with default exponential curve + tolerance", async () => {
+    // fund the wallets again
+    await fundTestWallets();
+
     // prime #
     const numSells = 109;
 
