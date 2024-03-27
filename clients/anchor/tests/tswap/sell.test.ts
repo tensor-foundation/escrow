@@ -1120,7 +1120,7 @@ describe("tswap sell", () => {
     // prime #
     const numSells = 109;
 
-    const [traderA, traderB] = await makeNTraders({ n: 2, sol: 450_000 });
+    const [traderA, traderB] = await makeNTraders({ n: 2, sol: 200_000 });
     const config: PoolConfigAnchor = {
       poolType: PoolTypeAnchor.Token,
       curveType: CurveTypeAnchor.Exponential,

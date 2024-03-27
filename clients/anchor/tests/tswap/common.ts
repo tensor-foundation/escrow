@@ -266,9 +266,11 @@ export const fundTestWallets = async () => {
   const currentPayerBalance = await TEST_PROVIDER.connection.getBalance(
     TEST_CONN_PAYER.payer.publicKey
   );
+  /*
   const currentProviderBalance = await TEST_PROVIDER.connection.getBalance(
     TEST_PROVIDER.publicKey
   );
+  */
 
   await TEST_PROVIDER.connection.confirmTransaction(
     await TEST_PROVIDER.connection.requestAirdrop(
@@ -278,6 +280,7 @@ export const fundTestWallets = async () => {
     "confirmed"
   );
 
+  /*
   await TEST_PROVIDER.connection.confirmTransaction(
     await TEST_PROVIDER.connection.requestAirdrop(
       TEST_PROVIDER.publicKey,
@@ -285,20 +288,23 @@ export const fundTestWallets = async () => {
     ),
     "confirmed"
   );
+  */
 
   let payerBalance = currentPayerBalance;
-  let providerBalance = currentProviderBalance;
+  //let providerBalance = currentProviderBalance;
 
   while (
-    payerBalance === currentPayerBalance ||
-    providerBalance === currentProviderBalance
+    payerBalance === currentPayerBalance //||
+    //providerBalance === currentProviderBalance
   ) {
     payerBalance = await TEST_PROVIDER.connection.getBalance(
       TEST_CONN_PAYER.payer.publicKey
     );
+    /*
     providerBalance = await TEST_PROVIDER.connection.getBalance(
       TEST_PROVIDER.publicKey
     );
+    */
   }
 };
 
