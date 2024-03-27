@@ -38,6 +38,7 @@ import {
   TEST_COSIGNER,
   tradePoolConfig,
   TSWAP_CONFIG,
+  fundTestWallets,
 } from "./common";
 
 // Enables rejectedWith.
@@ -46,7 +47,7 @@ chai.use(chaiAsPromised);
 describe("tswap init_update_tswap", () => {
   it("properly checks for owner on further updates", async () => {
     // funds the test wallet
-    await beforeHook();
+    await fundTestWallets();
 
     const initialOwner = await createFundedWallet();
     const {
