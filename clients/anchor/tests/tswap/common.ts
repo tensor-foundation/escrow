@@ -263,10 +263,17 @@ export const getAccountWithProgramId = (
 //#endregion
 
 export const fundTestWallets = async () => {
+  const currentPayerBalance = await TEST_PROVIDER.connection.getBalance(
+    TEST_CONN_PAYER.payer.publicKey
+  );
+  const currentProviderBalance = await TEST_PROVIDER.connection.getBalance(
+    TEST_PROVIDER.publicKey
+  );
+
   await TEST_PROVIDER.connection.confirmTransaction(
     await TEST_PROVIDER.connection.requestAirdrop(
       TEST_CONN_PAYER.payer.publicKey,
-      999999 * LAMPORTS_PER_SOL,
+      (999999 * LAMPORTS_PER_SOL) - currentPayerBalance
     ),
     "confirmed"
   );
@@ -274,15 +281,18 @@ export const fundTestWallets = async () => {
   await TEST_PROVIDER.connection.confirmTransaction(
     await TEST_PROVIDER.connection.requestAirdrop(
       TEST_PROVIDER.publicKey,
-      999999 * LAMPORTS_PER_SOL,
+      (999999 * LAMPORTS_PER_SOL) - currentProviderBalance
     ),
     "confirmed"
   );
 
-  let payerBalance = 0;
-  let providerBalance = 0;
+  let payerBalance = currentPayerBalance;
+  let providerBalance = currentProviderBalance;
 
-  while (payerBalance === 0 || providerBalance === 0) {
+  while (
+    payerBalance === currentPayerBalance ||
+    providerBalance === currentProviderBalance
+  ) {
     payerBalance = await TEST_PROVIDER.connection.getBalance(
       TEST_CONN_PAYER.payer.publicKey
     );
