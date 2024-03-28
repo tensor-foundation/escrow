@@ -1,7 +1,7 @@
 #!/bin/bash
 
-EXTERNAL_ID=("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV")
-EXTERNAL_SO=("spl_noop.so")
+EXTERNAL_ID=("TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW" "TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv" "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s" "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg" "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" "wns1gDLt8fgLcGhWi5MqAqgXpwEP1JftKE9eZnXS1HM" "diste3nXmK7ddDTs1zb6uday6j4etCa9RChD8fJ1xay" "9SUrE3EPBoXVjNywEDHSJKJdxebs8H8sLgEWdueEvnKX")
+EXTERNAL_SO=("TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW.so" "TB1Dqt8JeKQh7RLDzfYDJsq8KS4fS2yt87avRjyRxMv.so" "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s.so" "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg.so" "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb.so" "wns1gDLt8fgLcGhWi5MqAqgXpwEP1JftKE9eZnXS1HM.so" "diste3nXmK7ddDTs1zb6uday6j4etCa9RChD8fJ1xay.so" "9SUrE3EPBoXVjNywEDHSJKJdxebs8H8sLgEWdueEvnKX.bin")
 
 # output colours
 RED() { echo $'\e[1;31m'$1$'\e[0m'; }
