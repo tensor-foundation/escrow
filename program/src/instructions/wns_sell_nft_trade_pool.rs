@@ -11,7 +11,7 @@ use tensor_toolbox::{
     token_2022::{
         token::{safe_initialize_token_account, InitializeTokenAccount},
         transfer::transfer_checked,
-        wns::{wns_approve, wns_validate_mint, ApproveAccounts},
+        wns::{approve, validate_mint, ApproveAccounts},
     },
     transfer_lamports_from_pda,
 };
@@ -109,8 +109,7 @@ pub fn process_wns_sell_nft_trade_pool<'a, 'b, 'c, 'info>(
     let pool = &ctx.accounts.shared.pool;
 
     // validate mint account
-    let seller_fee_basis_points =
-        wns_validate_mint(&ctx.accounts.shared.nft_mint.to_account_info())?;
+    let seller_fee_basis_points = validate_mint(&ctx.accounts.shared.nft_mint.to_account_info())?;
 
     let current_price = pool.current_price(TakerSide::Sell)?;
     let creators_fee = calc_creators_fee(
@@ -136,7 +135,7 @@ pub fn process_wns_sell_nft_trade_pool<'a, 'b, 'c, 'info>(
         associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
     };
     // royalty payment
-    wns_approve(approve_accounts, current_price, creators_fee)?;
+    approve(approve_accounts, current_price, creators_fee)?;
 
     // initialize escrow token account
 

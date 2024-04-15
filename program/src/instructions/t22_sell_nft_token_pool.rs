@@ -5,7 +5,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{transfer_checked, Token2022, TokenAccount, TransferChecked},
 };
-use tensor_toolbox::{token_2022::t22_validate_mint, transfer_lamports_from_pda};
+use tensor_toolbox::{token_2022::validate_mint, transfer_lamports_from_pda};
 use vipers::{throw_err, unwrap_int, Validate};
 
 use self::constants::CURRENT_POOL_VERSION;
@@ -72,7 +72,7 @@ pub fn process_t22_sell_nft_token_pool<'info>(
 
     // validate mint account
 
-    t22_validate_mint(&ctx.accounts.shared.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.shared.nft_mint.to_account_info())?;
 
     // transfer the NFT
 

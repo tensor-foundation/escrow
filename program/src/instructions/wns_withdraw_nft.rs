@@ -6,7 +6,7 @@ use anchor_spl::{
 };
 use tensor_toolbox::token_2022::{
     transfer::transfer_checked,
-    wns::{wns_approve, wns_validate_mint, ApproveAccounts},
+    wns::{approve, validate_mint, ApproveAccounts},
 };
 use tensor_whitelist::Whitelist;
 use vipers::{throw_err, unwrap_int, Validate};
@@ -152,7 +152,7 @@ pub fn process_wns_withdraw_nft<'info>(
 ) -> Result<()> {
     // validate mint account
 
-    wns_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     let approve_accounts = ApproveAccounts {
         payer: ctx.accounts.owner.to_account_info(),
@@ -170,7 +170,7 @@ pub fn process_wns_withdraw_nft<'info>(
         associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
     };
     // "simulate" royalty payment
-    wns_approve(approve_accounts, 0, 0)?;
+    approve(approve_accounts, 0, 0)?;
 
     // transfer the NFT
 

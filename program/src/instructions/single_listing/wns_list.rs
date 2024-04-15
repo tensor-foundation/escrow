@@ -4,7 +4,7 @@ use anchor_spl::{
 };
 use tensor_toolbox::token_2022::{
     token::{safe_initialize_token_account, InitializeTokenAccount},
-    wns::{wns_approve, wns_validate_mint, ApproveAccounts},
+    wns::{approve, validate_mint, ApproveAccounts},
 };
 
 use crate::*;
@@ -86,7 +86,7 @@ pub fn wns_process_list<'info>(
 ) -> Result<()> {
     // validate mint account
 
-    wns_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     // initialize escrow token account
 
@@ -123,7 +123,7 @@ pub fn wns_process_list<'info>(
         associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
     };
     // "simulate" royalty payment
-    wns_approve(approve_accounts, 0, 0)?;
+    approve(approve_accounts, 0, 0)?;
 
     // transfer the NFT
 

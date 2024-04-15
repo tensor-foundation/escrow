@@ -9,7 +9,7 @@ use tensor_toolbox::{
     calc_creators_fee,
     token_2022::{
         transfer::transfer_checked,
-        wns::{wns_approve, wns_validate_mint, ApproveAccounts},
+        wns::{approve, validate_mint, ApproveAccounts},
     },
     transfer_lamports_from_pda,
 };
@@ -203,7 +203,7 @@ pub fn process_wns_buy_nft<'info, 'b>(
     max_price: u64,
 ) -> Result<()> {
     // validate mint account
-    let seller_fee_basis_points = wns_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+    let seller_fee_basis_points = validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     let pool = &ctx.accounts.pool;
 
@@ -251,7 +251,7 @@ pub fn process_wns_buy_nft<'info, 'b>(
         associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
     };
     // royalty payment
-    wns_approve(approve_accounts, current_price, creators_fee)?;
+    approve(approve_accounts, current_price, creators_fee)?;
 
     // transfer the NFT
 
