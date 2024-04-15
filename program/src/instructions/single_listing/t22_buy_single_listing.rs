@@ -6,9 +6,7 @@ use anchor_spl::{
     },
 };
 use mpl_token_metadata::types::TokenStandard;
-use tensor_toolbox::{
-    calc_creators_fee, token_2022::t22_validate_mint, transfer_lamports_from_pda,
-};
+use tensor_toolbox::{calc_creators_fee, token_2022::validate_mint, transfer_lamports_from_pda};
 use vipers::{throw_err, Validate};
 
 use crate::{error::ErrorCode, *};
@@ -166,7 +164,7 @@ pub fn process_buy_single_listing_t22<'info, 'b>(
 
     // validate mint account
 
-    t22_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     // transfer the NFT
 

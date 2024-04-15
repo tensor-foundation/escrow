@@ -7,7 +7,7 @@ use anchor_spl::{
 use tensor_toolbox::token_2022::{
     token::{safe_initialize_token_account, InitializeTokenAccount},
     transfer::transfer_checked,
-    wns::{wns_approve, wns_validate_mint, ApproveAccounts},
+    wns::{approve, validate_mint, ApproveAccounts},
 };
 use tensor_whitelist::{self, Whitelist};
 use vipers::{throw_err, unwrap_int, Validate};
@@ -150,7 +150,7 @@ pub fn process_wns_deposit_nft<'b, 'info>(
 ) -> Result<()> {
     // validate mint account
 
-    wns_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     // initialize token account
 
@@ -187,7 +187,7 @@ pub fn process_wns_deposit_nft<'b, 'info>(
         associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
     };
     // "simulate" royalty payment
-    wns_approve(approve_accounts, 0, 0)?;
+    approve(approve_accounts, 0, 0)?;
 
     // transfer the NFT
 

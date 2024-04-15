@@ -4,8 +4,8 @@
 use anchor_spl::token_interface::{transfer_checked, Token2022, TransferChecked};
 use tensor_toolbox::{
     token_2022::{
-        t22_validate_mint,
         token::{safe_initialize_token_account, InitializeTokenAccount},
+        validate_mint,
     },
     transfer_lamports_from_pda,
 };
@@ -84,7 +84,7 @@ pub fn process_sell_nft_trade_pool<'a, 'b, 'c, 'info>(
 
     // validate mint account
 
-    t22_validate_mint(&ctx.accounts.shared.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.shared.nft_mint.to_account_info())?;
 
     // initialize escrow token account
 

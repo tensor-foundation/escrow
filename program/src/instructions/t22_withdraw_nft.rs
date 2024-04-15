@@ -6,7 +6,7 @@ use anchor_spl::{
         self, transfer_checked, CloseAccount, Mint, Token2022, TokenAccount, TransferChecked,
     },
 };
-use tensor_toolbox::token_2022::t22_validate_mint;
+use tensor_toolbox::token_2022::validate_mint;
 use tensor_whitelist::Whitelist;
 use vipers::{throw_err, unwrap_int, Validate};
 
@@ -132,7 +132,7 @@ pub fn process_t22_withdraw_nft<'info>(
 ) -> Result<()> {
     // validate mint account
 
-    t22_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     // transfer the NFT
 

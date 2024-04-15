@@ -2,7 +2,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{self, CloseAccount, Mint, Token2022, TokenAccount, TransferChecked},
 };
-use tensor_toolbox::token_2022::wns::{wns_approve, wns_validate_mint, ApproveAccounts};
+use tensor_toolbox::token_2022::wns::{approve, validate_mint, ApproveAccounts};
 
 use crate::{error::ErrorCode, *};
 
@@ -105,7 +105,7 @@ impl<'info> WnsDelist<'info> {
 pub fn wns_process_delist<'info>(ctx: Context<'_, '_, '_, 'info, WnsDelist<'info>>) -> Result<()> {
     // validate mint account
 
-    wns_validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
+    validate_mint(&ctx.accounts.nft_mint.to_account_info())?;
 
     let approve_accounts = ApproveAccounts {
         payer: ctx.accounts.payer.to_account_info(),
@@ -123,7 +123,7 @@ pub fn wns_process_delist<'info>(ctx: Context<'_, '_, '_, 'info, WnsDelist<'info
         associated_token_program: ctx.accounts.associated_token_program.to_account_info(),
     };
     // "simulate" royalty payment
-    wns_approve(approve_accounts, 0, 0)?;
+    approve(approve_accounts, 0, 0)?;
 
     // transfer the NFT
 
