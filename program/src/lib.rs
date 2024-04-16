@@ -317,6 +317,17 @@ pub mod escrow_program {
         )
     }
 
+    pub fn withdraw_margin_account_cpi_tamm(
+        ctx: Context<WithdrawMarginAccountCpiTAmm>,
+        _bump: u8,
+        _pool_id: [u8; 32],
+        lamports: u64,
+    ) -> Result<()> {
+        instructions::withdraw_margin_account_from_tamm::process_withdraw_margin_account_from_tamm(
+            ctx, lamports,
+        )
+    }
+
     pub fn withdraw_margin_account_cpi_tcomp(
         ctx: Context<WithdrawMarginAccountCpiTcomp>,
         _bump: u8,
