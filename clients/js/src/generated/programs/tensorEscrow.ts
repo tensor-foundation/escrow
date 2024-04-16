@@ -103,6 +103,7 @@ export enum TensorEscrowInstruction {
   EditSingleListing,
   WithdrawMmFee,
   WithdrawMarginAccountFromTBid,
+  WithdrawMarginAccountCpiTamm,
   WithdrawMarginAccountFromTComp,
   WithdrawMarginAccountFromTLock,
   BuyNftT22,
@@ -221,6 +222,9 @@ export function identifyTensorEscrowInstruction(
   }
   if (memcmp(data, new Uint8Array([186, 26, 199, 134, 220, 177, 32, 72]), 0)) {
     return TensorEscrowInstruction.WithdrawMarginAccountFromTBid;
+  }
+  if (memcmp(data, new Uint8Array([35, 89, 16, 235, 226, 89, 248, 45]), 0)) {
+    return TensorEscrowInstruction.WithdrawMarginAccountCpiTamm;
   }
   if (memcmp(data, new Uint8Array([201, 156, 163, 27, 243, 14, 36, 237]), 0)) {
     return TensorEscrowInstruction.WithdrawMarginAccountFromTComp;
