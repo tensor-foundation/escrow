@@ -6,27 +6,27 @@
  * @see https://github.com/metaplex-foundation/kinobi
  */
 
-import { Codec, Decoder, Encoder, combineCodec } from '@solana/codecs-core';
 import {
+  Codec,
+  Decoder,
+  Encoder,
+  combineCodec,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import { getU16Decoder, getU16Encoder } from '@solana/codecs-numbers';
+  getU16Decoder,
+  getU16Encoder,
+} from '@solana/codecs';
 
 export type TSwapConfig = { feeBps: number };
 
 export type TSwapConfigArgs = TSwapConfig;
 
-export function getTSwapConfigEncoder() {
-  return getStructEncoder<TSwapConfigArgs>([
-    ['feeBps', getU16Encoder()],
-  ]) satisfies Encoder<TSwapConfigArgs>;
+export function getTSwapConfigEncoder(): Encoder<TSwapConfigArgs> {
+  return getStructEncoder([['feeBps', getU16Encoder()]]);
 }
 
-export function getTSwapConfigDecoder() {
-  return getStructDecoder<TSwapConfig>([
-    ['feeBps', getU16Decoder()],
-  ]) satisfies Decoder<TSwapConfig>;
+export function getTSwapConfigDecoder(): Decoder<TSwapConfig> {
+  return getStructDecoder([['feeBps', getU16Decoder()]]);
 }
 
 export function getTSwapConfigCodec(): Codec<TSwapConfigArgs, TSwapConfig> {

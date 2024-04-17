@@ -11,27 +11,26 @@ import {
   Codec,
   Decoder,
   Encoder,
+  Option,
+  OptionOrNullable,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getU16Decoder,
   getU16Encoder,
   getU64Decoder,
   getU64Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -40,18 +39,9 @@ import {
   WritableAccount,
   WritableSignerAccount,
 } from '@solana/instructions';
-import {
-  Option,
-  OptionOrNullable,
-  getOptionDecoder,
-  getOptionEncoder,
-} from '@solana/options';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   AuthorizationDataLocal,
   AuthorizationDataLocalArgs,
@@ -60,7 +50,7 @@ import {
 } from '../types';
 
 export type BuySingleListingInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountFeeVault extends string | IAccountMeta<string> = string,
   TAccountSingleListing extends string | IAccountMeta<string> = string,
@@ -83,103 +73,16 @@ export type BuySingleListingInstruction<
   TAccountNftEdition extends string | IAccountMeta<string> = string,
   TAccountOwnerTokenRecord extends string | IAccountMeta<string> = string,
   TAccountDestTokenRecord extends string | IAccountMeta<string> = string,
-  TAccountPnftShared extends string | IAccountMeta<string> = string,
+  TAccountTokenMetadataProgram extends
+    | string
+    | IAccountMeta<string> = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s',
+  TAccountInstructions extends string | IAccountMeta<string> = string,
+  TAccountAuthorizationRulesProgram extends
+    | string
+    | IAccountMeta<string> = 'auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg',
   TAccountAuthRules extends string | IAccountMeta<string> = string,
   TAccountTakerBroker extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountTswap extends string
-        ? ReadonlyAccount<TAccountTswap>
-        : TAccountTswap,
-      TAccountFeeVault extends string
-        ? WritableAccount<TAccountFeeVault>
-        : TAccountFeeVault,
-      TAccountSingleListing extends string
-        ? WritableAccount<TAccountSingleListing>
-        : TAccountSingleListing,
-      TAccountNftBuyerAcc extends string
-        ? WritableAccount<TAccountNftBuyerAcc>
-        : TAccountNftBuyerAcc,
-      TAccountNftMint extends string
-        ? ReadonlyAccount<TAccountNftMint>
-        : TAccountNftMint,
-      TAccountNftMetadata extends string
-        ? WritableAccount<TAccountNftMetadata>
-        : TAccountNftMetadata,
-      TAccountNftEscrow extends string
-        ? WritableAccount<TAccountNftEscrow>
-        : TAccountNftEscrow,
-      TAccountOwner extends string
-        ? WritableAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountBuyer extends string
-        ? WritableSignerAccount<TAccountBuyer>
-        : TAccountBuyer,
-      TAccountTokenProgram extends string
-        ? ReadonlyAccount<TAccountTokenProgram>
-        : TAccountTokenProgram,
-      TAccountAssociatedTokenProgram extends string
-        ? ReadonlyAccount<TAccountAssociatedTokenProgram>
-        : TAccountAssociatedTokenProgram,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      TAccountRent extends string
-        ? ReadonlyAccount<TAccountRent>
-        : TAccountRent,
-      TAccountNftEdition extends string
-        ? ReadonlyAccount<TAccountNftEdition>
-        : TAccountNftEdition,
-      TAccountOwnerTokenRecord extends string
-        ? WritableAccount<TAccountOwnerTokenRecord>
-        : TAccountOwnerTokenRecord,
-      TAccountDestTokenRecord extends string
-        ? WritableAccount<TAccountDestTokenRecord>
-        : TAccountDestTokenRecord,
-      TAccountPnftShared extends string
-        ? ReadonlyAccount<TAccountPnftShared>
-        : TAccountPnftShared,
-      TAccountAuthRules extends string
-        ? ReadonlyAccount<TAccountAuthRules>
-        : TAccountAuthRules,
-      TAccountTakerBroker extends string
-        ? WritableAccount<TAccountTakerBroker>
-        : TAccountTakerBroker,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type BuySingleListingInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountFeeVault extends string | IAccountMeta<string> = string,
-  TAccountSingleListing extends string | IAccountMeta<string> = string,
-  TAccountNftBuyerAcc extends string | IAccountMeta<string> = string,
-  TAccountNftMint extends string | IAccountMeta<string> = string,
-  TAccountNftMetadata extends string | IAccountMeta<string> = string,
-  TAccountNftEscrow extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountBuyer extends string | IAccountMeta<string> = string,
-  TAccountTokenProgram extends
-    | string
-    | IAccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-  TAccountAssociatedTokenProgram extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountRent extends
-    | string
-    | IAccountMeta<string> = 'SysvarRent111111111111111111111111111111111',
-  TAccountNftEdition extends string | IAccountMeta<string> = string,
-  TAccountOwnerTokenRecord extends string | IAccountMeta<string> = string,
-  TAccountDestTokenRecord extends string | IAccountMeta<string> = string,
-  TAccountPnftShared extends string | IAccountMeta<string> = string,
-  TAccountAuthRules extends string | IAccountMeta<string> = string,
-  TAccountTakerBroker extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -233,16 +136,22 @@ export type BuySingleListingInstructionWithSigners<
       TAccountDestTokenRecord extends string
         ? WritableAccount<TAccountDestTokenRecord>
         : TAccountDestTokenRecord,
-      TAccountPnftShared extends string
-        ? ReadonlyAccount<TAccountPnftShared>
-        : TAccountPnftShared,
+      TAccountTokenMetadataProgram extends string
+        ? ReadonlyAccount<TAccountTokenMetadataProgram>
+        : TAccountTokenMetadataProgram,
+      TAccountInstructions extends string
+        ? ReadonlyAccount<TAccountInstructions>
+        : TAccountInstructions,
+      TAccountAuthorizationRulesProgram extends string
+        ? ReadonlyAccount<TAccountAuthorizationRulesProgram>
+        : TAccountAuthorizationRulesProgram,
       TAccountAuthRules extends string
         ? ReadonlyAccount<TAccountAuthRules>
         : TAccountAuthRules,
       TAccountTakerBroker extends string
         ? WritableAccount<TAccountTakerBroker>
         : TAccountTakerBroker,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -261,15 +170,9 @@ export type BuySingleListingInstructionDataArgs = {
   optionalRoyaltyPct: OptionOrNullable<number>;
 };
 
-export function getBuySingleListingInstructionDataEncoder() {
+export function getBuySingleListingInstructionDataEncoder(): Encoder<BuySingleListingInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      maxPrice: number | bigint;
-      rulesAccPresent: boolean;
-      authorizationData: OptionOrNullable<AuthorizationDataLocalArgs>;
-      optionalRoyaltyPct: OptionOrNullable<number>;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['maxPrice', getU64Encoder()],
       ['rulesAccPresent', getBooleanEncoder()],
@@ -283,17 +186,17 @@ export function getBuySingleListingInstructionDataEncoder() {
       ...value,
       discriminator: [245, 220, 105, 73, 117, 98, 78, 141],
     })
-  ) satisfies Encoder<BuySingleListingInstructionDataArgs>;
+  );
 }
 
-export function getBuySingleListingInstructionDataDecoder() {
-  return getStructDecoder<BuySingleListingInstructionData>([
+export function getBuySingleListingInstructionDataDecoder(): Decoder<BuySingleListingInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['maxPrice', getU64Decoder()],
     ['rulesAccPresent', getBooleanDecoder()],
     ['authorizationData', getOptionDecoder(getAuthorizationDataLocalDecoder())],
     ['optionalRoyaltyPct', getOptionDecoder(getU16Decoder())],
-  ]) satisfies Decoder<BuySingleListingInstructionData>;
+  ]);
 }
 
 export function getBuySingleListingInstructionDataCodec(): Codec<
@@ -307,25 +210,27 @@ export function getBuySingleListingInstructionDataCodec(): Codec<
 }
 
 export type BuySingleListingInput<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountSingleListing extends string,
-  TAccountNftBuyerAcc extends string,
-  TAccountNftMint extends string,
-  TAccountNftMetadata extends string,
-  TAccountNftEscrow extends string,
-  TAccountOwner extends string,
-  TAccountBuyer extends string,
-  TAccountTokenProgram extends string,
-  TAccountAssociatedTokenProgram extends string,
-  TAccountSystemProgram extends string,
-  TAccountRent extends string,
-  TAccountNftEdition extends string,
-  TAccountOwnerTokenRecord extends string,
-  TAccountDestTokenRecord extends string,
-  TAccountPnftShared extends string,
-  TAccountAuthRules extends string,
-  TAccountTakerBroker extends string
+  TAccountTswap extends string = string,
+  TAccountFeeVault extends string = string,
+  TAccountSingleListing extends string = string,
+  TAccountNftBuyerAcc extends string = string,
+  TAccountNftMint extends string = string,
+  TAccountNftMetadata extends string = string,
+  TAccountNftEscrow extends string = string,
+  TAccountOwner extends string = string,
+  TAccountBuyer extends string = string,
+  TAccountTokenProgram extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountRent extends string = string,
+  TAccountNftEdition extends string = string,
+  TAccountOwnerTokenRecord extends string = string,
+  TAccountDestTokenRecord extends string = string,
+  TAccountTokenMetadataProgram extends string = string,
+  TAccountInstructions extends string = string,
+  TAccountAuthorizationRulesProgram extends string = string,
+  TAccountAuthRules extends string = string,
+  TAccountTakerBroker extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
   feeVault: Address<TAccountFeeVault>;
@@ -337,58 +242,6 @@ export type BuySingleListingInput<
    * Implicitly checked via transfer. Will fail if wrong account.
    * This is closed below (dest = owner)
    */
-
-  nftEscrow: Address<TAccountNftEscrow>;
-  owner: Address<TAccountOwner>;
-  buyer: Address<TAccountBuyer>;
-  tokenProgram?: Address<TAccountTokenProgram>;
-  associatedTokenProgram: Address<TAccountAssociatedTokenProgram>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  rent?: Address<TAccountRent>;
-  nftEdition: Address<TAccountNftEdition>;
-  ownerTokenRecord: Address<TAccountOwnerTokenRecord>;
-  destTokenRecord: Address<TAccountDestTokenRecord>;
-  pnftShared: Address<TAccountPnftShared>;
-  authRules: Address<TAccountAuthRules>;
-  takerBroker: Address<TAccountTakerBroker>;
-  maxPrice: BuySingleListingInstructionDataArgs['maxPrice'];
-  rulesAccPresent: BuySingleListingInstructionDataArgs['rulesAccPresent'];
-  authorizationData: BuySingleListingInstructionDataArgs['authorizationData'];
-  optionalRoyaltyPct: BuySingleListingInstructionDataArgs['optionalRoyaltyPct'];
-};
-
-export type BuySingleListingInputWithSigners<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountSingleListing extends string,
-  TAccountNftBuyerAcc extends string,
-  TAccountNftMint extends string,
-  TAccountNftMetadata extends string,
-  TAccountNftEscrow extends string,
-  TAccountOwner extends string,
-  TAccountBuyer extends string,
-  TAccountTokenProgram extends string,
-  TAccountAssociatedTokenProgram extends string,
-  TAccountSystemProgram extends string,
-  TAccountRent extends string,
-  TAccountNftEdition extends string,
-  TAccountOwnerTokenRecord extends string,
-  TAccountDestTokenRecord extends string,
-  TAccountPnftShared extends string,
-  TAccountAuthRules extends string,
-  TAccountTakerBroker extends string
-> = {
-  tswap: Address<TAccountTswap>;
-  feeVault: Address<TAccountFeeVault>;
-  singleListing: Address<TAccountSingleListing>;
-  nftBuyerAcc: Address<TAccountNftBuyerAcc>;
-  nftMint: Address<TAccountNftMint>;
-  nftMetadata: Address<TAccountNftMetadata>;
-  /**
-   * Implicitly checked via transfer. Will fail if wrong account.
-   * This is closed below (dest = owner)
-   */
-
   nftEscrow: Address<TAccountNftEscrow>;
   owner: Address<TAccountOwner>;
   buyer: TransactionSigner<TAccountBuyer>;
@@ -399,7 +252,9 @@ export type BuySingleListingInputWithSigners<
   nftEdition: Address<TAccountNftEdition>;
   ownerTokenRecord: Address<TAccountOwnerTokenRecord>;
   destTokenRecord: Address<TAccountDestTokenRecord>;
-  pnftShared: Address<TAccountPnftShared>;
+  tokenMetadataProgram?: Address<TAccountTokenMetadataProgram>;
+  instructions: Address<TAccountInstructions>;
+  authorizationRulesProgram?: Address<TAccountAuthorizationRulesProgram>;
   authRules: Address<TAccountAuthRules>;
   takerBroker: Address<TAccountTakerBroker>;
   maxPrice: BuySingleListingInstructionDataArgs['maxPrice'];
@@ -425,75 +280,11 @@ export function getBuySingleListingInstruction<
   TAccountNftEdition extends string,
   TAccountOwnerTokenRecord extends string,
   TAccountDestTokenRecord extends string,
-  TAccountPnftShared extends string,
+  TAccountTokenMetadataProgram extends string,
+  TAccountInstructions extends string,
+  TAccountAuthorizationRulesProgram extends string,
   TAccountAuthRules extends string,
   TAccountTakerBroker extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: BuySingleListingInputWithSigners<
-    TAccountTswap,
-    TAccountFeeVault,
-    TAccountSingleListing,
-    TAccountNftBuyerAcc,
-    TAccountNftMint,
-    TAccountNftMetadata,
-    TAccountNftEscrow,
-    TAccountOwner,
-    TAccountBuyer,
-    TAccountTokenProgram,
-    TAccountAssociatedTokenProgram,
-    TAccountSystemProgram,
-    TAccountRent,
-    TAccountNftEdition,
-    TAccountOwnerTokenRecord,
-    TAccountDestTokenRecord,
-    TAccountPnftShared,
-    TAccountAuthRules,
-    TAccountTakerBroker
-  >
-): BuySingleListingInstructionWithSigners<
-  TProgram,
-  TAccountTswap,
-  TAccountFeeVault,
-  TAccountSingleListing,
-  TAccountNftBuyerAcc,
-  TAccountNftMint,
-  TAccountNftMetadata,
-  TAccountNftEscrow,
-  TAccountOwner,
-  TAccountBuyer,
-  TAccountTokenProgram,
-  TAccountAssociatedTokenProgram,
-  TAccountSystemProgram,
-  TAccountRent,
-  TAccountNftEdition,
-  TAccountOwnerTokenRecord,
-  TAccountDestTokenRecord,
-  TAccountPnftShared,
-  TAccountAuthRules,
-  TAccountTakerBroker
->;
-export function getBuySingleListingInstruction<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountSingleListing extends string,
-  TAccountNftBuyerAcc extends string,
-  TAccountNftMint extends string,
-  TAccountNftMetadata extends string,
-  TAccountNftEscrow extends string,
-  TAccountOwner extends string,
-  TAccountBuyer extends string,
-  TAccountTokenProgram extends string,
-  TAccountAssociatedTokenProgram extends string,
-  TAccountSystemProgram extends string,
-  TAccountRent extends string,
-  TAccountNftEdition extends string,
-  TAccountOwnerTokenRecord extends string,
-  TAccountDestTokenRecord extends string,
-  TAccountPnftShared extends string,
-  TAccountAuthRules extends string,
-  TAccountTakerBroker extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: BuySingleListingInput<
     TAccountTswap,
@@ -512,12 +303,14 @@ export function getBuySingleListingInstruction<
     TAccountNftEdition,
     TAccountOwnerTokenRecord,
     TAccountDestTokenRecord,
-    TAccountPnftShared,
+    TAccountTokenMetadataProgram,
+    TAccountInstructions,
+    TAccountAuthorizationRulesProgram,
     TAccountAuthRules,
     TAccountTakerBroker
   >
 ): BuySingleListingInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap,
   TAccountFeeVault,
   TAccountSingleListing,
@@ -534,84 +327,17 @@ export function getBuySingleListingInstruction<
   TAccountNftEdition,
   TAccountOwnerTokenRecord,
   TAccountDestTokenRecord,
-  TAccountPnftShared,
+  TAccountTokenMetadataProgram,
+  TAccountInstructions,
+  TAccountAuthorizationRulesProgram,
   TAccountAuthRules,
   TAccountTakerBroker
->;
-export function getBuySingleListingInstruction<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountSingleListing extends string,
-  TAccountNftBuyerAcc extends string,
-  TAccountNftMint extends string,
-  TAccountNftMetadata extends string,
-  TAccountNftEscrow extends string,
-  TAccountOwner extends string,
-  TAccountBuyer extends string,
-  TAccountTokenProgram extends string,
-  TAccountAssociatedTokenProgram extends string,
-  TAccountSystemProgram extends string,
-  TAccountRent extends string,
-  TAccountNftEdition extends string,
-  TAccountOwnerTokenRecord extends string,
-  TAccountDestTokenRecord extends string,
-  TAccountPnftShared extends string,
-  TAccountAuthRules extends string,
-  TAccountTakerBroker extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: BuySingleListingInput<
-    TAccountTswap,
-    TAccountFeeVault,
-    TAccountSingleListing,
-    TAccountNftBuyerAcc,
-    TAccountNftMint,
-    TAccountNftMetadata,
-    TAccountNftEscrow,
-    TAccountOwner,
-    TAccountBuyer,
-    TAccountTokenProgram,
-    TAccountAssociatedTokenProgram,
-    TAccountSystemProgram,
-    TAccountRent,
-    TAccountNftEdition,
-    TAccountOwnerTokenRecord,
-    TAccountDestTokenRecord,
-    TAccountPnftShared,
-    TAccountAuthRules,
-    TAccountTakerBroker
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getBuySingleListingInstructionRaw<
-      TProgram,
-      TAccountTswap,
-      TAccountFeeVault,
-      TAccountSingleListing,
-      TAccountNftBuyerAcc,
-      TAccountNftMint,
-      TAccountNftMetadata,
-      TAccountNftEscrow,
-      TAccountOwner,
-      TAccountBuyer,
-      TAccountTokenProgram,
-      TAccountAssociatedTokenProgram,
-      TAccountSystemProgram,
-      TAccountRent,
-      TAccountNftEdition,
-      TAccountOwnerTokenRecord,
-      TAccountDestTokenRecord,
-      TAccountPnftShared,
-      TAccountAuthRules,
-      TAccountTakerBroker
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     tswap: { value: input.tswap ?? null, isWritable: false },
     feeVault: { value: input.feeVault ?? null, isWritable: true },
     singleListing: { value: input.singleListing ?? null, isWritable: true },
@@ -634,10 +360,22 @@ export function getBuySingleListingInstruction<
       isWritable: true,
     },
     destTokenRecord: { value: input.destTokenRecord ?? null, isWritable: true },
-    pnftShared: { value: input.pnftShared ?? null, isWritable: false },
+    tokenMetadataProgram: {
+      value: input.tokenMetadataProgram ?? null,
+      isWritable: false,
+    },
+    instructions: { value: input.instructions ?? null, isWritable: false },
+    authorizationRulesProgram: {
+      value: input.authorizationRulesProgram ?? null,
+      isWritable: false,
+    },
     authRules: { value: input.authRules ?? null, isWritable: false },
     takerBroker: { value: input.takerBroker ?? null, isWritable: true },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -655,155 +393,46 @@ export function getBuySingleListingInstruction<
     accounts.rent.value =
       'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
   }
+  if (!accounts.tokenMetadataProgram.value) {
+    accounts.tokenMetadataProgram.value =
+      'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s' as Address<'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'>;
+  }
+  if (!accounts.authorizationRulesProgram.value) {
+    accounts.authorizationRulesProgram.value =
+      'auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg' as Address<'auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg'>;
+  }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getBuySingleListingInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as BuySingleListingInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getBuySingleListingInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountFeeVault extends string | IAccountMeta<string> = string,
-  TAccountSingleListing extends string | IAccountMeta<string> = string,
-  TAccountNftBuyerAcc extends string | IAccountMeta<string> = string,
-  TAccountNftMint extends string | IAccountMeta<string> = string,
-  TAccountNftMetadata extends string | IAccountMeta<string> = string,
-  TAccountNftEscrow extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountBuyer extends string | IAccountMeta<string> = string,
-  TAccountTokenProgram extends
-    | string
-    | IAccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
-  TAccountAssociatedTokenProgram extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountRent extends
-    | string
-    | IAccountMeta<string> = 'SysvarRent111111111111111111111111111111111',
-  TAccountNftEdition extends string | IAccountMeta<string> = string,
-  TAccountOwnerTokenRecord extends string | IAccountMeta<string> = string,
-  TAccountDestTokenRecord extends string | IAccountMeta<string> = string,
-  TAccountPnftShared extends string | IAccountMeta<string> = string,
-  TAccountAuthRules extends string | IAccountMeta<string> = string,
-  TAccountTakerBroker extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
-    feeVault: TAccountFeeVault extends string
-      ? Address<TAccountFeeVault>
-      : TAccountFeeVault;
-    singleListing: TAccountSingleListing extends string
-      ? Address<TAccountSingleListing>
-      : TAccountSingleListing;
-    nftBuyerAcc: TAccountNftBuyerAcc extends string
-      ? Address<TAccountNftBuyerAcc>
-      : TAccountNftBuyerAcc;
-    nftMint: TAccountNftMint extends string
-      ? Address<TAccountNftMint>
-      : TAccountNftMint;
-    nftMetadata: TAccountNftMetadata extends string
-      ? Address<TAccountNftMetadata>
-      : TAccountNftMetadata;
-    nftEscrow: TAccountNftEscrow extends string
-      ? Address<TAccountNftEscrow>
-      : TAccountNftEscrow;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    buyer: TAccountBuyer extends string
-      ? Address<TAccountBuyer>
-      : TAccountBuyer;
-    tokenProgram?: TAccountTokenProgram extends string
-      ? Address<TAccountTokenProgram>
-      : TAccountTokenProgram;
-    associatedTokenProgram: TAccountAssociatedTokenProgram extends string
-      ? Address<TAccountAssociatedTokenProgram>
-      : TAccountAssociatedTokenProgram;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-    rent?: TAccountRent extends string ? Address<TAccountRent> : TAccountRent;
-    nftEdition: TAccountNftEdition extends string
-      ? Address<TAccountNftEdition>
-      : TAccountNftEdition;
-    ownerTokenRecord: TAccountOwnerTokenRecord extends string
-      ? Address<TAccountOwnerTokenRecord>
-      : TAccountOwnerTokenRecord;
-    destTokenRecord: TAccountDestTokenRecord extends string
-      ? Address<TAccountDestTokenRecord>
-      : TAccountDestTokenRecord;
-    pnftShared: TAccountPnftShared extends string
-      ? Address<TAccountPnftShared>
-      : TAccountPnftShared;
-    authRules: TAccountAuthRules extends string
-      ? Address<TAccountAuthRules>
-      : TAccountAuthRules;
-    takerBroker: TAccountTakerBroker extends string
-      ? Address<TAccountTakerBroker>
-      : TAccountTakerBroker;
-  },
-  args: BuySingleListingInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.feeVault, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.singleListing, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.nftBuyerAcc, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.nftMint, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.nftMetadata, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.nftEscrow, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.owner, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.buyer, AccountRole.WRITABLE_SIGNER),
-      accountMetaWithDefault(
-        accounts.tokenProgram ??
-          ('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>),
-        AccountRole.READONLY
-      ),
-      accountMetaWithDefault(
-        accounts.associatedTokenProgram,
-        AccountRole.READONLY
-      ),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      accountMetaWithDefault(
-        accounts.rent ??
-          ('SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      accountMetaWithDefault(accounts.nftEdition, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.ownerTokenRecord, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.destTokenRecord, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.pnftShared, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.authRules, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.takerBroker, AccountRole.WRITABLE),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.feeVault),
+      getAccountMeta(accounts.singleListing),
+      getAccountMeta(accounts.nftBuyerAcc),
+      getAccountMeta(accounts.nftMint),
+      getAccountMeta(accounts.nftMetadata),
+      getAccountMeta(accounts.nftEscrow),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.buyer),
+      getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.associatedTokenProgram),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.rent),
+      getAccountMeta(accounts.nftEdition),
+      getAccountMeta(accounts.ownerTokenRecord),
+      getAccountMeta(accounts.destTokenRecord),
+      getAccountMeta(accounts.tokenMetadataProgram),
+      getAccountMeta(accounts.instructions),
+      getAccountMeta(accounts.authorizationRulesProgram),
+      getAccountMeta(accounts.authRules),
+      getAccountMeta(accounts.takerBroker),
     ],
-    data: getBuySingleListingInstructionDataEncoder().encode(args),
     programAddress,
+    data: getBuySingleListingInstructionDataEncoder().encode(
+      args as BuySingleListingInstructionDataArgs
+    ),
   } as BuySingleListingInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountTswap,
     TAccountFeeVault,
     TAccountSingleListing,
@@ -820,16 +449,19 @@ export function getBuySingleListingInstructionRaw<
     TAccountNftEdition,
     TAccountOwnerTokenRecord,
     TAccountDestTokenRecord,
-    TAccountPnftShared,
+    TAccountTokenMetadataProgram,
+    TAccountInstructions,
+    TAccountAuthorizationRulesProgram,
     TAccountAuthRules,
-    TAccountTakerBroker,
-    TRemainingAccounts
+    TAccountTakerBroker
   >;
+
+  return instruction;
 }
 
 export type ParsedBuySingleListingInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -854,22 +486,24 @@ export type ParsedBuySingleListingInstruction<
     nftEdition: TAccountMetas[13];
     ownerTokenRecord: TAccountMetas[14];
     destTokenRecord: TAccountMetas[15];
-    pnftShared: TAccountMetas[16];
-    authRules: TAccountMetas[17];
-    takerBroker: TAccountMetas[18];
+    tokenMetadataProgram: TAccountMetas[16];
+    instructions: TAccountMetas[17];
+    authorizationRulesProgram: TAccountMetas[18];
+    authRules: TAccountMetas[19];
+    takerBroker: TAccountMetas[20];
   };
   data: BuySingleListingInstructionData;
 };
 
 export function parseBuySingleListingInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedBuySingleListingInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 19) {
+  if (instruction.accounts.length < 21) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -898,7 +532,9 @@ export function parseBuySingleListingInstruction<
       nftEdition: getNextAccount(),
       ownerTokenRecord: getNextAccount(),
       destTokenRecord: getNextAccount(),
-      pnftShared: getNextAccount(),
+      tokenMetadataProgram: getNextAccount(),
+      instructions: getNextAccount(),
+      authorizationRulesProgram: getNextAccount(),
       authRules: getNextAccount(),
       takerBroker: getNextAccount(),
     },

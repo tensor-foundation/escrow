@@ -29,15 +29,14 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import { getU8Decoder, getU8Encoder } from '@solana/codecs-numbers';
+  getU8Decoder,
+  getU8Encoder,
+  mapEncoder,
+} from '@solana/codecs';
 import {
   TSwapConfig,
   TSwapConfigArgs,
@@ -76,18 +75,9 @@ export type TSwapAccountDataArgs = {
   cosigner: Address;
 };
 
-export function getTSwapAccountDataEncoder() {
+export function getTSwapAccountDataEncoder(): Encoder<TSwapAccountDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      version: number;
-      bump: Array<number>;
-      /** @DEPRECATED, use constant above instead */
-      config: TSwapConfigArgs;
-      owner: Address;
-      feeVault: Address;
-      cosigner: Address;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['version', getU8Encoder()],
       ['bump', getArrayEncoder(getU8Encoder(), { size: 1 })],
@@ -100,11 +90,11 @@ export function getTSwapAccountDataEncoder() {
       ...value,
       discriminator: [169, 211, 171, 36, 219, 189, 79, 188],
     })
-  ) satisfies Encoder<TSwapAccountDataArgs>;
+  );
 }
 
-export function getTSwapAccountDataDecoder() {
-  return getStructDecoder<TSwapAccountData>([
+export function getTSwapAccountDataDecoder(): Decoder<TSwapAccountData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['version', getU8Decoder()],
     ['bump', getArrayDecoder(getU8Decoder(), { size: 1 })],
@@ -112,7 +102,7 @@ export function getTSwapAccountDataDecoder() {
     ['owner', getAddressDecoder()],
     ['feeVault', getAddressDecoder()],
     ['cosigner', getAddressDecoder()],
-  ]) satisfies Decoder<TSwapAccountData>;
+  ]);
 }
 
 export function getTSwapAccountDataCodec(): Codec<

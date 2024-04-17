@@ -12,30 +12,25 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import { getU8Decoder, getU8Encoder } from '@solana/codecs-numbers';
+  getU8Decoder,
+  getU8Encoder,
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
   IInstructionWithData,
   ReadonlyAccount,
 } from '@solana/instructions';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   PoolConfig,
   PoolConfigArgs,
@@ -44,11 +39,11 @@ import {
 } from '../types';
 
 export type SetPoolFreezeInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -56,24 +51,7 @@ export type SetPoolFreezeInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type SetPoolFreezeInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -88,13 +66,9 @@ export type SetPoolFreezeInstructionDataArgs = {
   freeze: boolean;
 };
 
-export function getSetPoolFreezeInstructionDataEncoder() {
+export function getSetPoolFreezeInstructionDataEncoder(): Encoder<SetPoolFreezeInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      config: PoolConfigArgs;
-      freeze: boolean;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['config', getPoolConfigEncoder()],
       ['freeze', getBooleanEncoder()],
@@ -103,15 +77,15 @@ export function getSetPoolFreezeInstructionDataEncoder() {
       ...value,
       discriminator: [110, 201, 190, 64, 166, 186, 105, 131],
     })
-  ) satisfies Encoder<SetPoolFreezeInstructionDataArgs>;
+  );
 }
 
-export function getSetPoolFreezeInstructionDataDecoder() {
-  return getStructDecoder<SetPoolFreezeInstructionData>([
+export function getSetPoolFreezeInstructionDataDecoder(): Decoder<SetPoolFreezeInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['config', getPoolConfigDecoder()],
     ['freeze', getBooleanDecoder()],
-  ]) satisfies Decoder<SetPoolFreezeInstructionData>;
+  ]);
 }
 
 export function getSetPoolFreezeInstructionDataCodec(): Codec<
@@ -124,47 +98,32 @@ export function getSetPoolFreezeInstructionDataCodec(): Codec<
   );
 }
 
-export type SetPoolFreezeInput<TAccountSystemProgram extends string> = {
-  systemProgram?: Address<TAccountSystemProgram>;
-  config: SetPoolFreezeInstructionDataArgs['config'];
-  freeze: SetPoolFreezeInstructionDataArgs['freeze'];
-};
-
-export type SetPoolFreezeInputWithSigners<
-  TAccountSystemProgram extends string
-> = {
-  systemProgram?: Address<TAccountSystemProgram>;
-  config: SetPoolFreezeInstructionDataArgs['config'];
-  freeze: SetPoolFreezeInstructionDataArgs['freeze'];
-};
+export type SetPoolFreezeInput<TAccountSystemProgram extends string = string> =
+  {
+    systemProgram?: Address<TAccountSystemProgram>;
+    config: SetPoolFreezeInstructionDataArgs['config'];
+    freeze: SetPoolFreezeInstructionDataArgs['freeze'];
+  };
 
 export function getSetPoolFreezeInstruction<
   TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: SetPoolFreezeInputWithSigners<TAccountSystemProgram>
-): SetPoolFreezeInstructionWithSigners<TProgram, TAccountSystemProgram>;
-export function getSetPoolFreezeInstruction<
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: SetPoolFreezeInput<TAccountSystemProgram>
-): SetPoolFreezeInstruction<TProgram, TAccountSystemProgram>;
-export function getSetPoolFreezeInstruction<
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(input: SetPoolFreezeInput<TAccountSystemProgram>): IInstruction {
+): SetPoolFreezeInstruction<
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountSystemProgram
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getSetPoolFreezeInstructionRaw<TProgram, TAccountSystemProgram>
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -175,59 +134,24 @@ export function getSetPoolFreezeInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getSetPoolFreezeInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as SetPoolFreezeInstructionDataArgs,
-    programAddress
-  );
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [getAccountMeta(accounts.systemProgram)],
+    programAddress,
+    data: getSetPoolFreezeInstructionDataEncoder().encode(
+      args as SetPoolFreezeInstructionDataArgs
+    ),
+  } as SetPoolFreezeInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountSystemProgram
+  >;
 
   return instruction;
 }
 
-export function getSetPoolFreezeInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-  },
-  args: SetPoolFreezeInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
-    accounts: [
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      ...(remainingAccounts ?? []),
-    ],
-    data: getSetPoolFreezeInstructionDataEncoder().encode(args),
-    programAddress,
-  } as SetPoolFreezeInstruction<
-    TProgram,
-    TAccountSystemProgram,
-    TRemainingAccounts
-  >;
-}
-
 export type ParsedSetPoolFreezeInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -238,7 +162,7 @@ export type ParsedSetPoolFreezeInstruction<
 
 export function parseSetPoolFreezeInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &

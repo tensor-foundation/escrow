@@ -12,17 +12,15 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import { getU8Decoder, getU8Encoder } from '@solana/codecs-numbers';
+  getU8Decoder,
+  getU8Encoder,
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -33,11 +31,8 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   TSwapConfig,
   TSwapConfigArgs,
@@ -46,7 +41,7 @@ import {
 } from '../types';
 
 export type InitUpdateTswapInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountFeeVault extends string | IAccountMeta<string> = string,
   TAccountCosigner extends string | IAccountMeta<string> = string,
@@ -55,44 +50,7 @@ export type InitUpdateTswapInstruction<
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
   TAccountNewOwner extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountTswap extends string
-        ? WritableAccount<TAccountTswap>
-        : TAccountTswap,
-      TAccountFeeVault extends string
-        ? ReadonlyAccount<TAccountFeeVault>
-        : TAccountFeeVault,
-      TAccountCosigner extends string
-        ? ReadonlySignerAccount<TAccountCosigner>
-        : TAccountCosigner,
-      TAccountOwner extends string
-        ? WritableSignerAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      TAccountNewOwner extends string
-        ? ReadonlySignerAccount<TAccountNewOwner>
-        : TAccountNewOwner,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type InitUpdateTswapInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountFeeVault extends string | IAccountMeta<string> = string,
-  TAccountCosigner extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountNewOwner extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -118,7 +76,7 @@ export type InitUpdateTswapInstructionWithSigners<
         ? ReadonlySignerAccount<TAccountNewOwner> &
             IAccountSignerMeta<TAccountNewOwner>
         : TAccountNewOwner,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -129,26 +87,24 @@ export type InitUpdateTswapInstructionData = {
 
 export type InitUpdateTswapInstructionDataArgs = { config: TSwapConfigArgs };
 
-export function getInitUpdateTswapInstructionDataEncoder() {
+export function getInitUpdateTswapInstructionDataEncoder(): Encoder<InitUpdateTswapInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{ discriminator: Array<number>; config: TSwapConfigArgs }>(
-      [
-        ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
-        ['config', getTSwapConfigEncoder()],
-      ]
-    ),
+    getStructEncoder([
+      ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
+      ['config', getTSwapConfigEncoder()],
+    ]),
     (value) => ({
       ...value,
       discriminator: [140, 185, 54, 172, 15, 94, 31, 155],
     })
-  ) satisfies Encoder<InitUpdateTswapInstructionDataArgs>;
+  );
 }
 
-export function getInitUpdateTswapInstructionDataDecoder() {
-  return getStructDecoder<InitUpdateTswapInstructionData>([
+export function getInitUpdateTswapInstructionDataDecoder(): Decoder<InitUpdateTswapInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['config', getTSwapConfigDecoder()],
-  ]) satisfies Decoder<InitUpdateTswapInstructionData>;
+  ]);
 }
 
 export function getInitUpdateTswapInstructionDataCodec(): Codec<
@@ -162,30 +118,12 @@ export function getInitUpdateTswapInstructionDataCodec(): Codec<
 }
 
 export type InitUpdateTswapInput<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNewOwner extends string
-> = {
-  tswap: Address<TAccountTswap>;
-  feeVault: Address<TAccountFeeVault>;
-  /** We ask also for a signature just to make sure this wallet can actually sign things */
-  cosigner: Address<TAccountCosigner>;
-  owner: Address<TAccountOwner>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  newOwner: Address<TAccountNewOwner>;
-  config: InitUpdateTswapInstructionDataArgs['config'];
-};
-
-export type InitUpdateTswapInputWithSigners<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNewOwner extends string
+  TAccountTswap extends string = string,
+  TAccountFeeVault extends string = string,
+  TAccountCosigner extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountNewOwner extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
   feeVault: Address<TAccountFeeVault>;
@@ -204,33 +142,6 @@ export function getInitUpdateTswapInstruction<
   TAccountOwner extends string,
   TAccountSystemProgram extends string,
   TAccountNewOwner extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: InitUpdateTswapInputWithSigners<
-    TAccountTswap,
-    TAccountFeeVault,
-    TAccountCosigner,
-    TAccountOwner,
-    TAccountSystemProgram,
-    TAccountNewOwner
-  >
-): InitUpdateTswapInstructionWithSigners<
-  TProgram,
-  TAccountTswap,
-  TAccountFeeVault,
-  TAccountCosigner,
-  TAccountOwner,
-  TAccountSystemProgram,
-  TAccountNewOwner
->;
-export function getInitUpdateTswapInstruction<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNewOwner extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: InitUpdateTswapInput<
     TAccountTswap,
@@ -241,49 +152,19 @@ export function getInitUpdateTswapInstruction<
     TAccountNewOwner
   >
 ): InitUpdateTswapInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap,
   TAccountFeeVault,
   TAccountCosigner,
   TAccountOwner,
   TAccountSystemProgram,
   TAccountNewOwner
->;
-export function getInitUpdateTswapInstruction<
-  TAccountTswap extends string,
-  TAccountFeeVault extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNewOwner extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: InitUpdateTswapInput<
-    TAccountTswap,
-    TAccountFeeVault,
-    TAccountCosigner,
-    TAccountOwner,
-    TAccountSystemProgram,
-    TAccountNewOwner
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getInitUpdateTswapInstructionRaw<
-      TProgram,
-      TAccountTswap,
-      TAccountFeeVault,
-      TAccountCosigner,
-      TAccountOwner,
-      TAccountSystemProgram,
-      TAccountNewOwner
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     tswap: { value: input.tswap ?? null, isWritable: true },
     feeVault: { value: input.feeVault ?? null, isWritable: false },
     cosigner: { value: input.cosigner ?? null, isWritable: false },
@@ -291,6 +172,10 @@ export function getInitUpdateTswapInstruction<
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     newOwner: { value: input.newOwner ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -301,89 +186,36 @@ export function getInitUpdateTswapInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getInitUpdateTswapInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as InitUpdateTswapInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getInitUpdateTswapInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountFeeVault extends string | IAccountMeta<string> = string,
-  TAccountCosigner extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountNewOwner extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
-    feeVault: TAccountFeeVault extends string
-      ? Address<TAccountFeeVault>
-      : TAccountFeeVault;
-    cosigner: TAccountCosigner extends string
-      ? Address<TAccountCosigner>
-      : TAccountCosigner;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-    newOwner: TAccountNewOwner extends string
-      ? Address<TAccountNewOwner>
-      : TAccountNewOwner;
-  },
-  args: InitUpdateTswapInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.feeVault, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.cosigner, AccountRole.READONLY_SIGNER),
-      accountMetaWithDefault(accounts.owner, AccountRole.WRITABLE_SIGNER),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      accountMetaWithDefault(accounts.newOwner, AccountRole.READONLY_SIGNER),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.feeVault),
+      getAccountMeta(accounts.cosigner),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.newOwner),
     ],
-    data: getInitUpdateTswapInstructionDataEncoder().encode(args),
     programAddress,
+    data: getInitUpdateTswapInstructionDataEncoder().encode(
+      args as InitUpdateTswapInstructionDataArgs
+    ),
   } as InitUpdateTswapInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountTswap,
     TAccountFeeVault,
     TAccountCosigner,
     TAccountOwner,
     TAccountSystemProgram,
-    TAccountNewOwner,
-    TRemainingAccounts
+    TAccountNewOwner
   >;
+
+  return instruction;
 }
 
 export type ParsedInitUpdateTswapInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -400,7 +232,7 @@ export type ParsedInitUpdateTswapInstruction<
 
 export function parseInitUpdateTswapInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &

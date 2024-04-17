@@ -29,24 +29,20 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getU16Decoder,
   getU16Encoder,
   getU32Decoder,
   getU32Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
+  mapEncoder,
+} from '@solana/codecs';
 
 export type MarginAccount<TAddress extends string = string> = Account<
   MarginAccountAccountData,
@@ -77,17 +73,9 @@ export type MarginAccountAccountDataArgs = {
   reserved: Uint8Array;
 };
 
-export function getMarginAccountAccountDataEncoder() {
+export function getMarginAccountAccountDataEncoder(): Encoder<MarginAccountAccountDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      owner: Address;
-      name: Uint8Array;
-      nr: number;
-      bump: Array<number>;
-      poolsAttached: number;
-      reserved: Uint8Array;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['owner', getAddressEncoder()],
       ['name', getBytesEncoder({ size: 32 })],
@@ -100,11 +88,11 @@ export function getMarginAccountAccountDataEncoder() {
       ...value,
       discriminator: [133, 220, 173, 213, 179, 211, 43, 238],
     })
-  ) satisfies Encoder<MarginAccountAccountDataArgs>;
+  );
 }
 
-export function getMarginAccountAccountDataDecoder() {
-  return getStructDecoder<MarginAccountAccountData>([
+export function getMarginAccountAccountDataDecoder(): Decoder<MarginAccountAccountData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['owner', getAddressDecoder()],
     ['name', getBytesDecoder({ size: 32 })],
@@ -112,7 +100,7 @@ export function getMarginAccountAccountDataDecoder() {
     ['bump', getArrayDecoder(getU8Decoder(), { size: 1 })],
     ['poolsAttached', getU32Decoder()],
     ['reserved', getBytesDecoder({ size: 64 })],
-  ]) satisfies Decoder<MarginAccountAccountData>;
+  ]);
 }
 
 export function getMarginAccountAccountDataCodec(): Codec<

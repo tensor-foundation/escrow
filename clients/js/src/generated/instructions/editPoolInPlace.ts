@@ -11,25 +11,24 @@ import {
   Codec,
   Decoder,
   Encoder,
+  Option,
+  OptionOrNullable,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getU32Decoder,
   getU32Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -38,18 +37,9 @@ import {
   WritableAccount,
   WritableSignerAccount,
 } from '@solana/instructions';
-import {
-  Option,
-  OptionOrNullable,
-  getOptionDecoder,
-  getOptionEncoder,
-} from '@solana/options';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   PoolConfig,
   PoolConfigArgs,
@@ -58,7 +48,7 @@ import {
 } from '../types';
 
 export type EditPoolInPlaceInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
   TAccountWhitelist extends string | IAccountMeta<string> = string,
@@ -66,40 +56,7 @@ export type EditPoolInPlaceInstruction<
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountTswap extends string
-        ? ReadonlyAccount<TAccountTswap>
-        : TAccountTswap,
-      TAccountPool extends string
-        ? WritableAccount<TAccountPool>
-        : TAccountPool,
-      TAccountWhitelist extends string
-        ? ReadonlyAccount<TAccountWhitelist>
-        : TAccountWhitelist,
-      TAccountOwner extends string
-        ? WritableSignerAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type EditPoolInPlaceInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -120,7 +77,7 @@ export type EditPoolInPlaceInstructionWithSigners<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -139,15 +96,9 @@ export type EditPoolInPlaceInstructionDataArgs = {
   mmCompoundFees: OptionOrNullable<boolean>;
 };
 
-export function getEditPoolInPlaceInstructionDataEncoder() {
+export function getEditPoolInPlaceInstructionDataEncoder(): Encoder<EditPoolInPlaceInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      config: PoolConfigArgs;
-      isCosigned: OptionOrNullable<boolean>;
-      maxTakerSellCount: OptionOrNullable<number>;
-      mmCompoundFees: OptionOrNullable<boolean>;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['config', getPoolConfigEncoder()],
       ['isCosigned', getOptionEncoder(getBooleanEncoder())],
@@ -158,17 +109,17 @@ export function getEditPoolInPlaceInstructionDataEncoder() {
       ...value,
       discriminator: [125, 191, 119, 113, 6, 14, 164, 23],
     })
-  ) satisfies Encoder<EditPoolInPlaceInstructionDataArgs>;
+  );
 }
 
-export function getEditPoolInPlaceInstructionDataDecoder() {
-  return getStructDecoder<EditPoolInPlaceInstructionData>([
+export function getEditPoolInPlaceInstructionDataDecoder(): Decoder<EditPoolInPlaceInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['config', getPoolConfigDecoder()],
     ['isCosigned', getOptionDecoder(getBooleanDecoder())],
     ['maxTakerSellCount', getOptionDecoder(getU32Decoder())],
     ['mmCompoundFees', getOptionDecoder(getBooleanDecoder())],
-  ]) satisfies Decoder<EditPoolInPlaceInstructionData>;
+  ]);
 }
 
 export function getEditPoolInPlaceInstructionDataCodec(): Codec<
@@ -182,30 +133,11 @@ export function getEditPoolInPlaceInstructionDataCodec(): Codec<
 }
 
 export type EditPoolInPlaceInput<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string
-> = {
-  tswap: Address<TAccountTswap>;
-  pool: Address<TAccountPool>;
-  /** Needed for pool seeds derivation / will be stored inside pool */
-  whitelist: Address<TAccountWhitelist>;
-  owner: Address<TAccountOwner>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  config: EditPoolInPlaceInstructionDataArgs['config'];
-  isCosigned: EditPoolInPlaceInstructionDataArgs['isCosigned'];
-  maxTakerSellCount: EditPoolInPlaceInstructionDataArgs['maxTakerSellCount'];
-  mmCompoundFees: EditPoolInPlaceInstructionDataArgs['mmCompoundFees'];
-};
-
-export type EditPoolInPlaceInputWithSigners<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
   pool: Address<TAccountPool>;
@@ -225,30 +157,6 @@ export function getEditPoolInPlaceInstruction<
   TAccountWhitelist extends string,
   TAccountOwner extends string,
   TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: EditPoolInPlaceInputWithSigners<
-    TAccountTswap,
-    TAccountPool,
-    TAccountWhitelist,
-    TAccountOwner,
-    TAccountSystemProgram
-  >
-): EditPoolInPlaceInstructionWithSigners<
-  TProgram,
-  TAccountTswap,
-  TAccountPool,
-  TAccountWhitelist,
-  TAccountOwner,
-  TAccountSystemProgram
->;
-export function getEditPoolInPlaceInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: EditPoolInPlaceInput<
     TAccountTswap,
@@ -258,51 +166,28 @@ export function getEditPoolInPlaceInstruction<
     TAccountSystemProgram
   >
 ): EditPoolInPlaceInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap,
   TAccountPool,
   TAccountWhitelist,
   TAccountOwner,
   TAccountSystemProgram
->;
-export function getEditPoolInPlaceInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: EditPoolInPlaceInput<
-    TAccountTswap,
-    TAccountPool,
-    TAccountWhitelist,
-    TAccountOwner,
-    TAccountSystemProgram
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getEditPoolInPlaceInstructionRaw<
-      TProgram,
-      TAccountTswap,
-      TAccountPool,
-      TAccountWhitelist,
-      TAccountOwner,
-      TAccountSystemProgram
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     tswap: { value: input.tswap ?? null, isWritable: false },
     pool: { value: input.pool ?? null, isWritable: true },
     whitelist: { value: input.whitelist ?? null, isWritable: false },
     owner: { value: input.owner ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -313,81 +198,34 @@ export function getEditPoolInPlaceInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getEditPoolInPlaceInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as EditPoolInPlaceInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getEditPoolInPlaceInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
-    pool: TAccountPool extends string ? Address<TAccountPool> : TAccountPool;
-    whitelist: TAccountWhitelist extends string
-      ? Address<TAccountWhitelist>
-      : TAccountWhitelist;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-  },
-  args: EditPoolInPlaceInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.pool, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.whitelist, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.owner, AccountRole.WRITABLE_SIGNER),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
     ],
-    data: getEditPoolInPlaceInstructionDataEncoder().encode(args),
     programAddress,
+    data: getEditPoolInPlaceInstructionDataEncoder().encode(
+      args as EditPoolInPlaceInstructionDataArgs
+    ),
   } as EditPoolInPlaceInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountTswap,
     TAccountPool,
     TAccountWhitelist,
     TAccountOwner,
-    TAccountSystemProgram,
-    TRemainingAccounts
+    TAccountSystemProgram
   >;
+
+  return instruction;
 }
 
 export type ParsedEditPoolInPlaceInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -403,7 +241,7 @@ export type ParsedEditPoolInPlaceInstruction<
 
 export function parseEditPoolInPlaceInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
