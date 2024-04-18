@@ -11,40 +11,30 @@ import {
   Codec,
   Decoder,
   Encoder,
+  Option,
+  OptionOrNullable,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getU64Decoder,
   getU64Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
   IInstructionWithData,
   ReadonlyAccount,
 } from '@solana/instructions';
-import {
-  Option,
-  OptionOrNullable,
-  getOptionDecoder,
-  getOptionEncoder,
-} from '@solana/options';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   AuthorizationDataLocal,
   AuthorizationDataLocalArgs,
@@ -57,11 +47,11 @@ import {
 } from '../types';
 
 export type TakeSnipeInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -69,24 +59,7 @@ export type TakeSnipeInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type TakeSnipeInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -103,14 +76,9 @@ export type TakeSnipeInstructionDataArgs = {
   authorizationData: OptionOrNullable<AuthorizationDataLocalArgs>;
 };
 
-export function getTakeSnipeInstructionDataEncoder() {
+export function getTakeSnipeInstructionDataEncoder(): Encoder<TakeSnipeInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      config: PoolConfigArgs;
-      actualPrice: number | bigint;
-      authorizationData: OptionOrNullable<AuthorizationDataLocalArgs>;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['config', getPoolConfigEncoder()],
       ['actualPrice', getU64Encoder()],
@@ -123,16 +91,16 @@ export function getTakeSnipeInstructionDataEncoder() {
       ...value,
       discriminator: [10, 151, 48, 226, 248, 24, 227, 231],
     })
-  ) satisfies Encoder<TakeSnipeInstructionDataArgs>;
+  );
 }
 
-export function getTakeSnipeInstructionDataDecoder() {
-  return getStructDecoder<TakeSnipeInstructionData>([
+export function getTakeSnipeInstructionDataDecoder(): Decoder<TakeSnipeInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['config', getPoolConfigDecoder()],
     ['actualPrice', getU64Decoder()],
     ['authorizationData', getOptionDecoder(getAuthorizationDataLocalDecoder())],
-  ]) satisfies Decoder<TakeSnipeInstructionData>;
+  ]);
 }
 
 export function getTakeSnipeInstructionDataCodec(): Codec<
@@ -145,47 +113,30 @@ export function getTakeSnipeInstructionDataCodec(): Codec<
   );
 }
 
-export type TakeSnipeInput<TAccountSystemProgram extends string> = {
+export type TakeSnipeInput<TAccountSystemProgram extends string = string> = {
   systemProgram?: Address<TAccountSystemProgram>;
   config: TakeSnipeInstructionDataArgs['config'];
   actualPrice: TakeSnipeInstructionDataArgs['actualPrice'];
   authorizationData: TakeSnipeInstructionDataArgs['authorizationData'];
 };
 
-export type TakeSnipeInputWithSigners<TAccountSystemProgram extends string> = {
-  systemProgram?: Address<TAccountSystemProgram>;
-  config: TakeSnipeInstructionDataArgs['config'];
-  actualPrice: TakeSnipeInstructionDataArgs['actualPrice'];
-  authorizationData: TakeSnipeInstructionDataArgs['authorizationData'];
-};
-
-export function getTakeSnipeInstruction<
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: TakeSnipeInputWithSigners<TAccountSystemProgram>
-): TakeSnipeInstructionWithSigners<TProgram, TAccountSystemProgram>;
-export function getTakeSnipeInstruction<
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
+export function getTakeSnipeInstruction<TAccountSystemProgram extends string>(
   input: TakeSnipeInput<TAccountSystemProgram>
-): TakeSnipeInstruction<TProgram, TAccountSystemProgram>;
-export function getTakeSnipeInstruction<
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(input: TakeSnipeInput<TAccountSystemProgram>): IInstruction {
+): TakeSnipeInstruction<
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountSystemProgram
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getTakeSnipeInstructionRaw<TProgram, TAccountSystemProgram>
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -196,59 +147,24 @@ export function getTakeSnipeInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getTakeSnipeInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as TakeSnipeInstructionDataArgs,
-    programAddress
-  );
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [getAccountMeta(accounts.systemProgram)],
+    programAddress,
+    data: getTakeSnipeInstructionDataEncoder().encode(
+      args as TakeSnipeInstructionDataArgs
+    ),
+  } as TakeSnipeInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountSystemProgram
+  >;
 
   return instruction;
 }
 
-export function getTakeSnipeInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-  },
-  args: TakeSnipeInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
-    accounts: [
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      ...(remainingAccounts ?? []),
-    ],
-    data: getTakeSnipeInstructionDataEncoder().encode(args),
-    programAddress,
-  } as TakeSnipeInstruction<
-    TProgram,
-    TAccountSystemProgram,
-    TRemainingAccounts
-  >;
-}
-
 export type ParsedTakeSnipeInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -259,7 +175,7 @@ export type ParsedTakeSnipeInstruction<
 
 export function parseTakeSnipeInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &

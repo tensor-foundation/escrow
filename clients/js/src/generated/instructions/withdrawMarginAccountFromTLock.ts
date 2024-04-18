@@ -12,24 +12,19 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getU64Decoder,
   getU64Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -39,14 +34,11 @@ import {
   WritableAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
 export type WithdrawMarginAccountFromTLockInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountMarginAccount extends string | IAccountMeta<string> = string,
   TAccountOrderState extends string | IAccountMeta<string> = string,
   TAccountOwner extends string | IAccountMeta<string> = string,
@@ -54,40 +46,7 @@ export type WithdrawMarginAccountFromTLockInstruction<
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountMarginAccount extends string
-        ? WritableAccount<TAccountMarginAccount>
-        : TAccountMarginAccount,
-      TAccountOrderState extends string
-        ? ReadonlySignerAccount<TAccountOrderState>
-        : TAccountOrderState,
-      TAccountOwner extends string
-        ? ReadonlyAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountDestination extends string
-        ? WritableAccount<TAccountDestination>
-        : TAccountDestination,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type WithdrawMarginAccountFromTLockInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMarginAccount extends string | IAccountMeta<string> = string,
-  TAccountOrderState extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountDestination extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -108,7 +67,7 @@ export type WithdrawMarginAccountFromTLockInstructionWithSigners<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -125,14 +84,9 @@ export type WithdrawMarginAccountFromTLockInstructionDataArgs = {
   lamports: number | bigint;
 };
 
-export function getWithdrawMarginAccountFromTLockInstructionDataEncoder() {
+export function getWithdrawMarginAccountFromTLockInstructionDataEncoder(): Encoder<WithdrawMarginAccountFromTLockInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      bump: number;
-      orderId: Uint8Array;
-      lamports: number | bigint;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['bump', getU8Encoder()],
       ['orderId', getBytesEncoder({ size: 32 })],
@@ -142,16 +96,16 @@ export function getWithdrawMarginAccountFromTLockInstructionDataEncoder() {
       ...value,
       discriminator: [207, 235, 166, 255, 163, 162, 149, 44],
     })
-  ) satisfies Encoder<WithdrawMarginAccountFromTLockInstructionDataArgs>;
+  );
 }
 
-export function getWithdrawMarginAccountFromTLockInstructionDataDecoder() {
-  return getStructDecoder<WithdrawMarginAccountFromTLockInstructionData>([
+export function getWithdrawMarginAccountFromTLockInstructionDataDecoder(): Decoder<WithdrawMarginAccountFromTLockInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['bump', getU8Decoder()],
     ['orderId', getBytesDecoder({ size: 32 })],
     ['lamports', getU64Decoder()],
-  ]) satisfies Decoder<WithdrawMarginAccountFromTLockInstructionData>;
+  ]);
 }
 
 export function getWithdrawMarginAccountFromTLockInstructionDataCodec(): Codec<
@@ -165,28 +119,11 @@ export function getWithdrawMarginAccountFromTLockInstructionDataCodec(): Codec<
 }
 
 export type WithdrawMarginAccountFromTLockInput<
-  TAccountMarginAccount extends string,
-  TAccountOrderState extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string
-> = {
-  marginAccount: Address<TAccountMarginAccount>;
-  orderState: Address<TAccountOrderState>;
-  owner: Address<TAccountOwner>;
-  destination: Address<TAccountDestination>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  bump: WithdrawMarginAccountFromTLockInstructionDataArgs['bump'];
-  orderId: WithdrawMarginAccountFromTLockInstructionDataArgs['orderId'];
-  lamports: WithdrawMarginAccountFromTLockInstructionDataArgs['lamports'];
-};
-
-export type WithdrawMarginAccountFromTLockInputWithSigners<
-  TAccountMarginAccount extends string,
-  TAccountOrderState extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string
+  TAccountMarginAccount extends string = string,
+  TAccountOrderState extends string = string,
+  TAccountOwner extends string = string,
+  TAccountDestination extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   marginAccount: Address<TAccountMarginAccount>;
   orderState: TransactionSigner<TAccountOrderState>;
@@ -204,30 +141,6 @@ export function getWithdrawMarginAccountFromTLockInstruction<
   TAccountOwner extends string,
   TAccountDestination extends string,
   TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: WithdrawMarginAccountFromTLockInputWithSigners<
-    TAccountMarginAccount,
-    TAccountOrderState,
-    TAccountOwner,
-    TAccountDestination,
-    TAccountSystemProgram
-  >
-): WithdrawMarginAccountFromTLockInstructionWithSigners<
-  TProgram,
-  TAccountMarginAccount,
-  TAccountOrderState,
-  TAccountOwner,
-  TAccountDestination,
-  TAccountSystemProgram
->;
-export function getWithdrawMarginAccountFromTLockInstruction<
-  TAccountMarginAccount extends string,
-  TAccountOrderState extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: WithdrawMarginAccountFromTLockInput<
     TAccountMarginAccount,
@@ -237,51 +150,28 @@ export function getWithdrawMarginAccountFromTLockInstruction<
     TAccountSystemProgram
   >
 ): WithdrawMarginAccountFromTLockInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountMarginAccount,
   TAccountOrderState,
   TAccountOwner,
   TAccountDestination,
   TAccountSystemProgram
->;
-export function getWithdrawMarginAccountFromTLockInstruction<
-  TAccountMarginAccount extends string,
-  TAccountOrderState extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: WithdrawMarginAccountFromTLockInput<
-    TAccountMarginAccount,
-    TAccountOrderState,
-    TAccountOwner,
-    TAccountDestination,
-    TAccountSystemProgram
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getWithdrawMarginAccountFromTLockInstructionRaw<
-      TProgram,
-      TAccountMarginAccount,
-      TAccountOrderState,
-      TAccountOwner,
-      TAccountDestination,
-      TAccountSystemProgram
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     marginAccount: { value: input.marginAccount ?? null, isWritable: true },
     orderState: { value: input.orderState ?? null, isWritable: false },
     owner: { value: input.owner ?? null, isWritable: false },
     destination: { value: input.destination ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -292,85 +182,34 @@ export function getWithdrawMarginAccountFromTLockInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getWithdrawMarginAccountFromTLockInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as WithdrawMarginAccountFromTLockInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getWithdrawMarginAccountFromTLockInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMarginAccount extends string | IAccountMeta<string> = string,
-  TAccountOrderState extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountDestination extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    marginAccount: TAccountMarginAccount extends string
-      ? Address<TAccountMarginAccount>
-      : TAccountMarginAccount;
-    orderState: TAccountOrderState extends string
-      ? Address<TAccountOrderState>
-      : TAccountOrderState;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    destination: TAccountDestination extends string
-      ? Address<TAccountDestination>
-      : TAccountDestination;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-  },
-  args: WithdrawMarginAccountFromTLockInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.marginAccount, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.orderState, AccountRole.READONLY_SIGNER),
-      accountMetaWithDefault(accounts.owner, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.destination, AccountRole.WRITABLE),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.marginAccount),
+      getAccountMeta(accounts.orderState),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.destination),
+      getAccountMeta(accounts.systemProgram),
     ],
-    data: getWithdrawMarginAccountFromTLockInstructionDataEncoder().encode(
-      args
-    ),
     programAddress,
+    data: getWithdrawMarginAccountFromTLockInstructionDataEncoder().encode(
+      args as WithdrawMarginAccountFromTLockInstructionDataArgs
+    ),
   } as WithdrawMarginAccountFromTLockInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountMarginAccount,
     TAccountOrderState,
     TAccountOwner,
     TAccountDestination,
-    TAccountSystemProgram,
-    TRemainingAccounts
+    TAccountSystemProgram
   >;
+
+  return instruction;
 }
 
 export type ParsedWithdrawMarginAccountFromTLockInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -385,7 +224,7 @@ export type ParsedWithdrawMarginAccountFromTLockInstruction<
 
 export function parseWithdrawMarginAccountFromTLockInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &

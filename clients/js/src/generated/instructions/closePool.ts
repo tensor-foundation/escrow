@@ -12,17 +12,15 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import { getU8Decoder, getU8Encoder } from '@solana/codecs-numbers';
+  getU8Decoder,
+  getU8Encoder,
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -32,11 +30,8 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   PoolConfig,
   PoolConfigArgs,
@@ -45,7 +40,7 @@ import {
 } from '../types';
 
 export type ClosePoolInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
   TAccountSolEscrow extends string | IAccountMeta<string> = string,
@@ -55,48 +50,7 @@ export type ClosePoolInstruction<
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
   TAccountNftAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountTswap extends string
-        ? ReadonlyAccount<TAccountTswap>
-        : TAccountTswap,
-      TAccountPool extends string
-        ? WritableAccount<TAccountPool>
-        : TAccountPool,
-      TAccountSolEscrow extends string
-        ? WritableAccount<TAccountSolEscrow>
-        : TAccountSolEscrow,
-      TAccountWhitelist extends string
-        ? ReadonlyAccount<TAccountWhitelist>
-        : TAccountWhitelist,
-      TAccountOwner extends string
-        ? WritableSignerAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      TAccountNftAuthority extends string
-        ? WritableAccount<TAccountNftAuthority>
-        : TAccountNftAuthority,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type ClosePoolInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountSolEscrow extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountNftAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -123,7 +77,7 @@ export type ClosePoolInstructionWithSigners<
       TAccountNftAuthority extends string
         ? WritableAccount<TAccountNftAuthority>
         : TAccountNftAuthority,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -134,9 +88,9 @@ export type ClosePoolInstructionData = {
 
 export type ClosePoolInstructionDataArgs = { config: PoolConfigArgs };
 
-export function getClosePoolInstructionDataEncoder() {
+export function getClosePoolInstructionDataEncoder(): Encoder<ClosePoolInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{ discriminator: Array<number>; config: PoolConfigArgs }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['config', getPoolConfigEncoder()],
     ]),
@@ -144,14 +98,14 @@ export function getClosePoolInstructionDataEncoder() {
       ...value,
       discriminator: [140, 189, 209, 23, 239, 62, 239, 11],
     })
-  ) satisfies Encoder<ClosePoolInstructionDataArgs>;
+  );
 }
 
-export function getClosePoolInstructionDataDecoder() {
-  return getStructDecoder<ClosePoolInstructionData>([
+export function getClosePoolInstructionDataDecoder(): Decoder<ClosePoolInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['config', getPoolConfigDecoder()],
-  ]) satisfies Decoder<ClosePoolInstructionData>;
+  ]);
 }
 
 export function getClosePoolInstructionDataCodec(): Codec<
@@ -165,33 +119,13 @@ export function getClosePoolInstructionDataCodec(): Codec<
 }
 
 export type ClosePoolInput<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountSolEscrow extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNftAuthority extends string
-> = {
-  tswap: Address<TAccountTswap>;
-  pool: Address<TAccountPool>;
-  /** (!) if the order is marginated this won't return any funds to the user, since margin isn't auto-closed */
-  solEscrow: Address<TAccountSolEscrow>;
-  whitelist: Address<TAccountWhitelist>;
-  owner: Address<TAccountOwner>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  nftAuthority: Address<TAccountNftAuthority>;
-  config: ClosePoolInstructionDataArgs['config'];
-};
-
-export type ClosePoolInputWithSigners<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountSolEscrow extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNftAuthority extends string
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountSolEscrow extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountNftAuthority extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
   pool: Address<TAccountPool>;
@@ -212,36 +146,6 @@ export function getClosePoolInstruction<
   TAccountOwner extends string,
   TAccountSystemProgram extends string,
   TAccountNftAuthority extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: ClosePoolInputWithSigners<
-    TAccountTswap,
-    TAccountPool,
-    TAccountSolEscrow,
-    TAccountWhitelist,
-    TAccountOwner,
-    TAccountSystemProgram,
-    TAccountNftAuthority
-  >
-): ClosePoolInstructionWithSigners<
-  TProgram,
-  TAccountTswap,
-  TAccountPool,
-  TAccountSolEscrow,
-  TAccountWhitelist,
-  TAccountOwner,
-  TAccountSystemProgram,
-  TAccountNftAuthority
->;
-export function getClosePoolInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountSolEscrow extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNftAuthority extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: ClosePoolInput<
     TAccountTswap,
@@ -253,7 +157,7 @@ export function getClosePoolInstruction<
     TAccountNftAuthority
   >
 ): ClosePoolInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap,
   TAccountPool,
   TAccountSolEscrow,
@@ -261,45 +165,12 @@ export function getClosePoolInstruction<
   TAccountOwner,
   TAccountSystemProgram,
   TAccountNftAuthority
->;
-export function getClosePoolInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountSolEscrow extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TAccountNftAuthority extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: ClosePoolInput<
-    TAccountTswap,
-    TAccountPool,
-    TAccountSolEscrow,
-    TAccountWhitelist,
-    TAccountOwner,
-    TAccountSystemProgram,
-    TAccountNftAuthority
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getClosePoolInstructionRaw<
-      TProgram,
-      TAccountTswap,
-      TAccountPool,
-      TAccountSolEscrow,
-      TAccountWhitelist,
-      TAccountOwner,
-      TAccountSystemProgram,
-      TAccountNftAuthority
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     tswap: { value: input.tswap ?? null, isWritable: false },
     pool: { value: input.pool ?? null, isWritable: true },
     solEscrow: { value: input.solEscrow ?? null, isWritable: true },
@@ -308,6 +179,10 @@ export function getClosePoolInstruction<
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     nftAuthority: { value: input.nftAuthority ?? null, isWritable: true },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -318,93 +193,38 @@ export function getClosePoolInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getClosePoolInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as ClosePoolInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getClosePoolInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountSolEscrow extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountNftAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
-    pool: TAccountPool extends string ? Address<TAccountPool> : TAccountPool;
-    solEscrow: TAccountSolEscrow extends string
-      ? Address<TAccountSolEscrow>
-      : TAccountSolEscrow;
-    whitelist: TAccountWhitelist extends string
-      ? Address<TAccountWhitelist>
-      : TAccountWhitelist;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-    nftAuthority: TAccountNftAuthority extends string
-      ? Address<TAccountNftAuthority>
-      : TAccountNftAuthority;
-  },
-  args: ClosePoolInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.pool, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.solEscrow, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.whitelist, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.owner, AccountRole.WRITABLE_SIGNER),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      accountMetaWithDefault(accounts.nftAuthority, AccountRole.WRITABLE),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.solEscrow),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.nftAuthority),
     ],
-    data: getClosePoolInstructionDataEncoder().encode(args),
     programAddress,
+    data: getClosePoolInstructionDataEncoder().encode(
+      args as ClosePoolInstructionDataArgs
+    ),
   } as ClosePoolInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountTswap,
     TAccountPool,
     TAccountSolEscrow,
     TAccountWhitelist,
     TAccountOwner,
     TAccountSystemProgram,
-    TAccountNftAuthority,
-    TRemainingAccounts
+    TAccountNftAuthority
   >;
+
+  return instruction;
 }
 
 export type ParsedClosePoolInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -422,7 +242,7 @@ export type ParsedClosePoolInstruction<
 
 export function parseClosePoolInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
