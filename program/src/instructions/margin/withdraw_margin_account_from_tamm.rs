@@ -1,22 +1,16 @@
+use crate::{get_tswap_addr, MarginAccount};
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 use tensor_toolbox::transfer_lamports_from_pda;
-
-use crate::{MarginAccount, TSwap};
 
 #[derive(Accounts)]
 #[instruction(bump: u8, pool_id: [u8; 32])]
 pub struct WithdrawMarginAccountCpiTAmm<'info> {
     #[account(
-        seeds = [], bump = tswap.bump[0],
-    )]
-    pub tswap: Box<Account<'info, TSwap>>,
-
-    #[account(
         mut,
         seeds = [
             b"margin".as_ref(),
-            tswap.key().as_ref(),
+            get_tswap_addr().as_ref(),
             owner.key().as_ref(),
             &margin_account.nr.to_le_bytes()
         ],
