@@ -47,7 +47,6 @@ import {
 
 export type WithdrawMarginAccountCpiTammInstruction<
   TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountMarginAccount extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
   TAccountOwner extends string | IAccountMeta<string> = string,
@@ -60,9 +59,6 @@ export type WithdrawMarginAccountCpiTammInstruction<
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
     [
-      TAccountTswap extends string
-        ? ReadonlyAccount<TAccountTswap>
-        : TAccountTswap,
       TAccountMarginAccount extends string
         ? WritableAccount<TAccountMarginAccount>
         : TAccountMarginAccount,
@@ -84,7 +80,6 @@ export type WithdrawMarginAccountCpiTammInstruction<
 
 export type WithdrawMarginAccountCpiTammInstructionWithSigners<
   TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountMarginAccount extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
   TAccountOwner extends string | IAccountMeta<string> = string,
@@ -97,9 +92,6 @@ export type WithdrawMarginAccountCpiTammInstructionWithSigners<
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
     [
-      TAccountTswap extends string
-        ? ReadonlyAccount<TAccountTswap>
-        : TAccountTswap,
       TAccountMarginAccount extends string
         ? WritableAccount<TAccountMarginAccount>
         : TAccountMarginAccount,
@@ -172,14 +164,12 @@ export function getWithdrawMarginAccountCpiTammInstructionDataCodec(): Codec<
 }
 
 export type WithdrawMarginAccountCpiTammInput<
-  TAccountTswap extends string,
   TAccountMarginAccount extends string,
   TAccountPool extends string,
   TAccountOwner extends string,
   TAccountDestination extends string,
   TAccountSystemProgram extends string
 > = {
-  tswap: Address<TAccountTswap>;
   marginAccount: Address<TAccountMarginAccount>;
   pool: Address<TAccountPool>;
   owner: Address<TAccountOwner>;
@@ -191,14 +181,12 @@ export type WithdrawMarginAccountCpiTammInput<
 };
 
 export type WithdrawMarginAccountCpiTammInputWithSigners<
-  TAccountTswap extends string,
   TAccountMarginAccount extends string,
   TAccountPool extends string,
   TAccountOwner extends string,
   TAccountDestination extends string,
   TAccountSystemProgram extends string
 > = {
-  tswap: Address<TAccountTswap>;
   marginAccount: Address<TAccountMarginAccount>;
   pool: TransactionSigner<TAccountPool>;
   owner: Address<TAccountOwner>;
@@ -210,7 +198,6 @@ export type WithdrawMarginAccountCpiTammInputWithSigners<
 };
 
 export function getWithdrawMarginAccountCpiTammInstruction<
-  TAccountTswap extends string,
   TAccountMarginAccount extends string,
   TAccountPool extends string,
   TAccountOwner extends string,
@@ -219,7 +206,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: WithdrawMarginAccountCpiTammInputWithSigners<
-    TAccountTswap,
     TAccountMarginAccount,
     TAccountPool,
     TAccountOwner,
@@ -228,7 +214,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   >
 ): WithdrawMarginAccountCpiTammInstructionWithSigners<
   TProgram,
-  TAccountTswap,
   TAccountMarginAccount,
   TAccountPool,
   TAccountOwner,
@@ -236,7 +221,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   TAccountSystemProgram
 >;
 export function getWithdrawMarginAccountCpiTammInstruction<
-  TAccountTswap extends string,
   TAccountMarginAccount extends string,
   TAccountPool extends string,
   TAccountOwner extends string,
@@ -245,7 +229,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: WithdrawMarginAccountCpiTammInput<
-    TAccountTswap,
     TAccountMarginAccount,
     TAccountPool,
     TAccountOwner,
@@ -254,7 +237,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   >
 ): WithdrawMarginAccountCpiTammInstruction<
   TProgram,
-  TAccountTswap,
   TAccountMarginAccount,
   TAccountPool,
   TAccountOwner,
@@ -262,7 +244,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   TAccountSystemProgram
 >;
 export function getWithdrawMarginAccountCpiTammInstruction<
-  TAccountTswap extends string,
   TAccountMarginAccount extends string,
   TAccountPool extends string,
   TAccountOwner extends string,
@@ -271,7 +252,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: WithdrawMarginAccountCpiTammInput<
-    TAccountTswap,
     TAccountMarginAccount,
     TAccountPool,
     TAccountOwner,
@@ -287,7 +267,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
   type AccountMetas = Parameters<
     typeof getWithdrawMarginAccountCpiTammInstructionRaw<
       TProgram,
-      TAccountTswap,
       TAccountMarginAccount,
       TAccountPool,
       TAccountOwner,
@@ -296,7 +275,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
     >
   >[0];
   const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
-    tswap: { value: input.tswap ?? null, isWritable: false },
     marginAccount: { value: input.marginAccount ?? null, isWritable: true },
     pool: { value: input.pool ?? null, isWritable: false },
     owner: { value: input.owner ?? null, isWritable: false },
@@ -331,7 +309,6 @@ export function getWithdrawMarginAccountCpiTammInstruction<
 
 export function getWithdrawMarginAccountCpiTammInstructionRaw<
   TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountMarginAccount extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
   TAccountOwner extends string | IAccountMeta<string> = string,
@@ -342,9 +319,6 @@ export function getWithdrawMarginAccountCpiTammInstructionRaw<
   TRemainingAccounts extends Array<IAccountMeta<string>> = []
 >(
   accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
     marginAccount: TAccountMarginAccount extends string
       ? Address<TAccountMarginAccount>
       : TAccountMarginAccount;
@@ -365,7 +339,6 @@ export function getWithdrawMarginAccountCpiTammInstructionRaw<
 ) {
   return {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.READONLY),
       accountMetaWithDefault(accounts.marginAccount, AccountRole.WRITABLE),
       accountMetaWithDefault(accounts.pool, AccountRole.READONLY_SIGNER),
       accountMetaWithDefault(accounts.owner, AccountRole.READONLY),
@@ -381,7 +354,6 @@ export function getWithdrawMarginAccountCpiTammInstructionRaw<
     programAddress,
   } as WithdrawMarginAccountCpiTammInstruction<
     TProgram,
-    TAccountTswap,
     TAccountMarginAccount,
     TAccountPool,
     TAccountOwner,
@@ -397,12 +369,11 @@ export type ParsedWithdrawMarginAccountCpiTammInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    tswap: TAccountMetas[0];
-    marginAccount: TAccountMetas[1];
-    pool: TAccountMetas[2];
-    owner: TAccountMetas[3];
-    destination: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
+    marginAccount: TAccountMetas[0];
+    pool: TAccountMetas[1];
+    owner: TAccountMetas[2];
+    destination: TAccountMetas[3];
+    systemProgram: TAccountMetas[4];
   };
   data: WithdrawMarginAccountCpiTammInstructionData;
 };
@@ -415,7 +386,7 @@ export function parseWithdrawMarginAccountCpiTammInstruction<
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedWithdrawMarginAccountCpiTammInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 5) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -428,7 +399,6 @@ export function parseWithdrawMarginAccountCpiTammInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      tswap: getNextAccount(),
       marginAccount: getNextAccount(),
       pool: getNextAccount(),
       owner: getNextAccount(),

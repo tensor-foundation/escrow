@@ -2233,11 +2233,6 @@
       "name": "withdrawMarginAccountCpiTamm",
       "accounts": [
         {
-          "name": "tswap",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "marginAccount",
           "isMut": true,
           "isSigner": false

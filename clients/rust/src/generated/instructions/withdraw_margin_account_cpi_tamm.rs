@@ -10,8 +10,6 @@ use borsh::BorshSerialize;
 
 /// Accounts.
 pub struct WithdrawMarginAccountCpiTamm {
-    pub tswap: solana_program::pubkey::Pubkey,
-
     pub margin_account: solana_program::pubkey::Pubkey,
 
     pub pool: solana_program::pubkey::Pubkey,
@@ -36,10 +34,7 @@ impl WithdrawMarginAccountCpiTamm {
         args: WithdrawMarginAccountCpiTammInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.tswap, false,
-        ));
+        let mut accounts = Vec::with_capacity(5 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.margin_account,
             false,
@@ -98,15 +93,13 @@ pub struct WithdrawMarginAccountCpiTammInstructionArgs {
 ///
 /// ### Accounts:
 ///
-///   0. `[]` tswap
-///   1. `[writable]` margin_account
-///   2. `[signer]` pool
-///   3. `[]` owner
-///   4. `[writable]` destination
-///   5. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   0. `[writable]` margin_account
+///   1. `[signer]` pool
+///   2. `[]` owner
+///   3. `[writable]` destination
+///   4. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Default)]
 pub struct WithdrawMarginAccountCpiTammBuilder {
-    tswap: Option<solana_program::pubkey::Pubkey>,
     margin_account: Option<solana_program::pubkey::Pubkey>,
     pool: Option<solana_program::pubkey::Pubkey>,
     owner: Option<solana_program::pubkey::Pubkey>,
@@ -121,11 +114,6 @@ pub struct WithdrawMarginAccountCpiTammBuilder {
 impl WithdrawMarginAccountCpiTammBuilder {
     pub fn new() -> Self {
         Self::default()
-    }
-    #[inline(always)]
-    pub fn tswap(&mut self, tswap: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.tswap = Some(tswap);
-        self
     }
     #[inline(always)]
     pub fn margin_account(&mut self, margin_account: solana_program::pubkey::Pubkey) -> &mut Self {
@@ -189,7 +177,6 @@ impl WithdrawMarginAccountCpiTammBuilder {
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         let accounts = WithdrawMarginAccountCpiTamm {
-            tswap: self.tswap.expect("tswap is not set"),
             margin_account: self.margin_account.expect("margin_account is not set"),
             pool: self.pool.expect("pool is not set"),
             owner: self.owner.expect("owner is not set"),
@@ -210,8 +197,6 @@ impl WithdrawMarginAccountCpiTammBuilder {
 
 /// `withdraw_margin_account_cpi_tamm` CPI accounts.
 pub struct WithdrawMarginAccountCpiTammCpiAccounts<'a, 'b> {
-    pub tswap: &'b solana_program::account_info::AccountInfo<'a>,
-
     pub margin_account: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub pool: &'b solana_program::account_info::AccountInfo<'a>,
@@ -227,8 +212,6 @@ pub struct WithdrawMarginAccountCpiTammCpiAccounts<'a, 'b> {
 pub struct WithdrawMarginAccountCpiTammCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub tswap: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub margin_account: &'b solana_program::account_info::AccountInfo<'a>,
 
@@ -251,7 +234,6 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpi<'a, 'b> {
     ) -> Self {
         Self {
             __program: program,
-            tswap: accounts.tswap,
             margin_account: accounts.margin_account,
             pool: accounts.pool,
             owner: accounts.owner,
@@ -293,11 +275,7 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.tswap.key,
-            false,
-        ));
+        let mut accounts = Vec::with_capacity(5 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.margin_account.key,
             false,
@@ -336,9 +314,8 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(6 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(5 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
-        account_infos.push(self.tswap.clone());
         account_infos.push(self.margin_account.clone());
         account_infos.push(self.pool.clone());
         account_infos.push(self.owner.clone());
@@ -360,12 +337,11 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-///   0. `[]` tswap
-///   1. `[writable]` margin_account
-///   2. `[signer]` pool
-///   3. `[]` owner
-///   4. `[writable]` destination
-///   5. `[]` system_program
+///   0. `[writable]` margin_account
+///   1. `[signer]` pool
+///   2. `[]` owner
+///   3. `[writable]` destination
+///   4. `[]` system_program
 pub struct WithdrawMarginAccountCpiTammCpiBuilder<'a, 'b> {
     instruction: Box<WithdrawMarginAccountCpiTammCpiBuilderInstruction<'a, 'b>>,
 }
@@ -374,7 +350,6 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
         let instruction = Box::new(WithdrawMarginAccountCpiTammCpiBuilderInstruction {
             __program: program,
-            tswap: None,
             margin_account: None,
             pool: None,
             owner: None,
@@ -386,11 +361,6 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpiBuilder<'a, 'b> {
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
-    }
-    #[inline(always)]
-    pub fn tswap(&mut self, tswap: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.tswap = Some(tswap);
-        self
     }
     #[inline(always)]
     pub fn margin_account(
@@ -498,8 +468,6 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpiBuilder<'a, 'b> {
         let instruction = WithdrawMarginAccountCpiTammCpi {
             __program: self.instruction.__program,
 
-            tswap: self.instruction.tswap.expect("tswap is not set"),
-
             margin_account: self
                 .instruction
                 .margin_account
@@ -529,7 +497,6 @@ impl<'a, 'b> WithdrawMarginAccountCpiTammCpiBuilder<'a, 'b> {
 
 struct WithdrawMarginAccountCpiTammCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
-    tswap: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     margin_account: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     pool: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     owner: Option<&'b solana_program::account_info::AccountInfo<'a>>,
