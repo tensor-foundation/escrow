@@ -69,12 +69,12 @@ impl WithdrawMarginAccountCpiTamm {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct WithdrawMarginAccountCpiTammInstructionData {
+pub struct WithdrawMarginAccountCpiTammInstructionData {
     discriminator: [u8; 8],
 }
 
 impl WithdrawMarginAccountCpiTammInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [35, 89, 16, 235, 226, 89, 248, 45],
         }

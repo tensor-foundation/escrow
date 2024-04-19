@@ -81,12 +81,12 @@ impl DetachPoolFromMargin {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct DetachPoolFromMarginInstructionData {
+pub struct DetachPoolFromMarginInstructionData {
     discriminator: [u8; 8],
 }
 
 impl DetachPoolFromMarginInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [182, 54, 73, 38, 188, 87, 185, 101],
         }

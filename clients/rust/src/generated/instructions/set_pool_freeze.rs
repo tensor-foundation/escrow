@@ -46,12 +46,12 @@ impl SetPoolFreeze {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct SetPoolFreezeInstructionData {
+pub struct SetPoolFreezeInstructionData {
     discriminator: [u8; 8],
 }
 
 impl SetPoolFreezeInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [110, 201, 190, 64, 166, 186, 105, 131],
         }

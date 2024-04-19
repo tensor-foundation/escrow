@@ -165,12 +165,12 @@ impl SellNftTokenPoolWns {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct SellNftTokenPoolWnsInstructionData {
+pub struct SellNftTokenPoolWnsInstructionData {
     discriminator: [u8; 8],
 }
 
 impl SellNftTokenPoolWnsInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [40, 78, 241, 78, 204, 238, 46, 143],
         }

@@ -71,12 +71,12 @@ impl WithdrawMarginAccountFromTComp {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct WithdrawMarginAccountFromTCompInstructionData {
+pub struct WithdrawMarginAccountFromTCompInstructionData {
     discriminator: [u8; 8],
 }
 
 impl WithdrawMarginAccountFromTCompInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [201, 156, 163, 27, 243, 14, 36, 237],
         }

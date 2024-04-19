@@ -50,6 +50,7 @@ import {
   ParsedSellNftTradePoolWnsInstruction,
   ParsedSetPoolFreezeInstruction,
   ParsedTakeSnipeInstruction,
+  ParsedWithdrawMarginAccountCpiTammInstruction,
   ParsedWithdrawMarginAccountFromTBidInstruction,
   ParsedWithdrawMarginAccountFromTCompInstruction,
   ParsedWithdrawMarginAccountFromTLockInstruction,
@@ -426,6 +427,9 @@ export type ParsedTensorEscrowInstruction<
   | ({
       instructionType: TensorEscrowInstruction.WithdrawMarginAccountFromTBid;
     } & ParsedWithdrawMarginAccountFromTBidInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccountCpiTamm;
+    } & ParsedWithdrawMarginAccountCpiTammInstruction<TProgram>)
   | ({
       instructionType: TensorEscrowInstruction.WithdrawMarginAccountFromTComp;
     } & ParsedWithdrawMarginAccountFromTCompInstruction<TProgram>)

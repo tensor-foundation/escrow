@@ -47,12 +47,12 @@ impl TakeSnipe {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct TakeSnipeInstructionData {
+pub struct TakeSnipeInstructionData {
     discriminator: [u8; 8],
 }
 
 impl TakeSnipeInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [10, 151, 48, 226, 248, 24, 227, 231],
         }
