@@ -28,31 +28,25 @@ import {
   Codec,
   Decoder,
   Encoder,
+  Option,
+  OptionOrNullable,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getBooleanDecoder,
   getBooleanEncoder,
-  getStructDecoder,
-  getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getI64Decoder,
   getI64Encoder,
+  getOptionDecoder,
+  getOptionEncoder,
+  getStructDecoder,
+  getStructEncoder,
   getU32Decoder,
   getU32Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
-import {
-  Option,
-  OptionOrNullable,
-  getOptionDecoder,
-  getOptionEncoder,
-} from '@solana/options';
+  mapEncoder,
+} from '@solana/codecs';
 import {
   Frozen,
   FrozenArgs,
@@ -167,52 +161,9 @@ export type PoolAccountDataArgs = {
   maxTakerSellCount: number;
 };
 
-export function getPoolAccountDataEncoder() {
+export function getPoolAccountDataEncoder(): Encoder<PoolAccountDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      version: number;
-      bump: Array<number>;
-      solEscrowBump: Array<number>;
-      /** Unix timestamp in seconds when pool was created */
-      createdUnixSeconds: number | bigint;
-      config: PoolConfigArgs;
-      tswap: Address;
-      owner: Address;
-      whitelist: Address;
-      /**
-       * Used by Trade / Token pools only, but always initiated
-       * Amount to spend is implied by balance - rent
-       * (!) for margin accounts this should always be empty EXCEPT when we move frozen amount in
-       */
-      solEscrow: Address;
-      /** How many times a taker has SOLD into the pool */
-      takerSellCount: number;
-      /** How many times a taker has BOUGHT from the pool */
-      takerBuyCount: number;
-      nftsHeld: number;
-      nftAuthority: Address;
-      /** All stats incorporate both 1)carried over and 2)current data */
-      stats: PoolStatsArgs;
-      /** If margin account present, means it's a marginated pool (currently bids only) */
-      margin: OptionOrNullable<Address>;
-      /** Offchain actor signs off to make sure an offchain condition is met (eg trait present) */
-      isCosigned: boolean;
-      /**
-       * Order type for indexing ease (anchor enums annoying, so using a u8)
-       * 0 = standard, 1 = sniping (in the future eg 2 = take profit, etc)
-       */
-      orderType: number;
-      /**
-       * Order is being executed by an offchain party and can't be modified at this time
-       * incl. deposit/withdraw/edit/close/buy/sell
-       */
-      frozen: OptionOrNullable<FrozenArgs>;
-      /** Last time a buy or sell order has been executed */
-      lastTransactedSeconds: number | bigint;
-      /** Limit how many buys a pool can execute - useful for cross-margin, else keeps buying into infinity */
-      maxTakerSellCount: number;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['version', getU8Encoder()],
       ['bump', getArrayEncoder(getU8Encoder(), { size: 1 })],
@@ -239,11 +190,11 @@ export function getPoolAccountDataEncoder() {
       ...value,
       discriminator: [241, 154, 109, 4, 17, 177, 109, 188],
     })
-  ) satisfies Encoder<PoolAccountDataArgs>;
+  );
 }
 
-export function getPoolAccountDataDecoder() {
-  return getStructDecoder<PoolAccountData>([
+export function getPoolAccountDataDecoder(): Decoder<PoolAccountData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['version', getU8Decoder()],
     ['bump', getArrayDecoder(getU8Decoder(), { size: 1 })],
@@ -265,7 +216,7 @@ export function getPoolAccountDataDecoder() {
     ['frozen', getOptionDecoder(getFrozenDecoder())],
     ['lastTransactedSeconds', getI64Decoder()],
     ['maxTakerSellCount', getU32Decoder()],
-  ]) satisfies Decoder<PoolAccountData>;
+  ]);
 }
 
 export function getPoolAccountDataCodec(): Codec<

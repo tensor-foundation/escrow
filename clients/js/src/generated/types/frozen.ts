@@ -6,34 +6,35 @@
  * @see https://github.com/metaplex-foundation/kinobi
  */
 
-import { Codec, Decoder, Encoder, combineCodec } from '@solana/codecs-core';
 import {
-  getStructDecoder,
-  getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
+  Codec,
+  Decoder,
+  Encoder,
+  combineCodec,
   getI64Decoder,
   getI64Encoder,
+  getStructDecoder,
+  getStructEncoder,
   getU64Decoder,
   getU64Encoder,
-} from '@solana/codecs-numbers';
+} from '@solana/codecs';
 
 export type Frozen = { amount: bigint; time: bigint };
 
 export type FrozenArgs = { amount: number | bigint; time: number | bigint };
 
-export function getFrozenEncoder() {
-  return getStructEncoder<FrozenArgs>([
+export function getFrozenEncoder(): Encoder<FrozenArgs> {
+  return getStructEncoder([
     ['amount', getU64Encoder()],
     ['time', getI64Encoder()],
-  ]) satisfies Encoder<FrozenArgs>;
+  ]);
 }
 
-export function getFrozenDecoder() {
-  return getStructDecoder<Frozen>([
+export function getFrozenDecoder(): Decoder<Frozen> {
+  return getStructDecoder([
     ['amount', getU64Decoder()],
     ['time', getI64Decoder()],
-  ]) satisfies Decoder<Frozen>;
+  ]);
 }
 
 export function getFrozenCodec(): Codec<FrozenArgs, Frozen> {

@@ -12,22 +12,17 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getU64Decoder,
   getU64Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -38,14 +33,11 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
 export type WithdrawTswapFeesInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountCosigner extends string | IAccountMeta<string> = string,
   TAccountOwner extends string | IAccountMeta<string> = string,
@@ -53,40 +45,7 @@ export type WithdrawTswapFeesInstruction<
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountTswap extends string
-        ? WritableAccount<TAccountTswap>
-        : TAccountTswap,
-      TAccountCosigner extends string
-        ? ReadonlySignerAccount<TAccountCosigner>
-        : TAccountCosigner,
-      TAccountOwner extends string
-        ? WritableSignerAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountDestination extends string
-        ? WritableAccount<TAccountDestination>
-        : TAccountDestination,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type WithdrawTswapFeesInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountCosigner extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountDestination extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -108,7 +67,7 @@ export type WithdrawTswapFeesInstructionWithSigners<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -119,26 +78,24 @@ export type WithdrawTswapFeesInstructionData = {
 
 export type WithdrawTswapFeesInstructionDataArgs = { amount: number | bigint };
 
-export function getWithdrawTswapFeesInstructionDataEncoder() {
+export function getWithdrawTswapFeesInstructionDataEncoder(): Encoder<WithdrawTswapFeesInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{ discriminator: Array<number>; amount: number | bigint }>(
-      [
-        ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
-        ['amount', getU64Encoder()],
-      ]
-    ),
+    getStructEncoder([
+      ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
+      ['amount', getU64Encoder()],
+    ]),
     (value) => ({
       ...value,
       discriminator: [27, 229, 128, 105, 115, 125, 180, 151],
     })
-  ) satisfies Encoder<WithdrawTswapFeesInstructionDataArgs>;
+  );
 }
 
-export function getWithdrawTswapFeesInstructionDataDecoder() {
-  return getStructDecoder<WithdrawTswapFeesInstructionData>([
+export function getWithdrawTswapFeesInstructionDataDecoder(): Decoder<WithdrawTswapFeesInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['amount', getU64Decoder()],
-  ]) satisfies Decoder<WithdrawTswapFeesInstructionData>;
+  ]);
 }
 
 export function getWithdrawTswapFeesInstructionDataCodec(): Codec<
@@ -152,27 +109,11 @@ export function getWithdrawTswapFeesInstructionDataCodec(): Codec<
 }
 
 export type WithdrawTswapFeesInput<
-  TAccountTswap extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string
-> = {
-  tswap: Address<TAccountTswap>;
-  /** We ask also for a signature just to make sure this wallet can actually sign things */
-  cosigner: Address<TAccountCosigner>;
-  owner: Address<TAccountOwner>;
-  destination: Address<TAccountDestination>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  amount: WithdrawTswapFeesInstructionDataArgs['amount'];
-};
-
-export type WithdrawTswapFeesInputWithSigners<
-  TAccountTswap extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string
+  TAccountTswap extends string = string,
+  TAccountCosigner extends string = string,
+  TAccountOwner extends string = string,
+  TAccountDestination extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
   /** We ask also for a signature just to make sure this wallet can actually sign things */
@@ -189,30 +130,6 @@ export function getWithdrawTswapFeesInstruction<
   TAccountOwner extends string,
   TAccountDestination extends string,
   TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: WithdrawTswapFeesInputWithSigners<
-    TAccountTswap,
-    TAccountCosigner,
-    TAccountOwner,
-    TAccountDestination,
-    TAccountSystemProgram
-  >
-): WithdrawTswapFeesInstructionWithSigners<
-  TProgram,
-  TAccountTswap,
-  TAccountCosigner,
-  TAccountOwner,
-  TAccountDestination,
-  TAccountSystemProgram
->;
-export function getWithdrawTswapFeesInstruction<
-  TAccountTswap extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: WithdrawTswapFeesInput<
     TAccountTswap,
@@ -222,51 +139,28 @@ export function getWithdrawTswapFeesInstruction<
     TAccountSystemProgram
   >
 ): WithdrawTswapFeesInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap,
   TAccountCosigner,
   TAccountOwner,
   TAccountDestination,
   TAccountSystemProgram
->;
-export function getWithdrawTswapFeesInstruction<
-  TAccountTswap extends string,
-  TAccountCosigner extends string,
-  TAccountOwner extends string,
-  TAccountDestination extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: WithdrawTswapFeesInput<
-    TAccountTswap,
-    TAccountCosigner,
-    TAccountOwner,
-    TAccountDestination,
-    TAccountSystemProgram
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getWithdrawTswapFeesInstructionRaw<
-      TProgram,
-      TAccountTswap,
-      TAccountCosigner,
-      TAccountOwner,
-      TAccountDestination,
-      TAccountSystemProgram
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     tswap: { value: input.tswap ?? null, isWritable: true },
     cosigner: { value: input.cosigner ?? null, isWritable: false },
     owner: { value: input.owner ?? null, isWritable: true },
     destination: { value: input.destination ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -277,83 +171,34 @@ export function getWithdrawTswapFeesInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getWithdrawTswapFeesInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as WithdrawTswapFeesInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getWithdrawTswapFeesInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountCosigner extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountDestination extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
-    cosigner: TAccountCosigner extends string
-      ? Address<TAccountCosigner>
-      : TAccountCosigner;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    destination: TAccountDestination extends string
-      ? Address<TAccountDestination>
-      : TAccountDestination;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-  },
-  args: WithdrawTswapFeesInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.cosigner, AccountRole.READONLY_SIGNER),
-      accountMetaWithDefault(accounts.owner, AccountRole.WRITABLE_SIGNER),
-      accountMetaWithDefault(accounts.destination, AccountRole.WRITABLE),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.cosigner),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.destination),
+      getAccountMeta(accounts.systemProgram),
     ],
-    data: getWithdrawTswapFeesInstructionDataEncoder().encode(args),
     programAddress,
+    data: getWithdrawTswapFeesInstructionDataEncoder().encode(
+      args as WithdrawTswapFeesInstructionDataArgs
+    ),
   } as WithdrawTswapFeesInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountTswap,
     TAccountCosigner,
     TAccountOwner,
     TAccountDestination,
-    TAccountSystemProgram,
-    TRemainingAccounts
+    TAccountSystemProgram
   >;
+
+  return instruction;
 }
 
 export type ParsedWithdrawTswapFeesInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -369,7 +214,7 @@ export type ParsedWithdrawTswapFeesInstruction<
 
 export function parseWithdrawTswapFeesInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &

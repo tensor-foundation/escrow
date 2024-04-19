@@ -13,6 +13,54 @@ import {
   TensorEscrowProgramErrorCode,
   getTensorEscrowProgramErrorFromCode,
 } from '../errors';
+import {
+  ParsedAttachPoolToMarginInstruction,
+  ParsedBuyNftInstruction,
+  ParsedBuyNftT22Instruction,
+  ParsedBuyNftWnsInstruction,
+  ParsedBuySingleListingInstruction,
+  ParsedBuySingleListingT22Instruction,
+  ParsedBuySingleListingWnsInstruction,
+  ParsedCloseMarginAccountInstruction,
+  ParsedClosePoolInstruction,
+  ParsedDelistInstruction,
+  ParsedDelistT22Instruction,
+  ParsedDelistWnsInstruction,
+  ParsedDepositMarginAccountInstruction,
+  ParsedDepositNftInstruction,
+  ParsedDepositNftT22Instruction,
+  ParsedDepositNftWnsInstruction,
+  ParsedDepositSolInstruction,
+  ParsedDetachPoolFromMarginInstruction,
+  ParsedEditPoolInPlaceInstruction,
+  ParsedEditPoolInstruction,
+  ParsedEditSingleListingInstruction,
+  ParsedInitMarginAccountInstruction,
+  ParsedInitPoolInstruction,
+  ParsedInitUpdateTswapInstruction,
+  ParsedListInstruction,
+  ParsedListT22Instruction,
+  ParsedListWnsInstruction,
+  ParsedReallocPoolInstruction,
+  ParsedSellNftTokenPoolInstruction,
+  ParsedSellNftTokenPoolT22Instruction,
+  ParsedSellNftTokenPoolWnsInstruction,
+  ParsedSellNftTradePoolInstruction,
+  ParsedSellNftTradePoolT22Instruction,
+  ParsedSellNftTradePoolWnsInstruction,
+  ParsedSetPoolFreezeInstruction,
+  ParsedTakeSnipeInstruction,
+  ParsedWithdrawMarginAccountFromTBidInstruction,
+  ParsedWithdrawMarginAccountFromTCompInstruction,
+  ParsedWithdrawMarginAccountFromTLockInstruction,
+  ParsedWithdrawMarginAccountInstruction,
+  ParsedWithdrawMmFeeInstruction,
+  ParsedWithdrawNftInstruction,
+  ParsedWithdrawNftT22Instruction,
+  ParsedWithdrawNftWnsInstruction,
+  ParsedWithdrawSolInstruction,
+  ParsedWithdrawTswapFeesInstruction,
+} from '../instructions';
 import { memcmp } from '../shared';
 
 export const TENSOR_ESCROW_PROGRAM_ADDRESS =
@@ -290,3 +338,145 @@ export function identifyTensorEscrowInstruction(
     'The provided instruction could not be identified as a tensorEscrow instruction.'
   );
 }
+
+export type ParsedTensorEscrowInstruction<
+  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+> =
+  | ({
+      instructionType: TensorEscrowInstruction.InitUpdateTswap;
+    } & ParsedInitUpdateTswapInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.ReallocPool;
+    } & ParsedReallocPoolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawTswapFees;
+    } & ParsedWithdrawTswapFeesInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.InitPool;
+    } & ParsedInitPoolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.ClosePool;
+    } & ParsedClosePoolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DepositNft;
+    } & ParsedDepositNftInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawNft;
+    } & ParsedWithdrawNftInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DepositSol;
+    } & ParsedDepositSolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawSol;
+    } & ParsedWithdrawSolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.BuyNft;
+    } & ParsedBuyNftInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.SellNftTokenPool;
+    } & ParsedSellNftTokenPoolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.SellNftTradePool;
+    } & ParsedSellNftTradePoolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.EditPool;
+    } & ParsedEditPoolInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.InitMarginAccount;
+    } & ParsedInitMarginAccountInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.CloseMarginAccount;
+    } & ParsedCloseMarginAccountInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DepositMarginAccount;
+    } & ParsedDepositMarginAccountInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccount;
+    } & ParsedWithdrawMarginAccountInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.AttachPoolToMargin;
+    } & ParsedAttachPoolToMarginInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DetachPoolFromMargin;
+    } & ParsedDetachPoolFromMarginInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.SetPoolFreeze;
+    } & ParsedSetPoolFreezeInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.TakeSnipe;
+    } & ParsedTakeSnipeInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.EditPoolInPlace;
+    } & ParsedEditPoolInPlaceInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.List;
+    } & ParsedListInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.Delist;
+    } & ParsedDelistInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.BuySingleListing;
+    } & ParsedBuySingleListingInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.EditSingleListing;
+    } & ParsedEditSingleListingInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMmFee;
+    } & ParsedWithdrawMmFeeInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccountFromTBid;
+    } & ParsedWithdrawMarginAccountFromTBidInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccountFromTComp;
+    } & ParsedWithdrawMarginAccountFromTCompInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccountFromTLock;
+    } & ParsedWithdrawMarginAccountFromTLockInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.BuyNftT22;
+    } & ParsedBuyNftT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DepositNftT22;
+    } & ParsedDepositNftT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.SellNftTokenPoolT22;
+    } & ParsedSellNftTokenPoolT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.SellNftTradePoolT22;
+    } & ParsedSellNftTradePoolT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawNftT22;
+    } & ParsedWithdrawNftT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.BuySingleListingT22;
+    } & ParsedBuySingleListingT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.ListT22;
+    } & ParsedListT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DelistT22;
+    } & ParsedDelistT22Instruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.BuyNftWns;
+    } & ParsedBuyNftWnsInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DepositNftWns;
+    } & ParsedDepositNftWnsInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.SellNftTokenPoolWns;
+    } & ParsedSellNftTokenPoolWnsInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.SellNftTradePoolWns;
+    } & ParsedSellNftTradePoolWnsInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawNftWns;
+    } & ParsedWithdrawNftWnsInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.BuySingleListingWns;
+    } & ParsedBuySingleListingWnsInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.ListWns;
+    } & ParsedListWnsInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.DelistWns;
+    } & ParsedDelistWnsInstruction<TProgram>);

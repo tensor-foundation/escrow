@@ -12,17 +12,15 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import { getU8Decoder, getU8Encoder } from '@solana/codecs-numbers';
+  getU8Decoder,
+  getU8Encoder,
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -32,11 +30,8 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   PoolConfig,
   PoolConfigArgs,
@@ -45,7 +40,7 @@ import {
 } from '../types';
 
 export type ReallocPoolInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
   TAccountWhitelist extends string | IAccountMeta<string> = string,
@@ -54,44 +49,7 @@ export type ReallocPoolInstruction<
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountTswap extends string
-        ? ReadonlyAccount<TAccountTswap>
-        : TAccountTswap,
-      TAccountPool extends string
-        ? WritableAccount<TAccountPool>
-        : TAccountPool,
-      TAccountWhitelist extends string
-        ? ReadonlyAccount<TAccountWhitelist>
-        : TAccountWhitelist,
-      TAccountOwner extends string
-        ? ReadonlyAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountCosigner extends string
-        ? WritableSignerAccount<TAccountCosigner>
-        : TAccountCosigner,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type ReallocPoolInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountCosigner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -115,7 +73,7 @@ export type ReallocPoolInstructionWithSigners<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -126,9 +84,9 @@ export type ReallocPoolInstructionData = {
 
 export type ReallocPoolInstructionDataArgs = { config: PoolConfigArgs };
 
-export function getReallocPoolInstructionDataEncoder() {
+export function getReallocPoolInstructionDataEncoder(): Encoder<ReallocPoolInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{ discriminator: Array<number>; config: PoolConfigArgs }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['config', getPoolConfigEncoder()],
     ]),
@@ -136,14 +94,14 @@ export function getReallocPoolInstructionDataEncoder() {
       ...value,
       discriminator: [114, 128, 37, 167, 71, 227, 40, 178],
     })
-  ) satisfies Encoder<ReallocPoolInstructionDataArgs>;
+  );
 }
 
-export function getReallocPoolInstructionDataDecoder() {
-  return getStructDecoder<ReallocPoolInstructionData>([
+export function getReallocPoolInstructionDataDecoder(): Decoder<ReallocPoolInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['config', getPoolConfigDecoder()],
-  ]) satisfies Decoder<ReallocPoolInstructionData>;
+  ]);
 }
 
 export function getReallocPoolInstructionDataCodec(): Codec<
@@ -157,30 +115,12 @@ export function getReallocPoolInstructionDataCodec(): Codec<
 }
 
 export type ReallocPoolInput<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountCosigner extends string,
-  TAccountSystemProgram extends string
-> = {
-  tswap: Address<TAccountTswap>;
-  pool: Address<TAccountPool>;
-  /** Needed for pool seeds derivation / will be stored inside pool */
-  whitelist: Address<TAccountWhitelist>;
-  owner: Address<TAccountOwner>;
-  cosigner: Address<TAccountCosigner>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  config: ReallocPoolInstructionDataArgs['config'];
-};
-
-export type ReallocPoolInputWithSigners<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountCosigner extends string,
-  TAccountSystemProgram extends string
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountOwner extends string = string,
+  TAccountCosigner extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
   pool: Address<TAccountPool>;
@@ -199,33 +139,6 @@ export function getReallocPoolInstruction<
   TAccountOwner extends string,
   TAccountCosigner extends string,
   TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: ReallocPoolInputWithSigners<
-    TAccountTswap,
-    TAccountPool,
-    TAccountWhitelist,
-    TAccountOwner,
-    TAccountCosigner,
-    TAccountSystemProgram
-  >
-): ReallocPoolInstructionWithSigners<
-  TProgram,
-  TAccountTswap,
-  TAccountPool,
-  TAccountWhitelist,
-  TAccountOwner,
-  TAccountCosigner,
-  TAccountSystemProgram
->;
-export function getReallocPoolInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountCosigner extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: ReallocPoolInput<
     TAccountTswap,
@@ -236,49 +149,19 @@ export function getReallocPoolInstruction<
     TAccountSystemProgram
   >
 ): ReallocPoolInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap,
   TAccountPool,
   TAccountWhitelist,
   TAccountOwner,
   TAccountCosigner,
   TAccountSystemProgram
->;
-export function getReallocPoolInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountOwner extends string,
-  TAccountCosigner extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: ReallocPoolInput<
-    TAccountTswap,
-    TAccountPool,
-    TAccountWhitelist,
-    TAccountOwner,
-    TAccountCosigner,
-    TAccountSystemProgram
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getReallocPoolInstructionRaw<
-      TProgram,
-      TAccountTswap,
-      TAccountPool,
-      TAccountWhitelist,
-      TAccountOwner,
-      TAccountCosigner,
-      TAccountSystemProgram
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     tswap: { value: input.tswap ?? null, isWritable: false },
     pool: { value: input.pool ?? null, isWritable: true },
     whitelist: { value: input.whitelist ?? null, isWritable: false },
@@ -286,6 +169,10 @@ export function getReallocPoolInstruction<
     cosigner: { value: input.cosigner ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -296,87 +183,36 @@ export function getReallocPoolInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getReallocPoolInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as ReallocPoolInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getReallocPoolInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountCosigner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
-    pool: TAccountPool extends string ? Address<TAccountPool> : TAccountPool;
-    whitelist: TAccountWhitelist extends string
-      ? Address<TAccountWhitelist>
-      : TAccountWhitelist;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    cosigner: TAccountCosigner extends string
-      ? Address<TAccountCosigner>
-      : TAccountCosigner;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-  },
-  args: ReallocPoolInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.pool, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.whitelist, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.owner, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.cosigner, AccountRole.WRITABLE_SIGNER),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.cosigner),
+      getAccountMeta(accounts.systemProgram),
     ],
-    data: getReallocPoolInstructionDataEncoder().encode(args),
     programAddress,
+    data: getReallocPoolInstructionDataEncoder().encode(
+      args as ReallocPoolInstructionDataArgs
+    ),
   } as ReallocPoolInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountTswap,
     TAccountPool,
     TAccountWhitelist,
     TAccountOwner,
     TAccountCosigner,
-    TAccountSystemProgram,
-    TRemainingAccounts
+    TAccountSystemProgram
   >;
+
+  return instruction;
 }
 
 export type ParsedReallocPoolInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -393,7 +229,7 @@ export type ParsedReallocPoolInstruction<
 
 export function parseReallocPoolInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &

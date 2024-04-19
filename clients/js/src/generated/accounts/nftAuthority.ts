@@ -29,17 +29,16 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import { getU8Decoder, getU8Encoder } from '@solana/codecs-numbers';
+  getU8Decoder,
+  getU8Encoder,
+  mapEncoder,
+} from '@solana/codecs';
 
 export type NftAuthority<TAddress extends string = string> = Account<
   NftAuthorityAccountData,
@@ -64,14 +63,9 @@ export type NftAuthorityAccountDataArgs = {
   pool: Address;
 };
 
-export function getNftAuthorityAccountDataEncoder() {
+export function getNftAuthorityAccountDataEncoder(): Encoder<NftAuthorityAccountDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      randomSeed: Uint8Array;
-      bump: Array<number>;
-      pool: Address;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['randomSeed', getBytesEncoder({ size: 32 })],
       ['bump', getArrayEncoder(getU8Encoder(), { size: 1 })],
@@ -81,16 +75,16 @@ export function getNftAuthorityAccountDataEncoder() {
       ...value,
       discriminator: [194, 127, 219, 16, 219, 18, 250, 12],
     })
-  ) satisfies Encoder<NftAuthorityAccountDataArgs>;
+  );
 }
 
-export function getNftAuthorityAccountDataDecoder() {
-  return getStructDecoder<NftAuthorityAccountData>([
+export function getNftAuthorityAccountDataDecoder(): Decoder<NftAuthorityAccountData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['randomSeed', getBytesDecoder({ size: 32 })],
     ['bump', getArrayDecoder(getU8Decoder(), { size: 1 })],
     ['pool', getAddressDecoder()],
-  ]) satisfies Decoder<NftAuthorityAccountData>;
+  ]);
 }
 
 export function getNftAuthorityAccountDataCodec(): Codec<

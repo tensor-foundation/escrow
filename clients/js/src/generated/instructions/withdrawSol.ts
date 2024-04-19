@@ -12,22 +12,17 @@ import {
   Decoder,
   Encoder,
   combineCodec,
-  mapEncoder,
-} from '@solana/codecs-core';
-import {
   getArrayDecoder,
   getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
-} from '@solana/codecs-data-structures';
-import {
   getU64Decoder,
   getU64Encoder,
   getU8Decoder,
   getU8Encoder,
-} from '@solana/codecs-numbers';
+  mapEncoder,
+} from '@solana/codecs';
 import {
-  AccountRole,
   IAccountMeta,
   IInstruction,
   IInstructionWithAccounts,
@@ -37,11 +32,8 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import {
-  ResolvedAccount,
-  accountMetaWithDefault,
-  getAccountMetasWithSigners,
-} from '../shared';
+import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   PoolConfig,
   PoolConfigArgs,
@@ -50,7 +42,7 @@ import {
 } from '../types';
 
 export type WithdrawSolInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
   TAccountWhitelist extends string | IAccountMeta<string> = string,
@@ -59,44 +51,7 @@ export type WithdrawSolInstruction<
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountTswap extends string
-        ? ReadonlyAccount<TAccountTswap>
-        : TAccountTswap,
-      TAccountPool extends string
-        ? WritableAccount<TAccountPool>
-        : TAccountPool,
-      TAccountWhitelist extends string
-        ? ReadonlyAccount<TAccountWhitelist>
-        : TAccountWhitelist,
-      TAccountSolEscrow extends string
-        ? WritableAccount<TAccountSolEscrow>
-        : TAccountSolEscrow,
-      TAccountOwner extends string
-        ? WritableSignerAccount<TAccountOwner>
-        : TAccountOwner,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts
-    ]
-  >;
-
-export type WithdrawSolInstructionWithSigners<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountSolEscrow extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
+  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
@@ -120,7 +75,7 @@ export type WithdrawSolInstructionWithSigners<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -135,13 +90,9 @@ export type WithdrawSolInstructionDataArgs = {
   lamports: number | bigint;
 };
 
-export function getWithdrawSolInstructionDataEncoder() {
+export function getWithdrawSolInstructionDataEncoder(): Encoder<WithdrawSolInstructionDataArgs> {
   return mapEncoder(
-    getStructEncoder<{
-      discriminator: Array<number>;
-      config: PoolConfigArgs;
-      lamports: number | bigint;
-    }>([
+    getStructEncoder([
       ['discriminator', getArrayEncoder(getU8Encoder(), { size: 8 })],
       ['config', getPoolConfigEncoder()],
       ['lamports', getU64Encoder()],
@@ -150,15 +101,15 @@ export function getWithdrawSolInstructionDataEncoder() {
       ...value,
       discriminator: [145, 131, 74, 136, 65, 137, 42, 38],
     })
-  ) satisfies Encoder<WithdrawSolInstructionDataArgs>;
+  );
 }
 
-export function getWithdrawSolInstructionDataDecoder() {
-  return getStructDecoder<WithdrawSolInstructionData>([
+export function getWithdrawSolInstructionDataDecoder(): Decoder<WithdrawSolInstructionData> {
+  return getStructDecoder([
     ['discriminator', getArrayDecoder(getU8Decoder(), { size: 8 })],
     ['config', getPoolConfigDecoder()],
     ['lamports', getU64Decoder()],
-  ]) satisfies Decoder<WithdrawSolInstructionData>;
+  ]);
 }
 
 export function getWithdrawSolInstructionDataCodec(): Codec<
@@ -172,31 +123,12 @@ export function getWithdrawSolInstructionDataCodec(): Codec<
 }
 
 export type WithdrawSolInput<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountSolEscrow extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string
-> = {
-  tswap: Address<TAccountTswap>;
-  pool: Address<TAccountPool>;
-  whitelist: Address<TAccountWhitelist>;
-  solEscrow: Address<TAccountSolEscrow>;
-  /** Tied to the pool because used to verify pool seeds */
-  owner: Address<TAccountOwner>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  config: WithdrawSolInstructionDataArgs['config'];
-  lamports: WithdrawSolInstructionDataArgs['lamports'];
-};
-
-export type WithdrawSolInputWithSigners<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountSolEscrow extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountSolEscrow extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
   pool: Address<TAccountPool>;
@@ -216,33 +148,6 @@ export function getWithdrawSolInstruction<
   TAccountSolEscrow extends string,
   TAccountOwner extends string,
   TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: WithdrawSolInputWithSigners<
-    TAccountTswap,
-    TAccountPool,
-    TAccountWhitelist,
-    TAccountSolEscrow,
-    TAccountOwner,
-    TAccountSystemProgram
-  >
-): WithdrawSolInstructionWithSigners<
-  TProgram,
-  TAccountTswap,
-  TAccountPool,
-  TAccountWhitelist,
-  TAccountSolEscrow,
-  TAccountOwner,
-  TAccountSystemProgram
->;
-export function getWithdrawSolInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountSolEscrow extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
 >(
   input: WithdrawSolInput<
     TAccountTswap,
@@ -253,49 +158,19 @@ export function getWithdrawSolInstruction<
     TAccountSystemProgram
   >
 ): WithdrawSolInstruction<
-  TProgram,
+  typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
   TAccountTswap,
   TAccountPool,
   TAccountWhitelist,
   TAccountSolEscrow,
   TAccountOwner,
   TAccountSystemProgram
->;
-export function getWithdrawSolInstruction<
-  TAccountTswap extends string,
-  TAccountPool extends string,
-  TAccountWhitelist extends string,
-  TAccountSolEscrow extends string,
-  TAccountOwner extends string,
-  TAccountSystemProgram extends string,
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'
->(
-  input: WithdrawSolInput<
-    TAccountTswap,
-    TAccountPool,
-    TAccountWhitelist,
-    TAccountSolEscrow,
-    TAccountOwner,
-    TAccountSystemProgram
-  >
-): IInstruction {
+> {
   // Program address.
-  const programAddress =
-    'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
 
   // Original accounts.
-  type AccountMetas = Parameters<
-    typeof getWithdrawSolInstructionRaw<
-      TProgram,
-      TAccountTswap,
-      TAccountPool,
-      TAccountWhitelist,
-      TAccountSolEscrow,
-      TAccountOwner,
-      TAccountSystemProgram
-    >
-  >[0];
-  const accounts: Record<keyof AccountMetas, ResolvedAccount> = {
+  const originalAccounts = {
     tswap: { value: input.tswap ?? null, isWritable: false },
     pool: { value: input.pool ?? null, isWritable: true },
     whitelist: { value: input.whitelist ?? null, isWritable: false },
@@ -303,6 +178,10 @@ export function getWithdrawSolInstruction<
     owner: { value: input.owner ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
 
   // Original args.
   const args = { ...input };
@@ -313,87 +192,36 @@ export function getWithdrawSolInstruction<
       '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
-  // Get account metas and signers.
-  const accountMetas = getAccountMetasWithSigners(
-    accounts,
-    'programId',
-    programAddress
-  );
-
-  const instruction = getWithdrawSolInstructionRaw(
-    accountMetas as Record<keyof AccountMetas, IAccountMeta>,
-    args as WithdrawSolInstructionDataArgs,
-    programAddress
-  );
-
-  return instruction;
-}
-
-export function getWithdrawSolInstructionRaw<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountTswap extends string | IAccountMeta<string> = string,
-  TAccountPool extends string | IAccountMeta<string> = string,
-  TAccountWhitelist extends string | IAccountMeta<string> = string,
-  TAccountSolEscrow extends string | IAccountMeta<string> = string,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends Array<IAccountMeta<string>> = []
->(
-  accounts: {
-    tswap: TAccountTswap extends string
-      ? Address<TAccountTswap>
-      : TAccountTswap;
-    pool: TAccountPool extends string ? Address<TAccountPool> : TAccountPool;
-    whitelist: TAccountWhitelist extends string
-      ? Address<TAccountWhitelist>
-      : TAccountWhitelist;
-    solEscrow: TAccountSolEscrow extends string
-      ? Address<TAccountSolEscrow>
-      : TAccountSolEscrow;
-    owner: TAccountOwner extends string
-      ? Address<TAccountOwner>
-      : TAccountOwner;
-    systemProgram?: TAccountSystemProgram extends string
-      ? Address<TAccountSystemProgram>
-      : TAccountSystemProgram;
-  },
-  args: WithdrawSolInstructionDataArgs,
-  programAddress: Address<TProgram> = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<TProgram>,
-  remainingAccounts?: TRemainingAccounts
-) {
-  return {
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
     accounts: [
-      accountMetaWithDefault(accounts.tswap, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.pool, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.whitelist, AccountRole.READONLY),
-      accountMetaWithDefault(accounts.solEscrow, AccountRole.WRITABLE),
-      accountMetaWithDefault(accounts.owner, AccountRole.WRITABLE_SIGNER),
-      accountMetaWithDefault(
-        accounts.systemProgram ??
-          ('11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>),
-        AccountRole.READONLY
-      ),
-      ...(remainingAccounts ?? []),
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.solEscrow),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
     ],
-    data: getWithdrawSolInstructionDataEncoder().encode(args),
     programAddress,
+    data: getWithdrawSolInstructionDataEncoder().encode(
+      args as WithdrawSolInstructionDataArgs
+    ),
   } as WithdrawSolInstruction<
-    TProgram,
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
     TAccountTswap,
     TAccountPool,
     TAccountWhitelist,
     TAccountSolEscrow,
     TAccountOwner,
-    TAccountSystemProgram,
-    TRemainingAccounts
+    TAccountSystemProgram
   >;
+
+  return instruction;
 }
 
 export type ParsedWithdrawSolInstruction<
-  TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[]
+  TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -410,7 +238,7 @@ export type ParsedWithdrawSolInstruction<
 
 export function parseWithdrawSolInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[]
+  TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
