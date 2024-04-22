@@ -81,12 +81,12 @@ impl AttachPoolToMargin {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct AttachPoolToMarginInstructionData {
+pub struct AttachPoolToMarginInstructionData {
     discriminator: [u8; 8],
 }
 
 impl AttachPoolToMarginInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [187, 105, 211, 137, 224, 59, 29, 227],
         }

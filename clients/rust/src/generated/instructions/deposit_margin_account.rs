@@ -63,12 +63,12 @@ impl DepositMarginAccount {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct DepositMarginAccountInstructionData {
+pub struct DepositMarginAccountInstructionData {
     discriminator: [u8; 8],
 }
 
 impl DepositMarginAccountInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [190, 85, 242, 60, 119, 81, 33, 192],
         }

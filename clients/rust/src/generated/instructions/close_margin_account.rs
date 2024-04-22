@@ -57,12 +57,12 @@ impl CloseMarginAccount {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct CloseMarginAccountInstructionData {
+pub struct CloseMarginAccountInstructionData {
     discriminator: [u8; 8],
 }
 
 impl CloseMarginAccountInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [105, 215, 41, 239, 166, 207, 1, 103],
         }

@@ -74,12 +74,12 @@ impl InitUpdateTswap {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct InitUpdateTswapInstructionData {
+pub struct InitUpdateTswapInstructionData {
     discriminator: [u8; 8],
 }
 
 impl InitUpdateTswapInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [140, 185, 54, 172, 15, 94, 31, 155],
         }

@@ -70,12 +70,12 @@ impl WithdrawMarginAccountFromTLock {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct WithdrawMarginAccountFromTLockInstructionData {
+pub struct WithdrawMarginAccountFromTLockInstructionData {
     discriminator: [u8; 8],
 }
 
 impl WithdrawMarginAccountFromTLockInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [207, 235, 166, 255, 163, 162, 149, 44],
         }

@@ -7,13 +7,12 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use solana_program::pubkey::Pubkey;
 
 /// Accounts.
-pub struct WithdrawMarginAccountFromTComp {
+pub struct WithdrawMarginAccountCpiTamm {
     pub margin_account: solana_program::pubkey::Pubkey,
 
-    pub bid_state: solana_program::pubkey::Pubkey,
+    pub pool: solana_program::pubkey::Pubkey,
 
     pub owner: solana_program::pubkey::Pubkey,
 
@@ -22,17 +21,17 @@ pub struct WithdrawMarginAccountFromTComp {
     pub system_program: solana_program::pubkey::Pubkey,
 }
 
-impl WithdrawMarginAccountFromTComp {
+impl WithdrawMarginAccountCpiTamm {
     pub fn instruction(
         &self,
-        args: WithdrawMarginAccountFromTCompInstructionArgs,
+        args: WithdrawMarginAccountCpiTammInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: WithdrawMarginAccountFromTCompInstructionArgs,
+        args: WithdrawMarginAccountCpiTammInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
         let mut accounts = Vec::with_capacity(5 + remaining_accounts.len());
@@ -41,8 +40,7 @@ impl WithdrawMarginAccountFromTComp {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.bid_state,
-            true,
+            self.pool, true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.owner, false,
@@ -56,7 +54,7 @@ impl WithdrawMarginAccountFromTComp {
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = WithdrawMarginAccountFromTCompInstructionData::new()
+        let mut data = WithdrawMarginAccountCpiTammInstructionData::new()
             .try_to_vec()
             .unwrap();
         let mut args = args.try_to_vec().unwrap();
@@ -71,49 +69,49 @@ impl WithdrawMarginAccountFromTComp {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct WithdrawMarginAccountFromTCompInstructionData {
+pub struct WithdrawMarginAccountCpiTammInstructionData {
     discriminator: [u8; 8],
 }
 
-impl WithdrawMarginAccountFromTCompInstructionData {
+impl WithdrawMarginAccountCpiTammInstructionData {
     pub fn new() -> Self {
         Self {
-            discriminator: [201, 156, 163, 27, 243, 14, 36, 237],
+            discriminator: [35, 89, 16, 235, 226, 89, 248, 45],
         }
     }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct WithdrawMarginAccountFromTCompInstructionArgs {
+pub struct WithdrawMarginAccountCpiTammInstructionArgs {
     pub bump: u8,
-    pub bid_id: Pubkey,
+    pub pool_id: [u8; 32],
     pub lamports: u64,
 }
 
-/// Instruction builder for `WithdrawMarginAccountFromTComp`.
+/// Instruction builder for `WithdrawMarginAccountCpiTamm`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable]` margin_account
-///   1. `[signer]` bid_state
+///   1. `[signer]` pool
 ///   2. `[]` owner
 ///   3. `[writable]` destination
 ///   4. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Default)]
-pub struct WithdrawMarginAccountFromTCompBuilder {
+pub struct WithdrawMarginAccountCpiTammBuilder {
     margin_account: Option<solana_program::pubkey::Pubkey>,
-    bid_state: Option<solana_program::pubkey::Pubkey>,
+    pool: Option<solana_program::pubkey::Pubkey>,
     owner: Option<solana_program::pubkey::Pubkey>,
     destination: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     bump: Option<u8>,
-    bid_id: Option<Pubkey>,
+    pool_id: Option<[u8; 32]>,
     lamports: Option<u64>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl WithdrawMarginAccountFromTCompBuilder {
+impl WithdrawMarginAccountCpiTammBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -123,8 +121,8 @@ impl WithdrawMarginAccountFromTCompBuilder {
         self
     }
     #[inline(always)]
-    pub fn bid_state(&mut self, bid_state: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.bid_state = Some(bid_state);
+    pub fn pool(&mut self, pool: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.pool = Some(pool);
         self
     }
     #[inline(always)]
@@ -149,8 +147,8 @@ impl WithdrawMarginAccountFromTCompBuilder {
         self
     }
     #[inline(always)]
-    pub fn bid_id(&mut self, bid_id: Pubkey) -> &mut Self {
-        self.bid_id = Some(bid_id);
+    pub fn pool_id(&mut self, pool_id: [u8; 32]) -> &mut Self {
+        self.pool_id = Some(pool_id);
         self
     }
     #[inline(always)]
@@ -178,18 +176,18 @@ impl WithdrawMarginAccountFromTCompBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = WithdrawMarginAccountFromTComp {
+        let accounts = WithdrawMarginAccountCpiTamm {
             margin_account: self.margin_account.expect("margin_account is not set"),
-            bid_state: self.bid_state.expect("bid_state is not set"),
+            pool: self.pool.expect("pool is not set"),
             owner: self.owner.expect("owner is not set"),
             destination: self.destination.expect("destination is not set"),
             system_program: self
                 .system_program
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
         };
-        let args = WithdrawMarginAccountFromTCompInstructionArgs {
+        let args = WithdrawMarginAccountCpiTammInstructionArgs {
             bump: self.bump.clone().expect("bump is not set"),
-            bid_id: self.bid_id.clone().expect("bid_id is not set"),
+            pool_id: self.pool_id.clone().expect("pool_id is not set"),
             lamports: self.lamports.clone().expect("lamports is not set"),
         };
 
@@ -197,11 +195,11 @@ impl WithdrawMarginAccountFromTCompBuilder {
     }
 }
 
-/// `withdraw_margin_account_from_t_comp` CPI accounts.
-pub struct WithdrawMarginAccountFromTCompCpiAccounts<'a, 'b> {
+/// `withdraw_margin_account_cpi_tamm` CPI accounts.
+pub struct WithdrawMarginAccountCpiTammCpiAccounts<'a, 'b> {
     pub margin_account: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub bid_state: &'b solana_program::account_info::AccountInfo<'a>,
+    pub pool: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub owner: &'b solana_program::account_info::AccountInfo<'a>,
 
@@ -210,14 +208,14 @@ pub struct WithdrawMarginAccountFromTCompCpiAccounts<'a, 'b> {
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `withdraw_margin_account_from_t_comp` CPI instruction.
-pub struct WithdrawMarginAccountFromTCompCpi<'a, 'b> {
+/// `withdraw_margin_account_cpi_tamm` CPI instruction.
+pub struct WithdrawMarginAccountCpiTammCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub margin_account: &'b solana_program::account_info::AccountInfo<'a>,
 
-    pub bid_state: &'b solana_program::account_info::AccountInfo<'a>,
+    pub pool: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub owner: &'b solana_program::account_info::AccountInfo<'a>,
 
@@ -225,19 +223,19 @@ pub struct WithdrawMarginAccountFromTCompCpi<'a, 'b> {
 
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: WithdrawMarginAccountFromTCompInstructionArgs,
+    pub __args: WithdrawMarginAccountCpiTammInstructionArgs,
 }
 
-impl<'a, 'b> WithdrawMarginAccountFromTCompCpi<'a, 'b> {
+impl<'a, 'b> WithdrawMarginAccountCpiTammCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: WithdrawMarginAccountFromTCompCpiAccounts<'a, 'b>,
-        args: WithdrawMarginAccountFromTCompInstructionArgs,
+        accounts: WithdrawMarginAccountCpiTammCpiAccounts<'a, 'b>,
+        args: WithdrawMarginAccountCpiTammInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             margin_account: accounts.margin_account,
-            bid_state: accounts.bid_state,
+            pool: accounts.pool,
             owner: accounts.owner,
             destination: accounts.destination,
             system_program: accounts.system_program,
@@ -283,7 +281,7 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpi<'a, 'b> {
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.bid_state.key,
+            *self.pool.key,
             true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -305,7 +303,7 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = WithdrawMarginAccountFromTCompInstructionData::new()
+        let mut data = WithdrawMarginAccountCpiTammInstructionData::new()
             .try_to_vec()
             .unwrap();
         let mut args = self.__args.try_to_vec().unwrap();
@@ -319,7 +317,7 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpi<'a, 'b> {
         let mut account_infos = Vec::with_capacity(5 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.margin_account.clone());
-        account_infos.push(self.bid_state.clone());
+        account_infos.push(self.pool.clone());
         account_infos.push(self.owner.clone());
         account_infos.push(self.destination.clone());
         account_infos.push(self.system_program.clone());
@@ -335,30 +333,30 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `WithdrawMarginAccountFromTComp` via CPI.
+/// Instruction builder for `WithdrawMarginAccountCpiTamm` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable]` margin_account
-///   1. `[signer]` bid_state
+///   1. `[signer]` pool
 ///   2. `[]` owner
 ///   3. `[writable]` destination
 ///   4. `[]` system_program
-pub struct WithdrawMarginAccountFromTCompCpiBuilder<'a, 'b> {
-    instruction: Box<WithdrawMarginAccountFromTCompCpiBuilderInstruction<'a, 'b>>,
+pub struct WithdrawMarginAccountCpiTammCpiBuilder<'a, 'b> {
+    instruction: Box<WithdrawMarginAccountCpiTammCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> WithdrawMarginAccountFromTCompCpiBuilder<'a, 'b> {
+impl<'a, 'b> WithdrawMarginAccountCpiTammCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(WithdrawMarginAccountFromTCompCpiBuilderInstruction {
+        let instruction = Box::new(WithdrawMarginAccountCpiTammCpiBuilderInstruction {
             __program: program,
             margin_account: None,
-            bid_state: None,
+            pool: None,
             owner: None,
             destination: None,
             system_program: None,
             bump: None,
-            bid_id: None,
+            pool_id: None,
             lamports: None,
             __remaining_accounts: Vec::new(),
         });
@@ -373,11 +371,8 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn bid_state(
-        &mut self,
-        bid_state: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.bid_state = Some(bid_state);
+    pub fn pool(&mut self, pool: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.pool = Some(pool);
         self
     }
     #[inline(always)]
@@ -407,8 +402,8 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn bid_id(&mut self, bid_id: Pubkey) -> &mut Self {
-        self.instruction.bid_id = Some(bid_id);
+    pub fn pool_id(&mut self, pool_id: [u8; 32]) -> &mut Self {
+        self.instruction.pool_id = Some(pool_id);
         self
     }
     #[inline(always)]
@@ -457,16 +452,20 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = WithdrawMarginAccountFromTCompInstructionArgs {
+        let args = WithdrawMarginAccountCpiTammInstructionArgs {
             bump: self.instruction.bump.clone().expect("bump is not set"),
-            bid_id: self.instruction.bid_id.clone().expect("bid_id is not set"),
+            pool_id: self
+                .instruction
+                .pool_id
+                .clone()
+                .expect("pool_id is not set"),
             lamports: self
                 .instruction
                 .lamports
                 .clone()
                 .expect("lamports is not set"),
         };
-        let instruction = WithdrawMarginAccountFromTCompCpi {
+        let instruction = WithdrawMarginAccountCpiTammCpi {
             __program: self.instruction.__program,
 
             margin_account: self
@@ -474,7 +473,7 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpiBuilder<'a, 'b> {
                 .margin_account
                 .expect("margin_account is not set"),
 
-            bid_state: self.instruction.bid_state.expect("bid_state is not set"),
+            pool: self.instruction.pool.expect("pool is not set"),
 
             owner: self.instruction.owner.expect("owner is not set"),
 
@@ -496,15 +495,15 @@ impl<'a, 'b> WithdrawMarginAccountFromTCompCpiBuilder<'a, 'b> {
     }
 }
 
-struct WithdrawMarginAccountFromTCompCpiBuilderInstruction<'a, 'b> {
+struct WithdrawMarginAccountCpiTammCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     margin_account: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    bid_state: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    pool: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     owner: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     destination: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     bump: Option<u8>,
-    bid_id: Option<Pubkey>,
+    pool_id: Option<[u8; 32]>,
     lamports: Option<u64>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(

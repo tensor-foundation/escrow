@@ -139,12 +139,12 @@ impl DepositNftWns {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-struct DepositNftWnsInstructionData {
+pub struct DepositNftWnsInstructionData {
     discriminator: [u8; 8],
 }
 
 impl DepositNftWnsInstructionData {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             discriminator: [245, 148, 241, 58, 13, 253, 40, 195],
         }

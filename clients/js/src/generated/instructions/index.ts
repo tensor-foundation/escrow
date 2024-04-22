@@ -43,6 +43,7 @@ export * from './sellNftTradePoolWns';
 export * from './setPoolFreeze';
 export * from './takeSnipe';
 export * from './withdrawMarginAccount';
+export * from './withdrawMarginAccountCpiTamm';
 export * from './withdrawMarginAccountFromTBid';
 export * from './withdrawMarginAccountFromTComp';
 export * from './withdrawMarginAccountFromTLock';
