@@ -13,8 +13,34 @@ const kinobi = k.createFromIdls([path.join(idlDir, "escrow_program.json")]);
 kinobi.update(
   k.updateProgramsVisitor({
     escrowProgram: {
-      name: "tensorEscrow",
-    },
+      name: "tensorEscrow"
+    }
+  })
+);
+
+// Update accounts.
+kinobi.update(
+  k.updateAccountsVisitor({
+    marginAccount: {
+      seeds: [
+        k.constantPdaSeedNodeFromString("margin"),
+        k.variablePdaSeedNode(
+          "tswap",
+          k.publicKeyTypeNode(),
+          "Tswap singleton account"
+        ),
+        k.variablePdaSeedNode(
+          "owner",
+          k.publicKeyTypeNode(),
+          "The address of the pool and escrow owner"
+        ),
+        k.variablePdaSeedNode(
+          "margin_nr",
+          k.bytesTypeNode(k.fixedSizeNode(2)),
+          "Margin ID number"
+        )
+      ]
+    }
   })
 );
 
@@ -22,38 +48,38 @@ kinobi.update(
 kinobi.update(
   k.updateInstructionsVisitor({
     wnsBuyNft: {
-      name: "buyNftWns",
+      name: "buyNftWns"
     },
     wnsBuySingleListing: {
-      name: "buySingleListingWns",
+      name: "buySingleListingWns"
     },
     wnsDelist: {
-      name: "delistWns",
+      name: "delistWns"
     },
     wnsDepositNft: {
-      name: "depositNftWns",
+      name: "depositNftWns"
     },
     wnsList: {
-      name: "listWns",
+      name: "listWns"
     },
     wnsSellNftTokenPool: {
-      name: "sellNftTokenPoolWns",
+      name: "sellNftTokenPoolWns"
     },
     wnsSellNftTradePool: {
-      name: "sellNftTradePoolWns",
+      name: "sellNftTradePoolWns"
     },
     wnsWithdrawNft: {
-      name: "withdrawNftWns",
+      name: "withdrawNftWns"
     },
     withdrawMarginAccountCpi: {
-      name: "withdrawMarginAccountFromTBid",
+      name: "withdrawMarginAccountFromTBid"
     },
     withdrawMarginAccountCpiTcomp: {
-      name: "withdrawMarginAccountFromTComp",
+      name: "withdrawMarginAccountFromTComp"
     },
     withdrawMarginAccountCpiTlock: {
-      name: "withdrawMarginAccountFromTLock",
-    },
+      name: "withdrawMarginAccountFromTLock"
+    }
   })
 );
 
@@ -69,7 +95,7 @@ kinobi.accept(
   k.renderRustVisitor(rustDir, {
     formatCode: true,
     crateFolder: crateDir,
-    renderParentInstructions: true,
+    renderParentInstructions: true
   })
 );
 

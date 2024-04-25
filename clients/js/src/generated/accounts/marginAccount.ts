@@ -43,6 +43,7 @@ import {
   getU8Encoder,
   mapEncoder,
 } from '@solana/codecs';
+import { MarginAccountSeeds, findMarginAccountPda } from '../pdas';
 
 export type MarginAccount<TAddress extends string = string> = Account<
   MarginAccountAccountData,
@@ -172,4 +173,28 @@ export async function fetchAllMaybeMarginAccount(
 
 export function getMarginAccountSize(): number {
   return 143;
+}
+
+export async function fetchMarginAccountFromSeeds(
+  rpc: Parameters<typeof fetchEncodedAccount>[0],
+  seeds: MarginAccountSeeds,
+  config: FetchAccountConfig & { programAddress?: Address } = {}
+): Promise<MarginAccount> {
+  const maybeAccount = await fetchMaybeMarginAccountFromSeeds(
+    rpc,
+    seeds,
+    config
+  );
+  assertAccountExists(maybeAccount);
+  return maybeAccount;
+}
+
+export async function fetchMaybeMarginAccountFromSeeds(
+  rpc: Parameters<typeof fetchEncodedAccount>[0],
+  seeds: MarginAccountSeeds,
+  config: FetchAccountConfig & { programAddress?: Address } = {}
+): Promise<MaybeMarginAccount> {
+  const { programAddress, ...fetchConfig } = config;
+  const [address] = await findMarginAccountPda(seeds, { programAddress });
+  return await fetchMaybeMarginAccount(rpc, address, fetchConfig);
 }
