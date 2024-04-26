@@ -1,6 +1,6 @@
 {
   "name": "@tensor-foundation/escrow",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Shared escrow for all Tensor protocols",
   "sideEffects": false,
   "module": "./dist/src/index.js",
@@ -30,8 +30,7 @@
     "format:fix": "prettier --write src test"
   },
   "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org"
+    "registry": "https://npm.pkg.github.com"
   },
   "homepage": "https://github.com/tensor-foundation",
   "repository": "https://github.com/tensor-foundation/escrow.git",
@@ -72,5 +71,5 @@
       }
     }
   },
-  "packageManager": "pnpm@9.0.5"
+  "packageManager": "pnpm@9.0.6"
 }

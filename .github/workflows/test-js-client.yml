@@ -33,6 +33,8 @@ jobs:
           folder: ./clients/js
           cache: ${{ env.CACHE }}
           key: clients-js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
         working-directory: ./clients/js
@@ -64,6 +66,8 @@ jobs:
           folder: ./clients/js
           cache: ${{ env.CACHE }}
           key: clients-js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Format
         working-directory: ./clients/js
