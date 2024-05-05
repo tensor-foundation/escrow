@@ -40,6 +40,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
@@ -144,6 +145,119 @@ export function getInitPoolInstructionDataCodec(): Codec<
     getInitPoolInstructionDataEncoder(),
     getInitPoolInstructionDataDecoder()
   );
+}
+
+export type InitPoolAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountSolEscrow extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountNftAuthority extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  pool: Address<TAccountPool>;
+  solEscrow: Address<TAccountSolEscrow>;
+  /** Needed for pool seeds derivation / will be stored inside pool */
+  whitelist: Address<TAccountWhitelist>;
+  owner: TransactionSigner<TAccountOwner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  nftAuthority: Address<TAccountNftAuthority>;
+  config: InitPoolInstructionDataArgs['config'];
+  authSeeds: InitPoolInstructionDataArgs['authSeeds'];
+  isCosigned: InitPoolInstructionDataArgs['isCosigned'];
+  orderType: InitPoolInstructionDataArgs['orderType'];
+  maxTakerSellCount: InitPoolInstructionDataArgs['maxTakerSellCount'];
+};
+
+export async function getInitPoolInstructionAsync<
+  TAccountTswap extends string,
+  TAccountPool extends string,
+  TAccountSolEscrow extends string,
+  TAccountWhitelist extends string,
+  TAccountOwner extends string,
+  TAccountSystemProgram extends string,
+  TAccountNftAuthority extends string,
+>(
+  input: InitPoolAsyncInput<
+    TAccountTswap,
+    TAccountPool,
+    TAccountSolEscrow,
+    TAccountWhitelist,
+    TAccountOwner,
+    TAccountSystemProgram,
+    TAccountNftAuthority
+  >
+): Promise<
+  InitPoolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountSolEscrow,
+    TAccountWhitelist,
+    TAccountOwner,
+    TAccountSystemProgram,
+    TAccountNftAuthority
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    pool: { value: input.pool ?? null, isWritable: true },
+    solEscrow: { value: input.solEscrow ?? null, isWritable: true },
+    whitelist: { value: input.whitelist ?? null, isWritable: false },
+    owner: { value: input.owner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    nftAuthority: { value: input.nftAuthority ?? null, isWritable: true },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.solEscrow),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.nftAuthority),
+    ],
+    programAddress,
+    data: getInitPoolInstructionDataEncoder().encode(
+      args as InitPoolInstructionDataArgs
+    ),
+  } as InitPoolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountSolEscrow,
+    TAccountWhitelist,
+    TAccountOwner,
+    TAccountSystemProgram,
+    TAccountNftAuthority
+  >;
+
+  return instruction;
 }
 
 export type InitPoolInput<

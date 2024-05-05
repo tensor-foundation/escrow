@@ -38,6 +38,16 @@ pub struct TSwap {
 impl TSwap {
     pub const LEN: usize = 108;
 
+    pub fn create_pda(
+        bump: u8,
+    ) -> Result<solana_program::pubkey::Pubkey, solana_program::pubkey::PubkeyError> {
+        solana_program::pubkey::Pubkey::create_program_address(&[&[bump]], &crate::TENSOR_ESCROW_ID)
+    }
+
+    pub fn find_pda() -> (solana_program::pubkey::Pubkey, u8) {
+        solana_program::pubkey::Pubkey::find_program_address(&[], &crate::TENSOR_ESCROW_ID)
+    }
+
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
         let mut data = data;

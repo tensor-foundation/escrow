@@ -38,6 +38,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
@@ -143,6 +144,134 @@ export function getEditPoolInstructionDataCodec(): Codec<
     getEditPoolInstructionDataEncoder(),
     getEditPoolInstructionDataDecoder()
   );
+}
+
+export type EditPoolAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountOldPool extends string = string,
+  TAccountNewPool extends string = string,
+  TAccountOldSolEscrow extends string = string,
+  TAccountNewSolEscrow extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountNftAuthority extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  oldPool: Address<TAccountOldPool>;
+  newPool: Address<TAccountNewPool>;
+  oldSolEscrow: Address<TAccountOldSolEscrow>;
+  newSolEscrow: Address<TAccountNewSolEscrow>;
+  /** Needed for pool seeds derivation / will be stored inside pool */
+  whitelist: Address<TAccountWhitelist>;
+  nftAuthority: Address<TAccountNftAuthority>;
+  owner: TransactionSigner<TAccountOwner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  oldConfig: EditPoolInstructionDataArgs['oldConfig'];
+  newConfig: EditPoolInstructionDataArgs['newConfig'];
+  isCosigned: EditPoolInstructionDataArgs['isCosigned'];
+  maxTakerSellCount: EditPoolInstructionDataArgs['maxTakerSellCount'];
+};
+
+export async function getEditPoolInstructionAsync<
+  TAccountTswap extends string,
+  TAccountOldPool extends string,
+  TAccountNewPool extends string,
+  TAccountOldSolEscrow extends string,
+  TAccountNewSolEscrow extends string,
+  TAccountWhitelist extends string,
+  TAccountNftAuthority extends string,
+  TAccountOwner extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: EditPoolAsyncInput<
+    TAccountTswap,
+    TAccountOldPool,
+    TAccountNewPool,
+    TAccountOldSolEscrow,
+    TAccountNewSolEscrow,
+    TAccountWhitelist,
+    TAccountNftAuthority,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+): Promise<
+  EditPoolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountOldPool,
+    TAccountNewPool,
+    TAccountOldSolEscrow,
+    TAccountNewSolEscrow,
+    TAccountWhitelist,
+    TAccountNftAuthority,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    oldPool: { value: input.oldPool ?? null, isWritable: true },
+    newPool: { value: input.newPool ?? null, isWritable: true },
+    oldSolEscrow: { value: input.oldSolEscrow ?? null, isWritable: true },
+    newSolEscrow: { value: input.newSolEscrow ?? null, isWritable: true },
+    whitelist: { value: input.whitelist ?? null, isWritable: false },
+    nftAuthority: { value: input.nftAuthority ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.oldPool),
+      getAccountMeta(accounts.newPool),
+      getAccountMeta(accounts.oldSolEscrow),
+      getAccountMeta(accounts.newSolEscrow),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.nftAuthority),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getEditPoolInstructionDataEncoder().encode(
+      args as EditPoolInstructionDataArgs
+    ),
+  } as EditPoolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountOldPool,
+    TAccountNewPool,
+    TAccountOldSolEscrow,
+    TAccountNewSolEscrow,
+    TAccountWhitelist,
+    TAccountNftAuthority,
+    TAccountOwner,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type EditPoolInput<

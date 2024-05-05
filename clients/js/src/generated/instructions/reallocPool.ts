@@ -30,6 +30,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
@@ -112,6 +113,107 @@ export function getReallocPoolInstructionDataCodec(): Codec<
     getReallocPoolInstructionDataEncoder(),
     getReallocPoolInstructionDataDecoder()
   );
+}
+
+export type ReallocPoolAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountOwner extends string = string,
+  TAccountCosigner extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  pool: Address<TAccountPool>;
+  /** Needed for pool seeds derivation / will be stored inside pool */
+  whitelist: Address<TAccountWhitelist>;
+  owner: Address<TAccountOwner>;
+  cosigner: TransactionSigner<TAccountCosigner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  config: ReallocPoolInstructionDataArgs['config'];
+};
+
+export async function getReallocPoolInstructionAsync<
+  TAccountTswap extends string,
+  TAccountPool extends string,
+  TAccountWhitelist extends string,
+  TAccountOwner extends string,
+  TAccountCosigner extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: ReallocPoolAsyncInput<
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountOwner,
+    TAccountCosigner,
+    TAccountSystemProgram
+  >
+): Promise<
+  ReallocPoolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountOwner,
+    TAccountCosigner,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    pool: { value: input.pool ?? null, isWritable: true },
+    whitelist: { value: input.whitelist ?? null, isWritable: false },
+    owner: { value: input.owner ?? null, isWritable: false },
+    cosigner: { value: input.cosigner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.cosigner),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getReallocPoolInstructionDataEncoder().encode(
+      args as ReallocPoolInstructionDataArgs
+    ),
+  } as ReallocPoolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountOwner,
+    TAccountCosigner,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type ReallocPoolInput<

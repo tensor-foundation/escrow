@@ -32,6 +32,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
@@ -123,6 +124,134 @@ export function getListT22InstructionDataCodec(): Codec<
     getListT22InstructionDataEncoder(),
     getListT22InstructionDataDecoder()
   );
+}
+
+export type ListT22AsyncInput<
+  TAccountTswap extends string = string,
+  TAccountNftSource extends string = string,
+  TAccountNftMint extends string = string,
+  TAccountNftEscrow extends string = string,
+  TAccountSingleListing extends string = string,
+  TAccountOwner extends string = string,
+  TAccountTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountPayer extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  nftSource: Address<TAccountNftSource>;
+  nftMint: Address<TAccountNftMint>;
+  nftEscrow: Address<TAccountNftEscrow>;
+  singleListing: Address<TAccountSingleListing>;
+  owner: TransactionSigner<TAccountOwner>;
+  tokenProgram?: Address<TAccountTokenProgram>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  payer: TransactionSigner<TAccountPayer>;
+  price: ListT22InstructionDataArgs['price'];
+};
+
+export async function getListT22InstructionAsync<
+  TAccountTswap extends string,
+  TAccountNftSource extends string,
+  TAccountNftMint extends string,
+  TAccountNftEscrow extends string,
+  TAccountSingleListing extends string,
+  TAccountOwner extends string,
+  TAccountTokenProgram extends string,
+  TAccountSystemProgram extends string,
+  TAccountPayer extends string,
+>(
+  input: ListT22AsyncInput<
+    TAccountTswap,
+    TAccountNftSource,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountSingleListing,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountPayer
+  >
+): Promise<
+  ListT22Instruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountNftSource,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountSingleListing,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountPayer
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    nftSource: { value: input.nftSource ?? null, isWritable: true },
+    nftMint: { value: input.nftMint ?? null, isWritable: false },
+    nftEscrow: { value: input.nftEscrow ?? null, isWritable: true },
+    singleListing: { value: input.singleListing ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    payer: { value: input.payer ?? null, isWritable: true },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.nftSource),
+      getAccountMeta(accounts.nftMint),
+      getAccountMeta(accounts.nftEscrow),
+      getAccountMeta(accounts.singleListing),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.payer),
+    ],
+    programAddress,
+    data: getListT22InstructionDataEncoder().encode(
+      args as ListT22InstructionDataArgs
+    ),
+  } as ListT22Instruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountNftSource,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountSingleListing,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountPayer
+  >;
+
+  return instruction;
 }
 
 export type ListT22Input<

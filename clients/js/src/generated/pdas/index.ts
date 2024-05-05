@@ -7,3 +7,4 @@
  */
 
 export * from './marginAccount';
+export * from './tSwap';
