@@ -33,16 +33,15 @@ impl MarginAccount {
     ///
     /// Values are positional and appear in the following order:
     ///
-    ///   0. `MarginAccount::PREFIX`
+    ///   0. `MarginAccount::PREFIX.0`
     ///   1. tswap (`Pubkey`)
     ///   2. owner (`Pubkey`)
-    ///   3. margin_nr (`[u8; 2]`)
-    pub const PREFIX: &'static [u8] = "margin".as_bytes();
+    ///   3. `MarginAccount::PREFIX.1`
+    pub const PREFIX: (&'static [u8], &'static [u8]) = ("margin".as_bytes(), [0, 0].as_bytes());
 
     pub fn create_pda(
         tswap: Pubkey,
         owner: Pubkey,
-        margin_nr: [u8; 2],
         bump: u8,
     ) -> Result<solana_program::pubkey::Pubkey, solana_program::pubkey::PubkeyError> {
         solana_program::pubkey::Pubkey::create_program_address(
@@ -50,24 +49,20 @@ impl MarginAccount {
                 "margin".as_bytes(),
                 tswap.as_ref(),
                 owner.as_ref(),
-                &margin_nr,
+                [0, 0].as_bytes(),
                 &[bump],
             ],
             &crate::TENSOR_ESCROW_ID,
         )
     }
 
-    pub fn find_pda(
-        tswap: &Pubkey,
-        owner: &Pubkey,
-        margin_nr: [u8; 2],
-    ) -> (solana_program::pubkey::Pubkey, u8) {
+    pub fn find_pda(tswap: &Pubkey, owner: &Pubkey) -> (solana_program::pubkey::Pubkey, u8) {
         solana_program::pubkey::Pubkey::find_program_address(
             &[
                 "margin".as_bytes(),
                 tswap.as_ref(),
                 owner.as_ref(),
-                &margin_nr,
+                [0, 0].as_bytes(),
             ],
             &crate::TENSOR_ESCROW_ID,
         )

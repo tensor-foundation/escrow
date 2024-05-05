@@ -34,8 +34,13 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findMarginAccountPda, findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
-import { ResolvedAccount, getAccountMetaFactory } from '../shared';
+import {
+  ResolvedAccount,
+  expectAddress,
+  getAccountMetaFactory,
+} from '../shared';
 
 export type InitMarginAccountInstruction<
   TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
@@ -74,7 +79,7 @@ export type InitMarginAccountInstructionData = {
 };
 
 export type InitMarginAccountInstructionDataArgs = {
-  marginNr: number;
+  marginNr?: number;
   name: Uint8Array;
 };
 
@@ -85,7 +90,11 @@ export function getInitMarginAccountInstructionDataEncoder(): Encoder<InitMargin
       ['marginNr', getU16Encoder()],
       ['name', getBytesEncoder({ size: 32 })],
     ]),
-    (value) => ({ ...value, discriminator: [10, 54, 68, 252, 130, 97, 39, 52] })
+    (value) => ({
+      ...value,
+      discriminator: [10, 54, 68, 252, 130, 97, 39, 52],
+      marginNr: value.marginNr ?? 0,
+    })
   );
 }
 
@@ -107,6 +116,97 @@ export function getInitMarginAccountInstructionDataCodec(): Codec<
   );
 }
 
+export type InitMarginAccountAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountMarginAccount extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  marginAccount?: Address<TAccountMarginAccount>;
+  owner: TransactionSigner<TAccountOwner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  marginNr?: InitMarginAccountInstructionDataArgs['marginNr'];
+  name: InitMarginAccountInstructionDataArgs['name'];
+};
+
+export async function getInitMarginAccountInstructionAsync<
+  TAccountTswap extends string,
+  TAccountMarginAccount extends string,
+  TAccountOwner extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: InitMarginAccountAsyncInput<
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+): Promise<
+  InitMarginAccountInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    marginAccount: { value: input.marginAccount ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.marginAccount.value) {
+    accounts.marginAccount.value = await findMarginAccountPda({
+      tswap: expectAddress(accounts.tswap.value),
+      owner: expectAddress(accounts.owner.value),
+    });
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.marginAccount),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getInitMarginAccountInstructionDataEncoder().encode(
+      args as InitMarginAccountInstructionDataArgs
+    ),
+  } as InitMarginAccountInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountOwner,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
+}
+
 export type InitMarginAccountInput<
   TAccountTswap extends string = string,
   TAccountMarginAccount extends string = string,
@@ -117,7 +217,7 @@ export type InitMarginAccountInput<
   marginAccount: Address<TAccountMarginAccount>;
   owner: TransactionSigner<TAccountOwner>;
   systemProgram?: Address<TAccountSystemProgram>;
-  marginNr: InitMarginAccountInstructionDataArgs['marginNr'];
+  marginNr?: InitMarginAccountInstructionDataArgs['marginNr'];
   name: InitMarginAccountInstructionDataArgs['name'];
 };
 

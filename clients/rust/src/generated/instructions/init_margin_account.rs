@@ -126,6 +126,7 @@ impl InitMarginAccountBuilder {
         self.system_program = Some(system_program);
         self
     }
+    /// `[optional argument, defaults to '0']`
     #[inline(always)]
     pub fn margin_nr(&mut self, margin_nr: u16) -> &mut Self {
         self.margin_nr = Some(margin_nr);
@@ -165,7 +166,7 @@ impl InitMarginAccountBuilder {
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
         };
         let args = InitMarginAccountInstructionArgs {
-            margin_nr: self.margin_nr.clone().expect("margin_nr is not set"),
+            margin_nr: self.margin_nr.clone().unwrap_or(0),
             name: self.name.clone().expect("name is not set"),
         };
 
@@ -353,6 +354,7 @@ impl<'a, 'b> InitMarginAccountCpiBuilder<'a, 'b> {
         self.instruction.system_program = Some(system_program);
         self
     }
+    /// `[optional argument, defaults to '0']`
     #[inline(always)]
     pub fn margin_nr(&mut self, margin_nr: u16) -> &mut Self {
         self.instruction.margin_nr = Some(margin_nr);
@@ -405,11 +407,7 @@ impl<'a, 'b> InitMarginAccountCpiBuilder<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
         let args = InitMarginAccountInstructionArgs {
-            margin_nr: self
-                .instruction
-                .margin_nr
-                .clone()
-                .expect("margin_nr is not set"),
+            margin_nr: self.instruction.margin_nr.clone().unwrap_or(0),
             name: self.instruction.name.clone().expect("name is not set"),
         };
         let instruction = InitMarginAccountCpi {

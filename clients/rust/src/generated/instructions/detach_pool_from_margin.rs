@@ -171,6 +171,7 @@ impl DetachPoolFromMarginBuilder {
         self.config = Some(config);
         self
     }
+    /// `[optional argument, defaults to '0']`
     #[inline(always)]
     pub fn lamports(&mut self, lamports: u64) -> &mut Self {
         self.lamports = Some(lamports);
@@ -209,7 +210,7 @@ impl DetachPoolFromMarginBuilder {
         };
         let args = DetachPoolFromMarginInstructionArgs {
             config: self.config.clone().expect("config is not set"),
-            lamports: self.lamports.clone().expect("lamports is not set"),
+            lamports: self.lamports.clone().unwrap_or(0),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
@@ -459,6 +460,7 @@ impl<'a, 'b> DetachPoolFromMarginCpiBuilder<'a, 'b> {
         self.instruction.config = Some(config);
         self
     }
+    /// `[optional argument, defaults to '0']`
     #[inline(always)]
     pub fn lamports(&mut self, lamports: u64) -> &mut Self {
         self.instruction.lamports = Some(lamports);
@@ -507,11 +509,7 @@ impl<'a, 'b> DetachPoolFromMarginCpiBuilder<'a, 'b> {
     ) -> solana_program::entrypoint::ProgramResult {
         let args = DetachPoolFromMarginInstructionArgs {
             config: self.instruction.config.clone().expect("config is not set"),
-            lamports: self
-                .instruction
-                .lamports
-                .clone()
-                .expect("lamports is not set"),
+            lamports: self.instruction.lamports.clone().unwrap_or(0),
         };
         let instruction = DetachPoolFromMarginCpi {
             __program: self.instruction.__program,

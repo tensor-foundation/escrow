@@ -30,6 +30,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
@@ -134,6 +135,151 @@ export function getDepositNftT22InstructionDataCodec(): Codec<
     getDepositNftT22InstructionDataEncoder(),
     getDepositNftT22InstructionDataDecoder()
   );
+}
+
+export type DepositNftT22AsyncInput<
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountNftSource extends string = string,
+  TAccountNftMint extends string = string,
+  TAccountNftEscrow extends string = string,
+  TAccountNftReceipt extends string = string,
+  TAccountOwner extends string = string,
+  TAccountTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountMintProof extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  pool: Address<TAccountPool>;
+  /** Needed for pool seeds derivation, also checked via has_one on pool */
+  whitelist: Address<TAccountWhitelist>;
+  nftSource: Address<TAccountNftSource>;
+  nftMint: Address<TAccountNftMint>;
+  nftEscrow: Address<TAccountNftEscrow>;
+  nftReceipt: Address<TAccountNftReceipt>;
+  owner: TransactionSigner<TAccountOwner>;
+  tokenProgram?: Address<TAccountTokenProgram>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  mintProof: Address<TAccountMintProof>;
+  config: DepositNftT22InstructionDataArgs['config'];
+};
+
+export async function getDepositNftT22InstructionAsync<
+  TAccountTswap extends string,
+  TAccountPool extends string,
+  TAccountWhitelist extends string,
+  TAccountNftSource extends string,
+  TAccountNftMint extends string,
+  TAccountNftEscrow extends string,
+  TAccountNftReceipt extends string,
+  TAccountOwner extends string,
+  TAccountTokenProgram extends string,
+  TAccountSystemProgram extends string,
+  TAccountMintProof extends string,
+>(
+  input: DepositNftT22AsyncInput<
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountNftSource,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountNftReceipt,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountMintProof
+  >
+): Promise<
+  DepositNftT22Instruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountNftSource,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountNftReceipt,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountMintProof
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    pool: { value: input.pool ?? null, isWritable: true },
+    whitelist: { value: input.whitelist ?? null, isWritable: false },
+    nftSource: { value: input.nftSource ?? null, isWritable: true },
+    nftMint: { value: input.nftMint ?? null, isWritable: false },
+    nftEscrow: { value: input.nftEscrow ?? null, isWritable: true },
+    nftReceipt: { value: input.nftReceipt ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    mintProof: { value: input.mintProof ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.nftSource),
+      getAccountMeta(accounts.nftMint),
+      getAccountMeta(accounts.nftEscrow),
+      getAccountMeta(accounts.nftReceipt),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.mintProof),
+    ],
+    programAddress,
+    data: getDepositNftT22InstructionDataEncoder().encode(
+      args as DepositNftT22InstructionDataArgs
+    ),
+  } as DepositNftT22Instruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountNftSource,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountNftReceipt,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountMintProof
+  >;
+
+  return instruction;
 }
 
 export type DepositNftT22Input<

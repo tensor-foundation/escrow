@@ -34,19 +34,55 @@ kinobi.update(
           k.publicKeyTypeNode(),
           "The address of the pool and escrow owner"
         ),
-        k.variablePdaSeedNode(
-          "margin_nr",
-          k.bytesTypeNode(k.fixedSizeNode(2)),
-          "Margin ID number"
-        )
+        // TBD, but from what we've discussed before we actually don't want other marginNr's other than [0,0]
+        // so this should rather be a constantPdaSeedNode
+        k.constantPdaSeedNode(k.arrayTypeNode(k.numberTypeNode('u8'), k.fixedSizeNode(2)), k.arrayValueNode(Array.from({ length: 2 }, () => k.numberValueNode(0))))
       ]
+    },
+    tSwap: {
+      seeds: []
     }
   })
+);
+
+// Set default account values accross multiple instructions.
+kinobi.update(
+  k.setInstructionAccountDefaultValuesVisitor([
+    {
+      account: "marginAccount",
+      ignoreIfOptional: true,
+      defaultValue: k.pdaValueNode("marginAccount", [
+        k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
+        k.pdaSeedValueNode("owner", k.accountValueNode("owner"))
+      ])
+    },
+    {
+      account: "tswap",
+      defaultValue: k.pdaValueNode("tSwap")
+    }
+  ])
 );
 
 // Update instructions.
 kinobi.update(
   k.updateInstructionsVisitor({
+    initMarginAccount: {
+      arguments: {
+        marginNr: {
+          defaultValue: k.numberValueNode(0)
+        },
+        // TODO: add defaultValue to "name" arg
+        // defaultValue should be byteValueNode (32 zero-bytes), needs higher version (^0.19)
+      }
+    },
+    detachPoolFromMargin: {
+      arguments: {
+        lamports: {
+          defaultValue: k.numberValueNode(0),
+          docs: ["amount of lamports to be moved back to bid escrow"]
+        }
+      }
+    },
     wnsBuyNft: {
       name: "buyNftWns"
     },

@@ -12,15 +12,17 @@ import {
   getAddressEncoder,
   getProgramDerivedAddress,
 } from '@solana/addresses';
-import { getBytesEncoder, getStringEncoder } from '@solana/codecs';
+import {
+  getArrayEncoder,
+  getStringEncoder,
+  getU8Encoder,
+} from '@solana/codecs';
 
 export type MarginAccountSeeds = {
   /** Tswap singleton account */
   tswap: Address;
   /** The address of the pool and escrow owner */
   owner: Address;
-  /** Margin ID number */
-  marginNr: Uint8Array;
 };
 
 export async function findMarginAccountPda(
@@ -36,7 +38,7 @@ export async function findMarginAccountPda(
       getStringEncoder({ size: 'variable' }).encode('margin'),
       getAddressEncoder().encode(seeds.tswap),
       getAddressEncoder().encode(seeds.owner),
-      getBytesEncoder({ size: 2 }).encode(seeds.marginNr),
+      getArrayEncoder(getU8Encoder(), { size: 2 }).encode([0, 0]),
     ],
   });
 }
