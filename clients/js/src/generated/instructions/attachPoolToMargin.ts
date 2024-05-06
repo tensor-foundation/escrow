@@ -30,13 +30,10 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
-import { findMarginAccountPda, findTSwapPda } from '../pdas';
+import { resolveMarginAccountPda } from '../../hooked';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
-import {
-  ResolvedAccount,
-  expectAddress,
-  getAccountMetaFactory,
-} from '../shared';
+import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
   PoolConfig,
   PoolConfigArgs,
@@ -194,15 +191,18 @@ export async function getAttachPoolToMarginInstructionAsync<
   // Original args.
   const args = { ...input };
 
+  // Resolver scope.
+  const resolverScope = { programAddress, accounts, args };
+
   // Resolve default values.
   if (!accounts.tswap.value) {
     accounts.tswap.value = await findTSwapPda();
   }
   if (!accounts.marginAccount.value) {
-    accounts.marginAccount.value = await findMarginAccountPda({
-      tswap: expectAddress(accounts.tswap.value),
-      owner: expectAddress(accounts.owner.value),
-    });
+    accounts.marginAccount = {
+      ...accounts.marginAccount,
+      ...(await resolveMarginAccountPda(resolverScope)),
+    };
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =

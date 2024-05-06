@@ -34,6 +34,7 @@ import {
   WritableAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { resolveMarginAccountPda } from '../../hooked';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
@@ -115,6 +116,106 @@ export function getWithdrawMarginAccountCpiTammInstructionDataCodec(): Codec<
     getWithdrawMarginAccountCpiTammInstructionDataEncoder(),
     getWithdrawMarginAccountCpiTammInstructionDataDecoder()
   );
+}
+
+export type WithdrawMarginAccountCpiTammAsyncInput<
+  TAccountMarginAccount extends string = string,
+  TAccountPool extends string = string,
+  TAccountOwner extends string = string,
+  TAccountDestination extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  marginAccount?: Address<TAccountMarginAccount>;
+  pool: TransactionSigner<TAccountPool>;
+  owner: Address<TAccountOwner>;
+  destination: Address<TAccountDestination>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  bump: WithdrawMarginAccountCpiTammInstructionDataArgs['bump'];
+  poolId: WithdrawMarginAccountCpiTammInstructionDataArgs['poolId'];
+  lamports: WithdrawMarginAccountCpiTammInstructionDataArgs['lamports'];
+};
+
+export async function getWithdrawMarginAccountCpiTammInstructionAsync<
+  TAccountMarginAccount extends string,
+  TAccountPool extends string,
+  TAccountOwner extends string,
+  TAccountDestination extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: WithdrawMarginAccountCpiTammAsyncInput<
+    TAccountMarginAccount,
+    TAccountPool,
+    TAccountOwner,
+    TAccountDestination,
+    TAccountSystemProgram
+  >
+): Promise<
+  WithdrawMarginAccountCpiTammInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountMarginAccount,
+    TAccountPool,
+    TAccountOwner,
+    TAccountDestination,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    marginAccount: { value: input.marginAccount ?? null, isWritable: true },
+    pool: { value: input.pool ?? null, isWritable: false },
+    owner: { value: input.owner ?? null, isWritable: false },
+    destination: { value: input.destination ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolver scope.
+  const resolverScope = { programAddress, accounts, args };
+
+  // Resolve default values.
+  if (!accounts.marginAccount.value) {
+    accounts.marginAccount = {
+      ...accounts.marginAccount,
+      ...(await resolveMarginAccountPda(resolverScope)),
+    };
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.marginAccount),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.destination),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getWithdrawMarginAccountCpiTammInstructionDataEncoder().encode(
+      args as WithdrawMarginAccountCpiTammInstructionDataArgs
+    ),
+  } as WithdrawMarginAccountCpiTammInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountMarginAccount,
+    TAccountPool,
+    TAccountOwner,
+    TAccountDestination,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type WithdrawMarginAccountCpiTammInput<

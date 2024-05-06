@@ -34,9 +34,11 @@ kinobi.update(
           k.publicKeyTypeNode(),
           "The address of the pool and escrow owner"
         ),
-        // TBD, but from what we've discussed before we actually don't want other marginNr's other than [0,0]
-        // so this should rather be a constantPdaSeedNode
-        k.constantPdaSeedNode(k.arrayTypeNode(k.numberTypeNode('u8'), k.fixedSizeNode(2)), k.arrayValueNode(Array.from({ length: 2 }, () => k.numberValueNode(0))))
+        // TODO: should be constantPdaSeedNodeFromBytes (introduced in kinobi v19)
+        k.variablePdaSeedNode(
+          "marginNr",
+          k.bytesTypeNode(k.fixedSizeNode(2)),
+        )
       ]
     },
     tSwap: {
@@ -51,10 +53,12 @@ kinobi.update(
     {
       account: "marginAccount",
       ignoreIfOptional: true,
-      defaultValue: k.pdaValueNode("marginAccount", [
-        k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
-        k.pdaSeedValueNode("owner", k.accountValueNode("owner"))
-      ])
+      // TODO: when upgrading to v19, can be changed to pdaValueNode (resolver will be redundant and can be deleted)
+      defaultValue: k.resolverValueNode("resolveMarginAccountPda", {
+        dependsOn: [
+          k.accountValueNode("owner")
+        ]
+      })
     },
     {
       account: "tswap",
@@ -122,7 +126,12 @@ kinobi.update(
 // Render JavaScript.
 const jsDir = path.join(clientDir, "js", "src", "generated");
 const prettier = require(path.join(clientDir, "js", ".prettierrc.json"));
-kinobi.accept(k.renderJavaScriptExperimentalVisitor(jsDir, { prettier }));
+kinobi.accept(k.renderJavaScriptExperimentalVisitor(jsDir, { 
+  prettier,
+  asyncResolvers: [
+    "resolveMarginAccountPda"
+  ]
+}));
 
 // Render Rust.
 const crateDir = path.join(clientDir, "rust");
