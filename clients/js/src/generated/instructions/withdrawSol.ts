@@ -32,6 +32,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
@@ -120,6 +121,108 @@ export function getWithdrawSolInstructionDataCodec(): Codec<
     getWithdrawSolInstructionDataEncoder(),
     getWithdrawSolInstructionDataDecoder()
   );
+}
+
+export type WithdrawSolAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountPool extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountSolEscrow extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  pool: Address<TAccountPool>;
+  whitelist: Address<TAccountWhitelist>;
+  solEscrow: Address<TAccountSolEscrow>;
+  /** Tied to the pool because used to verify pool seeds */
+  owner: TransactionSigner<TAccountOwner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  config: WithdrawSolInstructionDataArgs['config'];
+  lamports: WithdrawSolInstructionDataArgs['lamports'];
+};
+
+export async function getWithdrawSolInstructionAsync<
+  TAccountTswap extends string,
+  TAccountPool extends string,
+  TAccountWhitelist extends string,
+  TAccountSolEscrow extends string,
+  TAccountOwner extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: WithdrawSolAsyncInput<
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountSolEscrow,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+): Promise<
+  WithdrawSolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountSolEscrow,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    pool: { value: input.pool ?? null, isWritable: true },
+    whitelist: { value: input.whitelist ?? null, isWritable: false },
+    solEscrow: { value: input.solEscrow ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.solEscrow),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getWithdrawSolInstructionDataEncoder().encode(
+      args as WithdrawSolInstructionDataArgs
+    ),
+  } as WithdrawSolInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountSolEscrow,
+    TAccountOwner,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type WithdrawSolInput<

@@ -32,6 +32,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
@@ -133,6 +134,165 @@ export function getBuySingleListingT22InstructionDataCodec(): Codec<
     getBuySingleListingT22InstructionDataEncoder(),
     getBuySingleListingT22InstructionDataDecoder()
   );
+}
+
+export type BuySingleListingT22AsyncInput<
+  TAccountTswap extends string = string,
+  TAccountFeeVault extends string = string,
+  TAccountSingleListing extends string = string,
+  TAccountNftBuyerAcc extends string = string,
+  TAccountNftMint extends string = string,
+  TAccountNftEscrow extends string = string,
+  TAccountOwner extends string = string,
+  TAccountBuyer extends string = string,
+  TAccountTokenProgram extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountTakerBroker extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  feeVault: Address<TAccountFeeVault>;
+  singleListing: Address<TAccountSingleListing>;
+  nftBuyerAcc: Address<TAccountNftBuyerAcc>;
+  nftMint: Address<TAccountNftMint>;
+  /**
+   * Implicitly checked via transfer. Will fail if wrong account.
+   * This is closed below (dest = owner)
+   */
+  nftEscrow: Address<TAccountNftEscrow>;
+  owner: Address<TAccountOwner>;
+  buyer: TransactionSigner<TAccountBuyer>;
+  tokenProgram?: Address<TAccountTokenProgram>;
+  associatedTokenProgram: Address<TAccountAssociatedTokenProgram>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  takerBroker: Address<TAccountTakerBroker>;
+  maxPrice: BuySingleListingT22InstructionDataArgs['maxPrice'];
+};
+
+export async function getBuySingleListingT22InstructionAsync<
+  TAccountTswap extends string,
+  TAccountFeeVault extends string,
+  TAccountSingleListing extends string,
+  TAccountNftBuyerAcc extends string,
+  TAccountNftMint extends string,
+  TAccountNftEscrow extends string,
+  TAccountOwner extends string,
+  TAccountBuyer extends string,
+  TAccountTokenProgram extends string,
+  TAccountAssociatedTokenProgram extends string,
+  TAccountSystemProgram extends string,
+  TAccountTakerBroker extends string,
+>(
+  input: BuySingleListingT22AsyncInput<
+    TAccountTswap,
+    TAccountFeeVault,
+    TAccountSingleListing,
+    TAccountNftBuyerAcc,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountOwner,
+    TAccountBuyer,
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountTakerBroker
+  >
+): Promise<
+  BuySingleListingT22Instruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountFeeVault,
+    TAccountSingleListing,
+    TAccountNftBuyerAcc,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountOwner,
+    TAccountBuyer,
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountTakerBroker
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    feeVault: { value: input.feeVault ?? null, isWritable: true },
+    singleListing: { value: input.singleListing ?? null, isWritable: true },
+    nftBuyerAcc: { value: input.nftBuyerAcc ?? null, isWritable: true },
+    nftMint: { value: input.nftMint ?? null, isWritable: false },
+    nftEscrow: { value: input.nftEscrow ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    buyer: { value: input.buyer ?? null, isWritable: true },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    associatedTokenProgram: {
+      value: input.associatedTokenProgram ?? null,
+      isWritable: false,
+    },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    takerBroker: { value: input.takerBroker ?? null, isWritable: true },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.feeVault),
+      getAccountMeta(accounts.singleListing),
+      getAccountMeta(accounts.nftBuyerAcc),
+      getAccountMeta(accounts.nftMint),
+      getAccountMeta(accounts.nftEscrow),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.buyer),
+      getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.associatedTokenProgram),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.takerBroker),
+    ],
+    programAddress,
+    data: getBuySingleListingT22InstructionDataEncoder().encode(
+      args as BuySingleListingT22InstructionDataArgs
+    ),
+  } as BuySingleListingT22Instruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountFeeVault,
+    TAccountSingleListing,
+    TAccountNftBuyerAcc,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountOwner,
+    TAccountBuyer,
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountTakerBroker
+  >;
+
+  return instruction;
 }
 
 export type BuySingleListingT22Input<

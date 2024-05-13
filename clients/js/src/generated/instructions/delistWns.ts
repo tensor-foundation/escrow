@@ -30,6 +30,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
@@ -146,6 +147,198 @@ export function getDelistWnsInstructionDataCodec(): Codec<
     getDelistWnsInstructionDataEncoder(),
     getDelistWnsInstructionDataDecoder()
   );
+}
+
+export type DelistWnsAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountNftDest extends string = string,
+  TAccountNftMint extends string = string,
+  TAccountNftEscrow extends string = string,
+  TAccountSingleListing extends string = string,
+  TAccountOwner extends string = string,
+  TAccountTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountRent extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
+  TAccountPayer extends string = string,
+  TAccountApproveAccount extends string = string,
+  TAccountDistribution extends string = string,
+  TAccountWnsProgram extends string = string,
+  TAccountDistributionProgram extends string = string,
+  TAccountExtraMetas extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  nftDest: Address<TAccountNftDest>;
+  nftMint: Address<TAccountNftMint>;
+  /**
+   * Implicitly checked via transfer. Will fail if wrong account
+   * This is closed below (dest = owner)
+   */
+  nftEscrow: Address<TAccountNftEscrow>;
+  singleListing: Address<TAccountSingleListing>;
+  owner: TransactionSigner<TAccountOwner>;
+  tokenProgram?: Address<TAccountTokenProgram>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  rent?: Address<TAccountRent>;
+  associatedTokenProgram: Address<TAccountAssociatedTokenProgram>;
+  payer: TransactionSigner<TAccountPayer>;
+  approveAccount: Address<TAccountApproveAccount>;
+  distribution: Address<TAccountDistribution>;
+  wnsProgram: Address<TAccountWnsProgram>;
+  distributionProgram: Address<TAccountDistributionProgram>;
+  extraMetas: Address<TAccountExtraMetas>;
+};
+
+export async function getDelistWnsInstructionAsync<
+  TAccountTswap extends string,
+  TAccountNftDest extends string,
+  TAccountNftMint extends string,
+  TAccountNftEscrow extends string,
+  TAccountSingleListing extends string,
+  TAccountOwner extends string,
+  TAccountTokenProgram extends string,
+  TAccountSystemProgram extends string,
+  TAccountRent extends string,
+  TAccountAssociatedTokenProgram extends string,
+  TAccountPayer extends string,
+  TAccountApproveAccount extends string,
+  TAccountDistribution extends string,
+  TAccountWnsProgram extends string,
+  TAccountDistributionProgram extends string,
+  TAccountExtraMetas extends string,
+>(
+  input: DelistWnsAsyncInput<
+    TAccountTswap,
+    TAccountNftDest,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountSingleListing,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent,
+    TAccountAssociatedTokenProgram,
+    TAccountPayer,
+    TAccountApproveAccount,
+    TAccountDistribution,
+    TAccountWnsProgram,
+    TAccountDistributionProgram,
+    TAccountExtraMetas
+  >
+): Promise<
+  DelistWnsInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountNftDest,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountSingleListing,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent,
+    TAccountAssociatedTokenProgram,
+    TAccountPayer,
+    TAccountApproveAccount,
+    TAccountDistribution,
+    TAccountWnsProgram,
+    TAccountDistributionProgram,
+    TAccountExtraMetas
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    nftDest: { value: input.nftDest ?? null, isWritable: true },
+    nftMint: { value: input.nftMint ?? null, isWritable: false },
+    nftEscrow: { value: input.nftEscrow ?? null, isWritable: true },
+    singleListing: { value: input.singleListing ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    rent: { value: input.rent ?? null, isWritable: false },
+    associatedTokenProgram: {
+      value: input.associatedTokenProgram ?? null,
+      isWritable: false,
+    },
+    payer: { value: input.payer ?? null, isWritable: true },
+    approveAccount: { value: input.approveAccount ?? null, isWritable: true },
+    distribution: { value: input.distribution ?? null, isWritable: true },
+    wnsProgram: { value: input.wnsProgram ?? null, isWritable: false },
+    distributionProgram: {
+      value: input.distributionProgram ?? null,
+      isWritable: false,
+    },
+    extraMetas: { value: input.extraMetas ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+  if (!accounts.rent.value) {
+    accounts.rent.value =
+      'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.nftDest),
+      getAccountMeta(accounts.nftMint),
+      getAccountMeta(accounts.nftEscrow),
+      getAccountMeta(accounts.singleListing),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.rent),
+      getAccountMeta(accounts.associatedTokenProgram),
+      getAccountMeta(accounts.payer),
+      getAccountMeta(accounts.approveAccount),
+      getAccountMeta(accounts.distribution),
+      getAccountMeta(accounts.wnsProgram),
+      getAccountMeta(accounts.distributionProgram),
+      getAccountMeta(accounts.extraMetas),
+    ],
+    programAddress,
+    data: getDelistWnsInstructionDataEncoder().encode({}),
+  } as DelistWnsInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountNftDest,
+    TAccountNftMint,
+    TAccountNftEscrow,
+    TAccountSingleListing,
+    TAccountOwner,
+    TAccountTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent,
+    TAccountAssociatedTokenProgram,
+    TAccountPayer,
+    TAccountApproveAccount,
+    TAccountDistribution,
+    TAccountWnsProgram,
+    TAccountDistributionProgram,
+    TAccountExtraMetas
+  >;
+
+  return instruction;
 }
 
 export type DelistWnsInput<

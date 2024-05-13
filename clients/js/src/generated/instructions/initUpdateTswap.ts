@@ -31,6 +31,7 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
@@ -115,6 +116,107 @@ export function getInitUpdateTswapInstructionDataCodec(): Codec<
     getInitUpdateTswapInstructionDataEncoder(),
     getInitUpdateTswapInstructionDataDecoder()
   );
+}
+
+export type InitUpdateTswapAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountFeeVault extends string = string,
+  TAccountCosigner extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountNewOwner extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  feeVault: Address<TAccountFeeVault>;
+  /** We ask also for a signature just to make sure this wallet can actually sign things */
+  cosigner: TransactionSigner<TAccountCosigner>;
+  owner: TransactionSigner<TAccountOwner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  newOwner: TransactionSigner<TAccountNewOwner>;
+  config: InitUpdateTswapInstructionDataArgs['config'];
+};
+
+export async function getInitUpdateTswapInstructionAsync<
+  TAccountTswap extends string,
+  TAccountFeeVault extends string,
+  TAccountCosigner extends string,
+  TAccountOwner extends string,
+  TAccountSystemProgram extends string,
+  TAccountNewOwner extends string,
+>(
+  input: InitUpdateTswapAsyncInput<
+    TAccountTswap,
+    TAccountFeeVault,
+    TAccountCosigner,
+    TAccountOwner,
+    TAccountSystemProgram,
+    TAccountNewOwner
+  >
+): Promise<
+  InitUpdateTswapInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountFeeVault,
+    TAccountCosigner,
+    TAccountOwner,
+    TAccountSystemProgram,
+    TAccountNewOwner
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: true },
+    feeVault: { value: input.feeVault ?? null, isWritable: false },
+    cosigner: { value: input.cosigner ?? null, isWritable: false },
+    owner: { value: input.owner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    newOwner: { value: input.newOwner ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.feeVault),
+      getAccountMeta(accounts.cosigner),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.newOwner),
+    ],
+    programAddress,
+    data: getInitUpdateTswapInstructionDataEncoder().encode(
+      args as InitUpdateTswapInstructionDataArgs
+    ),
+  } as InitUpdateTswapInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountFeeVault,
+    TAccountCosigner,
+    TAccountOwner,
+    TAccountSystemProgram,
+    TAccountNewOwner
+  >;
+
+  return instruction;
 }
 
 export type InitUpdateTswapInput<

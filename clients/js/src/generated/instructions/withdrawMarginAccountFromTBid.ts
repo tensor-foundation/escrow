@@ -32,6 +32,8 @@ import {
   WritableAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { resolveMarginAccountPda } from '../../hooked';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
@@ -118,6 +120,124 @@ export function getWithdrawMarginAccountFromTBidInstructionDataCodec(): Codec<
     getWithdrawMarginAccountFromTBidInstructionDataEncoder(),
     getWithdrawMarginAccountFromTBidInstructionDataDecoder()
   );
+}
+
+export type WithdrawMarginAccountFromTBidAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountMarginAccount extends string = string,
+  TAccountBidState extends string = string,
+  TAccountOwner extends string = string,
+  TAccountNftMint extends string = string,
+  TAccountDestination extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  marginAccount?: Address<TAccountMarginAccount>;
+  bidState: TransactionSigner<TAccountBidState>;
+  owner: Address<TAccountOwner>;
+  nftMint: Address<TAccountNftMint>;
+  destination: Address<TAccountDestination>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  bump: WithdrawMarginAccountFromTBidInstructionDataArgs['bump'];
+  lamports: WithdrawMarginAccountFromTBidInstructionDataArgs['lamports'];
+};
+
+export async function getWithdrawMarginAccountFromTBidInstructionAsync<
+  TAccountTswap extends string,
+  TAccountMarginAccount extends string,
+  TAccountBidState extends string,
+  TAccountOwner extends string,
+  TAccountNftMint extends string,
+  TAccountDestination extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: WithdrawMarginAccountFromTBidAsyncInput<
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountBidState,
+    TAccountOwner,
+    TAccountNftMint,
+    TAccountDestination,
+    TAccountSystemProgram
+  >
+): Promise<
+  WithdrawMarginAccountFromTBidInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountBidState,
+    TAccountOwner,
+    TAccountNftMint,
+    TAccountDestination,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    marginAccount: { value: input.marginAccount ?? null, isWritable: true },
+    bidState: { value: input.bidState ?? null, isWritable: false },
+    owner: { value: input.owner ?? null, isWritable: false },
+    nftMint: { value: input.nftMint ?? null, isWritable: false },
+    destination: { value: input.destination ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolver scope.
+  const resolverScope = { programAddress, accounts, args };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.marginAccount.value) {
+    accounts.marginAccount = {
+      ...accounts.marginAccount,
+      ...(await resolveMarginAccountPda(resolverScope)),
+    };
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.marginAccount),
+      getAccountMeta(accounts.bidState),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.nftMint),
+      getAccountMeta(accounts.destination),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getWithdrawMarginAccountFromTBidInstructionDataEncoder().encode(
+      args as WithdrawMarginAccountFromTBidInstructionDataArgs
+    ),
+  } as WithdrawMarginAccountFromTBidInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountBidState,
+    TAccountOwner,
+    TAccountNftMint,
+    TAccountDestination,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type WithdrawMarginAccountFromTBidInput<

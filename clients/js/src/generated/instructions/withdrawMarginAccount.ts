@@ -32,6 +32,8 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { resolveMarginAccountPda } from '../../hooked';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 
@@ -99,6 +101,99 @@ export function getWithdrawMarginAccountInstructionDataCodec(): Codec<
     getWithdrawMarginAccountInstructionDataEncoder(),
     getWithdrawMarginAccountInstructionDataDecoder()
   );
+}
+
+export type WithdrawMarginAccountAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountMarginAccount extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  marginAccount?: Address<TAccountMarginAccount>;
+  owner: TransactionSigner<TAccountOwner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  lamports: WithdrawMarginAccountInstructionDataArgs['lamports'];
+};
+
+export async function getWithdrawMarginAccountInstructionAsync<
+  TAccountTswap extends string,
+  TAccountMarginAccount extends string,
+  TAccountOwner extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: WithdrawMarginAccountAsyncInput<
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+): Promise<
+  WithdrawMarginAccountInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    marginAccount: { value: input.marginAccount ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolver scope.
+  const resolverScope = { programAddress, accounts, args };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.marginAccount.value) {
+    accounts.marginAccount = {
+      ...accounts.marginAccount,
+      ...(await resolveMarginAccountPda(resolverScope)),
+    };
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.marginAccount),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getWithdrawMarginAccountInstructionDataEncoder().encode(
+      args as WithdrawMarginAccountInstructionDataArgs
+    ),
+  } as WithdrawMarginAccountInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountOwner,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type WithdrawMarginAccountInput<

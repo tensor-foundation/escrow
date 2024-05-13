@@ -19,7 +19,7 @@ export type MarginAccountSeeds = {
   tswap: Address;
   /** The address of the pool and escrow owner */
   owner: Address;
-  /** Margin ID number */
+
   marginNr: Uint8Array;
 };
 

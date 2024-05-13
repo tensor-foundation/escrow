@@ -34,19 +34,59 @@ kinobi.update(
           k.publicKeyTypeNode(),
           "The address of the pool and escrow owner"
         ),
+        // TODO: should be constantPdaSeedNodeFromBytes (introduced in kinobi v19)
         k.variablePdaSeedNode(
-          "margin_nr",
+          "marginNr",
           k.bytesTypeNode(k.fixedSizeNode(2)),
-          "Margin ID number"
         )
       ]
+    },
+    tSwap: {
+      seeds: []
     }
   })
+);
+
+// Set default account values accross multiple instructions.
+kinobi.update(
+  k.setInstructionAccountDefaultValuesVisitor([
+    {
+      account: "marginAccount",
+      ignoreIfOptional: true,
+      // TODO: when upgrading to v19, can be changed to pdaValueNode (resolver will be redundant and can be deleted)
+      defaultValue: k.resolverValueNode("resolveMarginAccountPda", {
+        dependsOn: [
+          k.accountValueNode("owner")
+        ]
+      })
+    },
+    {
+      account: "tswap",
+      defaultValue: k.pdaValueNode("tSwap")
+    }
+  ])
 );
 
 // Update instructions.
 kinobi.update(
   k.updateInstructionsVisitor({
+    initMarginAccount: {
+      arguments: {
+        marginNr: {
+          defaultValue: k.numberValueNode(0)
+        },
+        // TODO: add defaultValue to "name" arg
+        // defaultValue should be byteValueNode (32 zero-bytes), needs higher version (^0.19)
+      }
+    },
+    detachPoolFromMargin: {
+      arguments: {
+        lamports: {
+          defaultValue: k.numberValueNode(0),
+          docs: ["amount of lamports to be moved back to bid escrow"]
+        }
+      }
+    },
     wnsBuyNft: {
       name: "buyNftWns"
     },
@@ -86,7 +126,12 @@ kinobi.update(
 // Render JavaScript.
 const jsDir = path.join(clientDir, "js", "src", "generated");
 const prettier = require(path.join(clientDir, "js", ".prettierrc.json"));
-kinobi.accept(k.renderJavaScriptExperimentalVisitor(jsDir, { prettier }));
+kinobi.accept(k.renderJavaScriptExperimentalVisitor(jsDir, { 
+  prettier,
+  asyncResolvers: [
+    "resolveMarginAccountPda"
+  ]
+}));
 
 // Render Rust.
 const crateDir = path.join(clientDir, "rust");

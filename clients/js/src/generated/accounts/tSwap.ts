@@ -37,6 +37,7 @@ import {
   getU8Encoder,
   mapEncoder,
 } from '@solana/codecs';
+import { findTSwapPda } from '../pdas';
 import {
   TSwapConfig,
   TSwapConfigArgs,
@@ -170,4 +171,22 @@ export async function fetchAllMaybeTSwap(
 
 export function getTSwapSize(): number {
   return 108;
+}
+
+export async function fetchTSwapFromSeeds(
+  rpc: Parameters<typeof fetchEncodedAccount>[0],
+  config: FetchAccountConfig & { programAddress?: Address } = {}
+): Promise<TSwap> {
+  const maybeAccount = await fetchMaybeTSwapFromSeeds(rpc, config);
+  assertAccountExists(maybeAccount);
+  return maybeAccount;
+}
+
+export async function fetchMaybeTSwapFromSeeds(
+  rpc: Parameters<typeof fetchEncodedAccount>[0],
+  config: FetchAccountConfig & { programAddress?: Address } = {}
+): Promise<MaybeTSwap> {
+  const { programAddress, ...fetchConfig } = config;
+  const [address] = await findTSwapPda({ programAddress });
+  return await fetchMaybeTSwap(rpc, address, fetchConfig);
 }

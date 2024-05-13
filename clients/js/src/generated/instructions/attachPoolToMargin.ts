@@ -30,6 +30,8 @@ import {
   WritableSignerAccount,
 } from '@solana/instructions';
 import { IAccountSignerMeta, TransactionSigner } from '@solana/signers';
+import { resolveMarginAccountPda } from '../../hooked';
+import { findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
 import { ResolvedAccount, getAccountMetaFactory } from '../shared';
 import {
@@ -116,6 +118,124 @@ export function getAttachPoolToMarginInstructionDataCodec(): Codec<
     getAttachPoolToMarginInstructionDataEncoder(),
     getAttachPoolToMarginInstructionDataDecoder()
   );
+}
+
+export type AttachPoolToMarginAsyncInput<
+  TAccountTswap extends string = string,
+  TAccountMarginAccount extends string = string,
+  TAccountPool extends string = string,
+  TAccountWhitelist extends string = string,
+  TAccountSolEscrow extends string = string,
+  TAccountOwner extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  tswap?: Address<TAccountTswap>;
+  marginAccount?: Address<TAccountMarginAccount>;
+  pool: Address<TAccountPool>;
+  /** Needed for pool seeds derivation / will be stored inside pool */
+  whitelist: Address<TAccountWhitelist>;
+  solEscrow: Address<TAccountSolEscrow>;
+  owner: TransactionSigner<TAccountOwner>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  config: AttachPoolToMarginInstructionDataArgs['config'];
+};
+
+export async function getAttachPoolToMarginInstructionAsync<
+  TAccountTswap extends string,
+  TAccountMarginAccount extends string,
+  TAccountPool extends string,
+  TAccountWhitelist extends string,
+  TAccountSolEscrow extends string,
+  TAccountOwner extends string,
+  TAccountSystemProgram extends string,
+>(
+  input: AttachPoolToMarginAsyncInput<
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountSolEscrow,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+): Promise<
+  AttachPoolToMarginInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountSolEscrow,
+    TAccountOwner,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = TENSOR_ESCROW_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    tswap: { value: input.tswap ?? null, isWritable: false },
+    marginAccount: { value: input.marginAccount ?? null, isWritable: true },
+    pool: { value: input.pool ?? null, isWritable: true },
+    whitelist: { value: input.whitelist ?? null, isWritable: false },
+    solEscrow: { value: input.solEscrow ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolver scope.
+  const resolverScope = { programAddress, accounts, args };
+
+  // Resolve default values.
+  if (!accounts.tswap.value) {
+    accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.marginAccount.value) {
+    accounts.marginAccount = {
+      ...accounts.marginAccount,
+      ...(await resolveMarginAccountPda(resolverScope)),
+    };
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.tswap),
+      getAccountMeta(accounts.marginAccount),
+      getAccountMeta(accounts.pool),
+      getAccountMeta(accounts.whitelist),
+      getAccountMeta(accounts.solEscrow),
+      getAccountMeta(accounts.owner),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getAttachPoolToMarginInstructionDataEncoder().encode(
+      args as AttachPoolToMarginInstructionDataArgs
+    ),
+  } as AttachPoolToMarginInstruction<
+    typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
+    TAccountTswap,
+    TAccountMarginAccount,
+    TAccountPool,
+    TAccountWhitelist,
+    TAccountSolEscrow,
+    TAccountOwner,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type AttachPoolToMarginInput<
