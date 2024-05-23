@@ -1,6 +1,7 @@
 pub mod close_margin_account;
 pub mod deposit_margin_account;
 pub mod init_margin_account;
+pub mod init_update_tswap;
 pub mod withdraw_margin_account;
 pub mod withdraw_margin_account_from_tamm;
 pub mod withdraw_margin_account_from_tbid;
@@ -10,6 +11,7 @@ pub mod withdraw_margin_account_from_tlock;
 pub use close_margin_account::*;
 pub use deposit_margin_account::*;
 pub use init_margin_account::*;
+pub use init_update_tswap::*;
 pub use withdraw_margin_account::*;
 pub use withdraw_margin_account_from_tamm::*;
 pub use withdraw_margin_account_from_tbid::*;

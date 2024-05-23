@@ -16,6 +16,7 @@ import {
   ParsedCloseMarginAccountInstruction,
   ParsedDepositMarginAccountInstruction,
   ParsedInitMarginAccountInstruction,
+  ParsedInitUpdateTswapInstruction,
   ParsedWithdrawMarginAccountCpiTammInstruction,
   ParsedWithdrawMarginAccountCpiTcompInstruction,
   ParsedWithdrawMarginAccountCpiTlockInstruction,
@@ -75,6 +76,7 @@ export function identifyTensorEscrowAccount(
 }
 
 export enum TensorEscrowInstruction {
+  InitUpdateTswap,
   InitMarginAccount,
   CloseMarginAccount,
   DepositMarginAccount,
@@ -90,6 +92,17 @@ export function identifyTensorEscrowInstruction(
 ): TensorEscrowInstruction {
   const data =
     instruction instanceof Uint8Array ? instruction : instruction.data;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([140, 185, 54, 172, 15, 94, 31, 155])
+      ),
+      0
+    )
+  ) {
+    return TensorEscrowInstruction.InitUpdateTswap;
+  }
   if (
     containsBytes(
       data,
@@ -186,6 +199,9 @@ export function identifyTensorEscrowInstruction(
 export type ParsedTensorEscrowInstruction<
   TProgram extends string = 'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN',
 > =
+  | ({
+      instructionType: TensorEscrowInstruction.InitUpdateTswap;
+    } & ParsedInitUpdateTswapInstruction<TProgram>)
   | ({
       instructionType: TensorEscrowInstruction.InitMarginAccount;
     } & ParsedInitMarginAccountInstruction<TProgram>)

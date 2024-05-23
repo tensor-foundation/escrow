@@ -152,7 +152,7 @@ export const beforeHook = async () => {
   await fundTestWallets();
 
   // WL authority
-  await testInitWLAuthority();
+ // await testInitWLAuthority();
 
   // Tswap
   const {

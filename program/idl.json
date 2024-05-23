@@ -31,6 +31,52 @@
   ],
   "instructions": [
     {
+      "name": "initUpdateTswap",
+      "accounts": [
+        {
+          "name": "tswap",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "feeVault",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "cosigner",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "We ask also for a signature just to make sure this wallet can actually sign things"
+          ]
+        },
+        {
+          "name": "owner",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "newOwner",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "config",
+          "type": {
+            "defined": "TSwapConfig"
+          }
+        }
+      ]
+    },
+    {
       "name": "initMarginAccount",
       "accounts": [
         {
@@ -491,6 +537,11 @@
     }
   ],
   "errors": [
+    {
+      "code": 6016,
+      "name": "BadOwner",
+      "msg": "bad owner"
+    },
     {
       "code": 6027,
       "name": "BadMargin",

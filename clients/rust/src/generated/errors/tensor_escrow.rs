@@ -10,6 +10,9 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
 pub enum TensorEscrowError {
+    /// 6016 - bad owner
+    #[error("bad owner")]
+    BadOwner = 0x1780,
     /// 6027 - bad margin account passed
     #[error("bad margin account passed")]
     BadMargin = 0x178B,

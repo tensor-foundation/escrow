@@ -34,6 +34,10 @@ pub mod escrow_program {
     //     instructions::withdraw_tswap_owned_spl::process_tswap_owned_spl(ctx, amount)
     // }
 
+    pub fn init_update_tswap(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
+        instructions::init_update_tswap::process_init_update_tswap(ctx, config)
+    }
+
     pub fn init_margin_account(
         ctx: Context<InitMarginAccount>,
         margin_nr: u16,

@@ -9,6 +9,7 @@
 export * from './closeMarginAccount';
 export * from './depositMarginAccount';
 export * from './initMarginAccount';
+export * from './initUpdateTswap';
 export * from './withdrawMarginAccount';
 export * from './withdrawMarginAccountCpiTamm';
 export * from './withdrawMarginAccountCpiTcomp';
