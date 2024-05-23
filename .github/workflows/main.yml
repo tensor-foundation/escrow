@@ -1,6 +1,7 @@
 name: Main
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -129,15 +130,23 @@ jobs:
 
   build_programs:
     name: Programs
-    if: ${{ needs.changes.outputs.any == 'true' }}
     needs: [changes, lint_js, lint_rust]
+    if: |
+      always() &&
+      (needs.lint_js.result == 'success' || needs.lint_js.result == 'skipped') &&
+      (needs.lint_rust.result == 'success' || needs.lint_rust.result == 'skipped') &&
+      needs.changes.outputs.any == 'true'
     uses: ./.github/workflows/build-programs.yml
     secrets: inherit
 
   test_programs:
     name: Programs
-    if: ${{ needs.changes.outputs.programs == 'true' }}
     needs: [changes, lint_js, lint_rust]
+    if: |
+      always() &&
+      (needs.lint_js.result == 'success' || needs.lint_js.result == 'skipped') &&
+      (needs.lint_rust.result == 'success' || needs.lint_rust.result == 'skipped') &&
+      needs.changes.outputs.programs == 'true'
     uses: ./.github/workflows/test-programs.yml
     secrets: inherit
     with:

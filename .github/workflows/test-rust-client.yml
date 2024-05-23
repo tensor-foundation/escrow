@@ -1,7 +1,6 @@
 name: Test Rust Client
 
-on:
-  workflow_call:
+on: [workflow_dispatch, workflow_call]
 
 env:
   CACHE: true

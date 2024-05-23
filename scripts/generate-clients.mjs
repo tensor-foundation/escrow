@@ -16,8 +16,17 @@ const kinobi = k.createFromRoot(idl, additionalIdls);
 kinobi.update(
   k.updateProgramsVisitor({
     escrowProgram: {
-      name: "tensorEscrow"
-    }
+      name: "tensorEscrow",
+    },
+  })
+);
+
+// Update programs.
+kinobi.update(
+  k.updateInstructionsVisitor({
+    withdrawMarginAccountCpi: {
+      name: "withdrawMarginAccountFromTBid",
+    },
   })
 );
 
@@ -26,7 +35,7 @@ kinobi.update(
   k.updateAccountsVisitor({
     marginAccount: {
       seeds: [
-        k.constantPdaSeedNodeFromString("margin"),
+        k.constantPdaSeedNodeFromString("utf8", "margin"),
         k.variablePdaSeedNode(
           "tswap",
           k.publicKeyTypeNode(),
@@ -37,16 +46,12 @@ kinobi.update(
           k.publicKeyTypeNode(),
           "The address of the pool and escrow owner"
         ),
-        // TODO: should be constantPdaSeedNodeFromBytes (introduced in kinobi v19)
-        k.variablePdaSeedNode(
-          "marginNr",
-          k.bytesTypeNode(k.fixedSizeNode(2)),
-        )
-      ]
+        k.variablePdaSeedNode("marginNr", k.numberTypeNode("u16")),
+      ],
     },
     tSwap: {
-      seeds: []
-    }
+      seeds: [],
+    },
   })
 );
 
@@ -54,19 +59,9 @@ kinobi.update(
 kinobi.update(
   k.setInstructionAccountDefaultValuesVisitor([
     {
-      account: "marginAccount",
-      ignoreIfOptional: true,
-      // TODO: when upgrading to v19, can be changed to pdaValueNode (resolver will be redundant and can be deleted)
-      defaultValue: k.resolverValueNode("resolveMarginAccountPda", {
-        dependsOn: [
-          k.accountValueNode("owner")
-        ]
-      })
-    },
-    {
       account: "tswap",
-      defaultValue: k.pdaValueNode("tSwap")
-    }
+      defaultValue: k.pdaValueNode("tSwap"),
+    },
   ])
 );
 
@@ -74,13 +69,28 @@ kinobi.update(
 kinobi.update(
   k.updateInstructionsVisitor({
     initMarginAccount: {
+      accounts: {
+        marginAccount: {
+          defaultValue: k.resolverValueNode("resolveMarginAccountPda", {
+            dependsOn: [
+              k.accountValueNode("owner"),
+              k.argumentValueNode("marginNr"),
+            ],
+          }),
+        },
+      },
       arguments: {
         marginNr: {
-          defaultValue: k.numberValueNode(0)
+          defaultValue: k.numberValueNode(0),
         },
-        // TODO: add defaultValue to "name" arg
-        // defaultValue should be byteValueNode (32 zero-bytes), needs higher version (^0.19)
-      }
+        name: {
+          type: k.fixedSizeTypeNode(k.bytesTypeNode(), 32),
+          defaultValue: k.bytesValueNode(
+            "base16",
+            "0000000000000000000000000000000000000000000000000000000000000000"
+          ),
+        },
+      },
     },
   })
 );
