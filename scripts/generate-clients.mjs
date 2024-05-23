@@ -100,6 +100,7 @@ const jsClient = path.join(__dirname, "..", "clients", "js");
 kinobi.accept(
   renderJavaScriptVisitor(path.join(jsClient, "src", "generated"), {
     prettier: require(path.join(jsClient, ".prettierrc.json")),
+    asyncResolvers: ["resolveMarginAccountPda"],
   })
 );
 

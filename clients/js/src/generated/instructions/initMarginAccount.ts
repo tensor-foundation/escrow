@@ -183,7 +183,7 @@ export async function getInitMarginAccountInstructionAsync<
   if (!accounts.marginAccount.value) {
     accounts.marginAccount = {
       ...accounts.marginAccount,
-      ...resolveMarginAccountPda(resolverScope),
+      ...(await resolveMarginAccountPda(resolverScope)),
     };
   }
   if (!accounts.systemProgram.value) {
@@ -221,7 +221,7 @@ export type InitMarginAccountInput<
   TAccountSystemProgram extends string = string,
 > = {
   tswap: Address<TAccountTswap>;
-  marginAccount?: Address<TAccountMarginAccount>;
+  marginAccount: Address<TAccountMarginAccount>;
   owner: TransactionSigner<TAccountOwner>;
   systemProgram?: Address<TAccountSystemProgram>;
   marginNr?: InitMarginAccountInstructionDataArgs['marginNr'];
@@ -265,18 +265,9 @@ export function getInitMarginAccountInstruction<
   // Original args.
   const args = { ...input };
 
-  // Resolver scope.
-  const resolverScope = { programAddress, accounts, args };
-
   // Resolve default values.
   if (!args.marginNr) {
     args.marginNr = 0;
-  }
-  if (!accounts.marginAccount.value) {
-    accounts.marginAccount = {
-      ...accounts.marginAccount,
-      ...resolveMarginAccountPda(resolverScope),
-    };
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
