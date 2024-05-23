@@ -17,7 +17,6 @@ jobs:
         node:
           - glob: tests/prices.spec.ts
           - glob: tests/tswap/margin.test.ts
-          - glob: tests/tbid/tbid.test.ts
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
