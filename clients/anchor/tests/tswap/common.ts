@@ -151,9 +151,6 @@ export const TEST_COSIGNER = Keypair.generate();
 export const beforeHook = async () => {
   await fundTestWallets();
 
-  // WL authority
- // await testInitWLAuthority();
-
   // Tswap
   const {
     tx: { ixs },
