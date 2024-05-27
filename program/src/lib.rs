@@ -61,16 +61,6 @@ pub mod escrow_program {
         instructions::withdraw_margin_account::process_withdraw_margin_account(ctx, lamports)
     }
 
-    pub fn withdraw_margin_account_cpi(
-        ctx: Context<WithdrawMarginAccountCpi>,
-        _bump: u8,
-        lamports: u64,
-    ) -> Result<()> {
-        instructions::withdraw_margin_account_from_tbid::process_withdraw_margin_account_from_tbid(
-            ctx, lamports,
-        )
-    }
-
     pub fn withdraw_margin_account_cpi_tamm(
         ctx: Context<WithdrawMarginAccountCpiTAmm>,
         _bump: u8,
