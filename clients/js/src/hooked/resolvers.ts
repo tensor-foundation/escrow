@@ -1,22 +1,19 @@
-import { ProgramDerivedAddress } from '@solana/addresses';
-import {
-  ResolvedAccount,
-  expectAddress,
-  findMarginAccountPda,
-  findTSwapPda,
-} from 'src/generated';
+import { ProgramDerivedAddress } from '@solana/web3.js';
+import { findMarginAccountPda, findTSwapPda } from '../generated';
+import { ResolvedAccount, expectAddress } from '../generated/shared';
 
 export const resolveMarginAccountPda = async ({
   accounts,
+  args,
 }: {
   accounts: Record<string, ResolvedAccount>;
+  args: { marginNr?: number };
 }): Promise<Partial<{ value: ProgramDerivedAddress | null }>> => {
   return {
     value: await findMarginAccountPda({
-      // ugly but tswapPda should always be derivable
-      tswap: await findTSwapPda().then((r: ProgramDerivedAddress) => r[0]),
+      tswap: (await findTSwapPda())[0],
       owner: expectAddress(accounts.owner?.value),
-      marginNr: new Uint8Array(2).fill(0),
+      marginNr: args.marginNr ?? 0,
     }),
   };
 };
