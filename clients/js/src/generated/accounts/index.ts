@@ -7,5 +7,4 @@
  */
 
 export * from './marginAccount';
-export * from './nftAuthority';
 export * from './tSwap';

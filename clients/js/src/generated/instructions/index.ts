@@ -14,4 +14,3 @@ export * from './withdrawMarginAccount';
 export * from './withdrawMarginAccountCpiTamm';
 export * from './withdrawMarginAccountCpiTcomp';
 export * from './withdrawMarginAccountCpiTlock';
-export * from './withdrawMarginAccountFromTBid';

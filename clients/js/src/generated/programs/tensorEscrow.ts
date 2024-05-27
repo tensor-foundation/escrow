@@ -20,7 +20,6 @@ import {
   ParsedWithdrawMarginAccountCpiTammInstruction,
   ParsedWithdrawMarginAccountCpiTcompInstruction,
   ParsedWithdrawMarginAccountCpiTlockInstruction,
-  ParsedWithdrawMarginAccountFromTBidInstruction,
   ParsedWithdrawMarginAccountInstruction,
 } from '../instructions';
 
@@ -28,7 +27,6 @@ export const TENSOR_ESCROW_PROGRAM_ADDRESS =
   'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN' as Address<'TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN'>;
 
 export enum TensorEscrowAccount {
-  NftAuthority,
   MarginAccount,
   TSwap,
 }
@@ -37,17 +35,6 @@ export function identifyTensorEscrowAccount(
   account: { data: Uint8Array } | Uint8Array
 ): TensorEscrowAccount {
   const data = account instanceof Uint8Array ? account : account.data;
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([194, 127, 219, 16, 219, 18, 250, 12])
-      ),
-      0
-    )
-  ) {
-    return TensorEscrowAccount.NftAuthority;
-  }
   if (
     containsBytes(
       data,
@@ -81,7 +68,6 @@ export enum TensorEscrowInstruction {
   CloseMarginAccount,
   DepositMarginAccount,
   WithdrawMarginAccount,
-  WithdrawMarginAccountFromTBid,
   WithdrawMarginAccountCpiTamm,
   WithdrawMarginAccountCpiTcomp,
   WithdrawMarginAccountCpiTlock,
@@ -151,17 +137,6 @@ export function identifyTensorEscrowInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([186, 26, 199, 134, 220, 177, 32, 72])
-      ),
-      0
-    )
-  ) {
-    return TensorEscrowInstruction.WithdrawMarginAccountFromTBid;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([35, 89, 16, 235, 226, 89, 248, 45])
       ),
       0
@@ -214,9 +189,6 @@ export type ParsedTensorEscrowInstruction<
   | ({
       instructionType: TensorEscrowInstruction.WithdrawMarginAccount;
     } & ParsedWithdrawMarginAccountInstruction<TProgram>)
-  | ({
-      instructionType: TensorEscrowInstruction.WithdrawMarginAccountFromTBid;
-    } & ParsedWithdrawMarginAccountFromTBidInstruction<TProgram>)
   | ({
       instructionType: TensorEscrowInstruction.WithdrawMarginAccountCpiTamm;
     } & ParsedWithdrawMarginAccountCpiTammInstruction<TProgram>)

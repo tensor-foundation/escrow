@@ -6,9 +6,7 @@
 //!
 
 pub(crate) mod r#margin_account;
-pub(crate) mod r#nft_authority;
 pub(crate) mod r#t_swap;
 
 pub use self::r#margin_account::*;
-pub use self::r#nft_authority::*;
 pub use self::r#t_swap::*;

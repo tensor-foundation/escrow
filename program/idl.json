@@ -8,13 +8,6 @@
       "value": "1"
     },
     {
-      "name": "NFT_AUTHORITY_SIZE",
-      "type": {
-        "defined": "usize"
-      },
-      "value": "8 + 1 + 32 + 32"
-    },
-    {
       "name": "MARGIN_SIZE",
       "type": {
         "defined": "usize"
@@ -205,56 +198,6 @@
       ]
     },
     {
-      "name": "withdrawMarginAccountCpi",
-      "accounts": [
-        {
-          "name": "tswap",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "marginAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "bidState",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "owner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "nftMint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "destination",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bump",
-          "type": "u8"
-        },
-        {
-          "name": "lamports",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "withdrawMarginAccountCpiTamm",
       "accounts": [
         {
@@ -398,40 +341,6 @@
     }
   ],
   "accounts": [
-    {
-      "name": "NftAuthority",
-      "docs": [
-        "Connector between a pool and all the NFTs in it, to be able to re-attach them",
-        "to a different pool if needed."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "randomSeed",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "bump",
-            "type": {
-              "array": [
-                "u8",
-                1
-              ]
-            }
-          },
-          {
-            "name": "pool",
-            "type": "publicKey"
-          }
-        ]
-      }
-    },
     {
       "name": "MarginAccount",
       "type": {
