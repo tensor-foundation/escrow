@@ -32,10 +32,14 @@ import {
   getU16Encoder,
   transformEncoder,
 } from '@solana/web3.js';
-import { resolveMarginAccountPda } from '../../hooked';
-import { findTSwapPda } from '../pdas';
+import { findMarginAccountPda, findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
-import { ResolvedAccount, getAccountMetaFactory } from '../shared';
+import {
+  ResolvedAccount,
+  expectAddress,
+  expectSome,
+  getAccountMetaFactory,
+} from '../shared';
 
 export type InitMarginAccountInstruction<
   TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
@@ -170,9 +174,6 @@ export async function getInitMarginAccountInstructionAsync<
   // Original args.
   const args = { ...input };
 
-  // Resolver scope.
-  const resolverScope = { programAddress, accounts, args };
-
   // Resolve default values.
   if (!accounts.tswap.value) {
     accounts.tswap.value = await findTSwapPda();
@@ -181,10 +182,11 @@ export async function getInitMarginAccountInstructionAsync<
     args.marginNr = 0;
   }
   if (!accounts.marginAccount.value) {
-    accounts.marginAccount = {
-      ...accounts.marginAccount,
-      ...(await resolveMarginAccountPda(resolverScope)),
-    };
+    accounts.marginAccount.value = await findMarginAccountPda({
+      tswap: expectAddress(accounts.tswap.value),
+      owner: expectAddress(accounts.owner.value),
+      marginNr: expectSome(args.marginNr),
+    });
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
