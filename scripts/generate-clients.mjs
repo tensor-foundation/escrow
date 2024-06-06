@@ -30,6 +30,24 @@ kinobi.update(
   })
 );
 
+// Remove cpi instructions and admin instructions
+kinobi.update(
+  k.deleteNodesVisitor([
+      (node) => {
+      const names = [
+        "withdrawMarginAccountCpiTamm",
+        "withdrawMarginAccountCpiTcomp",
+        "withdrawMarginAccountCpiTlock",
+        "initUpdateTswap"
+      ];
+      return (
+        k.isNode(node, "instructionNode") &&
+        names.includes(node.name)
+      );
+    }
+  ])
+);
+
 // Update accounts.
 kinobi.update(
   k.updateAccountsVisitor({
@@ -71,12 +89,11 @@ kinobi.update(
     initMarginAccount: {
       accounts: {
         marginAccount: {
-          defaultValue: k.resolverValueNode("resolveMarginAccountPda", {
-            dependsOn: [
-              k.accountValueNode("owner"),
-              k.argumentValueNode("marginNr"),
-            ],
-          }),
+          defaultValue: k.pdaValueNode("marginAccount", [
+            k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
+            k.pdaSeedValueNode("owner", k.accountValueNode("owner")),
+            k.pdaSeedValueNode("marginNr", k.argumentValueNode("marginNr"))
+          ])
         },
       },
       arguments: {
@@ -92,15 +109,40 @@ kinobi.update(
         },
       },
     },
+    // Set marginAccount default to marginNr=0 as seeds for depositMarginAccount/withdrawMarginAccount
+    // not for closeMarginAccount, so one would have to explicitly state which marginAccount to close!
+    depositMarginAccount: {
+      accounts: {
+        marginAccount: {
+          defaultValue: k.pdaValueNode("marginAccount", [
+            k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
+            k.pdaSeedValueNode("owner", k.accountValueNode("owner")),
+            k.pdaSeedValueNode("marginNr", k.numberValueNode(0))
+          ])
+        }
+      }
+    },
+    withdrawMarginAccount: {
+      accounts: {
+        marginAccount: {
+          defaultValue: k.pdaValueNode("marginAccount", [
+            k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
+            k.pdaSeedValueNode("owner", k.accountValueNode("owner")),
+            k.pdaSeedValueNode("marginNr", k.numberValueNode(0))
+          ])
+        }
+      }
+    }
   })
 );
+
+
 
 // Render JavaScript.
 const jsClient = path.join(__dirname, "..", "clients", "js");
 kinobi.accept(
   renderJavaScriptVisitor(path.join(jsClient, "src", "generated"), {
-    prettier: require(path.join(jsClient, ".prettierrc.json")),
-    asyncResolvers: ["resolveMarginAccountPda"],
+    prettier: require(path.join(jsClient, ".prettierrc.json"))
   })
 );
 

@@ -1,7 +1,8 @@
 {
     "dependencies": {
-        "@solana/web3.js": "2.0.0-preview.2",
+        "@solana/web3.js": "2.0.0-preview.3",
         "@tensor-foundation/escrow": "file:../clients/js",
-        "ts-node": "^10.9.2"
+        "@tensor-foundation/common-helpers": "0.0.1",
+        "tsx": "^4.11.0"
     }
 }

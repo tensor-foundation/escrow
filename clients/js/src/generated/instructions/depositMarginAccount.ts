@@ -32,9 +32,13 @@ import {
   getU64Encoder,
   transformEncoder,
 } from '@solana/web3.js';
-import { findTSwapPda } from '../pdas';
+import { findMarginAccountPda, findTSwapPda } from '../pdas';
 import { TENSOR_ESCROW_PROGRAM_ADDRESS } from '../programs';
-import { ResolvedAccount, getAccountMetaFactory } from '../shared';
+import {
+  ResolvedAccount,
+  expectAddress,
+  getAccountMetaFactory,
+} from '../shared';
 
 export type DepositMarginAccountInstruction<
   TProgram extends string = typeof TENSOR_ESCROW_PROGRAM_ADDRESS,
@@ -112,7 +116,7 @@ export type DepositMarginAccountAsyncInput<
   TAccountSystemProgram extends string = string,
 > = {
   tswap?: Address<TAccountTswap>;
-  marginAccount: Address<TAccountMarginAccount>;
+  marginAccount?: Address<TAccountMarginAccount>;
   owner: TransactionSigner<TAccountOwner>;
   systemProgram?: Address<TAccountSystemProgram>;
   lamports: DepositMarginAccountInstructionDataArgs['lamports'];
@@ -160,6 +164,13 @@ export async function getDepositMarginAccountInstructionAsync<
   // Resolve default values.
   if (!accounts.tswap.value) {
     accounts.tswap.value = await findTSwapPda();
+  }
+  if (!accounts.marginAccount.value) {
+    accounts.marginAccount.value = await findMarginAccountPda({
+      tswap: expectAddress(accounts.tswap.value),
+      owner: expectAddress(accounts.owner.value),
+      marginNr: 0,
+    });
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =

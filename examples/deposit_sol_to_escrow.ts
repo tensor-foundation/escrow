@@ -1,8 +1,8 @@
-import { KeyPairSigner, createKeyPairSignerFromBytes } from "@solana/signers";
+import { KeyPairSigner, createKeyPairSignerFromBytes } from "@solana/web3.js";
 import { keypairBytes, rpc } from "./common";
 import type { DepositMarginAccountAsyncInput } from "@tensor-foundation/escrow";
 import { getDepositMarginAccountInstructionAsync } from "@tensor-foundation/escrow";
-import { simulateTxWithIxs } from "./helpers";
+import { simulateTxWithIxs } from "@tensor-foundation/common-helpers";
 
 // deposits sol (in lamports) to your escrow account
 async function depositSolEscrow(lamports: number) {
