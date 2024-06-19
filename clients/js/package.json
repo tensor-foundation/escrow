@@ -1,6 +1,6 @@
 {
   "name": "@tensor-foundation/escrow",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Shared escrow for all Tensor protocols",
   "sideEffects": false,
   "module": "./dist/src/index.mjs",
@@ -35,7 +35,7 @@
   "repository": "https://github.com/tensor-foundation/escrow.git",
   "author": "Tensor Protocol Foundation <maintainers@tensor.foundation>",
   "license": "Apache-2.0",
-  "peerDependencies": {
+  "dependencies": {
     "@solana/web3.js": "2.0.0-preview.3"
   },
   "devDependencies": {
