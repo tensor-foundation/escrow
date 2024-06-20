@@ -37,8 +37,7 @@ kinobi.update(
       const names = [
         "withdrawMarginAccountCpiTamm",
         "withdrawMarginAccountCpiTcomp",
-        "withdrawMarginAccountCpiTlock",
-        "initUpdateTswap"
+        "withdrawMarginAccountCpiTlock"
       ];
       return (
         k.isNode(node, "instructionNode") &&
