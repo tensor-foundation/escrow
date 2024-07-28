@@ -1,6 +1,9 @@
 [package]
 name = "tensor-escrow"
-version = "0.0.0"
+version = "0.1.0"
+description = "Client crate for the Tensor Foundation escrow program."
+repository = "https://github.com/tensor-foundation/escrow"
+homepage = "https://github.com/tensor-foundation/escrow"
 edition = "2021"
 readme = "README.md"
 license-file = "../../LICENSE"
