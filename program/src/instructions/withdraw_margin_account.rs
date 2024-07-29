@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use tensor_toolbox::transfer_lamports_from_pda;
-use vipers::Validate;
+use tensor_vipers::Validate;
 
 use crate::{MarginAccount, TSwap};
 

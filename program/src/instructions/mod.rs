@@ -16,7 +16,7 @@ pub use withdraw_margin_account_from_tamm::*;
 pub use withdraw_margin_account_from_tcomp::*;
 pub use withdraw_margin_account_from_tlock::*;
 
-use vipers::throw_err;
+use tensor_vipers::throw_err;
 
 use crate::{error::ErrorCode, *};
 

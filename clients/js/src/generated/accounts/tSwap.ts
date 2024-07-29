@@ -7,17 +7,6 @@
  */
 
 import {
-  Account,
-  Address,
-  Codec,
-  Decoder,
-  EncodedAccount,
-  Encoder,
-  FetchAccountConfig,
-  FetchAccountsConfig,
-  MaybeAccount,
-  MaybeEncodedAccount,
-  ReadonlyUint8Array,
   assertAccountExists,
   assertAccountsExist,
   combineCodec,
@@ -37,13 +26,24 @@ import {
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
+  type Account,
+  type Address,
+  type Codec,
+  type Decoder,
+  type EncodedAccount,
+  type Encoder,
+  type FetchAccountConfig,
+  type FetchAccountsConfig,
+  type MaybeAccount,
+  type MaybeEncodedAccount,
+  type ReadonlyUint8Array,
 } from '@solana/web3.js';
 import { findTSwapPda } from '../pdas';
 import {
-  TSwapConfig,
-  TSwapConfigArgs,
   getTSwapConfigDecoder,
   getTSwapConfigEncoder,
+  type TSwapConfig,
+  type TSwapConfigArgs,
 } from '../types';
 
 export type TSwap = {

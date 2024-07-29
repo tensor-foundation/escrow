@@ -90,3 +90,28 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for MarginAccou
         Self::deserialize(&mut data)
     }
 }
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AccountDeserialize for MarginAccount {
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+        Ok(Self::deserialize(buf)?)
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AccountSerialize for MarginAccount {}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::Owner for MarginAccount {
+    fn owner() -> Pubkey {
+        crate::TENSOR_ESCROW_ID
+    }
+}
+
+#[cfg(feature = "anchor-idl-build")]
+impl anchor_lang::IdlBuild for MarginAccount {}
+
+#[cfg(feature = "anchor-idl-build")]
+impl anchor_lang::Discriminator for MarginAccount {
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
+}

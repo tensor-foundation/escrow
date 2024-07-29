@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use vipers::Validate;
+use tensor_vipers::Validate;
 
 use crate::{MarginAccount, TSwap, MARGIN_SIZE};
 

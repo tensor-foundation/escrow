@@ -7,17 +7,17 @@
  */
 
 import {
-  Address,
   containsBytes,
   fixEncoderSize,
   getBytesEncoder,
+  type Address,
 } from '@solana/web3.js';
 import {
-  ParsedCloseMarginAccountInstruction,
-  ParsedDepositMarginAccountInstruction,
-  ParsedInitMarginAccountInstruction,
-  ParsedInitUpdateTswapInstruction,
-  ParsedWithdrawMarginAccountInstruction,
+  type ParsedCloseMarginAccountInstruction,
+  type ParsedDepositMarginAccountInstruction,
+  type ParsedInitMarginAccountInstruction,
+  type ParsedInitUpdateTswapInstruction,
+  type ParsedWithdrawMarginAccountInstruction,
 } from '../instructions';
 
 export const TENSOR_ESCROW_PROGRAM_ADDRESS =

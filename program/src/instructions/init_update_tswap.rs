@@ -1,7 +1,7 @@
 //! Program owner (Tensor) creating the program authority + metadata (eg swap fees) PDA account (TSwap)
 
 use anchor_lang::prelude::*;
-use vipers::{throw_err, Validate};
+use tensor_vipers::{throw_err, Validate};
 
 use crate::{constants::CURRENT_TSWAP_VERSION, error::ErrorCode, TSwap, TSwapConfig, TSWAP_SIZE};
 
