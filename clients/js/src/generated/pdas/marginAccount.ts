@@ -7,12 +7,12 @@
  */
 
 import {
-  Address,
-  ProgramDerivedAddress,
   getAddressEncoder,
   getProgramDerivedAddress,
   getU16Encoder,
   getUtf8Encoder,
+  type Address,
+  type ProgramDerivedAddress,
 } from '@solana/web3.js';
 
 export type MarginAccountSeeds = {

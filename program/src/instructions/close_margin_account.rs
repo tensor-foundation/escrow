@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use vipers::{throw_err, Validate};
+use tensor_vipers::{throw_err, Validate};
 
 use crate::{error::ErrorCode, MarginAccount, TSwap};
 

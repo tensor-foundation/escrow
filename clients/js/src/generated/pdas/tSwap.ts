@@ -7,9 +7,9 @@
  */
 
 import {
-  Address,
-  ProgramDerivedAddress,
   getProgramDerivedAddress,
+  type Address,
+  type ProgramDerivedAddress,
 } from '@solana/web3.js';
 
 export async function findTSwapPda(

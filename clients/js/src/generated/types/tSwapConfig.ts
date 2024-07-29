@@ -7,14 +7,14 @@
  */
 
 import {
-  Codec,
-  Decoder,
-  Encoder,
   combineCodec,
   getStructDecoder,
   getStructEncoder,
   getU16Decoder,
   getU16Encoder,
+  type Codec,
+  type Decoder,
+  type Encoder,
 } from '@solana/web3.js';
 
 export type TSwapConfig = { feeBps: number };

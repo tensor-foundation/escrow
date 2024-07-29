@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{program::invoke, system_instruction};
-use vipers::Validate;
+use tensor_vipers::Validate;
 
 use crate::{MarginAccount, TSwap};
 

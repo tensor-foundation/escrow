@@ -19,7 +19,7 @@ export type TensorEscrowError =
   | typeof TENSOR_ESCROW_ERROR__MARGIN_IN_USE;
 
 let tensorEscrowErrorMessages: Record<TensorEscrowError, string> | undefined;
-if (__DEV__) {
+if (process.env.NODE_ENV !== 'production') {
   tensorEscrowErrorMessages = {
     [TENSOR_ESCROW_ERROR__BAD_MARGIN]: `bad margin account passed`,
     [TENSOR_ESCROW_ERROR__BAD_OWNER]: `bad owner`,
@@ -28,11 +28,11 @@ if (__DEV__) {
 }
 
 export function getTensorEscrowErrorMessage(code: TensorEscrowError): string {
-  if (__DEV__) {
+  if (process.env.NODE_ENV !== 'production') {
     return (tensorEscrowErrorMessages as Record<TensorEscrowError, string>)[
       code
     ];
   }
 
-  return 'Error message not available in production bundles. Compile with `__DEV__` set to true to see more information.';
+  return 'Error message not available in production bundles.';
 }

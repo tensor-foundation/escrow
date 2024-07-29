@@ -7,17 +7,20 @@
  */
 
 import {
-  Address,
   containsBytes,
   fixEncoderSize,
   getBytesEncoder,
+  type Address,
 } from '@solana/web3.js';
 import {
-  ParsedCloseMarginAccountInstruction,
-  ParsedDepositMarginAccountInstruction,
-  ParsedInitMarginAccountInstruction,
-  ParsedInitUpdateTswapInstruction,
-  ParsedWithdrawMarginAccountInstruction,
+  type ParsedCloseMarginAccountInstruction,
+  type ParsedDepositMarginAccountInstruction,
+  type ParsedInitMarginAccountInstruction,
+  type ParsedInitUpdateTswapInstruction,
+  type ParsedWithdrawMarginAccountCpiTammInstruction,
+  type ParsedWithdrawMarginAccountCpiTcompInstruction,
+  type ParsedWithdrawMarginAccountCpiTlockInstruction,
+  type ParsedWithdrawMarginAccountInstruction,
 } from '../instructions';
 
 export const TENSOR_ESCROW_PROGRAM_ADDRESS =
@@ -65,6 +68,9 @@ export enum TensorEscrowInstruction {
   CloseMarginAccount,
   DepositMarginAccount,
   WithdrawMarginAccount,
+  WithdrawMarginAccountCpiTamm,
+  WithdrawMarginAccountCpiTcomp,
+  WithdrawMarginAccountCpiTlock,
 }
 
 export function identifyTensorEscrowInstruction(
@@ -127,6 +133,39 @@ export function identifyTensorEscrowInstruction(
   ) {
     return TensorEscrowInstruction.WithdrawMarginAccount;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([35, 89, 16, 235, 226, 89, 248, 45])
+      ),
+      0
+    )
+  ) {
+    return TensorEscrowInstruction.WithdrawMarginAccountCpiTamm;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([201, 156, 163, 27, 243, 14, 36, 237])
+      ),
+      0
+    )
+  ) {
+    return TensorEscrowInstruction.WithdrawMarginAccountCpiTcomp;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([207, 235, 166, 255, 163, 162, 149, 44])
+      ),
+      0
+    )
+  ) {
+    return TensorEscrowInstruction.WithdrawMarginAccountCpiTlock;
+  }
   throw new Error(
     'The provided instruction could not be identified as a tensorEscrow instruction.'
   );
@@ -149,4 +188,13 @@ export type ParsedTensorEscrowInstruction<
     } & ParsedDepositMarginAccountInstruction<TProgram>)
   | ({
       instructionType: TensorEscrowInstruction.WithdrawMarginAccount;
-    } & ParsedWithdrawMarginAccountInstruction<TProgram>);
+    } & ParsedWithdrawMarginAccountInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccountCpiTamm;
+    } & ParsedWithdrawMarginAccountCpiTammInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccountCpiTcomp;
+    } & ParsedWithdrawMarginAccountCpiTcompInstruction<TProgram>)
+  | ({
+      instructionType: TensorEscrowInstruction.WithdrawMarginAccountCpiTlock;
+    } & ParsedWithdrawMarginAccountCpiTlockInstruction<TProgram>);
