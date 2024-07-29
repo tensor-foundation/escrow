@@ -8,7 +8,7 @@ import { getAllProgramIdls } from "./utils.mjs";
 
 // Instanciate Kinobi.
 const [idl, ...additionalIdls] = getAllProgramIdls().map((idl) =>
-  rootNodeFromAnchor(require(idl))
+  rootNodeFromAnchor(require(idl)),
 );
 const kinobi = k.createFromRoot(idl, additionalIdls);
 
@@ -18,7 +18,7 @@ kinobi.update(
     escrowProgram: {
       name: "tensorEscrow",
     },
-  })
+  }),
 );
 
 // Update programs.
@@ -27,24 +27,7 @@ kinobi.update(
     withdrawMarginAccountCpi: {
       name: "withdrawMarginAccountFromTBid",
     },
-  })
-);
-
-// Remove cpi instructions and admin instructions
-kinobi.update(
-  k.deleteNodesVisitor([
-      (node) => {
-      const names = [
-        "withdrawMarginAccountCpiTamm",
-        "withdrawMarginAccountCpiTcomp",
-        "withdrawMarginAccountCpiTlock"
-      ];
-      return (
-        k.isNode(node, "instructionNode") &&
-        names.includes(node.name)
-      );
-    }
-  ])
+  }),
 );
 
 // Update accounts.
@@ -56,12 +39,12 @@ kinobi.update(
         k.variablePdaSeedNode(
           "tswap",
           k.publicKeyTypeNode(),
-          "Tswap singleton account"
+          "Tswap singleton account",
         ),
         k.variablePdaSeedNode(
           "owner",
           k.publicKeyTypeNode(),
-          "The address of the pool and escrow owner"
+          "The address of the pool and escrow owner",
         ),
         k.variablePdaSeedNode("marginNr", k.numberTypeNode("u16")),
       ],
@@ -69,7 +52,7 @@ kinobi.update(
     tSwap: {
       seeds: [],
     },
-  })
+  }),
 );
 
 // Set default account values accross multiple instructions.
@@ -79,7 +62,7 @@ kinobi.update(
       account: "tswap",
       defaultValue: k.pdaValueNode("tSwap"),
     },
-  ])
+  ]),
 );
 
 // Update instructions.
@@ -91,8 +74,8 @@ kinobi.update(
           defaultValue: k.pdaValueNode("marginAccount", [
             k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
             k.pdaSeedValueNode("owner", k.accountValueNode("owner")),
-            k.pdaSeedValueNode("marginNr", k.argumentValueNode("marginNr"))
-          ])
+            k.pdaSeedValueNode("marginNr", k.argumentValueNode("marginNr")),
+          ]),
         },
       },
       arguments: {
@@ -103,7 +86,7 @@ kinobi.update(
           type: k.fixedSizeTypeNode(k.bytesTypeNode(), 32),
           defaultValue: k.bytesValueNode(
             "base16",
-            "0000000000000000000000000000000000000000000000000000000000000000"
+            "0000000000000000000000000000000000000000000000000000000000000000",
           ),
         },
       },
@@ -116,10 +99,10 @@ kinobi.update(
           defaultValue: k.pdaValueNode("marginAccount", [
             k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
             k.pdaSeedValueNode("owner", k.accountValueNode("owner")),
-            k.pdaSeedValueNode("marginNr", k.numberValueNode(0))
-          ])
-        }
-      }
+            k.pdaSeedValueNode("marginNr", k.numberValueNode(0)),
+          ]),
+        },
+      },
     },
     withdrawMarginAccount: {
       accounts: {
@@ -127,22 +110,20 @@ kinobi.update(
           defaultValue: k.pdaValueNode("marginAccount", [
             k.pdaSeedValueNode("tswap", k.accountValueNode("tswap")),
             k.pdaSeedValueNode("owner", k.accountValueNode("owner")),
-            k.pdaSeedValueNode("marginNr", k.numberValueNode(0))
-          ])
-        }
-      }
-    }
-  })
+            k.pdaSeedValueNode("marginNr", k.numberValueNode(0)),
+          ]),
+        },
+      },
+    },
+  }),
 );
-
-
 
 // Render JavaScript.
 const jsClient = path.join(__dirname, "..", "clients", "js");
 kinobi.accept(
   renderJavaScriptVisitor(path.join(jsClient, "src", "generated"), {
-    prettier: require(path.join(jsClient, ".prettierrc.json"))
-  })
+    prettier: require(path.join(jsClient, ".prettierrc.json")),
+  }),
 );
 
 // Render Rust.
@@ -151,5 +132,5 @@ kinobi.accept(
   renderRustVisitor(path.join(rustClient, "src", "generated"), {
     formatCode: true,
     crateFolder: rustClient,
-  })
+  }),
 );
