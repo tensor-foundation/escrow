@@ -23,7 +23,7 @@ pub struct WithdrawMarginAccountCpiTAmm<'info> {
     // The seeds check ensures it is a valid Pool account from the TAMM program.
     #[account(
         seeds=[b"pool".as_ref(), owner.key().as_ref(), pool_id.as_ref()],
-        seeds::program = Pubkey::from_str("TAMMqgJYcquwwj2tCdNUerh4C2bJjmghijVziSEf5tA").unwrap(),
+        seeds::program = Pubkey::from_str("TAMM6ub33ij1mbetoMyVBLeKY5iP41i4UPUJQGkhfsg").unwrap(),
         bump = bump,
     )]
     pub pool: Signer<'info>,
