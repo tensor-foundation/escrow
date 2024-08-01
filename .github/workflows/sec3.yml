@@ -1,19 +1,23 @@
 name: Sec3 Pro Audit
-     # update to match your branch names and requirements 
+
 on:
   push:
     branches: main
+    paths:
+      - 'program/src/**'
   pull_request:
     branches: "*"
+    paths:
+      - 'program/src/**'
 
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - name: Check-out the repository
+      - name: Check out the repository
         uses: actions/checkout@v2
-      - name: Sec3 Pro Audit
-        continue-on-error: false    # set to true if you don't want to fail jobs
+      - name: Run Sec3 Pro Audit
         uses: sec3dev/pro-action@v1
         with:
           sec3-token: ${{ secrets.SEC3_TOKEN }}
+        continue-on-error: false
