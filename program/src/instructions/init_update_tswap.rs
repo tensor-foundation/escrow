@@ -29,8 +29,11 @@ impl<'info> Validate<'info> for InitUpdateTSwap<'info> {
     fn validate(&self) -> Result<()> {
         let owner = self.tswap.owner;
 
-        //if owner already present, make sure it's signing off on the update
-        if owner != Pubkey::default() && owner != self.owner.key() {
+        let tswap_info = self.tswap.to_account_info();
+        let disc = &tswap_info.try_borrow_data()?[0..8];
+
+        // Account must be uninitialized or owner must sign off on the update.
+        if disc != [0u8; 8] && owner != self.owner.key() {
             throw_err!(ErrorCode::BadOwner);
         }
         Ok(())
