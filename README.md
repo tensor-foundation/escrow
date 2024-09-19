@@ -8,6 +8,14 @@
   Shared escrow for all Tensor protocols.
 </p>
 
+## Status
+
+The new Escrow program will be deployed to devnet on October 2nd, and to mainnet on November 2nd.
+
+| Devnet | Mainnet |
+| ------ | ------- |
+| -      | -       |
+
 ## Programs
 
 This project contains the following programs:
