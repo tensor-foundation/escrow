@@ -10,6 +10,4 @@ pub enum ErrorCode {
     BadOwner = 16,
     #[msg("bad margin account passed")]
     BadMargin = 27,
-    #[msg("margin account has pools open and is in use")]
-    MarginInUse = 32,
 }

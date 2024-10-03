@@ -12,7 +12,7 @@ pub struct MarginAccount {
     pub name: [u8; 32],
     pub nr: u16,
     pub bump: [u8; 1],
-    //needed to know if we can close margin account
+    #[deprecated(note = "This field is no longer in sync")]
     pub pools_attached: u32,
     // TODO: we forgot to track bids attached.
     // Revisit this maybe for margin account V2.

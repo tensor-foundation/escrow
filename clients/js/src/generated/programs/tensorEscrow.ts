@@ -19,7 +19,6 @@ import {
   type ParsedInitUpdateTswapInstruction,
   type ParsedWithdrawMarginAccountCpiTammInstruction,
   type ParsedWithdrawMarginAccountCpiTcompInstruction,
-  type ParsedWithdrawMarginAccountCpiTlockInstruction,
   type ParsedWithdrawMarginAccountInstruction,
 } from '../instructions';
 
@@ -70,7 +69,6 @@ export enum TensorEscrowInstruction {
   WithdrawMarginAccount,
   WithdrawMarginAccountCpiTamm,
   WithdrawMarginAccountCpiTcomp,
-  WithdrawMarginAccountCpiTlock,
 }
 
 export function identifyTensorEscrowInstruction(
@@ -155,17 +153,6 @@ export function identifyTensorEscrowInstruction(
   ) {
     return TensorEscrowInstruction.WithdrawMarginAccountCpiTcomp;
   }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([207, 235, 166, 255, 163, 162, 149, 44])
-      ),
-      0
-    )
-  ) {
-    return TensorEscrowInstruction.WithdrawMarginAccountCpiTlock;
-  }
   throw new Error(
     'The provided instruction could not be identified as a tensorEscrow instruction.'
   );
@@ -194,7 +181,4 @@ export type ParsedTensorEscrowInstruction<
     } & ParsedWithdrawMarginAccountCpiTammInstruction<TProgram>)
   | ({
       instructionType: TensorEscrowInstruction.WithdrawMarginAccountCpiTcomp;
-    } & ParsedWithdrawMarginAccountCpiTcompInstruction<TProgram>)
-  | ({
-      instructionType: TensorEscrowInstruction.WithdrawMarginAccountCpiTlock;
-    } & ParsedWithdrawMarginAccountCpiTlockInstruction<TProgram>);
+    } & ParsedWithdrawMarginAccountCpiTcompInstruction<TProgram>);
