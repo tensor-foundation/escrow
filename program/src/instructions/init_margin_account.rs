@@ -1,19 +1,16 @@
 use anchor_lang::prelude::*;
-use tensor_vipers::Validate;
 
 use crate::{MarginAccount, TSwap, MARGIN_SIZE};
 
 #[derive(Accounts)]
 #[instruction(margin_nr: u16)]
 pub struct InitMarginAccount<'info> {
-    #[account(
-        seeds = [], bump = tswap.bump[0],
-    )]
+    #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
-    /// CHECK: if an account with this nr already exists, init will fail
     #[account(
-        init, payer = owner,
+        init,
+        payer = owner,
         seeds = [
             b"margin".as_ref(),
             // TODO: remove tswap from seed in V2 (annoying to have to pass account eg in CPIs).
@@ -32,13 +29,6 @@ pub struct InitMarginAccount<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> Validate<'info> for InitMarginAccount<'info> {
-    fn validate(&self) -> Result<()> {
-        Ok(())
-    }
-}
-
-#[access_control(ctx.accounts.validate())]
 pub fn process_init_margin_account(
     ctx: Context<InitMarginAccount>,
     margin_nr: u16,

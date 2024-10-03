@@ -1,14 +1,11 @@
 use anchor_lang::prelude::*;
 use tensor_toolbox::transfer_lamports_from_pda;
-use tensor_vipers::Validate;
 
 use crate::{MarginAccount, TSwap};
 
 #[derive(Accounts)]
 pub struct WithdrawMarginAccount<'info> {
-    #[account(
-        seeds = [], bump = tswap.bump[0],
-    )]
+    #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
     #[account(
@@ -30,12 +27,6 @@ pub struct WithdrawMarginAccount<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> Validate<'info> for WithdrawMarginAccount<'info> {
-    fn validate(&self) -> Result<()> {
-        Ok(())
-    }
-}
-
 impl<'info> WithdrawMarginAccount<'info> {
     fn transfer_lamports_to_owner(&self, lamports: u64) -> Result<()> {
         transfer_lamports_from_pda(
@@ -46,7 +37,6 @@ impl<'info> WithdrawMarginAccount<'info> {
     }
 }
 
-#[access_control(ctx.accounts.validate())]
 pub fn process_withdraw_margin_account(
     ctx: Context<WithdrawMarginAccount>,
     lamports: u64,
