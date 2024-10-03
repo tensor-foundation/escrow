@@ -289,55 +289,6 @@
           "type": "u64"
         }
       ]
-    },
-    {
-      "name": "withdrawMarginAccountCpiTlock",
-      "accounts": [
-        {
-          "name": "marginAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "orderState",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "owner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "destination",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "bump",
-          "type": "u8"
-        },
-        {
-          "name": "orderId",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "lamports",
-          "type": "u64"
-        }
-      ]
     }
   ],
   "accounts": [
@@ -455,11 +406,6 @@
       "code": 6027,
       "name": "BadMargin",
       "msg": "bad margin account passed"
-    },
-    {
-      "code": 6032,
-      "name": "MarginInUse",
-      "msg": "margin account has pools open and is in use"
     }
   ],
   "metadata": {

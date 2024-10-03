@@ -16,9 +16,6 @@ pub enum TensorEscrowError {
     /// 6027 - bad margin account passed
     #[error("bad margin account passed")]
     BadMargin = 0x178B,
-    /// 6032 - margin account has pools open and is in use
-    #[error("margin account has pools open and is in use")]
-    MarginInUse = 0x1790,
 }
 
 impl solana_program::program_error::PrintProgramError for TensorEscrowError {
