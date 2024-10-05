@@ -13,10 +13,12 @@
 pub mod constants;
 pub mod error;
 pub mod instructions;
+pub(crate) mod shared;
 pub mod state;
 
 use anchor_lang::prelude::*;
 use instructions::*;
+pub(crate) use shared::*;
 use state::*;
 
 declare_id!("TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN");

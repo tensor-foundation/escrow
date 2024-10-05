@@ -2,6 +2,9 @@ use crate::{get_tswap_addr, MarginAccount};
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 use tensor_toolbox::transfer_lamports_from_pda;
+use tensor_vipers::Validate;
+
+use super::{assert_discriminator, constants::TAMM_POOL_DISCRIMINATOR};
 
 #[derive(Accounts)]
 #[instruction(bump: u8, pool_id: [u8; 32])]
@@ -38,6 +41,15 @@ pub struct WithdrawMarginAccountCpiTAmm<'info> {
     pub system_program: Program<'info, System>,
 }
 
+impl<'info> Validate<'info> for WithdrawMarginAccountCpiTAmm<'info> {
+    fn validate(&self) -> Result<()> {
+        assert_discriminator(&self.pool.to_account_info(), &TAMM_POOL_DISCRIMINATOR)?;
+
+        Ok(())
+    }
+}
+
+#[access_control(ctx.accounts.validate())]
 pub fn process_withdraw_margin_account_from_tamm(
     ctx: Context<WithdrawMarginAccountCpiTAmm>,
     lamports: u64,
