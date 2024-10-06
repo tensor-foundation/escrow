@@ -26,14 +26,6 @@ pub mod escrow_program {
 
     use super::*;
 
-    // OFFLINE BY DEFAULT
-    // pub fn withdraw_tswap_owned_spl(
-    //     ctx: Context<WithdrawTswapOwnedSpl>,
-    //     amount: u64,
-    // ) -> Result<()> {
-    //     instructions::withdraw_tswap_owned_spl::process_tswap_owned_spl(ctx, amount)
-    // }
-
     pub fn init_update_tswap(ctx: Context<InitUpdateTSwap>, config: TSwapConfig) -> Result<()> {
         instructions::init_update_tswap::process_init_update_tswap(ctx, config)
     }
@@ -79,17 +71,6 @@ pub mod escrow_program {
         lamports: u64,
     ) -> Result<()> {
         instructions::withdraw_margin_account_from_tcomp::process_withdraw_margin_account_from_tcomp(
-            ctx, lamports,
-        )
-    }
-
-    pub fn withdraw_margin_account_cpi_tlock(
-        ctx: Context<WithdrawMarginAccountCpiTLock>,
-        _bump: u8,
-        _order_id: [u8; 32],
-        lamports: u64,
-    ) -> Result<()> {
-        instructions::withdraw_margin_account_from_tlock::process_withdraw_margin_account_from_tlock(
             ctx, lamports,
         )
     }

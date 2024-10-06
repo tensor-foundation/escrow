@@ -1,14 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{program::invoke, system_instruction};
-use tensor_vipers::Validate;
 
 use crate::{MarginAccount, TSwap};
 
 #[derive(Accounts)]
 pub struct DepositMarginAccount<'info> {
-    #[account(
-        seeds = [], bump = tswap.bump[0],
-    )]
+    #[account(seeds = [], bump = tswap.bump[0])]
     pub tswap: Box<Account<'info, TSwap>>,
 
     #[account(
@@ -30,12 +27,6 @@ pub struct DepositMarginAccount<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> Validate<'info> for DepositMarginAccount<'info> {
-    fn validate(&self) -> Result<()> {
-        Ok(())
-    }
-}
-
 impl<'info> DepositMarginAccount<'info> {
     fn transfer_lamports(&self, lamports: u64) -> Result<()> {
         invoke(
@@ -50,12 +41,10 @@ impl<'info> DepositMarginAccount<'info> {
     }
 }
 
-#[access_control(ctx.accounts.validate())]
 pub fn process_deposit_margin_account(
     ctx: Context<DepositMarginAccount>,
     lamports: u64,
 ) -> Result<()> {
-    // do the transfer
     ctx.accounts.transfer_lamports(lamports)?;
 
     Ok(())

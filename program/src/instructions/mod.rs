@@ -5,7 +5,6 @@ pub mod init_update_tswap;
 pub mod withdraw_margin_account;
 pub mod withdraw_margin_account_from_tamm;
 pub mod withdraw_margin_account_from_tcomp;
-pub mod withdraw_margin_account_from_tlock;
 
 pub use close_margin_account::*;
 pub use deposit_margin_account::*;
@@ -14,14 +13,12 @@ pub use init_update_tswap::*;
 pub use withdraw_margin_account::*;
 pub use withdraw_margin_account_from_tamm::*;
 pub use withdraw_margin_account_from_tcomp::*;
-pub use withdraw_margin_account_from_tlock::*;
 
 use tensor_vipers::throw_err;
 
 use crate::{error::ErrorCode, *};
 
 pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
-    let program_id = &crate::id();
     Pubkey::find_program_address(
         &[
             b"margin".as_ref(),
@@ -29,8 +26,13 @@ pub fn margin_pda(tswap: &Pubkey, owner: &Pubkey, nr: u16) -> (Pubkey, u8) {
             owner.as_ref(),
             &nr.to_le_bytes(),
         ],
-        program_id,
+        &crate::id(),
     )
+}
+
+pub fn get_tswap_addr() -> Pubkey {
+    let (pda, _) = Pubkey::find_program_address(&[], &crate::id());
+    pda
 }
 
 #[inline(never)]
@@ -58,9 +60,4 @@ pub fn assert_decode_margin_account<'info>(
     }
 
     Ok(margin_account)
-}
-
-pub fn get_tswap_addr() -> Pubkey {
-    let (pda, _) = Pubkey::find_program_address(&[], &crate::id());
-    pda
 }

@@ -10,20 +10,16 @@
 export const TENSOR_ESCROW_ERROR__BAD_OWNER = 0x1780; // 6016
 /** BadMargin: bad margin account passed */
 export const TENSOR_ESCROW_ERROR__BAD_MARGIN = 0x178b; // 6027
-/** MarginInUse: margin account has pools open and is in use */
-export const TENSOR_ESCROW_ERROR__MARGIN_IN_USE = 0x1790; // 6032
 
 export type TensorEscrowError =
   | typeof TENSOR_ESCROW_ERROR__BAD_MARGIN
-  | typeof TENSOR_ESCROW_ERROR__BAD_OWNER
-  | typeof TENSOR_ESCROW_ERROR__MARGIN_IN_USE;
+  | typeof TENSOR_ESCROW_ERROR__BAD_OWNER;
 
 let tensorEscrowErrorMessages: Record<TensorEscrowError, string> | undefined;
 if (process.env.NODE_ENV !== 'production') {
   tensorEscrowErrorMessages = {
     [TENSOR_ESCROW_ERROR__BAD_MARGIN]: `bad margin account passed`,
     [TENSOR_ESCROW_ERROR__BAD_OWNER]: `bad owner`,
-    [TENSOR_ESCROW_ERROR__MARGIN_IN_USE]: `margin account has pools open and is in use`,
   };
 }
 
