@@ -2319,9 +2319,9 @@ dependencies = [
 
 [[package]]
 name = "tensor-toolbox"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afac38c888eca208989efb9a77048101e117ab5023940ef7d359350acfb11d16"
+checksum = "86ad0af7b3655fac8e00f9baffa5a91026bb66858cd3a3c4208e8f523d306dbf"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
