@@ -1,8 +1,11 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 use tensor_toolbox::transfer_lamports_from_pda;
+use tensor_vipers::Validate;
 
 use crate::{get_tswap_addr, MarginAccount};
+
+use super::{assert_discriminator, constants::TCOMP_BID_STATE_DISCRIMINATOR};
 
 #[derive(Accounts)]
 #[instruction(bump: u8, bid_id: Pubkey)]
@@ -40,6 +43,18 @@ pub struct WithdrawMarginAccountCpiTcomp<'info> {
     pub system_program: Program<'info, System>,
 }
 
+impl<'info> Validate<'info> for WithdrawMarginAccountCpiTcomp<'info> {
+    fn validate(&self) -> Result<()> {
+        assert_discriminator(
+            &self.bid_state.to_account_info(),
+            &TCOMP_BID_STATE_DISCRIMINATOR,
+        )?;
+
+        Ok(())
+    }
+}
+
+#[access_control(ctx.accounts.validate())]
 pub fn process_withdraw_margin_account_from_tcomp(
     ctx: Context<WithdrawMarginAccountCpiTcomp>,
     lamports: u64,
