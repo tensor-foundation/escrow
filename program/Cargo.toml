@@ -8,7 +8,29 @@ publish = false
 
 [package.metadata.solana]
 program-id = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN"
-program-dependencies = []
+program-dependencies = [
+    "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW",
+    "TAMM6ub33ij1mbetoMyVBLeKY5iP41i4UPUJQGkhfsg",
+    "TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp",
+    "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+    "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+    "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg",
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+]
+external-programs-repositories = [
+    [
+        "tensor-foundation/whitelist",
+        "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW",
+    ],
+    [
+        "tensor-foundation/amm",
+        "TAMM6ub33ij1mbetoMyVBLeKY5iP41i4UPUJQGkhfsg",
+    ],
+    [
+        "tensor-foundation/marketplace",
+        "TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp",
+    ]
+]
 
 [lib]
 crate-type = ["cdylib", "lib"]
