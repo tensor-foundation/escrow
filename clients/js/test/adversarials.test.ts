@@ -313,7 +313,7 @@ test('a custom program cannot CPI into withdrawMarginAccountCpiTamm', async (t) 
     poolId: poolId,
     owner: marginAccountOwner,
     destination: marginAccountOwner.address,
-    tensorEscrowProgram: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
+    tensorEscrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
     lamports: LAMPORTS_PER_SOL / 2n,
   });
 
@@ -323,6 +323,6 @@ test('a custom program cannot CPI into withdrawMarginAccountCpiTamm', async (t) 
     (tx) => signAndSendTransaction(client, tx)
   );
 
-  // expect error to happen when awaiting the tx (signer privilege violation)
+  // Expect tx to fail with seed constraint violation
   await t.throwsAsync(tx);
 });
