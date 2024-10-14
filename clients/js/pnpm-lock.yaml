@@ -25,11 +25,11 @@ importers:
         specifier: 2.0.0-preview.3
         version: 2.0.0-preview.3
       '@tensor-foundation/amm':
-        specifier: file:../../../amm/clients/js
-        version: file:../../../amm/clients/js(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        specifier: ^0.8.0
+        version: 0.8.0(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@tensor-foundation/marketplace':
-        specifier: file:../../../marketplace/clients/js
-        version: file:../../../marketplace/clients/js(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        specifier: ^0.5.0
+        version: 0.5.0(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@tensor-foundation/mpl-core':
         specifier: ^0.3.0
         version: 0.3.0(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.4)(utf-8-validate@5.0.10)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
@@ -646,11 +646,11 @@ packages:
   '@swc/helpers@0.5.13':
     resolution: {integrity: sha512-UoKGxQ3r5kYI9dALKJapMmuK+1zWM/H17Z1+iwnNmzcJRnfFuevZs375TA5rW31pu4BS4NoSy1fRsexDXfWn5w==}
 
-  '@tensor-foundation/amm@file:../../../amm/clients/js':
-    resolution: {directory: ../../../amm/clients/js, type: directory}
+  '@tensor-foundation/amm@0.8.0':
+    resolution: {integrity: sha512-muB4a8a4qnKmcKxQDMAdsrUn7fmu36sugKTTIoR0hfeuw/J2fV0xfBlZwCUf8gUg/rBKkurNDL5fUwhvpIrh0w==}
 
-  '@tensor-foundation/marketplace@file:../../../marketplace/clients/js':
-    resolution: {directory: ../../../marketplace/clients/js, type: directory}
+  '@tensor-foundation/marketplace@0.5.0':
+    resolution: {integrity: sha512-uxtDP3zZDLGrVsTOYvn3Cmie9x3eVmoKkn6F2dORm8OSuFsV/WoOyG0pYJfhMeWzYGoYyUsMprQ4X180MoXJ4w==}
 
   '@tensor-foundation/mpl-core@0.3.0':
     resolution: {integrity: sha512-oLNO7Vj+GxNUTnz0esjcv+iSUcnAH2f1lK3ii2QGdjp/Ozk4OXx/5aep33mUy38UWXqoBpzNyGkYvlQ6uewd1A==}
@@ -660,11 +660,6 @@ packages:
 
   '@tensor-foundation/resolvers@0.2.3':
     resolution: {integrity: sha512-t60CczEisiG9MVm3qpoFRT6JVppOw/JDRLJYES2A4HWQmPo//VvMCrt+DTjER0Jrloz9UCSIw7IN4rCm0YUymQ==}
-    peerDependencies:
-      '@solana/web3.js': 2.0.0-preview.3
-
-  '@tensor-foundation/resolvers@file:../../../toolkit/resolvers':
-    resolution: {directory: ../../../toolkit/resolvers, type: directory}
     peerDependencies:
       '@solana/web3.js': 2.0.0-preview.3
 
@@ -3021,16 +3016,16 @@ snapshots:
     dependencies:
       tslib: 2.7.0
 
-  '@tensor-foundation/amm@file:../../../amm/clients/js(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@tensor-foundation/amm@0.8.0(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
       '@solana-program/token': 0.2.1(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
       '@solana/web3.js': 2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-      '@tensor-foundation/resolvers': file:../../../toolkit/resolvers(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
+      '@tensor-foundation/resolvers': 0.2.3(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
       - ws
 
-  '@tensor-foundation/marketplace@file:../../../marketplace/clients/js(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@tensor-foundation/marketplace@0.5.0(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
       '@noble/hashes': 1.5.0
       '@solana-program/system': 0.5.3(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
@@ -3069,10 +3064,6 @@ snapshots:
       - ws
 
   '@tensor-foundation/resolvers@0.2.3(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))':
-    dependencies:
-      '@solana/web3.js': 2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
-
-  '@tensor-foundation/resolvers@file:../../../toolkit/resolvers(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))':
     dependencies:
       '@solana/web3.js': 2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
 
