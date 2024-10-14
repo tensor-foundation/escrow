@@ -907,6 +907,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "escrow-program"
+version = "0.1.0"
+source = "git+ssh://git@github.com/tensor-foundation/escrow#8850a44292d7abe6d9bf282031c671abf83d58fd"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "tensor-toolbox",
+ "tensor-vipers",
+]
+
+[[package]]
 name = "feature-probe"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1194,6 +1205,16 @@ name = "log"
 version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
+
+[[package]]
+name = "margin_withdraw_cpi"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "escrow-program 0.1.0 (git+ssh://git@github.com/tensor-foundation/escrow)",
+ "solana-program",
+ "tensor-escrow",
+]
 
 [[package]]
 name = "memchr"
@@ -2315,6 +2336,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tensor-escrow"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfa2e5bc1f065d7b538d6095b0dc849252cae58883b4cab84fbc839d8f6d6e31"
+dependencies = [
+ "borsh 0.10.3",
+ "num-derive 0.3.3",
+ "num-traits",
+ "solana-program",
+ "thiserror",
 ]
 
 [[package]]

@@ -76,7 +76,11 @@
       "rewritePaths": {
         "test/": "dist/test/"
       }
-    }
+    },
+    "files": [
+      "test/**/*",
+      "!test/generated/**/*"
+    ]
   },
   "packageManager": "pnpm@9.1.0"
 }

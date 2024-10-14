@@ -1,9 +1,18 @@
-import { appendTransactionMessageInstruction, pipe } from '@solana/web3.js';
+import {
+  appendTransactionMessageInstruction,
+  fixEncoderSize,
+  getAddressEncoder,
+  getBytesEncoder,
+  getProgramDerivedAddress,
+  getUtf8Encoder,
+  pipe,
+} from '@solana/web3.js';
 import {
   fetchMarginAccount,
   findMarginAccountPda,
   getDepositMarginAccountInstructionAsync,
   getWithdrawMarginAccountInstructionAsync,
+  TENSOR_ESCROW_PROGRAM_ADDRESS,
 } from '../src';
 import {
   TSWAP_SINGLETON,
@@ -15,7 +24,20 @@ import {
 } from '@tensor-foundation/test-helpers';
 import test from 'ava';
 import { getInitMarginAccountInstructionAsync } from '../src';
-import { expectCustomError, initTswap } from './_common';
+import {
+  createWhitelistV2,
+  expectCustomError,
+  generateUuid,
+  initTswap,
+} from './_common';
+import { getWithdrawFromMarginInstruction } from './generated/adversarial/instructions/withdrawFromMargin';
+import {
+  CurveType,
+  findPoolPda,
+  getCreatePoolInstructionAsync,
+  PoolType,
+} from '@tensor-foundation/amm';
+import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from './generated/adversarial/programs/marginWithdrawCpi';
 
 test('it prevents an incorrect owner from withdrawing from the margin account', async (t) => {
   const client = createDefaultSolanaClient();
@@ -216,4 +238,91 @@ test('it prevents an incorrect owner with a margin account from withdrawing from
     incorrectOwnerTxDifferentMarginAccount,
     SEED_CONSTRAINT_VIOLATION_ERROR
   );
+});
+
+test('a custom program cannot CPI into withdrawMarginAccountCpiTamm', async (t) => {
+  const client = createDefaultSolanaClient();
+  const marginAccountOwner = await generateKeyPairSignerWithSol(client);
+  await initTswap(client);
+
+  const [marginAccountPda] = await findMarginAccountPda({
+    owner: marginAccountOwner.address,
+    marginNr: 0,
+    tswap: TSWAP_SINGLETON,
+  });
+
+  // Create a new margin account for the owner
+  const createMarginAccountIx = await getInitMarginAccountInstructionAsync({
+    marginAccount: marginAccountPda,
+    owner: marginAccountOwner,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createMarginAccountIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Initialize the whitelist
+  const { whitelist } = await createWhitelistV2({
+    client,
+    updateAuthority: marginAccountOwner,
+  });
+
+  const poolId = generateUuid();
+  const [poolAta] = await findPoolPda({
+    poolId,
+    owner: marginAccountOwner.address,
+  });
+
+  // Initialize the pool account (attached to margin)
+  const createPoolIx = await getCreatePoolInstructionAsync({
+    owner: marginAccountOwner,
+    whitelist,
+    pool: poolAta,
+    poolId,
+    config: {
+      poolType: PoolType.Trade,
+      startingPrice: LAMPORTS_PER_SOL / 2n,
+      delta: 0,
+      mmCompoundFees: false,
+      mmFeeBps: null,
+      curveType: CurveType.Linear,
+    },
+    sharedEscrow: marginAccountPda,
+  });
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createPoolIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Derive adversarial pool
+  const [adversarialPoolPda] = await getProgramDerivedAddress({
+    programAddress: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
+    seeds: [
+      getUtf8Encoder().encode('pool'),
+      getAddressEncoder().encode(marginAccountOwner.address),
+      fixEncoderSize(getBytesEncoder(), 32).encode(poolId),
+    ],
+  });
+
+  const withdrawIx = getWithdrawFromMarginInstruction({
+    marginAccount: marginAccountPda,
+    pool: adversarialPoolPda,
+    poolId: poolId,
+    owner: marginAccountOwner,
+    destination: marginAccountOwner.address,
+    tensorEscrowProgram: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
+    lamports: LAMPORTS_PER_SOL / 2n,
+  });
+
+  const tx = pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(withdrawIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // expect error to happen when awaiting the tx (signer privilege violation)
+  await t.throwsAsync(tx);
 });

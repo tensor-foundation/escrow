@@ -1,0 +1,28 @@
+[package]
+name = "margin_withdraw_cpi"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "margin_withdraw_cpi"
+
+[package.metadata.solana]
+program-id = "6yJwyDaYK2q9gMLtRnJukEpskKsNzMAqiCRikRaP2g1F"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.29.0"
+solana-program = "1.16.0"
+escrow-program = { version = "0.1.0", package = "escrow-program", git = "ssh://git@github.com/tensor-foundation/escrow", features = [
+    "cpi",
+] }
+tensor-escrow = { version = "0.1.1" }
+

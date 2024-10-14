@@ -1,0 +1,110 @@
+{
+  "version": "0.1.0",
+  "name": "margin_withdraw_cpi",
+  "constants": [
+    {
+      "name": "POOL_LEN",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "447"
+    }
+  ],
+  "instructions": [
+    {
+      "name": "withdrawFromMargin",
+      "accounts": [
+        {
+          "name": "marginAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tensorEscrowProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "poolId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Pool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "poolId",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reserved",
+            "type": {
+              "array": [
+                "u8",
+                374
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "WithdrawError",
+      "msg": "Error withdrawing from margin account"
+    }
+  ],
+  "metadata": {
+    "address": "6yJwyDaYK2q9gMLtRnJukEpskKsNzMAqiCRikRaP2g1F",
+    "origin": "anchor",
+    "binaryVersion": "0.29.0",
+    "libVersion": "0.29.0"
+  }
+}
