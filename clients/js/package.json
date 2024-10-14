@@ -49,6 +49,7 @@
     "@tensor-foundation/marketplace": "file:../../../marketplace/clients/js",
     "@tensor-foundation/whitelist": "^0.3.0",
     "@tensor-foundation/mpl-token-metadata": "^0.5.0",
+    "@tensor-foundation/mpl-core": "^0.3.0",
     "@solana/webcrypto-ed25519-polyfill": "2.0.0-preview.3",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",

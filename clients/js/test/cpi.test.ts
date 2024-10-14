@@ -23,6 +23,7 @@ import {
 import {
   findBidStatePda,
   getBidInstructionAsync,
+  getTakeBidCoreInstructionAsync,
   getTakeBidLegacyInstructionAsync,
   Target,
 } from '@tensor-foundation/marketplace';
@@ -34,6 +35,7 @@ import {
   getDepositMarginAccountInstructionAsync,
   TENSOR_ESCROW_PROGRAM_ADDRESS,
 } from '../src';
+import { createDefaultAsset } from '@tensor-foundation/mpl-core';
 
 test('it can call the withdrawMarginAccountCpiTamm instruction', async (t) => {
   const client = createDefaultSolanaClient();
@@ -256,6 +258,115 @@ test('it can call the withdrawMarginAccountCpiTcmp instruction', async (t) => {
   await pipe(
     await createDefaultTransaction(client, seller),
     (tx) => appendTransactionMessageInstruction(takeBidLegacyIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  const marginAccountLamportsAfter = (
+    await client.rpc.getBalance(marginAccountPda).send()
+  ).value;
+
+  // Assert that the margin account paid the correct amount of SOL
+  t.is(
+    BigInt(marginAccountLamportsAfter),
+    BigInt(marginAccountLamportsBefore) - LAMPORTS_PER_SOL / 2n
+  );
+});
+
+test('it can call the withdrawMarginAccountCpiTcmp instruction when selling into a single Core NFT bid', async (t) => {
+  const client = createDefaultSolanaClient();
+  await initTswap(client);
+  const owner = await generateKeyPairSignerWithSol(
+    client,
+    5n * LAMPORTS_PER_SOL
+  );
+  const seller = await generateKeyPairSignerWithSol(
+    client,
+    5n * LAMPORTS_PER_SOL
+  );
+
+  // Initialize the margin account
+  const [marginAccountPda] = await findMarginAccountPda({
+    owner: owner.address,
+    marginNr: 0,
+    tswap: TSWAP_SINGLETON,
+  });
+  const marginAccountInitIx = await getInitMarginAccountInstructionAsync({
+    marginAccount: marginAccountPda,
+    owner: owner,
+  });
+  await pipe(
+    await createDefaultTransaction(client, owner),
+    (tx) => appendTransactionMessageInstruction(marginAccountInitIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Assert margin account exists and is owner by TSWAP
+  const marginAccount = await client.rpc
+    .getAccountInfo(marginAccountPda, { encoding: 'base64' })
+    .send();
+  t.assert(marginAccount.value?.owner === TENSOR_ESCROW_PROGRAM_ADDRESS);
+
+  // Deposit SOL into the margin account
+  const depositSolIx = await getDepositMarginAccountInstructionAsync({
+    owner,
+    marginAccount: marginAccountPda,
+    lamports: LAMPORTS_PER_SOL / 2n,
+  });
+  await pipe(
+    await createDefaultTransaction(client, owner),
+    (tx) => appendTransactionMessageInstruction(depositSolIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Seller mints a Core NFT
+  const asset = await createDefaultAsset({
+    client,
+    payer: seller,
+    authority: seller,
+    owner: seller.address,
+    royalties: {
+      creators: [{ address: seller.address, percentage: 100 }],
+      basisPoints: 0,
+    },
+  });
+
+  // Create a Marketplace Bid attached to shared escrow
+  const bidId = asset.address;
+  const [bidStatePda] = await findBidStatePda({ bidId, owner: owner.address });
+
+  const createBidIx = await getBidInstructionAsync({
+    bidId,
+    bidState: bidStatePda,
+    target: Target.AssetId,
+    targetId: asset.address,
+    owner: owner,
+    sharedEscrow: marginAccountPda,
+    amount: LAMPORTS_PER_SOL / 2n,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, owner),
+    (tx) => appendTransactionMessageInstruction(createBidIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  const marginAccountLamportsBefore = (
+    await client.rpc.getBalance(marginAccountPda).send()
+  ).value;
+
+  const takeBidIx = await getTakeBidCoreInstructionAsync({
+    owner: owner.address,
+    bidState: bidStatePda,
+    sharedEscrow: marginAccountPda,
+    minAmount: LAMPORTS_PER_SOL / 2n,
+    seller: seller,
+    creators: [seller.address],
+    asset: asset.address,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, seller),
+    (tx) => appendTransactionMessageInstruction(takeBidIx, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
 
