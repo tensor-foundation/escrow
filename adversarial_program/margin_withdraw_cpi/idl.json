@@ -12,7 +12,57 @@
   ],
   "instructions": [
     {
-      "name": "withdrawFromMargin",
+      "name": "withdrawFromTammMargin",
+      "accounts": [
+        {
+          "name": "marginAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tensorEscrowProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "poolId",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFromTammMarginSigned",
       "accounts": [
         {
           "name": "marginAccount",
@@ -86,7 +136,7 @@
             "type": {
               "array": [
                 "u8",
-                374
+                375
               ]
             }
           }

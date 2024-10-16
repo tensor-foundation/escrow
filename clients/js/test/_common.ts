@@ -10,6 +10,7 @@ import {
   lamports,
   pipe,
   SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
+  SolanaErrorCode,
 } from '@solana/web3.js';
 import {
   Client,
@@ -27,6 +28,17 @@ import {
   Condition,
   Mode,
 } from '@tensor-foundation/whitelist';
+
+export const expectGenericError = async (
+  t: ExecutionContext,
+  promise: Promise<unknown>,
+  code: number
+) => {
+  const error = await t.throwsAsync<Error & { context: { logs: string[] } }>(
+    promise
+  );
+  t.true(isSolanaError(error.cause!, code as SolanaErrorCode));
+};
 
 export const expectCustomError = async (
   t: ExecutionContext,

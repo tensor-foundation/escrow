@@ -6,6 +6,7 @@ import {
   getProgramDerivedAddress,
   getUtf8Encoder,
   pipe,
+  SOLANA_ERROR__INSTRUCTION_ERROR__PRIVILEGE_ESCALATION,
 } from '@solana/web3.js';
 import {
   fetchMarginAccount,
@@ -27,10 +28,10 @@ import { getInitMarginAccountInstructionAsync } from '../src';
 import {
   createWhitelistV2,
   expectCustomError,
+  expectGenericError,
   generateUuid,
   initTswap,
 } from './_common';
-import { getWithdrawFromMarginInstruction } from './generated/adversarial/instructions/withdrawFromMargin';
 import {
   CurveType,
   findPoolPda,
@@ -38,6 +39,8 @@ import {
   PoolType,
 } from '@tensor-foundation/amm';
 import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from './generated/adversarial/programs/marginWithdrawCpi';
+import { getWithdrawFromTammMarginSignedInstruction } from './generated/adversarial/instructions/withdrawFromTammMarginSigned';
+import { getWithdrawFromTammMarginInstruction } from './generated/adversarial/instructions/withdrawFromTammMargin';
 
 test('it prevents an incorrect owner from withdrawing from the margin account', async (t) => {
   const client = createDefaultSolanaClient();
@@ -240,7 +243,7 @@ test('it prevents an incorrect owner with a margin account from withdrawing from
   );
 });
 
-test('a custom program cannot CPI into withdrawMarginAccountCpiTamm', async (t) => {
+test('a custom program cannot CPI into WithdrawMarginAccountCpiTammInstruction with an imitated pool', async (t) => {
   const client = createDefaultSolanaClient();
   const marginAccountOwner = await generateKeyPairSignerWithSol(client);
   await initTswap(client);
@@ -307,7 +310,7 @@ test('a custom program cannot CPI into withdrawMarginAccountCpiTamm', async (t) 
     ],
   });
 
-  const withdrawIx = getWithdrawFromMarginInstruction({
+  const withdrawIx = getWithdrawFromTammMarginSignedInstruction({
     marginAccount: marginAccountPda,
     pool: adversarialPoolPda,
     poolId: poolId,
@@ -322,7 +325,92 @@ test('a custom program cannot CPI into withdrawMarginAccountCpiTamm', async (t) 
     (tx) => appendTransactionMessageInstruction(withdrawIx, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
+ 
+  const SEED_CONSTRAINT_VIOLATION_ERROR = 2006;
+  await expectCustomError(
+    t,
+    tx,
+    SEED_CONSTRAINT_VIOLATION_ERROR
+  );
+});
 
-  // Expect tx to fail with seed constraint violation
-  await t.throwsAsync(tx);
+test('a custom program cannot CPI into WithdrawMarginAccountCpiTammInstruction with a real pool', async (t) => {
+  const client = createDefaultSolanaClient();
+  const marginAccountOwner = await generateKeyPairSignerWithSol(client);
+  await initTswap(client);
+
+  const [marginAccountPda] = await findMarginAccountPda({
+    owner: marginAccountOwner.address,
+    marginNr: 0,
+    tswap: TSWAP_SINGLETON,
+  });
+
+  // Create a new margin account for the owner
+  const createMarginAccountIx = await getInitMarginAccountInstructionAsync({
+    marginAccount: marginAccountPda,
+    owner: marginAccountOwner,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createMarginAccountIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Initialize the whitelist
+  const { whitelist } = await createWhitelistV2({
+    client,
+    updateAuthority: marginAccountOwner,
+  });
+
+  const poolId = generateUuid();
+  const [poolAta] = await findPoolPda({
+    poolId,
+    owner: marginAccountOwner.address,
+  });
+
+  // Initialize the pool account (attached to margin)
+  const createPoolIx = await getCreatePoolInstructionAsync({
+    owner: marginAccountOwner,
+    whitelist,
+    pool: poolAta,
+    poolId,
+    config: {
+      poolType: PoolType.Trade,
+      startingPrice: LAMPORTS_PER_SOL / 2n,
+      delta: 0,
+      mmCompoundFees: false,
+      mmFeeBps: null,
+      curveType: CurveType.Linear,
+    },
+    sharedEscrow: marginAccountPda,
+  });
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createPoolIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  const withdrawIx = getWithdrawFromTammMarginInstruction({
+    marginAccount: marginAccountPda,
+    pool: poolAta,
+    poolId: poolId,
+    owner: marginAccountOwner,
+    destination: marginAccountOwner.address,
+    tensorEscrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
+    lamports: LAMPORTS_PER_SOL / 2n,
+  });
+
+  const tx = pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(withdrawIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Expect tx to fail with privilege escalation
+  await expectGenericError(
+    t,
+    tx,
+    SOLANA_ERROR__INSTRUCTION_ERROR__PRIVILEGE_ESCALATION
+  );
 });

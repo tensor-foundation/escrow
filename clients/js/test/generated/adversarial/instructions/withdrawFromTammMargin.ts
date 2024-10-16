@@ -35,7 +35,7 @@ import {
 import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export type WithdrawFromMarginInstruction<
+export type WithdrawFromTammMarginInstruction<
   TProgram extends string = typeof MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
   TAccountMarginAccount extends string | IAccountMeta<string> = string,
   TAccountPool extends string | IAccountMeta<string> = string,
@@ -73,18 +73,18 @@ export type WithdrawFromMarginInstruction<
     ]
   >;
 
-export type WithdrawFromMarginInstructionData = {
+export type WithdrawFromTammMarginInstructionData = {
   discriminator: ReadonlyUint8Array;
   poolId: ReadonlyUint8Array;
   lamports: bigint;
 };
 
-export type WithdrawFromMarginInstructionDataArgs = {
+export type WithdrawFromTammMarginInstructionDataArgs = {
   poolId: ReadonlyUint8Array;
   lamports: number | bigint;
 };
 
-export function getWithdrawFromMarginInstructionDataEncoder(): Encoder<WithdrawFromMarginInstructionDataArgs> {
+export function getWithdrawFromTammMarginInstructionDataEncoder(): Encoder<WithdrawFromTammMarginInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
@@ -93,12 +93,12 @@ export function getWithdrawFromMarginInstructionDataEncoder(): Encoder<WithdrawF
     ]),
     (value) => ({
       ...value,
-      discriminator: new Uint8Array([128, 122, 127, 176, 54, 230, 182, 95]),
+      discriminator: new Uint8Array([19, 157, 14, 131, 206, 43, 39, 247]),
     })
   );
 }
 
-export function getWithdrawFromMarginInstructionDataDecoder(): Decoder<WithdrawFromMarginInstructionData> {
+export function getWithdrawFromTammMarginInstructionDataDecoder(): Decoder<WithdrawFromTammMarginInstructionData> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['poolId', fixDecoderSize(getBytesDecoder(), 32)],
@@ -106,17 +106,17 @@ export function getWithdrawFromMarginInstructionDataDecoder(): Decoder<WithdrawF
   ]);
 }
 
-export function getWithdrawFromMarginInstructionDataCodec(): Codec<
-  WithdrawFromMarginInstructionDataArgs,
-  WithdrawFromMarginInstructionData
+export function getWithdrawFromTammMarginInstructionDataCodec(): Codec<
+  WithdrawFromTammMarginInstructionDataArgs,
+  WithdrawFromTammMarginInstructionData
 > {
   return combineCodec(
-    getWithdrawFromMarginInstructionDataEncoder(),
-    getWithdrawFromMarginInstructionDataDecoder()
+    getWithdrawFromTammMarginInstructionDataEncoder(),
+    getWithdrawFromTammMarginInstructionDataDecoder()
   );
 }
 
-export type WithdrawFromMarginInput<
+export type WithdrawFromTammMarginInput<
   TAccountMarginAccount extends string = string,
   TAccountPool extends string = string,
   TAccountOwner extends string = string,
@@ -130,11 +130,11 @@ export type WithdrawFromMarginInput<
   destination: Address<TAccountDestination>;
   systemProgram?: Address<TAccountSystemProgram>;
   tensorEscrowProgram: Address<TAccountTensorEscrowProgram>;
-  poolId: WithdrawFromMarginInstructionDataArgs['poolId'];
-  lamports: WithdrawFromMarginInstructionDataArgs['lamports'];
+  poolId: WithdrawFromTammMarginInstructionDataArgs['poolId'];
+  lamports: WithdrawFromTammMarginInstructionDataArgs['lamports'];
 };
 
-export function getWithdrawFromMarginInstruction<
+export function getWithdrawFromTammMarginInstruction<
   TAccountMarginAccount extends string,
   TAccountPool extends string,
   TAccountOwner extends string,
@@ -142,7 +142,7 @@ export function getWithdrawFromMarginInstruction<
   TAccountSystemProgram extends string,
   TAccountTensorEscrowProgram extends string,
 >(
-  input: WithdrawFromMarginInput<
+  input: WithdrawFromTammMarginInput<
     TAccountMarginAccount,
     TAccountPool,
     TAccountOwner,
@@ -150,7 +150,7 @@ export function getWithdrawFromMarginInstruction<
     TAccountSystemProgram,
     TAccountTensorEscrowProgram
   >
-): WithdrawFromMarginInstruction<
+): WithdrawFromTammMarginInstruction<
   typeof MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
   TAccountMarginAccount,
   TAccountPool,
@@ -199,10 +199,10 @@ export function getWithdrawFromMarginInstruction<
       getAccountMeta(accounts.tensorEscrowProgram),
     ],
     programAddress,
-    data: getWithdrawFromMarginInstructionDataEncoder().encode(
-      args as WithdrawFromMarginInstructionDataArgs
+    data: getWithdrawFromTammMarginInstructionDataEncoder().encode(
+      args as WithdrawFromTammMarginInstructionDataArgs
     ),
-  } as WithdrawFromMarginInstruction<
+  } as WithdrawFromTammMarginInstruction<
     typeof MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
     TAccountMarginAccount,
     TAccountPool,
@@ -215,7 +215,7 @@ export function getWithdrawFromMarginInstruction<
   return instruction;
 }
 
-export type ParsedWithdrawFromMarginInstruction<
+export type ParsedWithdrawFromTammMarginInstruction<
   TProgram extends string = typeof MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
@@ -228,17 +228,17 @@ export type ParsedWithdrawFromMarginInstruction<
     systemProgram: TAccountMetas[4];
     tensorEscrowProgram: TAccountMetas[5];
   };
-  data: WithdrawFromMarginInstructionData;
+  data: WithdrawFromTammMarginInstructionData;
 };
 
-export function parseWithdrawFromMarginInstruction<
+export function parseWithdrawFromTammMarginInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedWithdrawFromMarginInstruction<TProgram, TAccountMetas> {
+): ParsedWithdrawFromTammMarginInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -259,7 +259,7 @@ export function parseWithdrawFromMarginInstruction<
       systemProgram: getNextAccount(),
       tensorEscrowProgram: getNextAccount(),
     },
-    data: getWithdrawFromMarginInstructionDataDecoder().decode(
+    data: getWithdrawFromTammMarginInstructionDataDecoder().decode(
       instruction.data
     ),
   };

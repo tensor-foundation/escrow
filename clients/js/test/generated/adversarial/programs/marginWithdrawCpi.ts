@@ -12,7 +12,10 @@ import {
   getBytesEncoder,
   type Address,
 } from '@solana/web3.js';
-import { type ParsedWithdrawFromMarginInstruction } from '../instructions';
+import {
+  type ParsedWithdrawFromTammMarginInstruction,
+  type ParsedWithdrawFromTammMarginSignedInstruction,
+} from '../instructions';
 
 export const MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS =
   '6yJwyDaYK2q9gMLtRnJukEpskKsNzMAqiCRikRaP2g1F' as Address<'6yJwyDaYK2q9gMLtRnJukEpskKsNzMAqiCRikRaP2g1F'>;
@@ -42,7 +45,8 @@ export function identifyMarginWithdrawCpiAccount(
 }
 
 export enum MarginWithdrawCpiInstruction {
-  WithdrawFromMargin,
+  WithdrawFromTammMargin,
+  WithdrawFromTammMarginSigned,
 }
 
 export function identifyMarginWithdrawCpiInstruction(
@@ -54,12 +58,23 @@ export function identifyMarginWithdrawCpiInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([128, 122, 127, 176, 54, 230, 182, 95])
+        new Uint8Array([19, 157, 14, 131, 206, 43, 39, 247])
       ),
       0
     )
   ) {
-    return MarginWithdrawCpiInstruction.WithdrawFromMargin;
+    return MarginWithdrawCpiInstruction.WithdrawFromTammMargin;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([251, 48, 129, 62, 159, 191, 103, 93])
+      ),
+      0
+    )
+  ) {
+    return MarginWithdrawCpiInstruction.WithdrawFromTammMarginSigned;
   }
   throw new Error(
     'The provided instruction could not be identified as a marginWithdrawCpi instruction.'
@@ -68,6 +83,10 @@ export function identifyMarginWithdrawCpiInstruction(
 
 export type ParsedMarginWithdrawCpiInstruction<
   TProgram extends string = '6yJwyDaYK2q9gMLtRnJukEpskKsNzMAqiCRikRaP2g1F',
-> = {
-  instructionType: MarginWithdrawCpiInstruction.WithdrawFromMargin;
-} & ParsedWithdrawFromMarginInstruction<TProgram>;
+> =
+  | ({
+      instructionType: MarginWithdrawCpiInstruction.WithdrawFromTammMargin;
+    } & ParsedWithdrawFromTammMarginInstruction<TProgram>)
+  | ({
+      instructionType: MarginWithdrawCpiInstruction.WithdrawFromTammMarginSigned;
+    } & ParsedWithdrawFromTammMarginSignedInstruction<TProgram>);

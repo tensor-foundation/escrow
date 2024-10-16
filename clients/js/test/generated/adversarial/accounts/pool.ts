@@ -58,7 +58,7 @@ export function getPoolEncoder(): Encoder<PoolArgs> {
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['owner', getAddressEncoder()],
       ['poolId', fixEncoderSize(getBytesEncoder(), 32)],
-      ['reserved', getArrayEncoder(getU8Encoder(), { size: 374 })],
+      ['reserved', getArrayEncoder(getU8Encoder(), { size: 375 })],
     ]),
     (value) => ({
       ...value,
@@ -72,7 +72,7 @@ export function getPoolDecoder(): Decoder<Pool> {
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['owner', getAddressDecoder()],
     ['poolId', fixDecoderSize(getBytesDecoder(), 32)],
-    ['reserved', getArrayDecoder(getU8Decoder(), { size: 374 })],
+    ['reserved', getArrayDecoder(getU8Decoder(), { size: 375 })],
   ]);
 }
 
@@ -134,5 +134,5 @@ export async function fetchAllMaybePool(
 }
 
 export function getPoolSize(): number {
-  return 446;
+  return 447;
 }
