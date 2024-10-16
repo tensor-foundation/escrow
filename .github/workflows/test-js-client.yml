@@ -18,6 +18,15 @@ jobs:
 
       - name: Load environment variables
         run: cat .github/.env >> $GITHUB_ENV
+      
+      - name: Check for .only or .skip in AVA tests
+        run: |
+          if grep -R --include="*.js" -E "(test|it|describe)\.(only|skip)" ./clients/js/tests/; then
+            echo "Error: Found .only or .skip in JS Client tests. Please remove them before committing."
+            exit 1
+          else
+            echo "No .only or .skip found in JS Client tests."
+          fi
 
       - name: Start validator
         uses: tensor-foundation/actions/start-validator@v2
