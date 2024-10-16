@@ -37,8 +37,8 @@ importers:
         specifier: ^0.5.0
         version: 0.5.0(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.4)(utf-8-validate@5.0.10)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@tensor-foundation/test-helpers':
-        specifier: ^0.4.1
-        version: 0.4.1(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.4)(utf-8-validate@5.0.10)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        specifier: ^0.5.0
+        version: 0.5.0(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.4)(utf-8-validate@5.0.10)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
       '@tensor-foundation/whitelist':
         specifier: ^0.3.0
         version: 0.3.0(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
@@ -668,6 +668,9 @@ packages:
 
   '@tensor-foundation/test-helpers@0.4.1':
     resolution: {integrity: sha512-Qh2lzgI2398LGZqpVk9Z4lQHNr0ckbSH3SAdBhWDj1srrImM4rbsL1V9gCbWwqh9AhxfceLtlhrKXXgIYzfucA==}
+
+  '@tensor-foundation/test-helpers@0.5.0':
+    resolution: {integrity: sha512-ukNZdnP3glqdVRcqOAdb0uhuiBw5uzNKwtSXsdXiRx8gKdN5EfQG56geIkAQk4Os+Yjvk4lNRc5JQmFWpEN84Q==}
 
   '@tensor-foundation/wen-new-standard@0.1.2':
     resolution: {integrity: sha512-WenavcDqWGsQSGNAyEX0LsBf9baFQ8e1QyYDd+WEdtLCBQD0k0siuUgqySZ9vzosxuJ6WuBIqUuk3EbR6oNbxw==}
@@ -3088,6 +3091,28 @@ snapshots:
       - ws
 
   '@tensor-foundation/test-helpers@0.4.1(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.4)(utf-8-validate@5.0.10)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+    dependencies:
+      '@solana-program/compute-budget': 0.3.2(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
+      '@solana-program/system': 0.3.3(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
+      '@solana-program/token': 0.2.0(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
+      '@solana/compat': 2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)
+      '@solana/spl-token': 0.3.11(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.4)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@solana/web3.js-legacy': '@solana/web3.js@1.95.3(bufferutil@4.0.8)(utf-8-validate@5.0.10)'
+      '@tensor-foundation/wen-new-standard': 0.1.2(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
+      '@tensor-foundation/wen-royalty-distribution': 0.1.1(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
+      '@types/uuid': 10.0.0
+      bs58: 6.0.0
+      uuid: 10.0.0
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - fastestsmallesttextencoderdecoder
+      - typescript
+      - utf-8-validate
+      - ws
+
+  '@tensor-foundation/test-helpers@0.5.0(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.5.4)(utf-8-validate@5.0.10)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
     dependencies:
       '@solana-program/compute-budget': 0.3.2(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))
       '@solana-program/system': 0.3.3(@solana/web3.js@2.0.0-preview.3(fastestsmallesttextencoderdecoder@1.0.22)(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)))

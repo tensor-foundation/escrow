@@ -22,6 +22,7 @@ import {
   signAndSendTransaction,
   createDefaultTransaction,
   LAMPORTS_PER_SOL,
+  ANCHOR_ERROR__CONSTRAINT_SEEDS,
 } from '@tensor-foundation/test-helpers';
 import test from 'ava';
 import { getInitMarginAccountInstructionAsync } from '../src';
@@ -92,9 +93,7 @@ test('it prevents an incorrect owner from withdrawing from the margin account', 
     (tx) => signAndSendTransaction(client, tx)
   );
 
-  const SEED_CONSTRAINT_VIOLATION_ERROR = 2006;
-
-  await expectCustomError(t, incorrectOwnerTx, SEED_CONSTRAINT_VIOLATION_ERROR);
+  await expectCustomError(t, incorrectOwnerTx, ANCHOR_ERROR__CONSTRAINT_SEEDS);
 
   // Correct owner can withdraw
   const withdrawSolIx = await getWithdrawMarginAccountInstructionAsync({
@@ -198,9 +197,7 @@ test('it prevents an incorrect owner with a margin account from withdrawing from
     (tx) => signAndSendTransaction(client, tx)
   );
 
-  const SEED_CONSTRAINT_VIOLATION_ERROR = 2006;
-
-  await expectCustomError(t, incorrectOwnerTx, SEED_CONSTRAINT_VIOLATION_ERROR);
+  await expectCustomError(t, incorrectOwnerTx, ANCHOR_ERROR__CONSTRAINT_SEEDS);
 
   // Correct owner can withdraw
   const withdrawSolIx = await getWithdrawMarginAccountInstructionAsync({
@@ -239,7 +236,7 @@ test('it prevents an incorrect owner with a margin account from withdrawing from
   await expectCustomError(
     t,
     incorrectOwnerTxDifferentMarginAccount,
-    SEED_CONSTRAINT_VIOLATION_ERROR
+    ANCHOR_ERROR__CONSTRAINT_SEEDS
   );
 });
 
@@ -325,13 +322,8 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiTammInstruction w
     (tx) => appendTransactionMessageInstruction(withdrawIx, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
- 
-  const SEED_CONSTRAINT_VIOLATION_ERROR = 2006;
-  await expectCustomError(
-    t,
-    tx,
-    SEED_CONSTRAINT_VIOLATION_ERROR
-  );
+
+  await expectCustomError(t, tx, ANCHOR_ERROR__CONSTRAINT_SEEDS);
 });
 
 test('a custom program cannot CPI into WithdrawMarginAccountCpiTammInstruction with a real pool', async (t) => {
