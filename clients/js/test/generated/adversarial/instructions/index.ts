@@ -6,5 +6,6 @@
  * @see https://github.com/kinobi-so/kinobi
  */
 
+export * from './processWithdrawMarginAccountFromTammCpi';
 export * from './withdrawFromTammMargin';
 export * from './withdrawFromTammMarginSigned';

@@ -1221,6 +1221,7 @@ dependencies = [
  "solana-program",
  "tensor-amm",
  "tensor-escrow",
+ "tensor-toolbox",
 ]
 
 [[package]]

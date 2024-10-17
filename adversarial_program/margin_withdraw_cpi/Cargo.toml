@@ -26,3 +26,4 @@ escrow-program = { version = "0.1.0", package = "escrow-program", git = "ssh://g
 ] }
 tensor-escrow = { version = "0.1.1" }
 tensor-amm = { version = "0.7.0" }
+tensor-toolbox = { version = "0.4.0" }

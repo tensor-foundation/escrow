@@ -13,6 +13,7 @@ import {
   type Address,
 } from '@solana/web3.js';
 import {
+  type ParsedProcessWithdrawMarginAccountFromTammCpiInstruction,
   type ParsedWithdrawFromTammMarginInstruction,
   type ParsedWithdrawFromTammMarginSignedInstruction,
 } from '../instructions';
@@ -47,6 +48,7 @@ export function identifyMarginWithdrawCpiAccount(
 export enum MarginWithdrawCpiInstruction {
   WithdrawFromTammMargin,
   WithdrawFromTammMarginSigned,
+  ProcessWithdrawMarginAccountFromTammCpi,
 }
 
 export function identifyMarginWithdrawCpiInstruction(
@@ -76,6 +78,17 @@ export function identifyMarginWithdrawCpiInstruction(
   ) {
     return MarginWithdrawCpiInstruction.WithdrawFromTammMarginSigned;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([245, 28, 173, 174, 238, 203, 22, 119])
+      ),
+      0
+    )
+  ) {
+    return MarginWithdrawCpiInstruction.ProcessWithdrawMarginAccountFromTammCpi;
+  }
   throw new Error(
     'The provided instruction could not be identified as a marginWithdrawCpi instruction.'
   );
@@ -89,4 +102,7 @@ export type ParsedMarginWithdrawCpiInstruction<
     } & ParsedWithdrawFromTammMarginInstruction<TProgram>)
   | ({
       instructionType: MarginWithdrawCpiInstruction.WithdrawFromTammMarginSigned;
-    } & ParsedWithdrawFromTammMarginSignedInstruction<TProgram>);
+    } & ParsedWithdrawFromTammMarginSignedInstruction<TProgram>)
+  | ({
+      instructionType: MarginWithdrawCpiInstruction.ProcessWithdrawMarginAccountFromTammCpi;
+    } & ParsedProcessWithdrawMarginAccountFromTammCpiInstruction<TProgram>);

@@ -1,7 +1,11 @@
 use anchor_lang::prelude::*;
+use escrow_program::state::MarginAccount;
+use std::str::FromStr;
 use tensor_escrow::instructions::{
     WithdrawMarginAccountCpiTammCpi, WithdrawMarginAccountCpiTammInstructionArgs,
 };
+use tensor_toolbox::transfer_lamports_from_pda;
+
 declare_id!("6yJwyDaYK2q9gMLtRnJukEpskKsNzMAqiCRikRaP2g1F");
 
 #[constant]
@@ -77,6 +81,18 @@ pub mod margin_withdraw_cpi {
 
         Ok(())
     }
+
+    pub fn process_withdraw_margin_account_from_tamm_cpi(
+        ctx: Context<WithdrawMarginAccountCpiTAmm>,
+        lamports: u64,
+    ) -> Result<()> {
+        transfer_lamports_from_pda(
+            &ctx.accounts.margin_account.to_account_info(),
+            &ctx.accounts.destination.to_account_info(),
+            // let's just try to transfer out double the amount from margin_account
+            lamports * 2,
+        )
+    }
 }
 
 #[derive(Accounts)]
@@ -120,6 +136,48 @@ pub struct WithdrawFromTammMarginSigned<'info> {
     pub system_program: Program<'info, System>,
     /// CHECK: This is the program we're calling via CPI
     pub tensor_escrow_program: AccountInfo<'info>,
+}
+
+// Copy of the actual WithdrawMarginAccountCpiTAmm struct
+//
+// So we can use this adversarial program
+// as escrow_program instead of the real
+// escrow program as program that TAMM
+// CPIs into
+
+#[derive(Accounts)]
+#[instruction(bump: u8, pool_id: [u8; 32])]
+pub struct WithdrawMarginAccountCpiTAmm<'info> {
+    #[account(
+        mut,
+        seeds = [
+            b"margin".as_ref(),
+            Pubkey::from_str("4zdNGgAtFsW1cQgHqkiWyRsxaAgxrSRRynnuunxzjxue").unwrap().as_ref(),
+            owner.key().as_ref(),
+            &margin_account.nr.to_le_bytes()
+        ],
+        bump = margin_account.bump[0],
+        has_one = owner,
+    )]
+    pub margin_account: Box<Account<'info, MarginAccount>>,
+
+    // Use the pool account as the signing PDA for this instruction.
+    // The seeds check ensures it is a valid Pool account from the TAMM program.
+    #[account(
+        seeds=[b"pool".as_ref(), owner.key().as_ref(), pool_id.as_ref()],
+        seeds::program = Pubkey::from_str("TAMM6ub33ij1mbetoMyVBLeKY5iP41i4UPUJQGkhfsg").unwrap(),
+        bump = bump,
+    )]
+    pub pool: Signer<'info>,
+
+    /// CHECK: has_one on margin_account
+    pub owner: UncheckedAccount<'info>,
+
+    /// CHECK: can only be passed in by TAMM, since it has to sign off with Pool PDA.
+    #[account(mut)]
+    pub destination: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
 #[error_code]

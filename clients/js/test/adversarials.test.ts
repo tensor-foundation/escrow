@@ -29,7 +29,7 @@ import {
   ANCHOR_ERROR__CONSTRAINT_SEEDS,
   SYSVARS_RENT,
   ANCHOR_ERROR__ACCOUNT_DISCRIMINATOR_MISMATCH,
-  createNft,
+  ANCHOR_ERROR__CONSTRAINT_ADDRESS,
 } from '@tensor-foundation/test-helpers';
 import test from 'ava';
 import { getInitMarginAccountInstructionAsync } from '../src';
@@ -48,6 +48,7 @@ import {
   PoolType,
   TENSOR_AMM_PROGRAM_ADDRESS,
   getSellNftTokenPoolInstructionAsync,
+  getSellNftTradePoolInstructionAsync,
 } from '@tensor-foundation/amm';
 import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from './generated/adversarial/programs/marginWithdrawCpi';
 import { getWithdrawFromTammMarginSignedInstruction } from './generated/adversarial/instructions/withdrawFromTammMarginSigned';
@@ -658,3 +659,88 @@ export async function idlAddress(): Promise<Address> {
     programAddress,
   });
 }
+
+test("a custom program can't imitate being the escrow program to drain the margin account", async (t) => {
+  const client = createDefaultSolanaClient();
+  const marginAccountOwner = await generateKeyPairSignerWithSol(client);
+  const attacker = await generateKeyPairSignerWithSol(client);
+  const nftUpdateAuthority = await generateKeyPairSignerWithSol(client);
+  await initTswap(client);
+
+  const { whitelist } = await createWhitelistV2({
+    client,
+    updateAuthority: marginAccountOwner,
+  });
+
+  const [marginAccountPda] = await findMarginAccountPda({
+    owner: marginAccountOwner.address,
+    marginNr: 0,
+    tswap: TSWAP_SINGLETON,
+  });
+
+  const createMarginAccountIx = await getInitMarginAccountInstructionAsync({
+    marginAccount: marginAccountPda,
+    owner: marginAccountOwner,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createMarginAccountIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  const poolId = generateUuid();
+  const [poolAta] = await findPoolPda({
+    poolId,
+    owner: marginAccountOwner.address,
+  });
+
+  const createPoolIx = await getCreatePoolInstructionAsync({
+    owner: marginAccountOwner,
+    whitelist: whitelist,
+    pool: poolAta,
+    poolId,
+    config: {
+      poolType: PoolType.Trade,
+      startingPrice: LAMPORTS_PER_SOL / 2n,
+      delta: 0,
+      mmCompoundFees: false,
+      mmFeeBps: null,
+      curveType: CurveType.Linear,
+    },
+    sharedEscrow: marginAccountPda,
+  });
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createPoolIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Mint default NFT
+  const { mint } = await createDefaultNft({
+    client,
+    owner: attacker.address,
+    payer: attacker,
+    authority: nftUpdateAuthority,
+  });
+
+  const sellIx = await getSellNftTradePoolInstructionAsync({
+    owner: marginAccountOwner.address,
+    pool: poolAta,
+    mint,
+    whitelist,
+    minPrice: 0n,
+    taker: attacker,
+    sharedEscrow: marginAccountPda,
+    escrowProgram: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
+    creators: [nftUpdateAuthority.address],
+  });
+
+  const tx = pipe(
+    await createDefaultTransaction(client, attacker),
+    (tx) => appendTransactionMessageInstruction(sellIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  await expectCustomError(t, tx, ANCHOR_ERROR__CONSTRAINT_ADDRESS);
+});
