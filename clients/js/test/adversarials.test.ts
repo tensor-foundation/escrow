@@ -420,9 +420,9 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
   /*
    * This test creates an anchor native IDL Buffer and writes
    * data to it, so it could be deserialized as a pool
-   * As a result, an attacker is able to create an
-   * AMM Program owned account whose size and data
-   * (except discriminator + IDL Acc Header) are
+   * As a result, an attacker is able to create and have
+   * authority over an AMM Program owned account whose size
+   * and data (except discriminator + IDL Acc Header) are
    * matching a real pool account.
    * Then it tries to withdraw with the fake pool
    * which is owned by the attacker.
@@ -489,7 +489,20 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
     .send();
   const [poolData] = pool!.value!.data!;
 
-  // Idl dispatch ix discriminator
+  // consts
+  const IDL_ACCOUNT_HEADER_SIZE = 44;
+  const POOL_ACCOUNT_SIZE = 447;
+  const POOL_IMITATION_SIZE_FOUR_BYTES_LE = Buffer.alloc(4);
+  const POOL_IMITATION_SIZE_EIGHT_BYTES_LE = Buffer.alloc(8);
+  POOL_IMITATION_SIZE_FOUR_BYTES_LE.writeUInt32LE(
+    POOL_ACCOUNT_SIZE - IDL_ACCOUNT_HEADER_SIZE,
+    0
+  );
+  POOL_IMITATION_SIZE_EIGHT_BYTES_LE.writeUInt32LE(
+    POOL_ACCOUNT_SIZE - IDL_ACCOUNT_HEADER_SIZE,
+    0
+  );
+
   const IDL_IX_TAG_LE = new Uint8Array([
     0x40, 0xf4, 0xbc, 0x78, 0xa7, 0xe9, 0x69, 0x0a,
   ]);
@@ -516,11 +529,13 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
       { address: TENSOR_AMM_PROGRAM_ADDRESS, role: AccountRole.READONLY },
       { address: SYSVARS_RENT, role: AccountRole.READONLY },
     ],
-    // idl dispatch discriminator, IdlInstruction enum variant serialized (IdlInstruction::Create), allocated length (le bytes)
+    // 1. idl dispatch discriminator,
+    // 2. IdlInstruction enum variant serialized (IdlInstruction::Create),
+    // 3. allocated length (u64 as le bytes)
     data: Buffer.concat([
       IDL_IX_TAG_LE,
       Buffer.from([0]),
-      Buffer.from([147, 1, 0, 0, 0, 0, 0, 0]),
+      Buffer.from(POOL_IMITATION_SIZE_EIGHT_BYTES_LE),
     ]),
   };
   const signedCreateBufferIx = addSignersToInstruction(
@@ -546,13 +561,13 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
     ],
     // 1. idl dispatch discriminator,
     // 2. IdlInstruction enum variant serialized (IdlInstruction::Write),
-    // 3. amount of bytes to write
+    // 3. amount of bytes to write (u32 as le bytes)
     // 4. data to write (rest of the pool data)
     data: Buffer.concat([
       IDL_IX_TAG_LE,
       Buffer.from([2]),
-      Buffer.from([147, 1, 0, 0, 0, 0, 0, 0]),
-      Buffer.from(poolData!, 'base64').slice(48),
+      Buffer.from(POOL_IMITATION_SIZE_FOUR_BYTES_LE),
+      Buffer.from(poolData!, 'base64').slice(IDL_ACCOUNT_HEADER_SIZE),
     ]),
   };
   const signedWriteBufferIx = addSignersToInstruction(
@@ -573,8 +588,12 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
   // assert that the last bytes (except the discriminator + pool header) are matching
   t.assert(
     Buffer.from(pool!.value!.data![0], 'base64')
-      .slice(48)
-      .equals(Buffer.from(fakePool!.value!.data![0], 'base64').slice(48))
+      .slice(IDL_ACCOUNT_HEADER_SIZE)
+      .equals(
+        Buffer.from(fakePool!.value!.data![0], 'base64').slice(
+          IDL_ACCOUNT_HEADER_SIZE
+        )
+      )
   );
 
   // Try to withdraw from the fake pool
