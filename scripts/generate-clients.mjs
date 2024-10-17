@@ -10,7 +10,8 @@ import { getAllProgramIdls } from "./utils.mjs";
 const [idl, ...additionalIdls] = getAllProgramIdls().map((idl) =>
   rootNodeFromAnchor(require(idl)),
 );
-const kinobi = k.createFromRoot(idl, additionalIdls);
+const kinobi = k.createFromRoot(idl);
+const kinobiAdversarial = k.createFromRoot(additionalIdls[0]);
 
 // Update programs.
 kinobi.update(
@@ -122,6 +123,12 @@ kinobi.update(
 const jsClient = path.join(__dirname, "..", "clients", "js");
 kinobi.accept(
   renderJavaScriptVisitor(path.join(jsClient, "src", "generated"), {
+    prettier: require(path.join(jsClient, ".prettierrc.json")),
+  }),
+);
+
+kinobiAdversarial.accept(
+  renderJavaScriptVisitor(path.join(jsClient, "test", "generated", "adversarial"), {
     prettier: require(path.join(jsClient, ".prettierrc.json")),
   }),
 );
