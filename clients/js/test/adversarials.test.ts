@@ -29,6 +29,7 @@ import {
   ANCHOR_ERROR__CONSTRAINT_SEEDS,
   SYSVARS_RENT,
   ANCHOR_ERROR__ACCOUNT_DISCRIMINATOR_MISMATCH,
+  createNft,
 } from '@tensor-foundation/test-helpers';
 import test from 'ava';
 import { getInitMarginAccountInstructionAsync } from '../src';
@@ -46,11 +47,13 @@ import {
   getWithdrawSolInstruction,
   PoolType,
   TENSOR_AMM_PROGRAM_ADDRESS,
+  getSellNftTokenPoolInstructionAsync,
 } from '@tensor-foundation/amm';
 import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from './generated/adversarial/programs/marginWithdrawCpi';
 import { getWithdrawFromTammMarginSignedInstruction } from './generated/adversarial/instructions/withdrawFromTammMarginSigned';
 import { getWithdrawFromTammMarginInstruction } from './generated/adversarial/instructions/withdrawFromTammMargin';
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
+import { createDefaultNft } from '@tensor-foundation/mpl-token-metadata';
 
 test('it prevents an incorrect owner from withdrawing from the margin account', async (t) => {
   const client = createDefaultSolanaClient();
@@ -430,6 +433,8 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
 
   const client = createDefaultSolanaClient();
   const marginAccountOwner = await generateKeyPairSignerWithSol(client);
+  const nftUpdateAuthority = await generateKeyPairSignerWithSol(client);
+  const attacker = await generateKeyPairSignerWithSol(client);
   await initTswap(client);
 
   const [marginAccountPda] = await findMarginAccountPda({
@@ -453,7 +458,7 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
   // Initialize the whitelist
   const { whitelist } = await createWhitelistV2({
     client,
-    updateAuthority: marginAccountOwner,
+    updateAuthority: nftUpdateAuthority,
   });
 
   const poolId = generateUuid();
@@ -512,7 +517,7 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
     programAddress: TENSOR_AMM_PROGRAM_ADDRESS,
     accounts: [
       {
-        address: marginAccountOwner.address,
+        address: attacker.address,
         role: AccountRole.READONLY_SIGNER,
       },
       { address: idlAddressAcc, role: AccountRole.WRITABLE },
@@ -539,13 +544,13 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
     ]),
   };
   const signedCreateBufferIx = addSignersToInstruction(
-    [marginAccountOwner],
+    [attacker],
     createBufferIx
   );
 
   // Send the transaction
   await pipe(
-    await createDefaultTransaction(client, marginAccountOwner),
+    await createDefaultTransaction(client, attacker),
     (tx) => appendTransactionMessageInstruction(signedCreateBufferIx, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
@@ -555,7 +560,7 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
     accounts: [
       { address: idlAddressAcc, role: AccountRole.WRITABLE },
       {
-        address: marginAccountOwner.address,
+        address: attacker.address,
         role: AccountRole.READONLY_SIGNER,
       },
     ],
@@ -571,13 +576,13 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
     ]),
   };
   const signedWriteBufferIx = addSignersToInstruction(
-    [marginAccountOwner],
+    [attacker],
     writeBufferIx
   );
 
   // Send the transaction
   await pipe(
-    await createDefaultTransaction(client, marginAccountOwner),
+    await createDefaultTransaction(client, attacker),
     (tx) => appendTransactionMessageInstruction(signedWriteBufferIx, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
@@ -598,19 +603,47 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with 
 
   // Try to withdraw from the fake pool
   const withdrawIx = getWithdrawSolInstruction({
-    owner: marginAccountOwner,
+    owner: attacker,
     pool: idlAddressAcc,
     lamports: LAMPORTS_PER_SOL / 2n,
   });
 
   const tx = pipe(
-    await createDefaultTransaction(client, marginAccountOwner),
+    await createDefaultTransaction(client, attacker),
     (tx) => appendTransactionMessageInstruction(withdrawIx, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
 
   // Expect tx to fail with discriminator mismatch of the pool acc
   await expectCustomError(t, tx, ANCHOR_ERROR__ACCOUNT_DISCRIMINATOR_MISMATCH);
+
+  // Alternatively, try to mint NFT and sell into the wrong pool, attached to real shared escrow
+  const { mint } = await createDefaultNft({
+    client,
+    owner: attacker.address,
+    payer: attacker,
+    authority: nftUpdateAuthority,
+  });
+
+  const sellIx = await getSellNftTokenPoolInstructionAsync({
+    owner: marginAccountOwner.address,
+    pool: idlAddressAcc,
+    mint,
+    whitelist,
+    minPrice: 0n,
+    taker: attacker,
+    sharedEscrow: marginAccountPda,
+    creators: [nftUpdateAuthority.address],
+  });
+
+  const tx2 = pipe(
+    await createDefaultTransaction(client, attacker),
+    (tx) => appendTransactionMessageInstruction(sellIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Expect tx to fail with discriminator mismatch of the pool acc
+  await expectCustomError(t, tx2, ANCHOR_ERROR__ACCOUNT_DISCRIMINATOR_MISMATCH);
 });
 
 export async function idlAddress(): Promise<Address> {
