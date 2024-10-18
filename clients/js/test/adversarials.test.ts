@@ -30,6 +30,7 @@ import {
   SYSVARS_RENT,
   ANCHOR_ERROR__ACCOUNT_DISCRIMINATOR_MISMATCH,
   ANCHOR_ERROR__CONSTRAINT_ADDRESS,
+  ANCHOR_ERROR__INVALID_PROGRAM_ID,
 } from '@tensor-foundation/test-helpers';
 import test from 'ava';
 import { getInitMarginAccountInstructionAsync } from '../src';
@@ -328,6 +329,7 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiTammInstruction w
     destination: marginAccountOwner.address,
     tensorEscrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
     lamports: LAMPORTS_PER_SOL / 2n,
+    systemProgram: SYSTEM_PROGRAM_ADDRESS,
   });
 
   const tx = pipe(
@@ -404,6 +406,7 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiTammInstruction w
     destination: marginAccountOwner.address,
     tensorEscrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
     lamports: LAMPORTS_PER_SOL / 2n,
+    systemProgram: SYSTEM_PROGRAM_ADDRESS,
   });
 
   const tx = pipe(
@@ -420,6 +423,8 @@ test('a custom program cannot CPI into WithdrawMarginAccountCpiTammInstruction w
   );
 });
 
+// (!!) This test can only be called once since it has to set the authority to a deterministic
+// PDA for the IdlBuffer. To run this test again successfully, restart the local validator
 test('a custom program cannot CPI into WithdrawMarginAccountCpiInstruction with an IdlBuffer imitating a pool account', async (t) => {
   /*
    * This test creates an anchor native IDL Buffer and writes
@@ -732,6 +737,7 @@ test("a custom program can't imitate being the escrow program to drain the margi
     minPrice: 0n,
     taker: attacker,
     sharedEscrow: marginAccountPda,
+    // (!)
     escrowProgram: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
     creators: [nftUpdateAuthority.address],
   });
@@ -743,4 +749,91 @@ test("a custom program can't imitate being the escrow program to drain the margi
   );
 
   await expectCustomError(t, tx, ANCHOR_ERROR__CONSTRAINT_ADDRESS);
+});
+
+test("a custom program can't imitate being the amm program to drain the margin account in a malicious noop handler", async (t) => {
+  const client = createDefaultSolanaClient();
+  const marginAccountOwner = await generateKeyPairSignerWithSol(client);
+  const attacker = await generateKeyPairSignerWithSol(client);
+  const nftUpdateAuthority = await generateKeyPairSignerWithSol(client);
+  await initTswap(client);
+
+  const { whitelist } = await createWhitelistV2({
+    client,
+    updateAuthority: marginAccountOwner,
+  });
+
+  const [marginAccountPda] = await findMarginAccountPda({
+    owner: marginAccountOwner.address,
+    marginNr: 0,
+    tswap: TSWAP_SINGLETON,
+  });
+
+  const createMarginAccountIx = await getInitMarginAccountInstructionAsync({
+    marginAccount: marginAccountPda,
+    owner: marginAccountOwner,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createMarginAccountIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  const poolId = generateUuid();
+  const [poolAta] = await findPoolPda({
+    poolId,
+    owner: marginAccountOwner.address,
+  });
+
+  const createPoolIx = await getCreatePoolInstructionAsync({
+    owner: marginAccountOwner,
+    whitelist,
+    pool: poolAta,
+    poolId,
+    config: {
+      poolType: PoolType.Trade,
+      startingPrice: LAMPORTS_PER_SOL / 2n,
+      delta: 0,
+      mmCompoundFees: false,
+      mmFeeBps: null,
+      curveType: CurveType.Linear,
+    },
+    sharedEscrow: marginAccountPda,
+  });
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createPoolIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Mint default NFT
+  const { mint } = await createDefaultNft({
+    client,
+    owner: attacker.address,
+    payer: attacker,
+    authority: nftUpdateAuthority,
+  });
+
+  const sellIx = await getSellNftTradePoolInstructionAsync({
+    owner: marginAccountOwner.address,
+    pool: poolAta,
+    mint,
+    whitelist,
+    minPrice: 0n,
+    taker: attacker,
+    sharedEscrow: marginAccountPda,
+    escrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
+    // (!)
+    ammProgram: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
+    creators: [nftUpdateAuthority.address],
+  });
+
+  const tx = pipe(
+    await createDefaultTransaction(client, attacker),
+    (tx) => appendTransactionMessageInstruction(sellIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  await expectCustomError(t, tx, ANCHOR_ERROR__INVALID_PROGRAM_ID);
 });
