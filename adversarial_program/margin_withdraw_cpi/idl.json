@@ -8,6 +8,13 @@
         "defined": "usize"
       },
       "value": "447"
+    },
+    {
+      "name": "BID_STATE_LEN",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "426"
     }
   ],
   "instructions": [
@@ -146,6 +153,96 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "withdrawFromTcmpMargin",
+      "accounts": [
+        {
+          "name": "marginAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bidState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tensorEscrowProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bidId",
+          "type": "publicKey"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFromTcmpMarginSigned",
+      "accounts": [
+        {
+          "name": "marginAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "bidState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "owner",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "destination",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tensorEscrowProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "bidId",
+          "type": "publicKey"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -175,6 +272,165 @@
                 375
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BidState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": {
+              "array": [
+                "u8",
+                1
+              ]
+            }
+          },
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "bidId",
+            "type": "publicKey"
+          },
+          {
+            "name": "target",
+            "type": {
+              "defined": "Target"
+            }
+          },
+          {
+            "name": "targetId",
+            "type": "publicKey"
+          },
+          {
+            "name": "field",
+            "type": {
+              "option": {
+                "defined": "Field"
+              }
+            }
+          },
+          {
+            "name": "fieldId",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "quantity",
+            "type": "u32"
+          },
+          {
+            "name": "filledQuantity",
+            "type": "u32"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "currency",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "expiry",
+            "type": "i64"
+          },
+          {
+            "name": "privateTaker",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "makerBroker",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "margin",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "updatedAt",
+            "type": "i64"
+          },
+          {
+            "name": "cosigner",
+            "type": "publicKey"
+          },
+          {
+            "name": "rentPayer",
+            "type": "publicKey"
+          },
+          {
+            "name": "reserved",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "reserved1",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "reserved2",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "Target",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "AssetId"
+          },
+          {
+            "name": "Whitelist"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Field",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Name"
           }
         ]
       }

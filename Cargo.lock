@@ -1221,6 +1221,7 @@ dependencies = [
  "solana-program",
  "tensor-amm",
  "tensor-escrow",
+ "tensor-marketplace",
  "tensor-toolbox",
 ]
 
@@ -2385,6 +2386,19 @@ name = "tensor-escrow"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfa2e5bc1f065d7b538d6095b0dc849252cae58883b4cab84fbc839d8f6d6e31"
+dependencies = [
+ "borsh 0.10.3",
+ "num-derive 0.3.3",
+ "num-traits",
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
+name = "tensor-marketplace"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "327cd63079f0082cb7248217a31a4e1f8b2947c94d4be19f2103cfe0f4589308"
 dependencies = [
  "borsh 0.10.3",
  "num-derive 0.3.3",

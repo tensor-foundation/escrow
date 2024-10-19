@@ -9,3 +9,5 @@
 export * from './processWithdrawMarginAccountFromTammCpi';
 export * from './withdrawFromTammMargin';
 export * from './withdrawFromTammMarginSigned';
+export * from './withdrawFromTcmpMargin';
+export * from './withdrawFromTcmpMarginSigned';

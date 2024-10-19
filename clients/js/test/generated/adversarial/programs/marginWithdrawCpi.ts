@@ -16,6 +16,8 @@ import {
   type ParsedProcessWithdrawMarginAccountFromTammCpiInstruction,
   type ParsedWithdrawFromTammMarginInstruction,
   type ParsedWithdrawFromTammMarginSignedInstruction,
+  type ParsedWithdrawFromTcmpMarginInstruction,
+  type ParsedWithdrawFromTcmpMarginSignedInstruction,
 } from '../instructions';
 
 export const MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS =
@@ -23,6 +25,7 @@ export const MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS =
 
 export enum MarginWithdrawCpiAccount {
   Pool,
+  BidState,
 }
 
 export function identifyMarginWithdrawCpiAccount(
@@ -40,6 +43,17 @@ export function identifyMarginWithdrawCpiAccount(
   ) {
     return MarginWithdrawCpiAccount.Pool;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([155, 197, 5, 97, 189, 60, 8, 183])
+      ),
+      0
+    )
+  ) {
+    return MarginWithdrawCpiAccount.BidState;
+  }
   throw new Error(
     'The provided account could not be identified as a marginWithdrawCpi account.'
   );
@@ -49,6 +63,8 @@ export enum MarginWithdrawCpiInstruction {
   WithdrawFromTammMargin,
   WithdrawFromTammMarginSigned,
   ProcessWithdrawMarginAccountFromTammCpi,
+  WithdrawFromTcmpMargin,
+  WithdrawFromTcmpMarginSigned,
 }
 
 export function identifyMarginWithdrawCpiInstruction(
@@ -89,6 +105,28 @@ export function identifyMarginWithdrawCpiInstruction(
   ) {
     return MarginWithdrawCpiInstruction.ProcessWithdrawMarginAccountFromTammCpi;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([117, 209, 203, 211, 80, 218, 224, 87])
+      ),
+      0
+    )
+  ) {
+    return MarginWithdrawCpiInstruction.WithdrawFromTcmpMargin;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([48, 23, 246, 232, 19, 81, 187, 157])
+      ),
+      0
+    )
+  ) {
+    return MarginWithdrawCpiInstruction.WithdrawFromTcmpMarginSigned;
+  }
   throw new Error(
     'The provided instruction could not be identified as a marginWithdrawCpi instruction.'
   );
@@ -105,4 +143,10 @@ export type ParsedMarginWithdrawCpiInstruction<
     } & ParsedWithdrawFromTammMarginSignedInstruction<TProgram>)
   | ({
       instructionType: MarginWithdrawCpiInstruction.ProcessWithdrawMarginAccountFromTammCpi;
-    } & ParsedProcessWithdrawMarginAccountFromTammCpiInstruction<TProgram>);
+    } & ParsedProcessWithdrawMarginAccountFromTammCpiInstruction<TProgram>)
+  | ({
+      instructionType: MarginWithdrawCpiInstruction.WithdrawFromTcmpMargin;
+    } & ParsedWithdrawFromTcmpMarginInstruction<TProgram>)
+  | ({
+      instructionType: MarginWithdrawCpiInstruction.WithdrawFromTcmpMarginSigned;
+    } & ParsedWithdrawFromTcmpMarginSignedInstruction<TProgram>);

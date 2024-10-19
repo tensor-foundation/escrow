@@ -1,10 +1,12 @@
 import {
   AccountRole,
+  address,
   Address,
   addSignersToInstruction,
   appendTransactionMessageInstruction,
   createAddressWithSeed,
   fixEncoderSize,
+  getAddressDecoder,
   getAddressEncoder,
   getBytesEncoder,
   getProgramDerivedAddress,
@@ -51,11 +53,20 @@ import {
   getSellNftTokenPoolInstructionAsync,
   getSellNftTradePoolInstructionAsync,
 } from '@tensor-foundation/amm';
-import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from './generated/adversarial/programs/marginWithdrawCpi';
-import { getWithdrawFromTammMarginSignedInstruction } from './generated/adversarial/instructions/withdrawFromTammMarginSigned';
-import { getWithdrawFromTammMarginInstruction } from './generated/adversarial/instructions/withdrawFromTammMargin';
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { createDefaultNft } from '@tensor-foundation/mpl-token-metadata';
+import {
+  findBidStatePda,
+  getBidInstructionAsync,
+  Target,
+} from '@tensor-foundation/marketplace';
+import {
+  getWithdrawFromTcmpMarginInstruction,
+  getWithdrawFromTcmpMarginSignedInstruction,
+  getWithdrawFromTammMarginSignedInstruction,
+  getWithdrawFromTammMarginInstruction,
+  MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
+} from './generated/adversarial';
 
 test('it prevents an incorrect owner from withdrawing from the margin account', async (t) => {
   const client = createDefaultSolanaClient();
@@ -836,4 +847,164 @@ test("a custom program can't imitate being the amm program to drain the margin a
   );
 
   await expectCustomError(t, tx, ANCHOR_ERROR__INVALID_PROGRAM_ID);
+});
+
+test('a custom program cannot CPI into WithdrawMarginAccountCpiTcompInstruction with an imitated bid state', async (t) => {
+  const client = createDefaultSolanaClient();
+  const marginAccountOwner = await generateKeyPairSignerWithSol(client);
+  await initTswap(client);
+
+  const [marginAccountPda] = await findMarginAccountPda({
+    owner: marginAccountOwner.address,
+    marginNr: 0,
+    tswap: TSWAP_SINGLETON,
+  });
+
+  // Create a new margin account for the owner
+  const createMarginAccountIx = await getInitMarginAccountInstructionAsync({
+    marginAccount: marginAccountPda,
+    owner: marginAccountOwner,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createMarginAccountIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Initialize the whitelist
+  const { whitelist } = await createWhitelistV2({
+    client,
+    updateAuthority: marginAccountOwner,
+  });
+
+  const bidId = getAddressDecoder().decode(generateUuid());
+  const [bidStatePda] = await findBidStatePda({
+    bidId,
+    owner: marginAccountOwner.address,
+  });
+
+  // Initialize the bid account (attached to margin)
+  const createBidIx = await getBidInstructionAsync({
+    owner: marginAccountOwner,
+    target: Target.Whitelist,
+    targetId: whitelist,
+    bidId,
+    bidState: bidStatePda,
+    sharedEscrow: marginAccountPda,
+    amount: LAMPORTS_PER_SOL / 2n,
+  });
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createBidIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Derive adversarial bidState
+  const [adversarialBidStatePda] = await getProgramDerivedAddress({
+    programAddress: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
+    seeds: [
+      getUtf8Encoder().encode('bid_state'),
+      getAddressEncoder().encode(marginAccountOwner.address),
+      getAddressEncoder().encode(bidId),
+    ],
+  });
+
+  const withdrawIx = getWithdrawFromTcmpMarginSignedInstruction({
+    marginAccount: marginAccountPda,
+    bidState: adversarialBidStatePda,
+    bidId,
+    owner: marginAccountOwner,
+    destination: marginAccountOwner.address,
+    tensorEscrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
+    lamports: LAMPORTS_PER_SOL / 2n,
+    systemProgram: SYSTEM_PROGRAM_ADDRESS,
+  });
+
+  const tx = pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(withdrawIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  await expectCustomError(t, tx, ANCHOR_ERROR__CONSTRAINT_SEEDS);
+});
+
+test('a custom program cannot CPI into WithdrawMarginAccountCpiTcompInstruction with a real bidState', async (t) => {
+  const client = createDefaultSolanaClient();
+  const marginAccountOwner = await generateKeyPairSignerWithSol(client);
+  await initTswap(client);
+
+  const [marginAccountPda] = await findMarginAccountPda({
+    owner: marginAccountOwner.address,
+    marginNr: 0,
+    tswap: TSWAP_SINGLETON,
+  });
+
+  // Create a new margin account for the owner
+  const createMarginAccountIx = await getInitMarginAccountInstructionAsync({
+    marginAccount: marginAccountPda,
+    owner: marginAccountOwner,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createMarginAccountIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Initialize the whitelist
+  const { whitelist } = await createWhitelistV2({
+    client,
+    updateAuthority: marginAccountOwner,
+  });
+
+  const bidId = getAddressDecoder().decode(generateUuid());
+  const [bidStatePda] = await findBidStatePda(
+    {
+      bidId,
+      owner: marginAccountOwner.address,
+    },
+    { programAddress: address('TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp') }
+  );
+
+  // Initialize the bid account (attached to margin)
+  const createBidIx = await getBidInstructionAsync({
+    owner: marginAccountOwner,
+    target: Target.Whitelist,
+    targetId: whitelist,
+    bidId: bidId,
+    bidState: bidStatePda,
+    sharedEscrow: marginAccountPda,
+    amount: LAMPORTS_PER_SOL / 2n,
+  });
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createBidIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  const withdrawIx = getWithdrawFromTcmpMarginInstruction({
+    marginAccount: marginAccountPda,
+    bidState: bidStatePda,
+    bidId: bidId,
+    owner: marginAccountOwner,
+    destination: marginAccountOwner.address,
+    tensorEscrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
+    lamports: LAMPORTS_PER_SOL / 2n,
+    systemProgram: SYSTEM_PROGRAM_ADDRESS,
+  });
+
+  const tx = pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(withdrawIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Expect tx to fail with privilege escalation
+  await expectGenericError(
+    t,
+    tx,
+    SOLANA_ERROR__INSTRUCTION_ERROR__PRIVILEGE_ESCALATION
+  );
 });
