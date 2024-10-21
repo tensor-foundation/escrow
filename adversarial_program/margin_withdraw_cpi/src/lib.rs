@@ -2,7 +2,8 @@ use anchor_lang::prelude::*;
 use escrow_program::state::MarginAccount;
 use std::str::FromStr;
 use tensor_escrow::instructions::{
-    WithdrawMarginAccountCpiTammCpi, WithdrawMarginAccountCpiTammInstructionArgs, WithdrawMarginAccountCpiTcompCpi, WithdrawMarginAccountCpiTcompInstructionArgs
+    WithdrawMarginAccountCpiTammCpi, WithdrawMarginAccountCpiTammInstructionArgs,
+    WithdrawMarginAccountCpiTcompCpi, WithdrawMarginAccountCpiTcompInstructionArgs,
 };
 use tensor_toolbox::transfer_lamports_from_pda;
 
@@ -193,7 +194,6 @@ pub mod margin_withdraw_cpi {
 
         Ok(())
     }
-
 }
 
 #[derive(Accounts)]
