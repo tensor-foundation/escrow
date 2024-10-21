@@ -37,7 +37,7 @@ import {
   TTokenStandard,
   TUsesArgs,
 } from '@tensor-foundation/marketplace';
-import { TMetadataArgsArgs } from '@tensor-foundation/common-helpers/dist/types/shared-types';
+import { TMetadataArgsArgs } from '@tensor-foundation/common-helpers';
 import { MetadataArgs } from '@tensor-foundation/mpl-bubblegum';
 
 export const expectGenericError = async (
