@@ -12,6 +12,7 @@ import {
   lamports,
   OptionOrNullable,
   pipe,
+  ReadonlyUint8Array,
   SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
   SolanaErrorCode,
   unwrapOption,
@@ -33,11 +34,13 @@ import {
   Mode,
 } from '@tensor-foundation/whitelist';
 import {
+  TCollectionArgs,
   TTokenProgramVersion,
+  TTokenProgramVersionArgs,
   TTokenStandard,
+  TTokenStandardArgs,
   TUsesArgs,
 } from '@tensor-foundation/marketplace';
-import { TMetadataArgsArgs } from '@tensor-foundation/common-helpers';
 import { MetadataArgs } from '@tensor-foundation/mpl-bubblegum';
 
 export const expectGenericError = async (
@@ -172,6 +175,32 @@ export async function idlAddress(programAddress: Address): Promise<Address> {
     programAddress,
   });
 }
+
+// No idea why this is not exported by Marketplace, but by Price-Lock...
+//
+export type TMetadataArgsArgs = {
+  /** The name of the asset */
+  name: string;
+  /** The symbol for the asset */
+  symbol: string;
+  /** URI pointing to JSON representing the asset */
+  uri: string;
+  /** Royalty basis points that goes to creators in secondary sales (0-10000) */
+  sellerFeeBasisPoints: number;
+  primarySaleHappened: boolean;
+  isMutable: boolean;
+  /** nonce for easy calculation of editions, if present */
+  editionNonce: OptionOrNullable<number>;
+  /** Since we cannot easily change Metadata, we add the new DataV2 fields here at the end. */
+  tokenStandard: OptionOrNullable<TTokenStandardArgs>;
+  /** Collection */
+  collection: OptionOrNullable<TCollectionArgs>;
+  /** Uses */
+  uses: OptionOrNullable<TUsesArgs>;
+  tokenProgramVersion: TTokenProgramVersionArgs;
+  creatorShares: ReadonlyUint8Array;
+  creatorVerified: Array<boolean>;
+};    
 
 export const metadataArgsToTMetadataArgsArgs = (
   meta: MetadataArgs

@@ -46,7 +46,6 @@
     "@solana/web3.js": "2.0.0-preview.3",
     "@tensor-foundation/test-helpers": "^0.5.0",
     "@tensor-foundation/amm": "^0.8.0",
-    "@tensor-foundation/common-helpers": "^0.2.0",
     "@tensor-foundation/marketplace": "^0.5.0",
     "@tensor-foundation/whitelist": "^0.3.0",
     "@tensor-foundation/mpl-token-metadata": "^0.5.0",
