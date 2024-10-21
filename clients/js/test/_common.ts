@@ -4,13 +4,17 @@ import {
   Address,
   airdropFactory,
   appendTransactionMessageInstruction,
+  createAddressWithSeed,
   generateKeyPairSigner,
+  getProgramDerivedAddress,
   isSolanaError,
   KeyPairSigner,
   lamports,
+  OptionOrNullable,
   pipe,
   SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
   SolanaErrorCode,
+  unwrapOption,
 } from '@solana/web3.js';
 import {
   Client,
@@ -28,6 +32,13 @@ import {
   Condition,
   Mode,
 } from '@tensor-foundation/whitelist';
+import {
+  TTokenProgramVersion,
+  TTokenStandard,
+  TUsesArgs,
+} from '@tensor-foundation/marketplace';
+import { TMetadataArgsArgs } from '@tensor-foundation/common-helpers/dist/types/shared-types';
+import { MetadataArgs } from '@tensor-foundation/mpl-bubblegum';
 
 export const expectGenericError = async (
   t: ExecutionContext,
@@ -149,3 +160,33 @@ export async function createWhitelistV2({
 
   return { whitelist, uuid, conditions };
 }
+
+export async function idlAddress(programAddress: Address): Promise<Address> {
+  const seed = 'anchor:idl';
+  const base = (
+    await getProgramDerivedAddress({ programAddress, seeds: [] })
+  )[0];
+  return await createAddressWithSeed({
+    baseAddress: base,
+    seed,
+    programAddress,
+  });
+}
+
+export const metadataArgsToTMetadataArgsArgs = (
+  meta: MetadataArgs
+): TMetadataArgsArgs => {
+  return {
+    ...meta,
+    tokenStandard: unwrapOption(
+      meta.tokenStandard
+    )! as unknown as TTokenStandard,
+    creatorShares: new Uint8Array(
+      meta.creators.map((creator) => creator.share)
+    ),
+    uses: meta.uses as OptionOrNullable<TUsesArgs>,
+    tokenProgramVersion:
+      meta.tokenProgramVersion as unknown as TTokenProgramVersion,
+    creatorVerified: meta.creators.map((creator) => creator.verified),
+  };
+};

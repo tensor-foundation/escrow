@@ -49,6 +49,7 @@
     "@tensor-foundation/marketplace": "^0.5.0",
     "@tensor-foundation/whitelist": "^0.3.0",
     "@tensor-foundation/mpl-token-metadata": "^0.5.0",
+    "@tensor-foundation/mpl-bubblegum": "^0.1.0",
     "@tensor-foundation/mpl-core": "^0.3.0",
     "@solana/webcrypto-ed25519-polyfill": "2.0.0-preview.3",
     "@solana-program/system": "0.3.3",
