@@ -200,7 +200,7 @@ export type TMetadataArgsArgs = {
   tokenProgramVersion: TTokenProgramVersionArgs;
   creatorShares: ReadonlyUint8Array;
   creatorVerified: Array<boolean>;
-};    
+};
 
 export const metadataArgsToTMetadataArgsArgs = (
   meta: MetadataArgs
