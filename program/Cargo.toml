@@ -8,7 +8,41 @@ publish = false
 
 [package.metadata.solana]
 program-id = "TSWAPaqyCSx2KABk68Shruf4rp7CxcNi8hAsbdwmHbN"
-program-dependencies = []
+program-dependencies = [
+    "CZ1rQoAHSqWBoAEfqGsiLhgbM59dDrCWk3rnG5FXaoRV",
+    "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW",
+    "TAMM6ub33ij1mbetoMyVBLeKY5iP41i4UPUJQGkhfsg",
+    "TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp",
+    "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+    "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+    "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+    "auth9SigNpDKz4sJJ1DfCTuZrZNSAgh9sFD3rboVmgg",
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "SysExL2WDyJi9aRZrXorrjHJut3JwHQ7R9bTyctbNNG",
+    "TokExjvjJmhKaRBShsBAsbSvEWMA1AgUNK7ps4SAc2p",
+    "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d",
+    "wns1gDLt8fgLcGhWi5MqAqgXpwEP1JftKE9eZnXS1HM",
+    "diste3nXmK7ddDTs1zb6uday6j4etCa9RChD8fJ1xay",
+    "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY",
+    "cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK",
+]
+account-dependencies = [
+    "9SUrE3EPBoXVjNywEDHSJKJdxebs8H8sLgEWdueEvnKX",
+]
+external-programs-repositories = [
+    [
+        "tensor-foundation/whitelist",
+        "TL1ST2iRBzuGTqLn1KXnGdSnEow62BzPnGiqyRXhWtW",
+    ],
+    [
+        "tensor-foundation/amm",
+        "TAMM6ub33ij1mbetoMyVBLeKY5iP41i4UPUJQGkhfsg",
+    ],
+    [
+        "tensor-foundation/marketplace",
+        "TCMPhJdwDryooaGtiocG1u3xcYbRpiJzb283XfCZsDp",
+    ]
+]
 
 [lib]
 crate-type = ["cdylib", "lib"]

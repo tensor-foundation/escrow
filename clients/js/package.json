@@ -44,9 +44,18 @@
     "@ava/typescript": "^4.1.0",
     "@solana/eslint-config-solana": "^3.0.0",
     "@solana/web3.js": "2.0.0-preview.3",
+    "@tensor-foundation/test-helpers": "^0.5.0",
+    "@tensor-foundation/amm": "^0.8.0",
+    "@tensor-foundation/marketplace": "^0.5.0",
+    "@tensor-foundation/whitelist": "^0.3.0",
+    "@tensor-foundation/mpl-token-metadata": "^0.5.0",
+    "@tensor-foundation/mpl-bubblegum": "^0.1.0",
+    "@tensor-foundation/mpl-core": "^0.3.0",
     "@solana/webcrypto-ed25519-polyfill": "2.0.0-preview.3",
+    "@solana-program/system": "0.3.3",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "@types/uuid": "^9.0.8",
     "ava": "^6.1.2",
     "eslint": "^8.57.0",
     "prettier": "^3.2.5",
@@ -54,7 +63,8 @@
     "tsup": "^8.0.2",
     "typedoc": "^0.25.12",
     "typedoc-plugin-missing-exports": "^2.2.0",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.2",
+    "uuid": "^9.0.1"
   },
   "ava": {
     "nodeArguments": [
@@ -68,7 +78,11 @@
       "rewritePaths": {
         "test/": "dist/test/"
       }
-    }
+    },
+    "files": [
+      "test/**/*",
+      "!test/generated/**/*"
+    ]
   },
   "packageManager": "pnpm@9.1.0"
 }

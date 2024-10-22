@@ -9,6 +9,4 @@ cluster = "devnet"
 wallet = "~/.config/solana/devnet.json"
 
 [workspace]
-members = [
-  "program",
-]
+members = ["program", "adversarial_program/margin_withdraw_cpi"]

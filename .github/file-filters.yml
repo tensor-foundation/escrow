@@ -4,7 +4,7 @@
 
 # Programs.
 
-program_common: &program_common
+programs_common: &programs_common
   - ".github/workflows/build-programs.yml"
   - ".github/workflows/test-programs.yml"
   - ".github/workflows/main.yml"
@@ -12,10 +12,15 @@ program_common: &program_common
   - ".github/.env"
 
 program_binary: &program_binary
-  - *program_common
+  - *programs_common
   - "program/**"
 
+adversarial_binary: &adversarial_binary
+  - *programs_common
+  - "adversarial_program/margin_withdraw_cpi/**"
+
 programs: &programs
+  - *adversarial_binary
   - *program_binary
 
 # Clients.
