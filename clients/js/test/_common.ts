@@ -21,6 +21,9 @@ import {
   Client,
   createDefaultTransaction,
   createKeyPairSigner,
+  createT22NftWithRoyalties,
+  createWnsNftInGroup,
+  LAMPORTS_PER_SOL,
   ONE_SOL,
   signAndSendTransaction,
   TSWAP_SINGLETON,
@@ -41,7 +44,18 @@ import {
   TTokenStandardArgs,
   TUsesArgs,
 } from '@tensor-foundation/marketplace';
-import { MetadataArgs } from '@tensor-foundation/mpl-bubblegum';
+import {
+  MetadataArgs,
+  setupSingleVerifiedCNFT,
+} from '@tensor-foundation/mpl-bubblegum';
+import {
+  CurveType,
+  findPoolPda,
+  getCreatePoolInstructionAsync,
+  PoolType,
+} from '@tensor-foundation/amm';
+import { createDefaultAssetWithCollection } from '@tensor-foundation/mpl-core';
+import { createDefaultNft } from '@tensor-foundation/mpl-token-metadata';
 
 export const expectGenericError = async (
   t: ExecutionContext,
@@ -217,5 +231,174 @@ export const metadataArgsToTMetadataArgsArgs = (
     tokenProgramVersion:
       meta.tokenProgramVersion as unknown as TTokenProgramVersion,
     creatorVerified: meta.creators.map((creator) => creator.verified),
+  };
+};
+
+export const createTokenPoolAndTradePool = async ({
+  client,
+  marginAccountOwner,
+  whitelist,
+  marginAccountPda,
+}: {
+  client: Client;
+  marginAccountOwner: KeyPairSigner;
+  whitelist: Address;
+  marginAccountPda: Address;
+}) => {
+  // Create Trade + Token Pool
+  const tradePoolId = generateUuid();
+  const [tradePoolPda] = await findPoolPda({
+    poolId: tradePoolId,
+    owner: marginAccountOwner.address,
+  });
+
+  const createPoolIx = await getCreatePoolInstructionAsync({
+    owner: marginAccountOwner,
+    whitelist: whitelist,
+    pool: tradePoolPda,
+    poolId: tradePoolId,
+    config: {
+      poolType: PoolType.Trade,
+      startingPrice: LAMPORTS_PER_SOL / 2n,
+      delta: 0,
+      mmCompoundFees: false,
+      mmFeeBps: null,
+      curveType: CurveType.Linear,
+    },
+    sharedEscrow: marginAccountPda,
+  });
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createPoolIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  const tokenPoolId = generateUuid();
+  const [tokenPoolPda] = await findPoolPda({
+    poolId: tokenPoolId,
+    owner: marginAccountOwner.address,
+  });
+  const createTokenPoolIx = await getCreatePoolInstructionAsync({
+    owner: marginAccountOwner,
+    whitelist,
+    pool: tokenPoolPda,
+    poolId: tokenPoolId,
+    config: {
+      poolType: PoolType.Token,
+      curveType: CurveType.Linear,
+      startingPrice: LAMPORTS_PER_SOL / 2n,
+      delta: 0,
+      mmCompoundFees: false,
+      mmFeeBps: null,
+    },
+    sharedEscrow: marginAccountPda,
+  });
+
+  await pipe(
+    await createDefaultTransaction(client, marginAccountOwner),
+    (tx) => appendTransactionMessageInstruction(createTokenPoolIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+  return { tradePoolPda, tokenPoolPda };
+};
+
+export const mintLegacyCoreAndT22 = async ({
+  client,
+  owner,
+  mintAuthority,
+}: {
+  client: Client;
+  owner: KeyPairSigner;
+  mintAuthority: KeyPairSigner;
+}) => {
+  // Legacy:
+  const { mint } = await createDefaultNft({
+    client,
+    owner: owner.address,
+    payer: owner,
+    authority: mintAuthority,
+  });
+  // Core:
+  const [asset, collection] = await createDefaultAssetWithCollection({
+    client,
+    payer: owner,
+    collectionAuthority: mintAuthority,
+    owner: owner.address,
+    royalties: {
+      creators: [
+        {
+          percentage: 100,
+          address: mintAuthority.address,
+        },
+      ],
+      basisPoints: 0,
+    },
+  });
+  // T22:
+  const t22Nft = await createT22NftWithRoyalties({
+    client,
+    payer: owner,
+    owner: owner.address,
+    mintAuthority,
+    freezeAuthority: null,
+    decimals: 0,
+    data: {
+      name: 'Test Token',
+      symbol: 'TT',
+      uri: 'https://example.com',
+    },
+    royalties: {
+      key: mintAuthority.address,
+      value: '0',
+    },
+  });
+  return { legacy: mint, core: { asset, collection }, t22: t22Nft };
+};
+
+export const mintAllStandards = async ({
+  client,
+  owner,
+  mintAuthority,
+}: {
+  client: Client;
+  owner: KeyPairSigner;
+  mintAuthority: KeyPairSigner;
+}) => {
+  const {
+    legacy,
+    core: { asset, collection },
+    t22,
+  } = await mintLegacyCoreAndT22({
+    client,
+    owner,
+    mintAuthority,
+  });
+  // WNS:
+  const { mint: wnsMint, group } = await createWnsNftInGroup({
+    client,
+    payer: owner,
+    owner: owner.address,
+    authority: mintAuthority,
+  });
+
+  // Compressed:
+  let { merkleTree, root, meta, proof } = await setupSingleVerifiedCNFT({
+    client,
+    cNftOwner: owner.address,
+    creatorKeypair: mintAuthority,
+    creator: {
+      address: mintAuthority.address,
+      share: 100,
+      verified: true,
+    },
+    leafIndex: 0,
+  });
+  const metaArgs = metadataArgsToTMetadataArgsArgs(meta);
+  return {
+    legacy,
+    core: { asset, collection },
+    t22,
+    wns: { mint: wnsMint, group },
+    compressed: { merkleTree, root, meta, proof, metaArgs },
   };
 };
