@@ -138,7 +138,7 @@ test('it can call the withdrawMarginAccountCpiTamm instruction', async (t) => {
     whitelist,
     taker: seller,
     sharedEscrow: marginAccountPda,
-    // TODO: set defaultValue in AMM kinobi client gen (maybe only resolve if sharedEscrow is set)
+    // TODO: set defaultValue in AMM codama client gen (maybe only resolve if sharedEscrow is set)
     escrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
     creators: [seller.address],
   });
