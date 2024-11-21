@@ -1,13 +1,16 @@
 {
   "private": true,
   "scripts": {
-    "programs:build": "zx ./scripts/program/build.mjs",
+    "programs:build": "pnpm programs:build:devnet",
+    "programs:build:artifacts": "zx ./scripts/program/build.mjs artifacts",
+    "programs:build:devnet": "zx ./scripts/program/build.mjs devnet",
+    "programs:build:mainnet": "zx ./scripts/program/build.mjs mainnet",
     "programs:test": "zx ./scripts/program/test.mjs",
     "programs:clean": "zx ./scripts/program/clean.mjs",
     "programs:format": "zx ./scripts/program/format.mjs",
     "programs:lint": "zx ./scripts/program/lint.mjs",
     "generate:idls": "zx ./scripts/generate-idls.mjs",
-    "generate": "pnpm generate:idls && pnpm generate:clients",
+    "generate": "PROGRAMS=\"program adversarial_program/margin_withdraw_cpi\" pnpm generate:idls && pnpm generate:clients",
     "generate:clients": "zx ./scripts/generate-clients.mjs",
     "validator:start": "zx ./scripts/start-validator.mjs",
     "validator:restart": "pnpm validator:start --restart",
@@ -18,13 +21,15 @@
   },
   "devDependencies": {
     "@iarna/toml": "^2.2.5",
-    "@kinobi-so/nodes-from-anchor": "^0.20.7",
-    "@kinobi-so/renderers-js": "^0.20.7",
-    "@kinobi-so/renderers-rust": "^0.20.7",
+    "@codama/nodes-from-anchor": "1.0.0",
+    "@codama/renderers-js": "1.0.0",
+    "@codama/renderers-rust": "1.0.0",
     "@metaplex-foundation/shank-js": "^0.1.7",
-    "kinobi": "^0.20.4",
+    "@octokit/rest": "^21.0.0",
+    "jszip": "^3.10.1",
+    "codama": "1.0.0",
     "typescript": "^5.4.2",
     "zx": "^7.2.3"
   },
-  "packageManager": "pnpm@9.1.0"
+  "packageManager": "pnpm@9.14.0"
 }
