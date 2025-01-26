@@ -899,21 +899,21 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 [[package]]
 name = "escrow-program"
 version = "0.1.0"
+source = "git+ssh://git@github.com/tensor-foundation/escrow#8850a44292d7abe6d9bf282031c671abf83d58fd"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
- "tensor-toolbox",
+ "tensor-toolbox 0.4.0",
  "tensor-vipers",
 ]
 
 [[package]]
 name = "escrow-program"
-version = "0.1.0"
-source = "git+ssh://git@github.com/tensor-foundation/escrow#8850a44292d7abe6d9bf282031c671abf83d58fd"
+version = "1.0.0-beta.1"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
- "tensor-toolbox",
+ "tensor-toolbox 0.8.0",
  "tensor-vipers",
 ]
 
@@ -922,6 +922,21 @@ name = "feature-probe"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "835a3dc7d1ec9e75e2b5fb4ba75396837112d2060b03f7d43bc1897c7f7211da"
+
+[[package]]
+name = "five8_const"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b4f62f0f8ca357f93ae90c8c2dd1041a1f665fde2f889ea9b1787903829015"
+dependencies = [
+ "five8_core",
+]
+
+[[package]]
+name = "five8_core"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94474d15a76982be62ca8a39570dccce148d98c238ebb7408b0a21b2c4bdddc4"
 
 [[package]]
 name = "fnv"
@@ -1217,12 +1232,12 @@ name = "margin_withdraw_cpi"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "escrow-program 0.1.0 (git+ssh://git@github.com/tensor-foundation/escrow)",
+ "escrow-program 0.1.0",
  "solana-program",
  "tensor-amm",
  "tensor-escrow",
  "tensor-marketplace",
- "tensor-toolbox",
+ "tensor-toolbox 0.4.0",
 ]
 
 [[package]]
@@ -2418,6 +2433,23 @@ dependencies = [
  "bytemuck",
  "mpl-token-metadata",
  "solana-program",
+ "spl-account-compression",
+ "spl-noop",
+ "spl-token-metadata-interface",
+ "tensor-vipers",
+]
+
+[[package]]
+name = "tensor-toolbox"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "515659dd8e1a324f23ced4d99d6a150ac8fac4d78c2cc0252b5dd5c39213192b"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "bytemuck",
+ "five8_const",
+ "mpl-token-metadata",
  "spl-account-compression",
  "spl-noop",
  "spl-token-metadata-interface",
