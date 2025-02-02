@@ -27,8 +27,7 @@ pub struct CloseMarginAccount<'info> {
     pub system_program: Program<'info, System>,
 }
 
-//since we're storing all funds on the account itself, this will drain the funds to the owner
-//TODO: in the future when we add NFTs owned by margin account this will have to also check that no NFTs are left
+// Since we're storing all funds on the account itself, this will drain the funds to the owner
 pub fn process_close_margin_account(_ctx: Context<CloseMarginAccount>) -> Result<()> {
     Ok(())
 }
