@@ -1,3 +1,4 @@
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import {
   AccountRole,
   Address,
@@ -8,14 +9,13 @@ import {
   pipe,
 } from '@solana/web3.js';
 import {
-  signAndSendTransaction,
-  createDefaultTransaction,
-  SYSVARS_RENT,
   Client,
+  createDefaultTransaction,
+  signAndSendTransaction,
+  SYSVARS_RENT,
 } from '@tensor-foundation/test-helpers';
-import { idlAddress } from './_common';
-import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { ExecutionContext } from 'ava';
+import { idlAddress } from './_common';
 
 export const setupIdlBufferAttack = async ({
   t,

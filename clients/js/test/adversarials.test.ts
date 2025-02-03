@@ -1222,7 +1222,6 @@ test('a custom program cannot imitate a real bid state account with an IdlBuffer
     sharedEscrow: marginAccountPda,
     escrowProgram: TENSOR_ESCROW_PROGRAM_ADDRESS,
     collection: group,
-    creators: [nftUpdateAuthority.address],
   });
 
   const sellWnsTx = pipe(
@@ -1406,7 +1405,6 @@ test("a custom program can't imitate being the escrow program to drain the margi
     // (!)
     escrowProgram: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
     collection: group,
-    creators: [nftUpdateAuthority.address],
   });
 
   const sellWnsTx = pipe(

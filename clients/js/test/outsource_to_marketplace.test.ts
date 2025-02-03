@@ -3,27 +3,6 @@ import {
   getAddressDecoder,
   pipe,
 } from '@solana/web3.js';
-import { findMarginAccountPda, TENSOR_ESCROW_PROGRAM_ADDRESS } from '../src';
-import {
-  TSWAP_SINGLETON,
-  createDefaultSolanaClient,
-  generateKeyPairSignerWithSol,
-  signAndSendTransaction,
-  createDefaultTransaction,
-  LAMPORTS_PER_SOL,
-  ANCHOR_ERROR__INVALID_PROGRAM_ID,
-  createT22NftWithRoyalties,
-  createWnsNftInGroup,
-} from '@tensor-foundation/test-helpers';
-import test from 'ava';
-import { getInitMarginAccountInstructionAsync } from '../src';
-import {
-  createWhitelistV2,
-  expectCustomError,
-  generateUuid,
-  initTswap,
-} from './_common';
-import { createDefaultNft } from '@tensor-foundation/mpl-token-metadata';
 import {
   findBidStatePda,
   getBidInstructionAsync,
@@ -34,10 +13,34 @@ import {
   getTakeBidWnsInstructionAsync,
   Target,
 } from '@tensor-foundation/marketplace';
-import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from './generated/adversarial';
-import { createDefaultAssetWithCollection } from '@tensor-foundation/mpl-core';
 import { setupSingleVerifiedCNFT } from '@tensor-foundation/mpl-bubblegum';
-import { metadataArgsToTMetadataArgsArgs } from './_common';
+import { createDefaultAssetWithCollection } from '@tensor-foundation/mpl-core';
+import { createDefaultNft } from '@tensor-foundation/mpl-token-metadata';
+import {
+  ANCHOR_ERROR__INVALID_PROGRAM_ID,
+  createDefaultSolanaClient,
+  createDefaultTransaction,
+  createT22NftWithRoyalties,
+  createWnsNftInGroup,
+  generateKeyPairSignerWithSol,
+  LAMPORTS_PER_SOL,
+  signAndSendTransaction,
+  TSWAP_SINGLETON,
+} from '@tensor-foundation/test-helpers';
+import test from 'ava';
+import {
+  findMarginAccountPda,
+  getInitMarginAccountInstructionAsync,
+  TENSOR_ESCROW_PROGRAM_ADDRESS,
+} from '../src';
+import {
+  createWhitelistV2,
+  expectCustomError,
+  generateUuid,
+  initTswap,
+  metadataArgsToTMetadataArgsArgs,
+} from './_common';
+import { MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS } from './generated/adversarial';
 
 // TODO: this should be a test in Marketplace
 test("a custom program can't imitate being the marketplace program to drain the margin account in a malicious noop handler", async (t) => {
@@ -222,7 +225,6 @@ test("a custom program can't imitate being the marketplace program to drain the 
     collection: group,
     // (!)
     marketplaceProgram: MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
-    creators: [nftUpdateAuthority.address],
   });
 
   const sellWnsTx = pipe(

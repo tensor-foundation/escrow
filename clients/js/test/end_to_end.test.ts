@@ -1,21 +1,21 @@
 import { appendTransactionMessageInstruction, pipe } from '@solana/web3.js';
 import {
-  findMarginAccountPda,
-  getDepositMarginAccountInstructionAsync,
-  getWithdrawMarginAccountInstructionAsync,
-  getCloseMarginAccountInstructionAsync,
-  fetchMaybeMarginAccount,
-} from '../src';
-import {
-  TSWAP_SINGLETON,
   createDefaultSolanaClient,
-  generateKeyPairSignerWithSol,
-  signAndSendTransaction,
   createDefaultTransaction,
+  generateKeyPairSignerWithSol,
   LAMPORTS_PER_SOL,
+  signAndSendTransaction,
+  TSWAP_SINGLETON,
 } from '@tensor-foundation/test-helpers';
 import test from 'ava';
-import { getInitMarginAccountInstructionAsync } from '../src';
+import {
+  fetchMaybeMarginAccount,
+  findMarginAccountPda,
+  getCloseMarginAccountInstructionAsync,
+  getDepositMarginAccountInstructionAsync,
+  getInitMarginAccountInstructionAsync,
+  getWithdrawMarginAccountInstructionAsync,
+} from '../src';
 import { expectCustomError, initTswap } from './_common';
 
 test('it can initialize, deposit, withdraw and close a margin account', async (t) => {

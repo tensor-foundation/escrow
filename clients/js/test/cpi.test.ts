@@ -4,15 +4,6 @@ import {
   pipe,
 } from '@solana/web3.js';
 import {
-  createDefaultSolanaClient,
-  signAndSendTransaction,
-  createDefaultTransaction,
-  LAMPORTS_PER_SOL,
-  TSWAP_SINGLETON,
-  generateKeyPairSignerWithSol,
-} from '@tensor-foundation/test-helpers';
-import test from 'ava';
-import {
   CurveType,
   fetchPool,
   findPoolPda,
@@ -27,15 +18,24 @@ import {
   getTakeBidLegacyInstructionAsync,
   Target,
 } from '@tensor-foundation/marketplace';
+import { createDefaultAsset } from '@tensor-foundation/mpl-core';
 import { createDefaultNft } from '@tensor-foundation/mpl-token-metadata';
-import { createWhitelistV2, generateUuid, initTswap } from './_common';
 import {
-  getInitMarginAccountInstructionAsync,
+  createDefaultSolanaClient,
+  createDefaultTransaction,
+  generateKeyPairSignerWithSol,
+  LAMPORTS_PER_SOL,
+  signAndSendTransaction,
+  TSWAP_SINGLETON,
+} from '@tensor-foundation/test-helpers';
+import test from 'ava';
+import {
   findMarginAccountPda,
   getDepositMarginAccountInstructionAsync,
+  getInitMarginAccountInstructionAsync,
   TENSOR_ESCROW_PROGRAM_ADDRESS,
 } from '../src';
-import { createDefaultAsset } from '@tensor-foundation/mpl-core';
+import { createWhitelistV2, generateUuid, initTswap } from './_common';
 
 test('it can call the withdrawMarginAccountCpiTamm instruction', async (t) => {
   const client = createDefaultSolanaClient();
