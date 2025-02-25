@@ -13,11 +13,11 @@ programs_common: &programs_common
 
 program_binary: &program_binary
   - *programs_common
-  - "program/**"
+  - "programs/escrow/**"
 
 adversarial_binary: &adversarial_binary
   - *programs_common
-  - "adversarial_program/margin_withdraw_cpi/**"
+  - "programs/adversarial_program/margin_withdraw_cpi/**"
 
 programs: &programs
   - *adversarial_binary

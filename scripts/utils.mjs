@@ -1,5 +1,5 @@
-import "zx/globals";
 import { parse as parseToml } from "@iarna/toml";
+import "zx/globals";
 
 process.env.FORCE_COLOR = 3;
 process.env.CARGO_TERM_COLOR = "always";
@@ -8,7 +8,7 @@ export const workingDirectory = (await $`pwd`.quiet()).toString().trim();
 
 export function getAllProgramIdls() {
   return getAllProgramFolders().map((folder) =>
-    path.join(workingDirectory, folder, "idl.json"),
+    path.join(workingDirectory, folder, "idl.json")
   );
 }
 
@@ -23,17 +23,17 @@ export function getExternalProgramAddresses() {
     (folder) =>
       getCargo(folder).package?.metadata?.solana?.[
         "external-programs-repositories"
-      ] ?? [],
+      ] ?? []
   );
   const addresses = getProgramFolders()
     .flatMap(
       (folder) =>
         getCargo(folder).package?.metadata?.solana?.["program-dependencies"] ??
-        [],
+        []
     )
     .filter(
       (address) =>
-        !offchainAddresses.map(([repo, address]) => address).includes(address),
+        !offchainAddresses.map(([repo, address]) => address).includes(address)
     );
   return Array.from(new Set(addresses));
 }
@@ -44,7 +44,7 @@ export function getOffchainProgramAddresses() {
       (folder) =>
         getCargo(folder).package?.metadata?.solana?.[
           "external-programs-repositories"
-        ] ?? [],
+        ] ?? []
     )
     .map(([repo, address]) => address);
   return Array.from(new Set(addresses));
@@ -53,8 +53,7 @@ export function getOffchainProgramAddresses() {
 export function getExternalAccountAddresses() {
   const addresses = getProgramFolders().flatMap(
     (folder) =>
-      getCargo(folder).package?.metadata?.solana?.["account-dependencies"] ??
-      [],
+      getCargo(folder).package?.metadata?.solana?.["account-dependencies"] ?? []
   );
   return Array.from(new Set(addresses));
 }
@@ -74,7 +73,7 @@ export function getProgramFolders() {
   }
 
   const filteredPrograms = programs.filter((program) =>
-    fs.existsSync(path.join(workingDirectory, program)),
+    fs.existsSync(path.join(workingDirectory, program))
   );
 
   if (
@@ -94,7 +93,7 @@ export function getProgramFolders() {
 
 export function getAllProgramFolders() {
   return getCargo().workspace.members.filter((member) =>
-    (getCargo(member).lib?.["crate-type"] ?? []).includes("cdylib"),
+    (getCargo(member).lib?.["crate-type"] ?? []).includes("cdylib")
   );
 }
 
@@ -102,7 +101,7 @@ export function getCargo(folder) {
   return parseToml(
     fs.readFileSync(
       path.join(workingDirectory, folder ? folder : ".", "Cargo.toml"),
-      "utf8",
-    ),
+      "utf8"
+    )
   );
 }

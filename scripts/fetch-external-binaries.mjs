@@ -1,12 +1,12 @@
 #!/usr/bin/env zx
-import {
-  getExternalProgramOutputDir,
-  getCargo,
-  getProgramFolders,
-} from "./utils.mjs";
 import { Octokit } from "@octokit/rest";
 import JSZip from "jszip";
 import "zx/globals";
+import {
+  getCargo,
+  getExternalProgramOutputDir,
+  getProgramFolders
+} from "./utils.mjs";
 
 const pat = await getPAT();
 const branch = "main";
@@ -17,7 +17,7 @@ const externalRepos = getProgramFolders().flatMap(
   (folder) =>
     getCargo(folder).package?.metadata?.solana?.[
       "external-programs-repositories"
-    ] ?? [],
+    ] ?? []
 );
 
 await Promise.all(
@@ -31,13 +31,13 @@ await Promise.all(
         owner,
         repo,
         branch,
-        status,
+        status
       })
       .then((resp) => {
         // Sort response by desc. date and return latest run
         return resp.data.workflow_runs.sort(
           (wfr1, wfr2) =>
-            new Date(wfr2.run_started_at) - new Date(wfr1.run_started_at),
+            new Date(wfr2.run_started_at) - new Date(wfr1.run_started_at)
         )[0];
       });
     // Get info for artifact that matches the wanted artifact name
@@ -45,16 +45,16 @@ await Promise.all(
       .listWorkflowRunArtifacts({
         owner,
         repo,
-        run_id: wfrun.id,
+        run_id: wfrun.id
       })
       .then((resp) => {
         return resp.data.artifacts.find(
-          (artifact) => artifact.name == artifactName,
+          (artifact) => artifact.name == artifactName
         );
       });
     // Fetch that artifact and load it
     const resp = await octokit.request(
-      `GET /repos/${repoPath}/actions/artifacts/${latestArtifact.id}/zip`,
+      `GET /repos/${repoPath}/actions/artifacts/${latestArtifact.id}/zip`
     );
     const zipData = await JSZip().loadAsync(resp.data);
     // Hardcoded location of binaries in zip
@@ -68,14 +68,14 @@ await Promise.all(
       .then((data) =>
         fs.writeFileSync(
           path.join(getExternalProgramOutputDir(), `${programAddress}.so`),
-          data,
-        ),
+          data
+        )
       );
 
     console.log(
-      `${repo} binary saved successfully to ${path.join(getExternalProgramOutputDir(), `${programAddress}.so`)}!`,
+      `${repo} binary saved successfully to ${path.join(getExternalProgramOutputDir(), `${programAddress}.so`)}!`
     );
-  }),
+  })
 );
 
 // Helper func that fetches Personal Access Token from ~/.npmrc

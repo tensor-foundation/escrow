@@ -1,9 +1,9 @@
 #!/usr/bin/env zx
 import "zx/globals";
-import { workingDirectory, getProgramFolders } from "../utils.mjs";
+import { getProgramFolders, workingDirectory } from "../utils.mjs";
 
 const whereToFetchBinariesFrom = argv._.filter(
-  (a) => a !== path.basename(__filename),
+  (a) => a !== path.basename(__filename)
 )[0];
 
 // Save external programs binaries to the output directory.
