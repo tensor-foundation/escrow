@@ -10,7 +10,7 @@
     "programs:format": "zx ./scripts/program/format.mjs",
     "programs:lint": "zx ./scripts/program/lint.mjs",
     "generate:idls": "zx ./scripts/generate-idls.mjs",
-    "generate": "PROGRAMS=\"program adversarial_program/margin_withdraw_cpi\" pnpm generate:idls && pnpm generate:clients",
+    "generate": "PROGRAMS=\"programs/escrow programs/adversarial_program/margin_withdraw_cpi\" pnpm generate:idls && pnpm generate:clients",
     "generate:clients": "zx ./scripts/generate-clients.mjs",
     "validator:start": "zx ./scripts/start-validator.mjs",
     "validator:restart": "pnpm validator:start --restart",
