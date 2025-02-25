@@ -1,3 +1,4 @@
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import {
   address,
   appendTransactionMessageInstruction,
@@ -11,51 +12,19 @@ import {
   SOLANA_ERROR__INSTRUCTION_ERROR__PRIVILEGE_ESCALATION,
 } from '@solana/web3.js';
 import {
-  fetchMarginAccount,
-  findMarginAccountPda,
-  getDepositMarginAccountInstructionAsync,
-  getWithdrawMarginAccountInstructionAsync,
-  TENSOR_ESCROW_PROGRAM_ADDRESS,
-} from '../src';
-import {
-  TSWAP_SINGLETON,
-  createDefaultSolanaClient,
-  generateKeyPairSignerWithSol,
-  signAndSendTransaction,
-  createDefaultTransaction,
-  LAMPORTS_PER_SOL,
-  ANCHOR_ERROR__CONSTRAINT_SEEDS,
-  ANCHOR_ERROR__ACCOUNT_DISCRIMINATOR_MISMATCH,
-  ANCHOR_ERROR__CONSTRAINT_ADDRESS,
-  ANCHOR_ERROR__INVALID_PROGRAM_ID,
-} from '@tensor-foundation/test-helpers';
-import test from 'ava';
-import { getInitMarginAccountInstructionAsync } from '../src';
-import {
-  createTokenPoolAndTradePool,
-  createWhitelistV2,
-  expectCustomError,
-  expectGenericError,
-  generateUuid,
-  initTswap,
-  mintAllStandards,
-  mintLegacyCoreAndT22,
-} from './_common';
-import {
   CurveType,
   findPoolPda,
   getCreatePoolInstructionAsync,
+  getSellNftTokenPoolCoreInstructionAsync,
+  getSellNftTokenPoolInstructionAsync,
+  getSellNftTokenPoolT22InstructionAsync,
+  getSellNftTradePoolCoreInstructionAsync,
+  getSellNftTradePoolInstructionAsync,
+  getSellNftTradePoolT22InstructionAsync,
   getWithdrawSolInstruction,
   PoolType,
   TENSOR_AMM_PROGRAM_ADDRESS,
-  getSellNftTokenPoolInstructionAsync,
-  getSellNftTradePoolInstructionAsync,
-  getSellNftTradePoolCoreInstructionAsync,
-  getSellNftTokenPoolCoreInstructionAsync,
-  getSellNftTradePoolT22InstructionAsync,
-  getSellNftTokenPoolT22InstructionAsync,
 } from '@tensor-foundation/amm';
-import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import {
   findBidStatePda,
   getBidInstructionAsync,
@@ -68,13 +37,44 @@ import {
   TENSOR_MARKETPLACE_PROGRAM_ADDRESS,
 } from '@tensor-foundation/marketplace';
 import {
+  ANCHOR_ERROR__ACCOUNT_DISCRIMINATOR_MISMATCH,
+  ANCHOR_ERROR__CONSTRAINT_ADDRESS,
+  ANCHOR_ERROR__CONSTRAINT_SEEDS,
+  ANCHOR_ERROR__INVALID_PROGRAM_ID,
+  createDefaultSolanaClient,
+  createDefaultTransaction,
+  generateKeyPairSignerWithSol,
+  LAMPORTS_PER_SOL,
+  signAndSendTransaction,
+  TSWAP_SINGLETON,
+} from '@tensor-foundation/test-helpers';
+import test from 'ava';
+import {
+  fetchMarginAccount,
+  findMarginAccountPda,
+  getDepositMarginAccountInstructionAsync,
+  getInitMarginAccountInstructionAsync,
+  getWithdrawMarginAccountInstructionAsync,
+  TENSOR_ESCROW_PROGRAM_ADDRESS,
+} from '../src';
+import {
+  createTokenPoolAndTradePool,
+  createWhitelistV2,
+  expectCustomError,
+  expectGenericError,
+  generateUuid,
+  initTswap,
+  mintAllStandards,
+  mintLegacyCoreAndT22,
+} from './_common';
+import { setupIdlBufferAttack } from './_idl_buffer_setup';
+import {
+  getWithdrawFromTammMarginInstruction,
+  getWithdrawFromTammMarginSignedInstruction,
   getWithdrawFromTcmpMarginInstruction,
   getWithdrawFromTcmpMarginSignedInstruction,
-  getWithdrawFromTammMarginSignedInstruction,
-  getWithdrawFromTammMarginInstruction,
   MARGIN_WITHDRAW_CPI_PROGRAM_ADDRESS,
 } from './generated/adversarial';
-import { setupIdlBufferAttack } from './_idl_buffer_setup';
 
 test('it prevents an incorrect owner from withdrawing from the margin account', async (t) => {
   const client = createDefaultSolanaClient();
