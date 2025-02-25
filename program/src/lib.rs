@@ -76,4 +76,8 @@ pub mod escrow_program {
             ctx, lamports,
         )
     }
+
+    pub fn withdraw_tswap_fees(ctx: Context<WithdrawTswapFees>, lamports: u64) -> Result<()> {
+        instructions::withdraw_tswap_fees::process_withdraw_tswap_fees(ctx, lamports)
+    }
 }

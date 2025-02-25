@@ -17,8 +17,6 @@ import {
   fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
-  getArrayDecoder,
-  getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getI64Decoder,
@@ -70,7 +68,7 @@ export function getBidStateDiscriminatorBytes() {
 export type BidState = {
   discriminator: ReadonlyUint8Array;
   version: number;
-  bump: Array<number>;
+  bump: ReadonlyUint8Array;
   owner: Address;
   bidId: Address;
   target: Target;
@@ -88,14 +86,14 @@ export type BidState = {
   updatedAt: bigint;
   cosigner: Address;
   rentPayer: Address;
-  reserved: Array<number>;
-  reserved1: Array<number>;
+  reserved: ReadonlyUint8Array;
+  reserved1: ReadonlyUint8Array;
   reserved2: ReadonlyUint8Array;
 };
 
 export type BidStateArgs = {
   version: number;
-  bump: Array<number>;
+  bump: ReadonlyUint8Array;
   owner: Address;
   bidId: Address;
   target: TargetArgs;
@@ -113,8 +111,8 @@ export type BidStateArgs = {
   updatedAt: number | bigint;
   cosigner: Address;
   rentPayer: Address;
-  reserved: Array<number>;
-  reserved1: Array<number>;
+  reserved: ReadonlyUint8Array;
+  reserved1: ReadonlyUint8Array;
   reserved2: ReadonlyUint8Array;
 };
 
@@ -123,7 +121,7 @@ export function getBidStateEncoder(): Encoder<BidStateArgs> {
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['version', getU8Encoder()],
-      ['bump', getArrayEncoder(getU8Encoder(), { size: 1 })],
+      ['bump', fixEncoderSize(getBytesEncoder(), 1)],
       ['owner', getAddressEncoder()],
       ['bidId', getAddressEncoder()],
       ['target', getTargetEncoder()],
@@ -141,8 +139,8 @@ export function getBidStateEncoder(): Encoder<BidStateArgs> {
       ['updatedAt', getI64Encoder()],
       ['cosigner', getAddressEncoder()],
       ['rentPayer', getAddressEncoder()],
-      ['reserved', getArrayEncoder(getU8Encoder(), { size: 8 })],
-      ['reserved1', getArrayEncoder(getU8Encoder(), { size: 16 })],
+      ['reserved', fixEncoderSize(getBytesEncoder(), 8)],
+      ['reserved1', fixEncoderSize(getBytesEncoder(), 16)],
       ['reserved2', fixEncoderSize(getBytesEncoder(), 32)],
     ]),
     (value) => ({ ...value, discriminator: BID_STATE_DISCRIMINATOR })
@@ -153,7 +151,7 @@ export function getBidStateDecoder(): Decoder<BidState> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['version', getU8Decoder()],
-    ['bump', getArrayDecoder(getU8Decoder(), { size: 1 })],
+    ['bump', fixDecoderSize(getBytesDecoder(), 1)],
     ['owner', getAddressDecoder()],
     ['bidId', getAddressDecoder()],
     ['target', getTargetDecoder()],
@@ -171,8 +169,8 @@ export function getBidStateDecoder(): Decoder<BidState> {
     ['updatedAt', getI64Decoder()],
     ['cosigner', getAddressDecoder()],
     ['rentPayer', getAddressDecoder()],
-    ['reserved', getArrayDecoder(getU8Decoder(), { size: 8 })],
-    ['reserved1', getArrayDecoder(getU8Decoder(), { size: 16 })],
+    ['reserved', fixDecoderSize(getBytesDecoder(), 8)],
+    ['reserved1', fixDecoderSize(getBytesDecoder(), 16)],
     ['reserved2', fixDecoderSize(getBytesDecoder(), 32)],
   ]);
 }

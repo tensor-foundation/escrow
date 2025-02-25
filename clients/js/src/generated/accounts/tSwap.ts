@@ -17,8 +17,6 @@ import {
   fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
-  getArrayDecoder,
-  getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
@@ -57,7 +55,7 @@ export function getTSwapDiscriminatorBytes() {
 export type TSwap = {
   discriminator: ReadonlyUint8Array;
   version: number;
-  bump: Array<number>;
+  bump: ReadonlyUint8Array;
   /** @DEPRECATED, use constant above instead */
   config: TSwapConfig;
   owner: Address;
@@ -67,7 +65,7 @@ export type TSwap = {
 
 export type TSwapArgs = {
   version: number;
-  bump: Array<number>;
+  bump: ReadonlyUint8Array;
   /** @DEPRECATED, use constant above instead */
   config: TSwapConfigArgs;
   owner: Address;
@@ -80,7 +78,7 @@ export function getTSwapEncoder(): Encoder<TSwapArgs> {
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['version', getU8Encoder()],
-      ['bump', getArrayEncoder(getU8Encoder(), { size: 1 })],
+      ['bump', fixEncoderSize(getBytesEncoder(), 1)],
       ['config', getTSwapConfigEncoder()],
       ['owner', getAddressEncoder()],
       ['feeVault', getAddressEncoder()],
@@ -94,7 +92,7 @@ export function getTSwapDecoder(): Decoder<TSwap> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['version', getU8Decoder()],
-    ['bump', getArrayDecoder(getU8Decoder(), { size: 1 })],
+    ['bump', fixDecoderSize(getBytesDecoder(), 1)],
     ['config', getTSwapConfigDecoder()],
     ['owner', getAddressDecoder()],
     ['feeVault', getAddressDecoder()],

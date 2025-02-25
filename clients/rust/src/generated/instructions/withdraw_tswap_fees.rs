@@ -10,46 +10,52 @@ use borsh::BorshSerialize;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct WithdrawMarginAccount {
+pub struct WithdrawTswapFees {
     pub tswap: solana_program::pubkey::Pubkey,
-
-    pub margin_account: solana_program::pubkey::Pubkey,
+    /// We ask also for a signature just to make sure this wallet can actually sign things
+    pub cosigner: solana_program::pubkey::Pubkey,
 
     pub owner: solana_program::pubkey::Pubkey,
+
+    pub destination: solana_program::pubkey::Pubkey,
 
     pub system_program: solana_program::pubkey::Pubkey,
 }
 
-impl WithdrawMarginAccount {
+impl WithdrawTswapFees {
     pub fn instruction(
         &self,
-        args: WithdrawMarginAccountInstructionArgs,
+        args: WithdrawTswapFeesInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: WithdrawMarginAccountInstructionArgs,
+        args: WithdrawTswapFeesInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        let mut accounts = Vec::with_capacity(5 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.tswap, false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.margin_account,
-            false,
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            self.cosigner,
+            true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.owner, true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.destination,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.system_program,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&WithdrawMarginAccountInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&WithdrawTswapFeesInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -63,19 +69,19 @@ impl WithdrawMarginAccount {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct WithdrawMarginAccountInstructionData {
+pub struct WithdrawTswapFeesInstructionData {
     discriminator: [u8; 8],
 }
 
-impl WithdrawMarginAccountInstructionData {
+impl WithdrawTswapFeesInstructionData {
     pub fn new() -> Self {
         Self {
-            discriminator: [54, 73, 150, 208, 207, 5, 18, 17],
+            discriminator: [27, 229, 128, 105, 115, 125, 180, 151],
         }
     }
 }
 
-impl Default for WithdrawMarginAccountInstructionData {
+impl Default for WithdrawTswapFeesInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -83,29 +89,31 @@ impl Default for WithdrawMarginAccountInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct WithdrawMarginAccountInstructionArgs {
+pub struct WithdrawTswapFeesInstructionArgs {
     pub lamports: u64,
 }
 
-/// Instruction builder for `WithdrawMarginAccount`.
+/// Instruction builder for `WithdrawTswapFees`.
 ///
 /// ### Accounts:
 ///
-///   0. `[]` tswap
-///   1. `[writable]` margin_account
+///   0. `[writable]` tswap
+///   1. `[signer]` cosigner
 ///   2. `[writable, signer]` owner
-///   3. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   3. `[writable]` destination
+///   4. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
-pub struct WithdrawMarginAccountBuilder {
+pub struct WithdrawTswapFeesBuilder {
     tswap: Option<solana_program::pubkey::Pubkey>,
-    margin_account: Option<solana_program::pubkey::Pubkey>,
+    cosigner: Option<solana_program::pubkey::Pubkey>,
     owner: Option<solana_program::pubkey::Pubkey>,
+    destination: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     lamports: Option<u64>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl WithdrawMarginAccountBuilder {
+impl WithdrawTswapFeesBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -114,14 +122,20 @@ impl WithdrawMarginAccountBuilder {
         self.tswap = Some(tswap);
         self
     }
+    /// We ask also for a signature just to make sure this wallet can actually sign things
     #[inline(always)]
-    pub fn margin_account(&mut self, margin_account: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.margin_account = Some(margin_account);
+    pub fn cosigner(&mut self, cosigner: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.cosigner = Some(cosigner);
         self
     }
     #[inline(always)]
     pub fn owner(&mut self, owner: solana_program::pubkey::Pubkey) -> &mut Self {
         self.owner = Some(owner);
+        self
+    }
+    #[inline(always)]
+    pub fn destination(&mut self, destination: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.destination = Some(destination);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
@@ -155,15 +169,16 @@ impl WithdrawMarginAccountBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = WithdrawMarginAccount {
+        let accounts = WithdrawTswapFees {
             tswap: self.tswap.expect("tswap is not set"),
-            margin_account: self.margin_account.expect("margin_account is not set"),
+            cosigner: self.cosigner.expect("cosigner is not set"),
             owner: self.owner.expect("owner is not set"),
+            destination: self.destination.expect("destination is not set"),
             system_program: self
                 .system_program
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
         };
-        let args = WithdrawMarginAccountInstructionArgs {
+        let args = WithdrawTswapFeesInstructionArgs {
             lamports: self.lamports.clone().expect("lamports is not set"),
         };
 
@@ -171,44 +186,49 @@ impl WithdrawMarginAccountBuilder {
     }
 }
 
-/// `withdraw_margin_account` CPI accounts.
-pub struct WithdrawMarginAccountCpiAccounts<'a, 'b> {
+/// `withdraw_tswap_fees` CPI accounts.
+pub struct WithdrawTswapFeesCpiAccounts<'a, 'b> {
     pub tswap: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub margin_account: &'b solana_program::account_info::AccountInfo<'a>,
+    /// We ask also for a signature just to make sure this wallet can actually sign things
+    pub cosigner: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub owner: &'b solana_program::account_info::AccountInfo<'a>,
+
+    pub destination: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `withdraw_margin_account` CPI instruction.
-pub struct WithdrawMarginAccountCpi<'a, 'b> {
+/// `withdraw_tswap_fees` CPI instruction.
+pub struct WithdrawTswapFeesCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub tswap: &'b solana_program::account_info::AccountInfo<'a>,
-
-    pub margin_account: &'b solana_program::account_info::AccountInfo<'a>,
+    /// We ask also for a signature just to make sure this wallet can actually sign things
+    pub cosigner: &'b solana_program::account_info::AccountInfo<'a>,
 
     pub owner: &'b solana_program::account_info::AccountInfo<'a>,
 
+    pub destination: &'b solana_program::account_info::AccountInfo<'a>,
+
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: WithdrawMarginAccountInstructionArgs,
+    pub __args: WithdrawTswapFeesInstructionArgs,
 }
 
-impl<'a, 'b> WithdrawMarginAccountCpi<'a, 'b> {
+impl<'a, 'b> WithdrawTswapFeesCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: WithdrawMarginAccountCpiAccounts<'a, 'b>,
-        args: WithdrawMarginAccountInstructionArgs,
+        accounts: WithdrawTswapFeesCpiAccounts<'a, 'b>,
+        args: WithdrawTswapFeesInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             tswap: accounts.tswap,
-            margin_account: accounts.margin_account,
+            cosigner: accounts.cosigner,
             owner: accounts.owner,
+            destination: accounts.destination,
             system_program: accounts.system_program,
             __args: args,
         }
@@ -246,18 +266,22 @@ impl<'a, 'b> WithdrawMarginAccountCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        let mut accounts = Vec::with_capacity(5 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.tswap.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.margin_account.key,
-            false,
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            *self.cosigner.key,
+            true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.owner.key,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.destination.key,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.system_program.key,
@@ -270,7 +294,7 @@ impl<'a, 'b> WithdrawMarginAccountCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&WithdrawMarginAccountInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&WithdrawTswapFeesInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -279,11 +303,12 @@ impl<'a, 'b> WithdrawMarginAccountCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(6 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.tswap.clone());
-        account_infos.push(self.margin_account.clone());
+        account_infos.push(self.cosigner.clone());
         account_infos.push(self.owner.clone());
+        account_infos.push(self.destination.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
             .iter()
@@ -297,26 +322,28 @@ impl<'a, 'b> WithdrawMarginAccountCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `WithdrawMarginAccount` via CPI.
+/// Instruction builder for `WithdrawTswapFees` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[]` tswap
-///   1. `[writable]` margin_account
+///   0. `[writable]` tswap
+///   1. `[signer]` cosigner
 ///   2. `[writable, signer]` owner
-///   3. `[]` system_program
+///   3. `[writable]` destination
+///   4. `[]` system_program
 #[derive(Clone, Debug)]
-pub struct WithdrawMarginAccountCpiBuilder<'a, 'b> {
-    instruction: Box<WithdrawMarginAccountCpiBuilderInstruction<'a, 'b>>,
+pub struct WithdrawTswapFeesCpiBuilder<'a, 'b> {
+    instruction: Box<WithdrawTswapFeesCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> WithdrawMarginAccountCpiBuilder<'a, 'b> {
+impl<'a, 'b> WithdrawTswapFeesCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(WithdrawMarginAccountCpiBuilderInstruction {
+        let instruction = Box::new(WithdrawTswapFeesCpiBuilderInstruction {
             __program: program,
             tswap: None,
-            margin_account: None,
+            cosigner: None,
             owner: None,
+            destination: None,
             system_program: None,
             lamports: None,
             __remaining_accounts: Vec::new(),
@@ -328,17 +355,26 @@ impl<'a, 'b> WithdrawMarginAccountCpiBuilder<'a, 'b> {
         self.instruction.tswap = Some(tswap);
         self
     }
+    /// We ask also for a signature just to make sure this wallet can actually sign things
     #[inline(always)]
-    pub fn margin_account(
+    pub fn cosigner(
         &mut self,
-        margin_account: &'b solana_program::account_info::AccountInfo<'a>,
+        cosigner: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.margin_account = Some(margin_account);
+        self.instruction.cosigner = Some(cosigner);
         self
     }
     #[inline(always)]
     pub fn owner(&mut self, owner: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.owner = Some(owner);
+        self
+    }
+    #[inline(always)]
+    pub fn destination(
+        &mut self,
+        destination: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.destination = Some(destination);
         self
     }
     #[inline(always)]
@@ -395,24 +431,26 @@ impl<'a, 'b> WithdrawMarginAccountCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = WithdrawMarginAccountInstructionArgs {
+        let args = WithdrawTswapFeesInstructionArgs {
             lamports: self
                 .instruction
                 .lamports
                 .clone()
                 .expect("lamports is not set"),
         };
-        let instruction = WithdrawMarginAccountCpi {
+        let instruction = WithdrawTswapFeesCpi {
             __program: self.instruction.__program,
 
             tswap: self.instruction.tswap.expect("tswap is not set"),
 
-            margin_account: self
-                .instruction
-                .margin_account
-                .expect("margin_account is not set"),
+            cosigner: self.instruction.cosigner.expect("cosigner is not set"),
 
             owner: self.instruction.owner.expect("owner is not set"),
+
+            destination: self
+                .instruction
+                .destination
+                .expect("destination is not set"),
 
             system_program: self
                 .instruction
@@ -428,11 +466,12 @@ impl<'a, 'b> WithdrawMarginAccountCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct WithdrawMarginAccountCpiBuilderInstruction<'a, 'b> {
+struct WithdrawTswapFeesCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     tswap: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    margin_account: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    cosigner: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     owner: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    destination: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     lamports: Option<u64>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.

@@ -17,8 +17,6 @@ import {
   fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
-  getArrayDecoder,
-  getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
@@ -27,8 +25,6 @@ import {
   getU16Encoder,
   getU32Decoder,
   getU32Encoder,
-  getU8Decoder,
-  getU8Encoder,
   transformEncoder,
   type Account,
   type Address,
@@ -59,7 +55,7 @@ export type MarginAccount = {
   owner: Address;
   name: ReadonlyUint8Array;
   nr: number;
-  bump: Array<number>;
+  bump: ReadonlyUint8Array;
   poolsAttached: number;
   reserved: ReadonlyUint8Array;
 };
@@ -68,7 +64,7 @@ export type MarginAccountArgs = {
   owner: Address;
   name: ReadonlyUint8Array;
   nr: number;
-  bump: Array<number>;
+  bump: ReadonlyUint8Array;
   poolsAttached: number;
   reserved: ReadonlyUint8Array;
 };
@@ -80,7 +76,7 @@ export function getMarginAccountEncoder(): Encoder<MarginAccountArgs> {
       ['owner', getAddressEncoder()],
       ['name', fixEncoderSize(getBytesEncoder(), 32)],
       ['nr', getU16Encoder()],
-      ['bump', getArrayEncoder(getU8Encoder(), { size: 1 })],
+      ['bump', fixEncoderSize(getBytesEncoder(), 1)],
       ['poolsAttached', getU32Encoder()],
       ['reserved', fixEncoderSize(getBytesEncoder(), 64)],
     ]),
@@ -94,7 +90,7 @@ export function getMarginAccountDecoder(): Decoder<MarginAccount> {
     ['owner', getAddressDecoder()],
     ['name', fixDecoderSize(getBytesDecoder(), 32)],
     ['nr', getU16Decoder()],
-    ['bump', getArrayDecoder(getU8Decoder(), { size: 1 })],
+    ['bump', fixDecoderSize(getBytesDecoder(), 1)],
     ['poolsAttached', getU32Decoder()],
     ['reserved', fixDecoderSize(getBytesDecoder(), 64)],
   ]);

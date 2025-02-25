@@ -91,6 +91,76 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for MarginAccou
     }
 }
 
+#[cfg(feature = "fetch")]
+pub fn fetch_margin_account(
+    rpc: &solana_client::rpc_client::RpcClient,
+    address: &Pubkey,
+) -> Result<crate::shared::DecodedAccount<MarginAccount>, std::io::Error> {
+    let accounts = fetch_all_margin_account(rpc, &[*address])?;
+    Ok(accounts[0].clone())
+}
+
+#[cfg(feature = "fetch")]
+pub fn fetch_all_margin_account(
+    rpc: &solana_client::rpc_client::RpcClient,
+    addresses: &[Pubkey],
+) -> Result<Vec<crate::shared::DecodedAccount<MarginAccount>>, std::io::Error> {
+    let accounts = rpc
+        .get_multiple_accounts(&addresses)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let mut decoded_accounts: Vec<crate::shared::DecodedAccount<MarginAccount>> = Vec::new();
+    for i in 0..addresses.len() {
+        let address = addresses[i];
+        let account = accounts[i].as_ref().ok_or(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Account not found: {}", address),
+        ))?;
+        let data = MarginAccount::from_bytes(&account.data)?;
+        decoded_accounts.push(crate::shared::DecodedAccount {
+            address,
+            account: account.clone(),
+            data,
+        });
+    }
+    Ok(decoded_accounts)
+}
+
+#[cfg(feature = "fetch")]
+pub fn fetch_maybe_margin_account(
+    rpc: &solana_client::rpc_client::RpcClient,
+    address: &Pubkey,
+) -> Result<crate::shared::MaybeAccount<MarginAccount>, std::io::Error> {
+    let accounts = fetch_all_maybe_margin_account(rpc, &[*address])?;
+    Ok(accounts[0].clone())
+}
+
+#[cfg(feature = "fetch")]
+pub fn fetch_all_maybe_margin_account(
+    rpc: &solana_client::rpc_client::RpcClient,
+    addresses: &[Pubkey],
+) -> Result<Vec<crate::shared::MaybeAccount<MarginAccount>>, std::io::Error> {
+    let accounts = rpc
+        .get_multiple_accounts(&addresses)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let mut decoded_accounts: Vec<crate::shared::MaybeAccount<MarginAccount>> = Vec::new();
+    for i in 0..addresses.len() {
+        let address = addresses[i];
+        if let Some(account) = accounts[i].as_ref() {
+            let data = MarginAccount::from_bytes(&account.data)?;
+            decoded_accounts.push(crate::shared::MaybeAccount::Exists(
+                crate::shared::DecodedAccount {
+                    address,
+                    account: account.clone(),
+                    data,
+                },
+            ));
+        } else {
+            decoded_accounts.push(crate::shared::MaybeAccount::NotFound(address));
+        }
+    }
+    Ok(decoded_accounts)
+}
+
 #[cfg(feature = "anchor")]
 impl anchor_lang::AccountDeserialize for MarginAccount {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {

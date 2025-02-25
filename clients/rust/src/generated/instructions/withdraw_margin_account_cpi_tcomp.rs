@@ -10,6 +10,7 @@ use borsh::BorshSerialize;
 use solana_program::pubkey::Pubkey;
 
 /// Accounts.
+#[derive(Debug)]
 pub struct WithdrawMarginAccountCpiTcomp {
     pub margin_account: solana_program::pubkey::Pubkey,
 
@@ -56,10 +57,8 @@ impl WithdrawMarginAccountCpiTcomp {
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = WithdrawMarginAccountCpiTcompInstructionData::new()
-            .try_to_vec()
-            .unwrap();
-        let mut args = args.try_to_vec().unwrap();
+        let mut data = borsh::to_vec(&WithdrawMarginAccountCpiTcompInstructionData::new()).unwrap();
+        let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
         solana_program::instruction::Instruction {
@@ -70,7 +69,8 @@ impl WithdrawMarginAccountCpiTcomp {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WithdrawMarginAccountCpiTcompInstructionData {
     discriminator: [u8; 8],
 }
@@ -311,10 +311,8 @@ impl<'a, 'b> WithdrawMarginAccountCpiTcompCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = WithdrawMarginAccountCpiTcompInstructionData::new()
-            .try_to_vec()
-            .unwrap();
-        let mut args = self.__args.try_to_vec().unwrap();
+        let mut data = borsh::to_vec(&WithdrawMarginAccountCpiTcompInstructionData::new()).unwrap();
+        let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
         let instruction = solana_program::instruction::Instruction {
@@ -322,7 +320,7 @@ impl<'a, 'b> WithdrawMarginAccountCpiTcompCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(5 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(6 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.margin_account.clone());
         account_infos.push(self.bid_state.clone());
