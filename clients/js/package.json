@@ -1,6 +1,6 @@
 {
   "name": "@tensor-foundation/escrow",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Shared escrow for all Tensor protocols",
   "sideEffects": false,
   "module": "./dist/src/index.mjs",
