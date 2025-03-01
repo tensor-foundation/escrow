@@ -1,4 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["program", "adversarial_program/margin_withdraw_cpi"]
+members = [
+    "programs/escrow",
+    "programs/adversarial_program/margin_withdraw_cpi",
+]
 exclude = ["clients/rust"]

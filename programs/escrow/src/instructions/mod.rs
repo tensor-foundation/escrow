@@ -5,6 +5,7 @@ pub mod init_update_tswap;
 pub mod withdraw_margin_account;
 pub mod withdraw_margin_account_from_tamm;
 pub mod withdraw_margin_account_from_tcomp;
+pub mod withdraw_tswap_fees;
 
 pub use close_margin_account::*;
 pub use deposit_margin_account::*;
@@ -13,6 +14,7 @@ pub use init_update_tswap::*;
 pub use withdraw_margin_account::*;
 pub use withdraw_margin_account_from_tamm::*;
 pub use withdraw_margin_account_from_tcomp::*;
+pub use withdraw_tswap_fees::*;
 
 use tensor_vipers::throw_err;
 

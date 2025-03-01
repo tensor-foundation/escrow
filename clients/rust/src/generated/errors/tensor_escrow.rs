@@ -23,3 +23,9 @@ impl solana_program::program_error::PrintProgramError for TensorEscrowError {
         solana_program::msg!(&self.to_string());
     }
 }
+
+impl<T> solana_program::decode_error::DecodeError<T> for TensorEscrowError {
+    fn type_of() -> &'static str {
+        "TensorEscrowError"
+    }
+}
