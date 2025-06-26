@@ -80,7 +80,7 @@ jobs:
           key: programs
       
       - name: Build adversarial program
-        working-directory: ./adversarial_program
+        working-directory: ./programs/adversarial_program
         run: cargo-build-sbf
     
       - name: Dump mainnet binaries
