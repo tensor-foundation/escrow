@@ -5,7 +5,7 @@ import {
   getExternalProgramAddresses,
   getExternalProgramOutputDir,
 } from "../utils.mjs";
-import { dump } from "./dump.mjs";
+import { dump } from "./dump.mjs";
 
 // Get input from environment variables.
 const rpc = process.env.RPC ?? "https://api.mainnet-beta.solana.com";
