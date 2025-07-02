@@ -898,8 +898,7 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "escrow-program"
-version = "0.1.0"
-source = "git+ssh://git@github.com/tensor-foundation/escrow#8850a44292d7abe6d9bf282031c671abf83d58fd"
+version = "1.0.0-beta.1"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -910,6 +909,7 @@ dependencies = [
 [[package]]
 name = "escrow-program"
 version = "1.0.0-beta.1"
+source = "git+https://github.com/tensor-foundation/escrow#bc06efcff5c58a2e91cf23464120f4cd251b2e05"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -1217,7 +1217,7 @@ name = "margin_withdraw_cpi"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "escrow-program 0.1.0",
+ "escrow-program 1.0.0-beta.1 (git+https://github.com/tensor-foundation/escrow)",
  "solana-program",
  "tensor-amm",
  "tensor-escrow",
