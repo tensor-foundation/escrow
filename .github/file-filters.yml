@@ -11,11 +11,11 @@ programs_common: &programs_common
   - ".github/file-filters.yml"
   - ".github/.env"
 
-program_binary: &program_binary
+programs/escrow_binary: &program_binary
   - *programs_common
   - "programs/escrow/**"
 
-adversarial_binary: &adversarial_binary
+programs/adversarial_program/margin_withdraw_cpi_binary: &adversarial_binary
   - *programs_common
   - "programs/adversarial_program/margin_withdraw_cpi/**"
 
