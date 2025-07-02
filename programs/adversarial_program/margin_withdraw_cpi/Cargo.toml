@@ -21,7 +21,7 @@ default = []
 [dependencies]
 anchor-lang = "0.29.0"
 solana-program = "1.16.0"
-escrow-program = { version = "0.1.0", package = "escrow-program", git = "ssh://git@github.com/tensor-foundation/escrow", features = [
+escrow-program = { version = "1.0.0-beta.1", package = "escrow-program", git = "https://github.com/tensor-foundation/escrow", features = [
     "cpi",
 ] }
 tensor-escrow = { version = "0.1.1" }
