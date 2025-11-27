@@ -12,7 +12,6 @@ pub(crate) mod r#init_update_tswap;
 pub(crate) mod r#withdraw_margin_account;
 pub(crate) mod r#withdraw_margin_account_cpi_tamm;
 pub(crate) mod r#withdraw_margin_account_cpi_tcomp;
-pub(crate) mod r#withdraw_tswap_fees;
 
 pub use self::r#close_margin_account::*;
 pub use self::r#deposit_margin_account::*;
@@ -21,4 +20,3 @@ pub use self::r#init_update_tswap::*;
 pub use self::r#withdraw_margin_account::*;
 pub use self::r#withdraw_margin_account_cpi_tamm::*;
 pub use self::r#withdraw_margin_account_cpi_tcomp::*;
-pub use self::r#withdraw_tswap_fees::*;
