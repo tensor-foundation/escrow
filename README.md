@@ -1,4 +1,6 @@
 <h1 align="center">
+
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/escrow)
   Tensor Escrow
 </h1>
 <p align="center">
